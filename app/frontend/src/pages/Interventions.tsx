@@ -63,7 +63,7 @@ export default function Interventions() {
   const fetchData = async () => {
     try {
       const [interventionsResponse, workOrdersResponse] = await Promise.all([
-        client.entities.interventions.query({
+        client.entities.ordres_intervention.query({
           query: {},
           sort: '-date_intervention',
           limit: 100
@@ -124,7 +124,7 @@ export default function Interventions() {
       };
 
       if (editingIntervention) {
-        await client.entities.interventions.update({
+        await client.entities.ordres_intervention.update({
           id: editingIntervention.id.toString(),
           data: submitData,
         });
@@ -133,7 +133,7 @@ export default function Interventions() {
           description: 'Intervention updated successfully',
         });
       } else {
-        await client.entities.interventions.create({
+        await client.entities.ordres_intervention.create({
           data: submitData,
         });
         toast({
@@ -159,7 +159,7 @@ export default function Interventions() {
     if (!deletingIntervention) return;
     
     try {
-      await client.entities.interventions.delete({ id: deletingIntervention.id.toString() });
+      await client.entities.ordres_intervention.delete({ id: deletingIntervention.id.toString() });
       toast({
         title: 'Success',
         description: 'Intervention deleted successfully',
