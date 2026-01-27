@@ -3,7 +3,18 @@ import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, FileText, Download } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Search, Plus, FileText, Download, Edit, Trash2 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import type { Rapport } from '@/lib/types';
 
 export default function Reports() {
@@ -11,8 +22,21 @@ export default function Reports() {
   const [filteredReports, setFilteredReports] = useState<Rapport[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingReport, setEditingReport] = useState<Rapport | null>(null);
+  const [deletingReport, setDeletingReport] = useState<Rapport | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
+  const { toast } = useToast();
+
+  const [formData, setFormData] = useState({
+    identifiant_rapport: '',
+    titre: '',
+    contenu: '',
+  });
 
   useEffect(() => {
+    fetchCurrentUser();
     fetchReports();
   }, []);
 
@@ -30,11 +54,22 @@ export default function Reports() {
     }
   }, [searchTerm, reports]);
 
+  const fetchCurrentUser = async () => {
+    try {
+      const userData = await client.auth.me();
+      if (userData.data) {
+        setCurrentUser({ id: userData.data.id });
+      }
+    } catch (error) {
+      console.error('Error fetching current user:', error);
+    }
+  };
+
   const fetchReports = async () => {
     try {
       const response = await client.entities.rapports.query({
         query: {},
-        sort: '-date_generation',
+        sort: '-created_at',
         limit: 100
       });
       const reportsList = response.data.items || [];
@@ -45,6 +80,126 @@ export default function Reports() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOpenDialog = (report?: Rapport) => {
+    if (report) {
+      setEditingReport(report);
+      setFormData({
+        identifiant_rapport: report.identifiant_rapport,
+        titre: report.titre,
+        contenu: report.contenu,
+      });
+    } else {
+      setEditingReport(null);
+      setFormData({
+        identifiant_rapport: `RPT-${Date.now()}`,
+        titre: '',
+        contenu: '',
+      });
+    }
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    try {
+      if (!formData.identifiant_rapport.trim() || !formData.titre.trim() || !formData.contenu.trim()) {
+        toast({
+          title: 'Validation Error',
+          description: 'Please fill in all required fields',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      if (!currentUser) {
+        toast({
+          title: 'Error',
+          description: 'User not authenticated',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const submitData = {
+        identifiant_rapport: formData.identifiant_rapport,
+        titre: formData.titre,
+        contenu: formData.contenu,
+        utilisateur_id: currentUser.id,
+      };
+
+      if (editingReport) {
+        await client.entities.rapports.update({
+          id: editingReport.id.toString(),
+          data: submitData,
+        });
+        toast({
+          title: 'Success',
+          description: 'Report updated successfully',
+        });
+      } else {
+        await client.entities.rapports.create({
+          data: submitData,
+        });
+        toast({
+          title: 'Success',
+          description: 'Report generated successfully',
+        });
+      }
+      setDialogOpen(false);
+      fetchReports();
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                  || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to save report',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingReport) return;
+    
+    try {
+      await client.entities.rapports.delete({ id: deletingReport.id.toString() });
+      toast({
+        title: 'Success',
+        description: 'Report deleted successfully',
+      });
+      setDeleteDialogOpen(false);
+      setDeletingReport(null);
+      fetchReports();
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                  || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to delete report',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleExport = (report: Rapport) => {
+    const content = `${report.titre}\n\nReport ID: ${report.identifiant_rapport}\nDate: ${new Date(report.created_at).toLocaleString()}\n\n${report.contenu}`;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.identifiant_rapport}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: 'Success',
+      description: 'Report exported successfully',
+    });
   };
 
   if (loading) {
@@ -61,10 +216,10 @@ export default function Reports() {
         <div>
           <h2 className="text-3xl font-bold text-gray-900">Reports</h2>
           <p className="mt-1 text-sm text-gray-500">
-            View and generate maintenance and operational reports
+            Generate and manage maintenance reports
           </p>
         </div>
-        <Button>
+        <Button onClick={() => handleOpenDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Generate Report
         </Button>
@@ -102,41 +257,126 @@ export default function Reports() {
                       {report.identifiant_rapport}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium">
-                      {new Date(report.date_generation).toLocaleDateString()}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {new Date(report.date_generation).toLocaleTimeString()}
-                    </p>
+                  <div className="text-sm text-gray-500">
+                    {new Date(report.created_at).toLocaleDateString()}
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-gray-600 line-clamp-3">
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 line-clamp-3 bg-gray-50 p-3 rounded-md">
                     {report.contenu}
                   </p>
                 </div>
-                <div className="flex justify-between items-center">
-                  <p className="text-xs text-gray-500">
-                    {report.utilisateur_id ? `Generated by User #${report.utilisateur_id}` : 'System Generated'}
-                  </p>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
-                      <Download className="mr-2 h-4 w-4" />
-                      Export
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      View Full Report
-                    </Button>
-                  </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleExport(report)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Export
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenDialog(report)}
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() => {
+                      setDeletingReport(report);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           ))
         )}
       </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingReport ? 'Edit Report' : 'Generate Report'}</DialogTitle>
+            <DialogDescription>
+              {editingReport ? 'Update report information' : 'Create a new maintenance report'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="identifiant_rapport">Report ID *</Label>
+              <Input
+                id="identifiant_rapport"
+                value={formData.identifiant_rapport}
+                onChange={(e) => setFormData({ ...formData, identifiant_rapport: e.target.value })}
+                placeholder="e.g., RPT-2026-001"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="titre">Title *</Label>
+              <Input
+                id="titre"
+                value={formData.titre}
+                onChange={(e) => setFormData({ ...formData, titre: e.target.value })}
+                placeholder="Report title"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="contenu">Content *</Label>
+              <Textarea
+                id="contenu"
+                value={formData.contenu}
+                onChange={(e) => setFormData({ ...formData, contenu: e.target.value })}
+                placeholder="Enter the detailed report content including findings, recommendations, and conclusions..."
+                rows={12}
+                className="resize-none"
+              />
+              <p className="text-xs text-gray-500">
+                {formData.contenu.length} characters
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>
+              {editingReport ? 'Update' : 'Generate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{deletingReport?.titre}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
