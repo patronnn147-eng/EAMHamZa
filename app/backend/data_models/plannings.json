@@ -1,0 +1,46 @@
+{
+    "title": "plannings",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "identifiant_planning": {
+            "type": "string",
+            "description": "Planning identifier"
+        },
+        "date_debut": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start date"
+        },
+        "date_fin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End date"
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "JOURNALIER",
+                "HEBDOMADAIRE",
+                "MENSUEL",
+                "MAINTENANCE"
+            ],
+            "description": "Planning type"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "identifiant_planning",
+        "date_debut",
+        "date_fin",
+        "type"
+    ]
+}

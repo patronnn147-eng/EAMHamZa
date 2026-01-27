@@ -1,0 +1,54 @@
+{
+    "title": "utilisateurs",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "identifiant": {
+            "type": "string",
+            "description": "User identifier/username"
+        },
+        "nom_utilisateur": {
+            "type": "string",
+            "description": "User display name"
+        },
+        "mot_de_passe_chiffre": {
+            "type": "string",
+            "description": "Encrypted password"
+        },
+        "courriel": {
+            "type": "string",
+            "description": "User email"
+        },
+        "role": {
+            "type": "string",
+            "enum": [
+                "CHETOP",
+                "TECHNICIEN",
+                "CHEFTECH",
+                "ADMIN"
+            ],
+            "description": "User role"
+        },
+        "user_id": {
+            "type": "string",
+            "description": "Atoms Backend user ID"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "identifiant",
+        "nom_utilisateur",
+        "mot_de_passe_chiffre",
+        "courriel",
+        "role",
+        "user_id"
+    ]
+}

@@ -1,0 +1,57 @@
+[
+    {
+        "identifiant_machine": "MCH-001",
+        "nom": "CNC Milling Machine",
+        "emplacement": "Workshop A - Section 1",
+        "statut": "EN_COURS",
+        "type": "CNC",
+        "date_derniere_maintenance": "2026-01-15 10:00:00",
+        "date_prochaine_maintenance": "2026-02-15 10:00:00",
+        "image_url": "https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png",
+        "created_at": "2026-01-20 09:00:00"
+    },
+    {
+        "identifiant_machine": "MCH-002",
+        "nom": "Hydraulic Press",
+        "emplacement": "Workshop B - Section 2",
+        "statut": "TERMINE",
+        "type": "Press",
+        "date_derniere_maintenance": "2026-01-10 14:00:00",
+        "date_prochaine_maintenance": "2026-03-10 14:00:00",
+        "image_url": "https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png",
+        "created_at": "2026-01-18 11:00:00"
+    },
+    {
+        "identifiant_machine": "MCH-003",
+        "nom": "Laser Cutting Machine",
+        "emplacement": "Workshop A - Section 3",
+        "statut": "EN_ATTENTE",
+        "type": "Laser",
+        "date_derniere_maintenance": "2025-12-20 08:00:00",
+        "date_prochaine_maintenance": "2026-01-30 08:00:00",
+        "image_url": "https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png",
+        "created_at": "2026-01-15 13:00:00"
+    },
+    {
+        "identifiant_machine": "MCH-004",
+        "nom": "Welding Robot",
+        "emplacement": "Workshop C - Section 1",
+        "statut": "EN_COURS",
+        "type": "Robot",
+        "date_derniere_maintenance": "2026-01-22 09:30:00",
+        "date_prochaine_maintenance": "2026-02-22 09:30:00",
+        "image_url": "https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png",
+        "created_at": "2026-01-22 10:00:00"
+    },
+    {
+        "identifiant_machine": "MCH-005",
+        "nom": "Assembly Line Conveyor",
+        "emplacement": "Workshop D - Main Line",
+        "statut": "TERMINE",
+        "type": "Conveyor",
+        "date_derniere_maintenance": "2026-01-05 07:00:00",
+        "date_prochaine_maintenance": "2026-04-05 07:00:00",
+        "image_url": "https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png",
+        "created_at": "2026-01-10 08:00:00"
+    }
+]

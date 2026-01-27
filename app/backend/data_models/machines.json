@@ -1,0 +1,63 @@
+{
+    "title": "machines",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "identifiant_machine": {
+            "type": "string",
+            "description": "Machine identifier"
+        },
+        "nom": {
+            "type": "string",
+            "description": "Machine name"
+        },
+        "emplacement": {
+            "type": "string",
+            "description": "Machine location"
+        },
+        "statut": {
+            "type": "string",
+            "enum": [
+                "EN_ATTENTE",
+                "EN_COURS",
+                "TERMINE",
+                "ANNULE"
+            ],
+            "description": "Machine status"
+        },
+        "type": {
+            "type": "string",
+            "description": "Machine type"
+        },
+        "date_derniere_maintenance": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Last maintenance date"
+        },
+        "date_prochaine_maintenance": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Next maintenance date"
+        },
+        "image_url": {
+            "type": "string",
+            "description": "Machine image URL"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "identifiant_machine",
+        "nom",
+        "emplacement",
+        "statut",
+        "type"
+    ]
+}

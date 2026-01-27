@@ -1,0 +1,59 @@
+{
+    "title": "ordres_travail",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "date_echeance": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Due date"
+        },
+        "priorite": {
+            "type": "string",
+            "enum": [
+                "BASSE",
+                "MOYENNE",
+                "ELEVEE",
+                "URGENTE"
+            ],
+            "description": "Priority level"
+        },
+        "machine_id": {
+            "type": "integer",
+            "description": "Foreign key to machines"
+        },
+        "utilisateur_id": {
+            "type": "integer",
+            "description": "Foreign key to utilisateurs (assigned user)"
+        },
+        "ordre_id": {
+            "type": "integer",
+            "description": "Foreign key to ordres"
+        },
+        "statut": {
+            "type": "string",
+            "enum": [
+                "EN_ATTENTE",
+                "EN_COURS",
+                "TERMINE",
+                "ANNULE"
+            ],
+            "description": "Work order status"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "date_echeance",
+        "priorite",
+        "machine_id",
+        "statut"
+    ]
+}
