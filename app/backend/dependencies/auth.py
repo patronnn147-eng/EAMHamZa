@@ -1,11 +1,17 @@
-import hashlib
+"""
+Authentication Dependencies - JWT-based authentication
+"""
 import logging
-from datetime import datetime
 from typing import Optional
 
-from core.auth import AccessTokenError, decode_access_token
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
+
+from core.auth import decode_access_token
+from core.database import get_db
+from models.utilisateurs import Utilisateurs
 from schemas.auth import UserResponse
 
 logger = logging.getLogger(__name__)
@@ -21,43 +27,58 @@ async def get_bearer_token(
         return credentials.credentials
 
     logger.debug("Authentication required for request %s %s", request.method, request.url.path)
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication credentials were not provided")
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentification requise"
+    )
 
 
-async def get_current_user(token: str = Depends(get_bearer_token)) -> UserResponse:
+async def get_current_user(
+    token: str = Depends(get_bearer_token),
+    db: AsyncSession = Depends(get_db)
+) -> UserResponse:
     """Dependency to get current authenticated user via JWT token."""
     try:
         payload = decode_access_token(token)
-    except AccessTokenError as exc:
-        # Log error type only, not the full exception which may contain sensitive token data
+    except Exception as exc:
         logger.warning("Token validation failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=exc.message)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide ou expiré"
+        )
 
     user_id = payload.get("sub")
     if not user_id:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token invalide"
+        )
 
-    last_login_raw = payload.get("last_login")
-    last_login = None
-    if isinstance(last_login_raw, str):
-        try:
-            last_login = datetime.fromisoformat(last_login_raw)
-        except ValueError:
-            # Log user hash instead of actual user ID to avoid exposing sensitive information
-            user_hash = hashlib.sha256(str(user_id).encode()).hexdigest()[:8] if user_id else "unknown"
-            logger.debug("Failed to parse last_login for user hash: %s", user_hash)
+    # Fetch user from database
+    result = await db.execute(
+        select(Utilisateurs).where(Utilisateurs.id == int(user_id))
+    )
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Utilisateur non trouvé"
+        )
 
     return UserResponse(
-        id=user_id,
-        email=payload.get("email", ""),
-        name=payload.get("name"),
-        role=payload.get("role", "user"),
-        last_login=last_login,
+        id=str(user.id),
+        email=user.email,
+        nom=user.nom,
+        role=user.role
     )
 
 
 async def get_admin_user(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
     """Dependency to ensure current user has admin role."""
-    if current_user.role != "admin":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    if current_user.role not in ['ADMIN', 'CHETOP', 'CHEFTECH']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès administrateur requis"
+        )
     return current_user

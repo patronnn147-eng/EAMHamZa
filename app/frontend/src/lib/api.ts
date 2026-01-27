@@ -1,32 +1,52 @@
 import { createClient } from '@metagptx/web-sdk';
 
-// Create and export the API client
+// Create client instance
 export const client = createClient();
 
-// Helper function to get user role
-export const getUserRole = async () => {
+// Add JWT token to all requests
+const originalInvoke = client.apiCall.invoke;
+client.apiCall.invoke = async function (config: Record<string, unknown>) {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.options = config.options || {};
+    (config.options as Record<string, unknown>).headers = (config.options as Record<string, unknown>).headers || {};
+    ((config.options as Record<string, unknown>).headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+  }
+  return originalInvoke.call(this, config);
+};
+
+// Override auth.me to use JWT token from localStorage
+const originalMe = client.auth.me;
+client.auth.me = async function () {
+  const token = localStorage.getItem('access_token');
+  if (!token) {
+    return { data: null };
+  }
+
   try {
-    const user = await client.auth.me();
-    if (user.data) {
-      // Fetch user details from utilisateurs table to get role
-      const response = await client.entities.utilisateurs.query({
-        query: { user_id: user.data.id },
-        limit: 1
-      });
-      
-      if (response.data.items && response.data.items.length > 0) {
-        return response.data.items[0].role;
-      }
-    }
-    return null;
+    const response = await client.apiCall.invoke({
+      url: '/api/v1/auth/me',
+      method: 'GET',
+      options: {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      },
+    });
+    return { data: response.data };
   } catch (error) {
-    console.error('Error fetching user role:', error);
-    return null;
+    // Token invalid or expired, clear storage
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    return { data: null };
   }
 };
 
-// Helper function to check if user has specific role
-export const hasRole = async (allowedRoles: string[]) => {
-  const role = await getUserRole();
-  return role ? allowedRoles.includes(role) : false;
+// Override logout to clear localStorage
+client.auth.logout = async function () {
+  localStorage.removeItem('access_token');
+  localStorage.removeItem('user');
+  window.location.href = '/login';
 };
+
+export const api = client;
