@@ -19,18 +19,21 @@ router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_trava
 
 # ---------- Pydantic Schemas ----------
 class Ordres_travailData(BaseModel):
-    """Entity data schema (for create/update)"""
-    date_echeance: datetime
-    priorite: str
-    machine_id: int
-    utilisateur_id: int = None
-    ordre_id: int = None
-    statut: str
+    """Entity data schema (for create/update) - US-CHETOP-001"""
+    titre: str  # Title of work order
+    description: str  # Detailed description
+    priorite: str = "MOYENNE"  # BASSE, MOYENNE, ÉLEVÉE, URGENTE (US-CHETOP-002)
+    machine_id: int  # Associated machine (US-CHETOP-003)
+    utilisateur_id: int = None  # Assigned user (US-CHETOP-005)
+    date_echeance: datetime = None  # Due date (US-CHETOP-001)
+    statut: str = "EN_ATTENTE"  # EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ (US-CHETOP-004)
     created_at: Optional[datetime] = None
 
 
 class Ordres_travailUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+    titre: Optional[str] = None
+    description: Optional[str] = None
     date_echeance: Optional[datetime] = None
     priorite: Optional[str] = None
     machine_id: Optional[int] = None
@@ -43,13 +46,15 @@ class Ordres_travailUpdateData(BaseModel):
 class Ordres_travailResponse(BaseModel):
     """Entity response schema"""
     id: int
-    date_echeance: datetime
+    titre: str
+    description: str
     priorite: str
     machine_id: int
     utilisateur_id: Optional[int] = None
-    ordre_id: Optional[int] = None
+    date_echeance: Optional[datetime] = None
     statut: str
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

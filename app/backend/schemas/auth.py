@@ -18,7 +18,7 @@ class UserRegister(BaseModel):
     email: EmailStr
     nom: str
     mot_de_passe: str
-    role: Literal["ADMIN", "TECHNICIEN"]
+    role: Literal["ADMIN", "TECHNICIEN", "CHETOP"]
 
     @field_validator('mot_de_passe')
     @classmethod

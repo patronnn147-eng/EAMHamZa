@@ -10,6 +10,7 @@ import TechnicianLayout from './components/layout/TechnicianLayout';
 import Login from './pages/Login';
 import AuthCallback from './pages/AuthCallback';
 import Dashboard from './pages/Dashboard';
+import ChetopDashboard from './pages/ChetopDashboard';
 import Machines from './pages/Machines';
 import WorkOrders from './pages/WorkOrders';
 import Interventions from './pages/Interventions';
@@ -83,6 +84,8 @@ function RoleBasedRedirect() {
       if (user.data) {
         if (user.data.role === 'TECHNICIEN') {
           setRedirectPath('/technician/dashboard');
+        } else if (user.data.role === 'CHETOP') {
+          setRedirectPath('/chetop/dashboard');
         } else {
           setRedirectPath('/admin/dashboard');
         }
@@ -121,6 +124,18 @@ const App = () => (
             element={
               <ProtectedRoute>
                 <RoleBasedRedirect />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* CHETOP Routes */}
+          <Route
+            path="/chetop/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['CHETOP']}>
+                <Layout>
+                  <ChetopDashboard />
+                </Layout>
               </ProtectedRoute>
             }
           />

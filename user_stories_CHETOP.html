@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stories - CHETOP (Chef des Opérations)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .user-story {
+            background-color: white;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .story-id {
+            font-weight: bold;
+            color: #3498db;
+            font-size: 0.9em;
+        }
+        .story-content {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .acceptance-criteria {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        .acceptance-criteria h4 {
+            margin: 0 0 10px 0;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .acceptance-criteria ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .priority-high {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .priority-medium {
+            background-color: #f39c12;
+            color: white;
+        }
+        .priority-low {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .category {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            background-color: #3498db;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Stories - CHETOP (Chef des Opérations)</h1>
+    <p><strong>Role Description:</strong> Le Chef des Opérations est responsable de la supervision globale des opérations de maintenance, de la gestion des ordres de travail, et de la coordination des ressources.</p>
+
+    <h2>Gestion des Ordres de Travail</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-001</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> créer de nouveaux ordres de travail avec tous les détails nécessaires (titre, description, priorité, date d'échéance),<br>
+            <strong>Afin de</strong> documenter et initier les interventions de maintenance nécessaires sur les équipements.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le système génère automatiquement un identifiant unique pour chaque ordre</li>
+                <li>Les champs obligatoires sont : titre, description, priorité</li>
+                <li>La date de création est automatiquement enregistrée</li>
+                <li>Le statut initial est "EN_ATTENTE"</li>
+                <li>Une confirmation visuelle est affichée après la création</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-002</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> définir le niveau de priorité (BASSE, MOYENNE, ÉLEVÉE, URGENTE) pour chaque ordre de travail,<br>
+            <strong>Afin de</strong> garantir que les interventions critiques sont traitées en premier et optimiser l'allocation des ressources.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les quatre niveaux de priorité sont disponibles dans une liste déroulante</li>
+                <li>La priorité par défaut est "MOYENNE"</li>
+                <li>La priorité est visuellement distinguée par des couleurs (rouge pour URGENTE, orange pour ÉLEVÉE, etc.)</li>
+                <li>Je peux modifier la priorité d'un ordre existant</li>
+                <li>Un historique des changements de priorité est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-003</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> associer un ordre de travail à une machine spécifique,<br>
+            <strong>Afin de</strong> suivre l'historique de maintenance de chaque équipement et faciliter la planification.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux rechercher et sélectionner une machine par son identifiant ou son nom</li>
+                <li>Les informations de la machine (emplacement, type, statut) sont affichées</li>
+                <li>Un ordre de travail peut être lié à une seule machine</li>
+                <li>Je peux voir tous les ordres associés à une machine donnée</li>
+                <li>Le système affiche l'historique de maintenance de la machine sélectionnée</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-004</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> mettre à jour le statut d'un ordre de travail (EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ),<br>
+            <strong>Afin de</strong> refléter l'avancement des interventions et maintenir une visibilité en temps réel.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le changement de statut est horodaté</li>
+                <li>Les transitions de statut suivent une logique définie (ex: EN_ATTENTE → EN_COURS → TERMINÉ)</li>
+                <li>Un commentaire peut être ajouté lors du changement de statut</li>
+                <li>L'historique complet des changements de statut est disponible</li>
+                <li>Une notification est envoyée aux parties prenantes lors d'un changement de statut</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-005</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> assigner un ordre de travail à un utilisateur spécifique (technicien ou chef technique),<br>
+            <strong>Afin de</strong> déléguer clairement les responsabilités et assurer la traçabilité des interventions.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux sélectionner un utilisateur dans la liste des techniciens disponibles</li>
+                <li>Le système affiche la charge de travail actuelle de chaque technicien</li>
+                <li>L'utilisateur assigné reçoit une notification automatique</li>
+                <li>Je peux réassigner un ordre à un autre utilisateur si nécessaire</li>
+                <li>L'historique des assignations est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Machines</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-006</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> consulter la liste complète des machines avec leur statut actuel,<br>
+            <strong>Afin de</strong> avoir une vue d'ensemble de l'état du parc d'équipements et identifier rapidement les machines nécessitant une attention.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>La liste affiche : identifiant, nom, emplacement, type, statut</li>
+                <li>Je peux filtrer par statut, type, ou emplacement</li>
+                <li>Je peux rechercher une machine par son identifiant ou son nom</li>
+                <li>Les machines avec statut critique sont mises en évidence</li>
+                <li>La liste peut être exportée en format CSV ou PDF</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-007</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> mettre à jour le statut d'une machine (disponible, en maintenance, hors service),<br>
+            <strong>Afin de</strong> maintenir des informations à jour sur la disponibilité des équipements pour la planification de production.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le changement de statut est horodaté</li>
+                <li>Un commentaire justificatif peut être ajouté</li>
+                <li>L'historique des changements de statut est enregistré</li>
+                <li>Le système suggère automatiquement le statut selon les ordres de travail actifs</li>
+                <li>Les départements concernés sont notifiés des changements de statut critiques</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-008</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> consulter l'historique complet des maintenances effectuées sur chaque machine,<br>
+            <strong>Afin de</strong> analyser les tendances de défaillance et optimiser les stratégies de maintenance préventive.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>L'historique affiche tous les ordres de travail terminés pour la machine</li>
+                <li>Les informations incluent : date, type d'intervention, technicien, durée, pièces utilisées</li>
+                <li>Je peux filtrer l'historique par période ou type d'intervention</li>
+                <li>Des statistiques de synthèse sont disponibles (MTBF, MTTR, coût total)</li>
+                <li>L'historique peut être exporté pour analyse</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Interventions</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-009</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> consulter la liste de toutes les interventions associées à un ordre de travail,<br>
+            <strong>Afin de</strong> suivre le détail des actions effectuées et valider la conformité des travaux réalisés.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Chaque intervention affiche : date, rapport, utilisateur assigné</li>
+                <li>Je peux voir le rapport détaillé de chaque intervention</li>
+                <li>Les interventions sont triées chronologiquement</li>
+                <li>Je peux ajouter des commentaires ou observations</li>
+                <li>Le statut de validation de chaque intervention est visible</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-010</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> consulter les rapports d'intervention détaillés avec photos et observations,<br>
+            <strong>Afin de</strong> évaluer la qualité du travail effectué et prendre des décisions éclairées sur les actions correctives.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le rapport inclut : description détaillée, photos, pièces remplacées, temps passé</li>
+                <li>Je peux agrandir et télécharger les photos</li>
+                <li>Le rapport peut être imprimé ou exporté en PDF</li>
+                <li>Je peux demander des clarifications au technicien via le système</li>
+                <li>Les rapports peuvent être archivés pour référence future</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Planification et Coordination</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-011</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> visualiser tous les ordres de travail planifiés dans un calendrier,<br>
+            <strong>Afin de</strong> avoir une vue globale de la charge de travail et identifier les conflits potentiels de ressources.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le calendrier affiche les ordres par jour, semaine, ou mois</li>
+                <li>Les ordres sont colorés selon leur priorité</li>
+                <li>Je peux filtrer par technicien, machine, ou type de planning</li>
+                <li>Le calendrier indique les surcharges de ressources</li>
+                <li>Je peux glisser-déposer les ordres pour réorganiser le planning</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-012</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> obtenir des ordres de travail planifiés selon différents critères (type de planning, dates, techniciens assignés),<br>
+            <strong>Afin de</strong> organiser efficacement les interventions et équilibrer la charge de travail entre les équipes.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux obtenir les ordres par type : JOURNALIER, HEBDOMADAIRE, MENSUEL, MAINTENANCE</li>
+                <li>Les ordres planifiés affichent : date de début, date de fin, technicien, priorité</li>
+                <li>Je peux filtrer par période spécifique</li>
+                <li>Les conflits de planning sont signalés visuellement</li>
+                <li>La liste peut être exportée pour distribution aux équipes</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Rapports et Analyse</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-013</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Rapport</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> générer des rapports sur les ordres de travail par période, priorité, ou statut,<br>
+            <strong>Afin de</strong> analyser les performances de maintenance et identifier les axes d'amélioration.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux sélectionner la période du rapport (jour, semaine, mois, année)</li>
+                <li>Le rapport inclut : nombre d'ordres, taux de complétion, temps moyen de résolution</li>
+                <li>Des graphiques visuels sont générés automatiquement</li>
+                <li>Je peux comparer les performances entre différentes périodes</li>
+                <li>Le rapport peut être exporté en PDF ou Excel</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-014</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Rapport</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> consulter des indicateurs clés de performance (KPI) du système de maintenance,<br>
+            <strong>Afin de</strong> mesurer l'efficacité opérationnelle et justifier les investissements en maintenance.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le tableau de bord affiche : taux de disponibilité, MTBF, MTTR, coûts de maintenance</li>
+                <li>Les KPI sont mis à jour en temps réel</li>
+                <li>Je peux définir des seuils d'alerte personnalisés</li>
+                <li>Des tendances historiques sont affichées graphiquement</li>
+                <li>Je peux comparer les KPI entre différentes machines ou départements</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Archives</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-015</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> rechercher et consulter des documents archivés (manuels, procédures, certifications),<br>
+            <strong>Afin de</strong> accéder rapidement aux informations techniques nécessaires pour la prise de décision.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux rechercher par nom, type, date d'archivage</li>
+                <li>Les documents sont prévisualisés avant téléchargement</li>
+                <li>Le système affiche les documents liés à une machine spécifique</li>
+                <li>Je peux télécharger plusieurs documents simultanément</li>
+                <li>L'historique des consultations est enregistré</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-016</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> ajouter de nouveaux documents à l'archive avec classification appropriée,<br>
+            <strong>Afin de</strong> constituer une base de connaissances complète et facilement accessible pour toute l'équipe.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux téléverser plusieurs types de fichiers (PDF, images, vidéos)</li>
+                <li>Les champs obligatoires incluent : nom, type d'archive, description</li>
+                <li>La date d'archivage est automatiquement enregistrée</li>
+                <li>Je peux associer le document à une ou plusieurs machines</li>
+                <li>Une confirmation de téléversement réussi est affichée</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Collaboration et Communication en Temps Réel</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-017</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> voir en temps réel les mises à jour effectuées par les techniciens et chefs techniques sur les ordres de travail,<br>
+            <strong>Afin de</strong> suivre l'avancement des interventions sans avoir à rafraîchir constamment la page et réagir immédiatement aux changements.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les changements de statut des ordres apparaissent automatiquement sans rechargement de page</li>
+                <li>Une notification visuelle (badge, animation) indique les nouveaux changements</li>
+                <li>Je vois qui est actuellement en train de travailler sur chaque ordre (présence en ligne)</li>
+                <li>Les modifications concurrentes sont gérées pour éviter les conflits</li>
+                <li>Je peux voir l'historique des actions en temps réel (qui a fait quoi et quand)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-018</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> communiquer directement avec les techniciens et chefs techniques via un système de messagerie intégré,<br>
+            <strong>Afin de</strong> clarifier les instructions, répondre aux questions et coordonner les actions sans quitter l'application.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une messagerie instantanée est accessible depuis chaque ordre de travail</li>
+                <li>Je peux envoyer des messages directs à un utilisateur ou créer des conversations de groupe</li>
+                <li>Les messages non lus sont signalés par un compteur</li>
+                <li>Je peux joindre des fichiers, photos ou documents aux messages</li>
+                <li>Un historique complet des conversations est conservé et associé aux ordres</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-019</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Assignation</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> recevoir une notification immédiate lorsqu'un technicien ou chef technique accepte ou refuse une assignation,<br>
+            <strong>Afin de</strong> savoir instantanément si l'ordre est pris en charge ou si je dois le réassigner à quelqu'un d'autre.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une notification push apparaît dès qu'un technicien accepte ou refuse</li>
+                <li>Le motif du refus est visible si l'ordre est rejeté</li>
+                <li>Je peux répondre directement depuis la notification</li>
+                <li>Le statut de l'ordre est mis à jour automatiquement en temps réel</li>
+                <li>Un indicateur visuel montre les ordres en attente d'acceptation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-020</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> voir quels utilisateurs sont actuellement connectés et disponibles,<br>
+            <strong>Afin de</strong> savoir à qui je peux assigner un ordre urgent et qui est disponible pour répondre rapidement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un indicateur de présence (en ligne/hors ligne) est visible pour chaque utilisateur</li>
+                <li>Le statut (disponible/occupé/absent) est affiché si l'utilisateur l'a défini</li>
+                <li>Je peux filtrer les utilisateurs par statut de disponibilité lors de l'assignation</li>
+                <li>Le dernier moment d'activité est affiché pour les utilisateurs hors ligne</li>
+                <li>Une liste des utilisateurs actifs est accessible depuis le tableau de bord</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-021</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> mentionner (@) des utilisateurs spécifiques dans mes commentaires sur les ordres de travail,<br>
+            <strong>Afin de</strong> attirer leur attention sur des informations importantes et s'assurer qu'ils reçoivent une notification.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux taper @ suivi du nom d'un utilisateur pour le mentionner</li>
+                <li>Une liste de suggestions apparaît automatiquement lors de la saisie</li>
+                <li>L'utilisateur mentionné reçoit une notification instantanée</li>
+                <li>Les mentions sont visuellement distinguées dans le texte</li>
+                <li>Je peux mentionner plusieurs utilisateurs dans un même commentaire</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-022</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Supervision</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> suivre en temps réel la localisation et l'activité des techniciens sur le terrain,<br>
+            <strong>Afin de</strong> coordonner efficacement les interventions et réassigner rapidement les ordres urgents au technicien le plus proche.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord montre le statut actuel de chaque technicien (en intervention, disponible, en déplacement)</li>
+                <li>Je vois sur quelle machine chaque technicien travaille actuellement</li>
+                <li>Le temps écoulé depuis le début de l'intervention est affiché</li>
+                <li>Je peux filtrer et rechercher les techniciens par statut ou emplacement</li>
+                <li>Des alertes automatiques signalent les interventions qui dépassent le temps prévu</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-023</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> créer des ordres de travail collaboratifs nécessitant l'intervention de plusieurs techniciens,<br>
+            <strong>Afin de</strong> coordonner les interventions complexes requérant des compétences multiples ou une équipe.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux assigner plusieurs techniciens à un même ordre de travail</li>
+                <li>Chaque technicien assigné voit l'ordre dans sa liste et peut voir les autres assignés</li>
+                <li>Les techniciens peuvent communiquer entre eux via une discussion de groupe dédiée</li>
+                <li>Le statut de l'ordre reflète la progression collective de l'équipe</li>
+                <li>Je peux définir un chef d'équipe responsable de la coordination</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-024</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> diffuser des annonces ou alertes à tous les techniciens ou à un groupe spécifique,<br>
+            <strong>Afin de</strong> communiquer rapidement des informations critiques (changements de planning, consignes de sécurité, arrêts d'urgence).
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer une annonce avec niveau de priorité (info, urgent, critique)</li>
+                <li>Je peux cibler tous les utilisateurs ou sélectionner des rôles/groupes spécifiques</li>
+                <li>L'annonce apparaît en bannière sur l'écran de tous les utilisateurs ciblés</li>
+                <li>Les annonces critiques nécessitent une confirmation de lecture</li>
+                <li>Je peux voir qui a lu l'annonce et relancer ceux qui ne l'ont pas vue</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHETOP-025</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHETOP,<br>
+            <strong>Je veux</strong> voir l'historique complet des communications et échanges liés à un ordre de travail,<br>
+            <strong>Afin de</strong> comprendre le contexte des décisions prises et assurer la traçabilité des communications.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un fil chronologique affiche tous les événements : messages, changements de statut, assignations</li>
+                <li>Chaque événement est horodaté et identifie l'auteur</li>
+                <li>Je peux filtrer l'historique par type d'événement ou utilisateur</li>
+                <li>Les pièces jointes et photos sont accessibles directement depuis l'historique</li>
+                <li>L'historique peut être exporté pour documentation ou audit</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>
