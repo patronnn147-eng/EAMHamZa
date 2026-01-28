@@ -131,7 +131,11 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
             attr = getattr(module, attr_name)
 
             if isinstance(attr, APIRouter):
-                app.include_router(attr)
+                # Add /api/v1/auth prefix for auth router
+                if "auth" in module_name:
+                    app.include_router(attr, prefix="/api/v1/auth")
+                else:
+                    app.include_router(attr)
                 discovered += 1
                 logger.info("Included router: %s.%s", module_name, attr_name)
             elif isinstance(attr, (list, tuple)):

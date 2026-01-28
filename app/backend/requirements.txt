@@ -26,7 +26,8 @@ greenlet
 
 # Auth module dependencies
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]==1.7.4
+passlib[bcrypt,argon2]==1.7.4
+argon2-cffi>=21.0.0
 email-validator>=2.0.0
 
 # Payment module dependencies

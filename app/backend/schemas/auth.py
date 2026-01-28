@@ -15,8 +15,6 @@ class UserRegister(BaseModel):
         """Validate password requirements"""
         if len(v) < 8:
             raise ValueError('Le mot de passe doit contenir au moins 8 caractères')
-        if len(v.encode('utf-8')) > 72:
-            raise ValueError('Le mot de passe ne peut pas dépasser 72 octets')
         return v
 
     @field_validator('nom')
@@ -38,6 +36,10 @@ class Token(BaseModel):
     """Schema for JWT token response"""
     access_token: str
     token_type: str = "bearer"
+
+
+# Alias for compatibility
+TokenResponse = Token
 
 
 class UserResponse(BaseModel):

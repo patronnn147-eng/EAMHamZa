@@ -15,22 +15,18 @@ from core.database import get_db
 from models.utilisateurs import Utilisateurs
 
 # Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # HTTP Bearer token scheme
 security = HTTPBearer()
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    # Truncate to 72 bytes for bcrypt compatibility
-    plain_password_bytes = plain_password.encode('utf-8')[:72]
-    return pwd_context.verify(plain_password_bytes.decode('utf-8', errors='ignore'), hashed_password)
+    return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password: str) -> str:
     """Hash a password"""
-    # bcrypt has a 72-byte limit; truncate if necessary
-    password_bytes = password.encode('utf-8')[:72]
-    return pwd_context.hash(password_bytes.decode('utf-8', errors='ignore'))
+    return pwd_context.hash(password)
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
     """Create a JWT access token"""

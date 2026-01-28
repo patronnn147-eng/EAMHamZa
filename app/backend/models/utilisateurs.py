@@ -19,6 +19,7 @@ class Utilisateurs(Base):
     __tablename__ = "utilisateurs"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    identifiant = Column(String(255), nullable=False, default=lambda: "")
     email = Column(String(255), unique=True, nullable=False, index=True)
     nom = Column(String(255), nullable=False)
     mot_de_passe_chiffre = Column(String(255), nullable=False)

@@ -18,7 +18,7 @@ from schemas.auth import UserRegister, UserLogin, TokenResponse, UserResponse
 # Remove prefix from router - it will be added by main.py's auto-discovery
 router = APIRouter(tags=["authentication"])
 
-@router.post("/api/v1/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserRegister,
     db: AsyncSession = Depends(get_db)
