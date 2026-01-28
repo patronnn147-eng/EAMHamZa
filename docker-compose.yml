@@ -51,7 +51,7 @@ services:
     restart: always
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-asset_management}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-change-this-to-a-secure-random-key-in-production}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-tIRsAEcKfeyd8YN2SqdaiKZWCkinh-KcCm96v0PlDfM}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
       HOST: 0.0.0.0

@@ -28,8 +28,6 @@ target_metadata = Base.metadata
 def alembic_include_object(object, name, type_, reflected, compare_to):
     # type_ can be 'table', 'index', 'column', 'constraint'
     # ignore particular table_name
-    if type_ == "table" and name in ["users", "sessions", "oidc_states"]:
-        return False
     return True
 
 
