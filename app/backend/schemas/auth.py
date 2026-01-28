@@ -1,56 +1,51 @@
-"""
-Authentication Schemas
-"""
-from pydantic import BaseModel, EmailStr, Field, field_validator
-import re
+from pydantic import BaseModel, EmailStr, field_validator
+from typing import Literal
+
 
 class UserRegister(BaseModel):
-    """User registration request"""
-    email: EmailStr = Field(..., description="Email de l'utilisateur")
-    nom: str = Field(..., min_length=2, max_length=100, description="Nom complet de l'utilisateur")
-    mot_de_passe: str = Field(..., min_length=8, description="Mot de passe (minimum 8 caractères)")
-    role: str = Field(..., description="Rôle de l'utilisateur: TECHNICIEN, CHEFTECH, CHETOP, ADMIN")
-    
+    """Schema for user registration"""
+    email: EmailStr
+    nom: str
+    mot_de_passe: str
+    role: Literal["ADMIN", "TECHNICIEN"]
+
     @field_validator('mot_de_passe')
     @classmethod
     def validate_password(cls, v: str) -> str:
-        """Validate password strength"""
+        """Validate password requirements"""
         if len(v) < 8:
             raise ValueError('Le mot de passe doit contenir au moins 8 caractères')
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Le mot de passe doit contenir au moins une lettre majuscule')
-        if not re.search(r'[a-z]', v):
-            raise ValueError('Le mot de passe doit contenir au moins une lettre minuscule')
-        if not re.search(r'[0-9]', v):
-            raise ValueError('Le mot de passe doit contenir au moins un chiffre')
+        if len(v.encode('utf-8')) > 72:
+            raise ValueError('Le mot de passe ne peut pas dépasser 72 octets')
         return v
-    
-    @field_validator('role')
+
+    @field_validator('nom')
     @classmethod
-    def validate_role(cls, v: str) -> str:
-        """Validate role"""
-        allowed_roles = ['TECHNICIEN', 'CHEFTECH', 'CHETOP', 'ADMIN']
-        if v not in allowed_roles:
-            raise ValueError(f'Rôle invalide. Rôles autorisés: {", ".join(allowed_roles)}')
-        return v
+    def validate_nom(cls, v: str) -> str:
+        """Validate name is not empty"""
+        if not v or not v.strip():
+            raise ValueError('Le nom ne peut pas être vide')
+        return v.strip()
+
 
 class UserLogin(BaseModel):
-    """User login request"""
-    email: EmailStr = Field(..., description="Email de l'utilisateur")
-    mot_de_passe: str = Field(..., description="Mot de passe")
+    """Schema for user login"""
+    email: EmailStr
+    mot_de_passe: str
 
-class TokenResponse(BaseModel):
-    """Token response"""
+
+class Token(BaseModel):
+    """Schema for JWT token response"""
     access_token: str
     token_type: str = "bearer"
-    user: "UserResponse"
+
 
 class UserResponse(BaseModel):
-    """User response"""
-    id: str
+    """Schema for user response (without password)"""
+    id: int
     email: str
     nom: str
     role: str
-    
+
     class Config:
         from_attributes = True
