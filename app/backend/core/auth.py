@@ -60,8 +60,8 @@ async def get_current_user(
     token = credentials.credentials
     payload = decode_access_token(token)
     
-    user_id: str = payload.get("sub")
-    if user_id is None:
+    id: str = payload.get("sub")
+    if id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token invalide",
@@ -70,7 +70,7 @@ async def get_current_user(
     
     # Fetch user from database
     result = await db.execute(
-        select(Utilisateurs).where(Utilisateurs.id == int(user_id))
+        select(Utilisateurs).where(Utilisateurs.id == int(id))
     )
     user = result.scalar_one_or_none()
     

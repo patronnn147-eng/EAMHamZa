@@ -83,7 +83,7 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
             "JWT_SECRET_KEY": "JWT signing secret key",
             "JWT_ALGORITHM": "JWT signing algorithm",
             "JWT_EXPIRE_MINUTES": "JWT expiration time (minutes)",
-            "ADMIN_USER_ID": "Admin user ID",
+            "ADMIN_id": "Admin user ID",
             "ADMIN_USER_EMAIL": "Admin user email",
         }
 

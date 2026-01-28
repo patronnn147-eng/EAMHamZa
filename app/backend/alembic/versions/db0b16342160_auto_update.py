@@ -129,11 +129,10 @@ def upgrade() -> None:
     op.create_table('utilisateurs',
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('identifiant', sa.String(), nullable=False),
-    sa.Column('nom_utilisateur', sa.String(), nullable=False),
-    sa.Column('mot_de_passe_chiffre', sa.String(), nullable=False),
-    sa.Column('courriel', sa.String(), nullable=False),
+    sa.Column('nom', sa.String(), nullable=False),
+    sa.Column('mot_de_passe', sa.String(), nullable=False),
+    sa.Column('email', sa.String(), nullable=False),
     sa.Column('role', sa.String(), nullable=False),
-    sa.Column('user_id', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )

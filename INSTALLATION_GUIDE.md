@@ -105,7 +105,7 @@ The system uses **SQLite** by default for easy setup. The database file is creat
 - `id` (Integer, Primary Key, Auto-increment)
 - `email` (String, Unique, Not Null) - User email for login
 - `nom` (String, Not Null) - Full name
-- `mot_de_passe_chiffre` (String, Not Null) - Bcrypt hashed password
+- `mot_de_passe` (String, Not Null) - Bcrypt hashed password
 - `role` (Enum, Not Null) - User role: TECHNICIEN, CHEFTECH, CHETOP, ADMIN
 - `created_at` (DateTime, Not Null) - Account creation timestamp
 

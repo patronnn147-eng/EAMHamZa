@@ -10,7 +10,7 @@ import { authApi } from '../lib/auth';
 interface User {
   id: string;
   email: string;
-  name?: string;
+  nom?: string;
   role: string;
   last_login?: string;
 }

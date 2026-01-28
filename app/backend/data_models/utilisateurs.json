@@ -6,21 +6,17 @@
             "type": "integer",
             "description": "Primary key, auto-increment"
         },
-        "identifiant": {
+        "nom": {
             "type": "string",
-            "description": "User identifier/username"
+            "description": "User name"
         },
-        "nom_utilisateur": {
-            "type": "string",
-            "description": "User display name"
-        },
-        "mot_de_passe_chiffre": {
-            "type": "string",
-            "description": "Encrypted password"
-        },
-        "courriel": {
+        "email": {
             "type": "string",
             "description": "User email"
+        },
+        "mot_de_passe": {
+            "type": "string",
+            "description": "Encrypted password"
         },
         "role": {
             "type": "string",
@@ -31,24 +27,13 @@
                 "ADMIN"
             ],
             "description": "User role"
-        },
-        "user_id": {
-            "type": "string",
-            "description": "Atoms Backend user ID"
-        },
-        "created_at": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Creation timestamp"
         }
     },
     "required": [
         "id",
-        "identifiant",
-        "nom_utilisateur",
-        "mot_de_passe_chiffre",
-        "courriel",
-        "role",
-        "user_id"
+        "nom",
+        "email",
+        "mot_de_passe",
+        "role"
     ]
 }

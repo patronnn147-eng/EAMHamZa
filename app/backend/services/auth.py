@@ -21,12 +21,12 @@ async def initialize_admin_user():
     # Ensure database is initialized first
     await initialize_database()
 
-    admin_user_id = getattr(settings, "admin_user_id", "")
+    admin_id = getattr(settings, "admin_id", "")
     admin_user_email = getattr(settings, "admin_user_email", "")
     admin_user_password = getattr(settings, "admin_user_password", "")
     admin_user_nom = getattr(settings, "admin_user_nom", "Admin")
 
-    if not admin_user_id or not admin_user_email or not admin_user_password:
+    if not admin_id or not admin_user_email or not admin_user_password:
         logger.warning("Admin user configuration missing, skipping admin initialization")
         return
 
@@ -41,18 +41,18 @@ async def initialize_admin_user():
                 user.role = UserRole.ADMIN
                 user.email = admin_user_email  # Update email too
                 await db.commit()
-                logger.debug(f"Updated user {admin_user_id} to admin role")
+                logger.debug(f"Updated user {admin_id} to admin role")
             else:
-                logger.debug(f"Admin user {admin_user_id} already exists")
+                logger.debug(f"Admin user {admin_id} already exists")
         else:
             # Create new admin user
             hashed_password = get_password_hash(admin_user_password)
             admin_user = Utilisateurs(
                 email=admin_user_email,
                 nom=admin_user_nom,
-                mot_de_passe_chiffre=hashed_password,
+                mot_de_passe=hashed_password,
                 role=UserRole.ADMIN,
             )
             db.add(admin_user)
             await db.commit()
-            logger.debug(f"Created admin user: {admin_user_id} with email: {admin_user_email}")
+            logger.debug(f"Created admin user: {admin_id} with email: {admin_user_email}")

@@ -11,11 +11,11 @@ logger = logging.getLogger(__name__)
 
 class UserService:
     @staticmethod
-    async def get_user_profile(db: AsyncSession, user_id: str) -> Optional[Utilisateurs]:
+    async def get_user_profile(db: AsyncSession, id: str) -> Optional[Utilisateurs]:
         """Get user profile by user ID."""
         start_time = time.time()
-        logger.debug(f"[DB_OP] Starting get_user_profile - user_id: {user_id}")
-        result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(user_id)))
+        logger.debug(f"[DB_OP] Starting get_user_profile - id: {id}")
+        result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(id)))
         user = result.scalar_one_or_none()
         logger.debug(
             f"[DB_OP] Get user profile completed in {time.time() - start_time:.4f}s - found: {user is not None}"
@@ -23,11 +23,11 @@ class UserService:
         return user
 
     @staticmethod
-    async def update_user_profile(db: AsyncSession, user_id: str, name: Optional[str] = None) -> Optional[Utilisateurs]:
+    async def update_user_profile(db: AsyncSession, id: str, name: Optional[str] = None) -> Optional[Utilisateurs]:
         """Update user profile."""
         start_time = time.time()
-        logger.debug(f"[DB_OP] Starting update_user_profile - user_id: {user_id}")
-        result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(user_id)))
+        logger.debug(f"[DB_OP] Starting update_user_profile - id: {id}")
+        result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(id)))
         user = result.scalar_one_or_none()
         logger.debug(f"[DB_OP] User lookup completed in {time.time() - start_time:.4f}s - found: {user is not None}")
 

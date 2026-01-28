@@ -48,7 +48,7 @@ async def register(
     new_user = Utilisateurs(
         email=user_data.email,
         nom=user_data.nom,
-        mot_de_passe_chiffre=hashed_password,
+        mot_de_passe=hashed_password,
         role=user_data.role
     )
     
@@ -95,7 +95,7 @@ async def login(
         )
     
     # Verify password
-    if not verify_password(credentials.mot_de_passe, user.mot_de_passe_chiffre):
+    if not verify_password(credentials.mot_de_passe, user.mot_de_passe):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"

@@ -113,7 +113,7 @@ The existing `utilisateurs` table already has the required fields:
 - `id` - Primary key
 - `email` - User email (unique)
 - `nom` - User name
-- `mot_de_passe_chiffre` - Hashed password (bcrypt)
+- `mot_de_passe` - Hashed password (bcrypt)
 - `role` - User role (TECHNICIEN, CHEFTECH, CHETOP, ADMIN)
 
 ## Validation Rules (Contrôle de Saisie)

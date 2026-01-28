@@ -22,34 +22,27 @@ router = APIRouter(prefix="/api/v1/entities/utilisateurs", tags=["utilisateurs"]
 # ---------- Pydantic Schemas ----------
 class UtilisateursData(BaseModel):
     """Entity data schema (for create/update)"""
-    identifiant: str
-    nom_utilisateur: str
-    mot_de_passe_chiffre: str
-    courriel: str
+    nom: str
+    email: str
+    mot_de_passe: str
     role: str
-    created_at: Optional[datetime] = None
 
 
 class UtilisateursUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
-    identifiant: Optional[str] = None
-    nom_utilisateur: Optional[str] = None
-    mot_de_passe_chiffre: Optional[str] = None
-    courriel: Optional[str] = None
+    nom: Optional[str] = None
+    email: Optional[str] = None
+    mot_de_passe: Optional[str] = None
     role: Optional[str] = None
-    created_at: Optional[datetime] = None
 
 
 class UtilisateursResponse(BaseModel):
     """Entity response schema"""
     id: int
-    identifiant: str
-    nom_utilisateur: str
-    mot_de_passe_chiffre: str
-    courriel: str
+    nom: str
+    email: str
+    mot_de_passe: str
     role: str
-    user_id: str
-    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -113,7 +106,7 @@ async def query_utilisateurss(
             limit=limit,
             query_dict=query_dict,
             sort=sort,
-            user_id=str(current_user.id),
+            id=str(current_user.id),
         )
         logger.debug(f"Found {result['total']} utilisateurss")
         return result
@@ -173,7 +166,7 @@ async def get_utilisateurs(
     
     service = UtilisateursService(db)
     try:
-        result = await service.get_by_id(id, user_id=str(current_user.id))
+        result = await service.get_by_id(id, id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
@@ -197,7 +190,7 @@ async def create_utilisateurs(
     
     service = UtilisateursService(db)
     try:
-        result = await service.create(data.model_dump(), user_id=str(current_user.id))
+        result = await service.create(data.model_dump(), id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create utilisateurs")
         
@@ -225,7 +218,7 @@ async def create_utilisateurss_batch(
     
     try:
         for item_data in request.items:
-            result = await service.create(item_data.model_dump(), user_id=str(current_user.id))
+            result = await service.create(item_data.model_dump(), id=str(current_user.id))
             if result:
                 results.append(result)
         
@@ -253,7 +246,7 @@ async def update_utilisateurss_batch(
         for item in request.items:
             # Only include non-None values for partial updates
             update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
-            result = await service.update(item.id, update_dict, user_id=str(current_user.id))
+            result = await service.update(item.id, update_dict, id=str(current_user.id))
             if result:
                 results.append(result)
         
@@ -279,7 +272,7 @@ async def update_utilisateurs(
     try:
         # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
-        result = await service.update(id, update_dict, user_id=str(current_user.id))
+        result = await service.update(id, update_dict, id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
@@ -310,7 +303,7 @@ async def delete_utilisateurss_batch(
     
     try:
         for item_id in request.ids:
-            success = await service.delete(item_id, user_id=str(current_user.id))
+            success = await service.delete(item_id, id=str(current_user.id))
             if success:
                 deleted_count += 1
         
@@ -333,7 +326,7 @@ async def delete_utilisateurs(
     
     service = UtilisateursService(db)
     try:
-        success = await service.delete(id, user_id=str(current_user.id))
+        success = await service.delete(id, id=str(current_user.id))
         if not success:
             logger.warning(f"Utilisateurs with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
