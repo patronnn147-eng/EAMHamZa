@@ -24,6 +24,14 @@ class Settings(BaseSettings):
 
     # Environment
     environment: str = "development"  # development, staging, production
+    
+    # Database
+    database_url: str = "sqlite+aiosqlite:///./app.db"
+    
+    # JWT Configuration
+    jwt_secret_key: str = "your-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expire_minutes: int = 1440  # 24 hours
 
     @property
     def backend_url(self) -> str:
