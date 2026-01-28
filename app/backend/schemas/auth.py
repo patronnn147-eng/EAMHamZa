@@ -2,6 +2,17 @@ from pydantic import BaseModel, EmailStr, field_validator
 from typing import Literal
 
 
+class UserResponse(BaseModel):
+    """Schema for user response (without password)"""
+    id: str
+    email: str
+    nom: str
+    role: str
+
+    class Config:
+        from_attributes = True
+
+
 class UserRegister(BaseModel):
     """Schema for user registration"""
     email: EmailStr
@@ -36,18 +47,8 @@ class Token(BaseModel):
     """Schema for JWT token response"""
     access_token: str
     token_type: str = "bearer"
+    user: UserResponse
 
 
 # Alias for compatibility
 TokenResponse = Token
-
-
-class UserResponse(BaseModel):
-    """Schema for user response (without password)"""
-    id: int
-    email: str
-    nom: str
-    role: str
-
-    class Config:
-        from_attributes = True

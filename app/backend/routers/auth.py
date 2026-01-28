@@ -71,7 +71,7 @@ async def register(
         )
     )
 
-@router.post("/api/v1/auth/login", response_model=TokenResponse)
+@router.post("/login", response_model=TokenResponse)
 async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
@@ -116,7 +116,7 @@ async def login(
         )
     )
 
-@router.get("/api/v1/auth/me", response_model=UserResponse)
+@router.get("/me", response_model=UserResponse)
 async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
     """
     Get current authenticated user information

@@ -313,8 +313,6 @@ export default function Login() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="TECHNICIEN">Technicien</SelectItem>
-                      <SelectItem value="CHEFTECH">Chef Technicien</SelectItem>
-                      <SelectItem value="CHETOP">Chef Opérations</SelectItem>
                       <SelectItem value="ADMIN">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>

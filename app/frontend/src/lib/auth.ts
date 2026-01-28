@@ -33,17 +33,16 @@ class RPApi {
     }
   }
 
-  async login() {
+  async login(email: string, password: string) {
     try {
-      const response = await this.client.get(
-        `${this.getBaseURL()}/api/v1/auth/login`
+      const response = await this.client.post(
+        `${this.getBaseURL()}/api/v1/auth/login`,
+        { email, mot_de_passe: password }
       );
-      // The backend will redirect to OIDC provider
-      // SSO will work via cookies automatically
-      window.location.href = response.data.redirect_url;
+      return response.data;
     } catch (error) {
       throw new Error(
-        error.response?.data?.detail || 'Failed to initiate login'
+        error.response?.data?.detail || 'Failed to login'
       );
     }
   }
