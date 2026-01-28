@@ -15,9 +15,10 @@ from core.auth import (
 from models.utilisateurs import Utilisateurs
 from schemas.auth import UserRegister, UserLogin, TokenResponse, UserResponse
 
-router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
+# Remove prefix from router - it will be added by main.py's auto-discovery
+router = APIRouter(tags=["authentication"])
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/api/v1/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     user_data: UserRegister,
     db: AsyncSession = Depends(get_db)
@@ -70,7 +71,7 @@ async def register(
         )
     )
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/api/v1/auth/login", response_model=TokenResponse)
 async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db)
@@ -115,7 +116,7 @@ async def login(
         )
     )
 
-@router.get("/me", response_model=UserResponse)
+@router.get("/api/v1/auth/me", response_model=UserResponse)
 async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
     """
     Get current authenticated user information
