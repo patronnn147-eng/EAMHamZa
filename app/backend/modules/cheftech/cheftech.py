@@ -11,7 +11,7 @@ from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs, UserRole
-from routers.auth import get_current_user
+from modules.auth.auth import get_current_user
 
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
@@ -273,5 +273,4 @@ async def update_machine_status(
         await db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Export router
-router
+# Router is exported at module level
