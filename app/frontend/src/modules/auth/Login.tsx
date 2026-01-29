@@ -314,6 +314,7 @@ export default function Login() {
                     <SelectContent>
                       <SelectItem value="TECHNICIEN">Technicien</SelectItem>
                       <SelectItem value="CHETOP">Chef des Opérations</SelectItem>
+                      <SelectItem value="CHEFTECH">Chef Technique</SelectItem>
                       <SelectItem value="ADMIN">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>

@@ -7,25 +7,26 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { client } from './lib/api';
 import Layout from './components/layout/Layout';
 import TechnicianLayout from './components/layout/TechnicianLayout';
-import Login from './pages/Login';
-import AuthCallback from './pages/AuthCallback';
-import Dashboard from './pages/Dashboard';
-import ChetopDashboard from './pages/ChetopDashboard';
-import Machines from './pages/Machines';
-import WorkOrders from './pages/WorkOrders';
-import Interventions from './pages/Interventions';
-import PlanningPage from './pages/Planning';
-import Reports from './pages/Reports';
-import Archives from './pages/Archives';
-import TechnicianDashboard from './pages/technician/TechnicianDashboard';
-import TechnicianWorkOrders from './pages/technician/TechnicianWorkOrders';
-import TechnicianWorkOrderDetail from './pages/technician/TechnicianWorkOrderDetail';
-import TechnicianInterventions from './pages/technician/TechnicianInterventions';
-import TechnicianMachines from './pages/technician/TechnicianMachines';
-import TechnicianMachineDetail from './pages/technician/TechnicianMachineDetail';
-import TechnicianDocuments from './pages/technician/TechnicianDocuments';
-import TechnicianUrgentAlert from './pages/technician/TechnicianUrgentAlert';
-import NotFound from './pages/NotFound';
+import Login from './modules/auth/Login';
+import AuthCallback from './modules/shared/AuthCallback';
+import Dashboard from './modules/shared/Dashboard';
+import ChetopDashboard from './modules/chetop/ChetopDashboard';
+import CheftechDashboard from './modules/cheftech/CheftechDashboard';
+import Machines from './modules/shared/Machines';
+import WorkOrders from './modules/shared/WorkOrders';
+import Interventions from './modules/shared/Interventions';
+import PlanningPage from './modules/shared/PlanningPage';
+import Reports from './modules/shared/Reports';
+import Archives from './modules/shared/Archives';
+import TechnicianDashboard from './modules/technicien/TechnicianDashboard';
+import TechnicianWorkOrders from './modules/technicien/TechnicianWorkOrders';
+import TechnicianWorkOrderDetail from './modules/technicien/TechnicianWorkOrderDetail';
+import TechnicianInterventions from './modules/technicien/TechnicianInterventions';
+import TechnicianMachines from './modules/technicien/TechnicianMachines';
+import TechnicianMachineDetail from './modules/technicien/TechnicianMachineDetail';
+import TechnicianDocuments from './modules/technicien/TechnicianDocuments';
+import TechnicianUrgentAlert from './modules/technicien/TechnicianUrgentAlert';
+import NotFound from './modules/shared/NotFound';
 
 const queryClient = new QueryClient();
 
@@ -86,6 +87,8 @@ function RoleBasedRedirect() {
           setRedirectPath('/technician/dashboard');
         } else if (user.data.role === 'CHETOP') {
           setRedirectPath('/chetop/dashboard');
+        } else if (user.data.role === 'CHEFTECH') {
+          setRedirectPath('/cheftech/dashboard');
         } else {
           setRedirectPath('/admin/dashboard');
         }
@@ -135,6 +138,18 @@ const App = () => (
               <ProtectedRoute allowedRoles={['CHETOP']}>
                 <Layout>
                   <ChetopDashboard />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* CHEFTECH Routes */}
+          <Route
+            path="/cheftech/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['CHEFTECH']}>
+                <Layout>
+                  <CheftechDashboard />
                 </Layout>
               </ProtectedRoute>
             }
