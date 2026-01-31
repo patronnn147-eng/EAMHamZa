@@ -3,9 +3,10 @@ import React, {
   useContext,
   useState,
   useEffect,
+  useMemo,
   ReactNode,
 } from 'react';
-import { authApi } from '../lib/auth';
+import { client } from '@/lib/api';
 
 interface User {
   id: string;
@@ -39,7 +40,7 @@ interface AuthProviderProps {
   children: ReactNode;
 }
 
-export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,8 +49,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setLoading(true);
       setError(null);
-      const userData = await authApi.getCurrentUser();
-      setUser(userData);
+      const me = await client.auth.me();
+      setUser(me.data ?? null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setUser(null);
@@ -61,7 +62,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async () => {
     try {
       setError(null);
-      await authApi.login();
+      await checkAuthStatus();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     }
@@ -70,7 +71,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const logout = async () => {
     try {
       setError(null);
-      await authApi.logout();
+      await client.auth.logout();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Logout failed');
     }
@@ -80,15 +81,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     checkAuthStatus();
   }, []);
 
-  const value: AuthContextType = {
-    user,
-    loading,
-    error,
-    login,
-    logout,
-    refetch: checkAuthStatus,
-    isAdmin: user?.role === 'ADMIN',
-  };
+  const value: AuthContextType = useMemo(() => {
+    const role = (user?.role ?? '').toUpperCase();
+    return {
+      user,
+      loading,
+      error,
+      login,
+      logout,
+      refetch: checkAuthStatus,
+      isAdmin: role === 'ADMIN',
+    };
+  }, [user, loading, error]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

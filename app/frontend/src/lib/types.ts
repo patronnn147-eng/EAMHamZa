@@ -28,6 +28,8 @@ export interface OrdreTravail {
   priorite: string;
   date_echeance: string;
   machine_id: number;
+  utilisateur_id?: number;
+  utilisateur_nom?: string;
   user_id: string;
   created_at: string;
 }
