@@ -7,9 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { PermissionButton } from '@/components/ui/PermissionButton';
-import { PermissionGuard } from '@/components/ui/PermissionGuard';
-import { usePermissions } from '@/hooks/usePermissions';
 import { 
   Users, 
   Wrench, 
@@ -584,20 +581,9 @@ const CheftechDashboard: React.FC = () => {
                           <h3 className="font-semibold">{technician.nom}</h3>
                           <p className="text-sm text-gray-600">{technician.email}</p>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Badge className="bg-green-100 text-green-800">
-                            Disponible
-                          </Badge>
-                          <PermissionGuard permission="update" resource="users" fallback={
-                            <Badge className="bg-gray-100 text-gray-600">
-                              Non modifiable
-                            </Badge>
-                          }>
-                            <Button size="sm" variant="outline">
-                              Assigner
-                            </Button>
-                          </PermissionGuard>
-                        </div>
+                        <Badge className="bg-green-100 text-green-800">
+                          Disponible
+                        </Badge>
                       </div>
                     </div>
                   ))}
@@ -649,26 +635,19 @@ const CheftechDashboard: React.FC = () => {
                           <Badge className={getStatusColor(machine.statut)}>
                             {machine.statut}
                           </Badge>
-                          <PermissionButton
-                            permission="update"
-                            resource="machines"
-                            className="w-32"
-                            variant="outline"
+                          <Select
+                            onValueChange={(value) => updateMachineStatus(machine.id, value)}
                           >
-                            <Select
-                              onValueChange={(value) => updateMachineStatus(machine.id, value)}
-                            >
-                              <SelectTrigger className="w-32">
-                                <SelectValue placeholder="Statut" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="ACTIF">Actif</SelectItem>
-                                <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                                <SelectItem value="CRITIQUE">Critique</SelectItem>
-                                <SelectItem value="HORS_SERVICE">Hors service</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </PermissionButton>
+                            <SelectTrigger className="w-32">
+                              <SelectValue placeholder="Statut" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ACTIF">Actif</SelectItem>
+                              <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                              <SelectItem value="CRITIQUE">Critique</SelectItem>
+                              <SelectItem value="HORS_SERVICE">Hors service</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                     </div>

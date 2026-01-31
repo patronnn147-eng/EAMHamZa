@@ -151,6 +151,7 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
 
 # Setup logging before router discovery
 setup_logging()
+include_routers_from_package(app, "routers")
 include_routers_from_package(app, "modules")
 
 

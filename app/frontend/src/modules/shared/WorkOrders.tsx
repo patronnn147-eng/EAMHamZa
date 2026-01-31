@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Search, Plus, Calendar, AlertCircle, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDataSync } from '@/contexts/DataSyncContext';
 import type { OrdreTravail, Machine } from '@/lib/types';
 
 export default function WorkOrders() {
@@ -37,6 +39,8 @@ export default function WorkOrders() {
   const [editingWorkOrder, setEditingWorkOrder] = useState<OrdreTravail | null>(null);
   const [deletingWorkOrder, setDeletingWorkOrder] = useState<OrdreTravail | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { notifyChange, subscribe } = useDataSync();
 
   const [formData, setFormData] = useState({
     machine_id: '',
@@ -49,6 +53,15 @@ export default function WorkOrders() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribe((event) => {
+      if (event.type === 'work_order') {
+        fetchData();
+      }
+    });
+    return unsubscribe;
+  }, [subscribe]);
 
   useEffect(() => {
     let filtered = workOrders;
@@ -135,13 +148,23 @@ export default function WorkOrders() {
           id: editingWorkOrder.id.toString(),
           data: submitData,
         });
+        notifyChange({
+          type: 'work_order',
+          action: 'update',
+          id: editingWorkOrder.id
+        });
         toast({
           title: 'Success',
           description: 'Work order updated successfully',
         });
       } else {
-        await client.entities.ordres_travail.create({
+        const response = await client.entities.ordres_travail.create({
           data: submitData,
+        });
+        notifyChange({
+          type: 'work_order',
+          action: 'create',
+          id: response.data.id
         });
         toast({
           title: 'Success',
@@ -167,6 +190,11 @@ export default function WorkOrders() {
     
     try {
       await client.entities.ordres_travail.delete({ id: deletingWorkOrder.id.toString() });
+      notifyChange({
+        type: 'work_order',
+        action: 'delete',
+        id: deletingWorkOrder.id
+      });
       toast({
         title: 'Success',
         description: 'Work order deleted successfully',
@@ -341,18 +369,20 @@ export default function WorkOrders() {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => {
-                      setDeletingWorkOrder(wo);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
+                  {user?.role === 'ADMIN' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        setDeletingWorkOrder(wo);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

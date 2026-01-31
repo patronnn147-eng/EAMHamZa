@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Search, Plus, Calendar, FileText, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDataSync } from '@/contexts/DataSyncContext';
 import type { Intervention, OrdreTravail } from '@/lib/types';
 
 export default function Interventions() {
@@ -36,6 +38,8 @@ export default function Interventions() {
   const [editingIntervention, setEditingIntervention] = useState<Intervention | null>(null);
   const [deletingIntervention, setDeletingIntervention] = useState<Intervention | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { notifyChange, subscribe } = useDataSync();
 
   const [formData, setFormData] = useState({
     date_intervention: '',
@@ -46,6 +50,15 @@ export default function Interventions() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribe((event) => {
+      if (event.type === 'intervention') {
+        fetchData();
+      }
+    });
+    return unsubscribe;
+  }, [subscribe]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -128,13 +141,23 @@ export default function Interventions() {
           id: editingIntervention.id.toString(),
           data: submitData,
         });
+        notifyChange({
+          type: 'intervention',
+          action: 'update',
+          id: editingIntervention.id
+        });
         toast({
           title: 'Success',
           description: 'Intervention updated successfully',
         });
       } else {
-        await client.entities.ordres_intervention.create({
+        const response = await client.entities.ordres_intervention.create({
           data: submitData,
+        });
+        notifyChange({
+          type: 'intervention',
+          action: 'create',
+          id: response.data.id
         });
         toast({
           title: 'Success',
@@ -160,6 +183,11 @@ export default function Interventions() {
     
     try {
       await client.entities.ordres_intervention.delete({ id: deletingIntervention.id.toString() });
+      notifyChange({
+        type: 'intervention',
+        action: 'delete',
+        id: deletingIntervention.id
+      });
       toast({
         title: 'Success',
         description: 'Intervention deleted successfully',
@@ -262,18 +290,20 @@ export default function Interventions() {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => {
-                      setDeletingIntervention(intervention);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
+                  {user?.role === 'ADMIN' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        setDeletingIntervention(intervention);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

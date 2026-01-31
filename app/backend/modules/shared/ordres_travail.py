@@ -20,12 +20,12 @@ router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_trava
 # ---------- Pydantic Schemas ----------
 class Ordres_travailData(BaseModel):
     """Entity data schema (for create/update) - US-CHETOP-001"""
-    titre: str  # Title of work order
-    description: str  # Detailed description
+    titre: Optional[str] = None  # Title of work order
+    description: Optional[str] = None  # Detailed description
     priorite: str = "MOYENNE"  # BASSE, MOYENNE, ÉLEVÉE, URGENTE (US-CHETOP-002)
     machine_id: int  # Associated machine (US-CHETOP-003)
     utilisateur_id: int = None  # Assigned user (US-CHETOP-005)
-    date_echeance: datetime = None  # Due date (US-CHETOP-001)
+    date_echeance: Optional[datetime] = None  # Due date (US-CHETOP-001)
     statut: str = "EN_ATTENTE"  # EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ (US-CHETOP-004)
     created_at: Optional[datetime] = None
 

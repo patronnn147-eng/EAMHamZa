@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Search, Plus, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDataSync } from '@/contexts/DataSyncContext';
 import type { Machine } from '@/lib/types';
 
 export default function Machines() {
@@ -34,6 +36,8 @@ export default function Machines() {
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+  const { notifyChange, subscribe } = useDataSync();
 
   const [formData, setFormData] = useState({
     nom: '',
@@ -49,6 +53,15 @@ export default function Machines() {
   useEffect(() => {
     fetchMachines();
   }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribe((event) => {
+      if (event.type === 'machine') {
+        fetchMachines();
+      }
+    });
+    return unsubscribe;
+  }, [subscribe]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -118,13 +131,23 @@ export default function Machines() {
           id: editingMachine.id.toString(),
           data: formData,
         });
+        notifyChange({
+          type: 'machine',
+          action: 'update',
+          id: editingMachine.id
+        });
         toast({
           title: 'Success',
           description: 'Machine updated successfully',
         });
       } else {
-        await client.entities.machines.create({
+        const response = await client.entities.machines.create({
           data: formData,
+        });
+        notifyChange({
+          type: 'machine',
+          action: 'create',
+          id: response.data.id
         });
         toast({
           title: 'Success',
@@ -150,6 +173,11 @@ export default function Machines() {
     
     try {
       await client.entities.machines.delete({ id: deletingMachine.id.toString() });
+      notifyChange({
+        type: 'machine',
+        action: 'delete',
+        id: deletingMachine.id
+      });
       toast({
         title: 'Success',
         description: 'Machine deleted successfully',
@@ -273,18 +301,20 @@ export default function Machines() {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => {
-                      setDeletingMachine(machine);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
+                  {user?.role === 'ADMIN' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:text-red-700"
+                      onClick={() => {
+                        setDeletingMachine(machine);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

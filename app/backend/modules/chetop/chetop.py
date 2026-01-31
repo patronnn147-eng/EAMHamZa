@@ -227,6 +227,9 @@ async def create_work_order(
         if not machine:
             raise HTTPException(status_code=404, detail="Machine not found")
         
+        # Handle empty string date_echeance
+        date_echeance = None if data.date_echeance == "" else data.date_echeance
+        
         # Create work order
         new_ordre = Ordres_travail(
             titre=data.titre,
@@ -234,7 +237,7 @@ async def create_work_order(
             priorite=data.priorite,
             machine_id=data.machine_id,
             utilisateur_id=data.utilisateur_id,
-            date_echeance=data.date_echeance,
+            date_echeance=date_echeance,
             statut="EN_ATTENTE"  # Initial status
         )
         
@@ -301,7 +304,10 @@ async def update_work_order(
             ordre.priorite = data.priorite
         if data.utilisateur_id is not None:
             ordre.utilisateur_id = data.utilisateur_id
-        if data.date_echeance:
+        # Handle empty string date_echeance
+        if data.date_echeance == "":
+            ordre.date_echeance = None
+        elif data.date_echeance:
             ordre.date_echeance = data.date_echeance
         
         await db.commit()

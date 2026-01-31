@@ -5,6 +5,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { client } from './lib/api';
+import { DataSyncProvider } from './contexts/DataSyncContext';
+import { AuthProvider } from './contexts/AuthContext';
 import Layout from './components/layout/Layout';
 import TechnicianLayout from './components/layout/TechnicianLayout';
 import Login from './modules/auth/Login';
@@ -113,143 +115,142 @@ function RoleBasedRedirect() {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <ToasterUI />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/auth/callback" element={<AuthCallback />} />
-          
-          {/* Role-based root redirect */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <RoleBasedRedirect />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* CHETOP Routes */}
-          <Route
-            path="/chetop/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['CHETOP']}>
-                <Layout>
-                  <ChetopDashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* CHEFTECH Routes */}
-          <Route
-            path="/cheftech/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['CHEFTECH']}>
-                <Layout>
-                  <CheftechDashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Admin Routes */}
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/machines"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <Machines />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/work-orders"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <WorkOrders />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/interventions"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <Interventions />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/planning"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <PlanningPage />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <Reports />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/archives"
-            element={
-              <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
-                <Layout>
-                  <Archives />
-                </Layout>
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Technician Routes */}
-          <Route
-            path="/technician"
-            element={
-              <ProtectedRoute allowedRoles={['TECHNICIEN']}>
-                <TechnicianLayout />
-              </ProtectedRoute>
-            }
-          >
-            <Route path="dashboard" element={<TechnicianDashboard />} />
-            <Route path="work-orders" element={<TechnicianWorkOrders />} />
-            <Route path="work-orders/:id" element={<TechnicianWorkOrderDetail />} />
-            <Route path="interventions" element={<TechnicianInterventions />} />
-            <Route path="machines" element={<TechnicianMachines />} />
-            <Route path="machines/:id" element={<TechnicianMachineDetail />} />
-            <Route path="documents" element={<TechnicianDocuments />} />
-            <Route path="urgent-alert" element={<TechnicianUrgentAlert />} />
-          </Route>
-
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <DataSyncProvider>
+        <TooltipProvider>
+          <Toaster />
+          <ToasterUI />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+              
+              {/* Role-based root redirect */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <RoleBasedRedirect />
+                  </ProtectedRoute>
+                }
+              />
+              {/* CHETOP Routes */}
+              <Route
+                path="/chetop/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['CHETOP']}>
+                    <Layout>
+                      <ChetopDashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* CHEFTECH Routes */}
+              <Route
+                path="/cheftech/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['CHEFTECH']}>
+                    <Layout>
+                      <CheftechDashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Admin Routes */}
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/machines"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <Machines />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/work-orders"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <WorkOrders />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/interventions"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <Interventions />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/planning"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <PlanningPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/reports"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <Reports />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/archives"
+                element={
+                  <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+                    <Layout>
+                      <Archives />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              {/* Technician Routes */}
+              <Route
+                path="/technician"
+                element={
+                  <ProtectedRoute allowedRoles={['TECHNICIEN']}>
+                    <TechnicianLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route path="dashboard" element={<TechnicianDashboard />} />
+                <Route path="work-orders" element={<TechnicianWorkOrders />} />
+                <Route path="work-orders/:id" element={<TechnicianWorkOrderDetail />} />
+                <Route path="interventions" element={<TechnicianInterventions />} />
+                <Route path="machines" element={<TechnicianMachines />} />
+                <Route path="machines/:id" element={<TechnicianMachineDetail />} />
+                <Route path="documents" element={<TechnicianDocuments />} />
+                <Route path="urgent-alert" element={<TechnicianUrgentAlert />} />
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </DataSyncProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

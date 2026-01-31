@@ -1,5 +1,5 @@
 # Multi-stage build for Python backend
-FROM python:3.11-slim as builder
+FROM python:3.11-slim-bookworm
 
 # Set working directory
 WORKDIR /app

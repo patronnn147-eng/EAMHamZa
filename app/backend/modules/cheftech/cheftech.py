@@ -273,4 +273,5 @@ async def update_machine_status(
         await db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# Router is exported at module level
+# Export router
+router

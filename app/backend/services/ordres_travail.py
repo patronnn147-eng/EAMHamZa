@@ -19,7 +19,14 @@ class Ordres_travailService:
     async def create(self, data: Dict[str, Any]) -> Optional[Ordres_travail]:
         """Create a new ordres_travail"""
         try:
-            obj = Ordres_travail(**data)
+            # Handle None values for required fields
+            processed_data = data.copy()
+            if processed_data.get('titre') is None:
+                processed_data['titre'] = f"Ordre de travail - {processed_data.get('priorite', 'MOYENNE')}"
+            if processed_data.get('description') is None:
+                processed_data['description'] = "Description non spécifiée"
+            
+            obj = Ordres_travail(**processed_data)
             self.db.add(obj)
             await self.db.commit()
             await self.db.refresh(obj)
