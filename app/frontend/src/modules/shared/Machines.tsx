@@ -10,6 +10,9 @@ import { useMachines } from './machines/hooks';
 
 export default function Machines() {
   const { user } = useAuth();
+  const canCreate = user?.role !== 'CHETOP';
+  const canEdit = user?.role !== 'CHETOP';
+  const canDelete = user?.role === 'ADMIN';
   const {
     filteredMachines,
     loading,
@@ -39,13 +42,14 @@ export default function Machines() {
 
   return (
     <div className="space-y-6">
-      <MachinesHeader onCreate={() => handleOpenDialog()} />
+      <MachinesHeader onCreate={() => handleOpenDialog()} canCreate={canCreate} />
 
       <MachinesSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
       <MachinesGrid
         machines={filteredMachines}
-        isAdmin={user?.role === 'ADMIN'}
+        canEdit={canEdit}
+        canDelete={canDelete}
         onEdit={handleOpenDialog}
         onRequestDelete={(machine) => {
           setDeletingMachine(machine);
@@ -53,21 +57,25 @@ export default function Machines() {
         }}
       />
 
-      <MachineFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editingMachine={editingMachine}
-        formData={formData}
-        setFormData={setFormData}
-        onSubmit={handleSubmit}
-      />
+      {canCreate && (
+        <MachineFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          editingMachine={editingMachine}
+          formData={formData}
+          setFormData={setFormData}
+          onSubmit={handleSubmit}
+        />
+      )}
 
-      <DeleteMachineDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        deletingMachine={deletingMachine}
-        onDelete={handleDelete}
-      />
+      {canDelete && (
+        <DeleteMachineDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          deletingMachine={deletingMachine}
+          onDelete={handleDelete}
+        />
+      )}
     </div>
   );
 }

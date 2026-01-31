@@ -7,14 +7,16 @@ import { StatusBadge } from '../utils/badges';
 
 interface MachinesGridProps {
   machines: Machine[];
-  isAdmin: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
   onEdit: (machine: Machine) => void;
   onRequestDelete: (machine: Machine) => void;
 }
 
 export const MachinesGrid: React.FC<MachinesGridProps> = ({
   machines,
-  isAdmin,
+  canEdit = true,
+  canDelete = false,
   onEdit,
   onRequestDelete,
 }) => {
@@ -71,23 +73,27 @@ export const MachinesGrid: React.FC<MachinesGridProps> = ({
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(machine)}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Edit
-                </Button>
-                {isAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-red-600 hover:text-red-700"
-                    onClick={() => onRequestDelete(machine)}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                )}
-              </div>
+              {(canEdit || canDelete) && (
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(machine)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:text-red-700"
+                      onClick={() => onRequestDelete(machine)}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))
