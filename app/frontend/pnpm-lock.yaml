@@ -9,8 +9,8 @@ dependencies:
     specifier: ^3.9.0
     version: 3.10.0(react-hook-form@7.70.0)
   '@metagptx/web-sdk':
-    specifier: ^0.0.53
-    version: 0.0.53(eslint@9.39.2)(prettier@3.8.1)(vite@5.4.21)
+    specifier: ^0.0.58
+    version: 0.0.58(eslint@9.39.2)(prettier@3.8.1)(vite@5.4.21)
   '@radix-ui/react-accordion':
     specifier: ^1.2.0
     version: 1.2.12(@types/react-dom@19.2.3)(@types/react@19.2.7)(react-dom@19.2.3)(react@19.2.3)
@@ -918,8 +918,8 @@ packages:
       - supports-color
     dev: true
 
-  /@metagptx/web-sdk@0.0.53(eslint@9.39.2)(prettier@3.8.1)(vite@5.4.21):
-    resolution: {integrity: sha512-AXtN+Ff5w0RExCst3ITRlcgEf+tLiJIAV454F6n/rLXiYEXR3O9wOa/xs9Ch7TVKuE4a8f3HsBx0W0Io6ur10w==}
+  /@metagptx/web-sdk@0.0.58(eslint@9.39.2)(prettier@3.8.1)(vite@5.4.21):
+    resolution: {integrity: sha512-xJpI1GBYywzQOK9Z6sh8mML1FyPQP1T76pzSZZ5pDScbnMwo+qezTByUgyktaJ/GwwvOrmcYptKC8yjwTT3lKw==}
     peerDependencies:
       '@babel/parser': ^7.0.0
       '@babel/traverse': ^7.0.0
