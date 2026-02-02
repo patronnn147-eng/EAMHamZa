@@ -12,6 +12,7 @@ import ChetopMachines from '@/modules/chetop/ChetopMachines';
 import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
 import PlanningPage from '@/modules/shared/PlanningPage';
+import PlanningManagement from '@/modules/admin/PlanningManagement';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
 import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
@@ -196,13 +197,45 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Admin Planning Management (Full CRUD) */}
       <Route
-        path="/planning"
+        path="/admin/planning"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <PlanningManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* ChefTech Planning (Read-only) */}
+      <Route
+        path="/cheftech/planning"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
               <PlanningPage />
             </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Chetop Planning (Read-only) */}
+      <Route
+        path="/chetop/planning"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <PlanningPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Legacy planning route redirect */}
+      <Route
+        path="/planning"
+        element={
+          <ProtectedRoute>
+            <SectionRedirect section="planning" />
           </ProtectedRoute>
         }
       />
