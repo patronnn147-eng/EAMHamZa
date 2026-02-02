@@ -23,12 +23,26 @@
         "type": {
             "type": "string",
             "enum": [
-                "JOURNALIER",
-                "HEBDOMADAIRE",
-                "MENSUEL",
-                "MAINTENANCE"
+                "MAINTENANCE",
+                "SHIFT"
             ],
             "description": "Planning type"
+        },
+        "shift_type": {
+            "type": "string",
+            "enum": [
+                "MORNING",
+                "NIGHT"
+            ],
+            "description": "Shift type (only for SHIFT planning)"
+        },
+        "chef_operation_id": {
+            "type": "integer",
+            "description": "Chef Operation user ID (CHETOP role)"
+        },
+        "chef_technique_id": {
+            "type": "integer",
+            "description": "Chef Technique user ID (CHEFTECH role)"
         },
         "created_at": {
             "type": "string",
