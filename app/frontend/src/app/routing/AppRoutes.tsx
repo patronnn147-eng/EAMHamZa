@@ -21,6 +21,7 @@ import TechnicianWorkOrderDetail from '@/modules/technicien/TechnicianWorkOrderD
 import TechnicianInterventions from '@/modules/technicien/TechnicianInterventions';
 import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
 import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
+import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
 import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
 import TechnicianUrgentAlert from '@/modules/technicien/TechnicianUrgentAlert';
 import NotFound from '@/modules/shared/NotFound';
@@ -278,75 +279,6 @@ export function AppRoutes() {
         <Route path="documents" element={<TechnicianDocuments />} />
         <Route path="urgent-alert" element={<TechnicianUrgentAlert />} />
       </Route>
-</to_replace>
-</Editor.edit_file_by_replace>
-
-<Editor.edit_file_by_replace>
-<file_name>
-/workspace/app/frontend/src/app/routing/AppRoutes.tsx
-</file_name>
-<to_replace>
-import { Routes, Route } from 'react-router-dom';
-import Layout from '@/components/layout/Layout';
-import TechnicianLayout from '@/components/layout/TechnicianLayout';
-import Login from '@/modules/auth/Login';
-import AuthCallback from '@/modules/shared/AuthCallback';
-import Dashboard from '@/modules/shared/Dashboard';
-import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
-import CheftechDashboard from '@/modules/cheftech/CheftechDashboard';
-import AdminMachines from '@/modules/admin/AdminMachines';
-import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
-import ChetopMachines from '@/modules/chetop/ChetopMachines';
-import WorkOrders from '@/modules/shared/WorkOrders';
-import Interventions from '@/modules/shared/Interventions';
-import PlanningPage from '@/modules/shared/PlanningPage';
-import PlanningManagement from '@/modules/admin/PlanningManagement';
-import Reports from '@/modules/shared/Reports';
-import Archives from '@/modules/shared/Archives';
-import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
-import TechnicianWorkOrders from '@/modules/technicien/TechnicianWorkOrders';
-import TechnicianWorkOrderDetail from '@/modules/technicien/TechnicianWorkOrderDetail';
-import TechnicianInterventions from '@/modules/technicien/TechnicianInterventions';
-import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
-import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
-import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
-import TechnicianUrgentAlert from '@/modules/technicien/TechnicianUrgentAlert';
-import NotFound from '@/modules/shared/NotFound';
-import { ProtectedRoute } from './ProtectedRoute';
-import { RoleBasedRedirect } from './RoleBasedRedirect';
-import { SectionRedirect } from './SectionRedirect';
-</to_replace>
-<new_content>
-import { Routes, Route } from 'react-router-dom';
-import Layout from '@/components/layout/Layout';
-import TechnicianLayout from '@/components/layout/TechnicianLayout';
-import Login from '@/modules/auth/Login';
-import AuthCallback from '@/modules/shared/AuthCallback';
-import Dashboard from '@/modules/shared/Dashboard';
-import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
-import CheftechDashboard from '@/modules/cheftech/CheftechDashboard';
-import AdminMachines from '@/modules/admin/AdminMachines';
-import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
-import ChetopMachines from '@/modules/chetop/ChetopMachines';
-import WorkOrders from '@/modules/shared/WorkOrders';
-import Interventions from '@/modules/shared/Interventions';
-import PlanningPage from '@/modules/shared/PlanningPage';
-import PlanningManagement from '@/modules/admin/PlanningManagement';
-import Reports from '@/modules/shared/Reports';
-import Archives from '@/modules/shared/Archives';
-import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
-import TechnicianWorkOrders from '@/modules/technicien/TechnicianWorkOrders';
-import TechnicianWorkOrderDetail from '@/modules/technicien/TechnicianWorkOrderDetail';
-import TechnicianInterventions from '@/modules/technicien/TechnicianInterventions';
-import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
-import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
-import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
-import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
-import TechnicianUrgentAlert from '@/modules/technicien/TechnicianUrgentAlert';
-import NotFound from '@/modules/shared/NotFound';
-import { ProtectedRoute } from './ProtectedRoute';
-import { RoleBasedRedirect } from './RoleBasedRedirect';
-import { SectionRedirect } from './SectionRedirect';
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
