@@ -2,17 +2,38 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu, X, LayoutDashboard, ClipboardList, Wrench, Settings, FileText, AlertTriangle } from 'lucide-react';
+import { Bell, Menu, X, LayoutDashboard, ClipboardList, Wrench, Settings, FileText, AlertTriangle, Calendar } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface Notification {
+  id: number;
+  type: string;
+  message: string;
+  date_envoi: string;
+  lu: boolean;
+}
 
 export default function TechnicianLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<{ email: string; role: string } | null>(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     checkAuth();
+    fetchNotifications();
+    // Poll for new notifications every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const checkAuth = async () => {
@@ -31,6 +52,45 @@ export default function TechnicianLayout() {
     }
   };
 
+  const fetchNotifications = async () => {
+    try {
+      const response = await client.apiCall.invoke({
+        url: '/api/v1/notifications',
+        method: 'GET',
+        data: { skip: 0, limit: 10 },
+      });
+      setNotifications(response.data.items || []);
+      setUnreadCount(response.data.unread_count || 0);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  };
+
+  const markAsRead = async (notificationId: number) => {
+    try {
+      await client.apiCall.invoke({
+        url: '/api/v1/notifications/mark-as-read',
+        method: 'POST',
+        data: { notification_ids: [notificationId] },
+      });
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await client.apiCall.invoke({
+        url: '/api/v1/notifications/mark-all-as-read',
+        method: 'POST',
+      });
+      await fetchNotifications();
+    } catch (error) {
+      console.error('Error marking all as read:', error);
+    }
+  };
+
   const handleLogout = async () => {
     await client.auth.logout();
     navigate('/login');
@@ -41,6 +101,7 @@ export default function TechnicianLayout() {
     { path: '/technician/work-orders', label: 'Mes Ordres', icon: ClipboardList },
     { path: '/technician/interventions', label: 'Interventions', icon: Wrench },
     { path: '/technician/machines', label: 'Machines', icon: Settings },
+    { path: '/technician/planning', label: 'Planning', icon: Calendar },
     { path: '/technician/documents', label: 'Documents', icon: FileText },
   ];
 
@@ -61,12 +122,60 @@ export default function TechnicianLayout() {
             <h1 className="text-xl font-bold text-gray-900">Espace Technicien</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" className="relative">
-              <Bell className="h-5 w-5" />
-              <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500">
-                0
-              </Badge>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="relative">
+                  <Bell className="h-5 w-5" />
+                  {unreadCount > 0 && (
+                    <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="flex items-center justify-between px-4 py-2 border-b">
+                  <h3 className="font-semibold">Notifications</h3>
+                  {unreadCount > 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={markAllAsRead}
+                      className="text-xs"
+                    >
+                      Tout marquer comme lu
+                    </Button>
+                  )}
+                </div>
+                <ScrollArea className="h-96">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-gray-500">
+                      Aucune notification
+                    </div>
+                  ) : (
+                    notifications.map((notif) => (
+                      <DropdownMenuItem
+                        key={notif.id}
+                        className={`flex flex-col items-start p-4 cursor-pointer ${
+                          !notif.lu ? 'bg-blue-50' : ''
+                        }`}
+                        onClick={() => !notif.lu && markAsRead(notif.id)}
+                      >
+                        <div className="flex items-start justify-between w-full">
+                          <p className="text-sm font-medium">{notif.message}</p>
+                          {!notif.lu && (
+                            <Badge className="ml-2 h-2 w-2 rounded-full bg-blue-600 p-0" />
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          {new Date(notif.date_envoi).toLocaleString('fr-FR')}
+                        </p>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                </ScrollArea>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <div className="hidden md:flex items-center gap-2">
               <span className="text-sm text-gray-600">{user?.email}</span>
               <Button variant="outline" size="sm" onClick={handleLogout}>
