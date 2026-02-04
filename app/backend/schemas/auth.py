@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr, field_validator
-from typing import Literal
+from typing import Literal, Optional
+from datetime import datetime
 
 
 class UserResponse(BaseModel):
@@ -8,6 +9,8 @@ class UserResponse(BaseModel):
     email: str
     nom: str
     role: str
+    status: str
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

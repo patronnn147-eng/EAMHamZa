@@ -40,14 +40,14 @@ if (client.apiCall.request) {
 
 // Override any HTTP methods if they exist
 ['get', 'post', 'put', 'delete', 'patch'].forEach(method => {
-  if ((client.apiCall as any)[method]) {
-    const originalMethod = (client.apiCall as any)[method];
-    (client.apiCall as any)[method] = async function (url: string, config: Record<string, unknown> = {}) {
+  if ((client.apiCall as Record<string, unknown>)[method]) {
+    const originalMethod = (client.apiCall as Record<string, unknown>)[method];
+    (client.apiCall as Record<string, unknown>)[method] = async function (url: string, config: Record<string, unknown> = {}) {
       console.log(`🔧 DEBUG: apiCall.${method} called with url:`, url, 'config:', config);
       config.url = url;
       config.method = method.toUpperCase();
       config = addAuthHeader(config);
-      return originalMethod.call(this, config);
+      return (originalMethod as (config: Record<string, unknown>) => Promise<unknown>).call(this, config);
     };
   }
 });
@@ -55,18 +55,18 @@ if (client.apiCall.request) {
 // Override entities methods specifically if they exist
 if (client.entities) {
   Object.keys(client.entities).forEach(entityName => {
-    const entity = (client.entities as any)[entityName];
+    const entity = (client.entities as Record<string, Record<string, unknown>>)[entityName];
     if (entity && typeof entity === 'object') {
       ['query', 'get', 'create', 'update', 'delete'].forEach(methodName => {
         if (typeof entity[methodName] === 'function') {
           const originalMethod = entity[methodName];
-          entity[methodName] = async function (...args: any[]) {
+          entity[methodName] = async function (...args: Record<string, unknown>[]) {
             console.log(`🔧 DEBUG: entities.${entityName}.${methodName} called with:`, args);
             // If this is a config object, add auth headers
             if (args.length > 0 && typeof args[0] === 'object') {
               args[0] = addAuthHeader(args[0]);
             }
-            return originalMethod.apply(this, args);
+            return (originalMethod as (...args: Record<string, unknown>[]) => Promise<unknown>).apply(this, args);
           };
         }
       });

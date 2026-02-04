@@ -13,6 +13,7 @@ import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
 import PlanningPage from '@/modules/shared/PlanningPage';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
+import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
 import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
@@ -21,6 +22,7 @@ import TechnicianWorkOrderDetail from '@/modules/technicien/TechnicianWorkOrderD
 import TechnicianInterventions from '@/modules/technicien/TechnicianInterventions';
 import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
 import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
+import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
 import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
 import TechnicianUrgentAlert from '@/modules/technicien/TechnicianUrgentAlert';
 import NotFound from '@/modules/shared/NotFound';
@@ -208,6 +210,17 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Admin User Approval Management */}
+      <Route
+        path="/admin/user-approvals"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <UserApprovalManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* ChefTech Planning (Read-only) */}
       <Route
         path="/cheftech/planning"
@@ -274,6 +287,7 @@ export function AppRoutes() {
         <Route path="interventions" element={<TechnicianInterventions />} />
         <Route path="machines" element={<TechnicianMachines />} />
         <Route path="machines/:id" element={<TechnicianMachineDetail />} />
+        <Route path="planning" element={<TechnicianPlanning />} />
         <Route path="documents" element={<TechnicianDocuments />} />
         <Route path="urgent-alert" element={<TechnicianUrgentAlert />} />
       </Route>

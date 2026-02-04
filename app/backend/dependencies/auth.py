@@ -36,7 +36,7 @@ async def get_bearer_token(
 async def get_current_user(
     token: str = Depends(get_bearer_token),
     db: AsyncSession = Depends(get_db)
-) -> UserResponse:
+) -> Utilisateurs:
     """Dependency to get current authenticated user via JWT token."""
     try:
         payload = decode_access_token(token)
@@ -66,15 +66,10 @@ async def get_current_user(
             detail="Utilisateur non trouvé"
         )
 
-    return UserResponse(
-        id=str(user.id),
-        email=user.email,
-        nom=user.nom,
-        role=user.role
-    )
+    return user
 
 
-async def get_admin_user(current_user: UserResponse = Depends(get_current_user)) -> UserResponse:
+async def get_admin_user(current_user: Utilisateurs = Depends(get_current_user)) -> Utilisateurs:
     """Dependency to ensure current user has admin role."""
     if current_user.role not in ['ADMIN', 'CHETOP', 'CHEFTECH']:
         raise HTTPException(
@@ -82,3 +77,18 @@ async def get_admin_user(current_user: UserResponse = Depends(get_current_user))
             detail="Accès administrateur requis"
         )
     return current_user
+
+
+def require_role(allowed_roles: list):
+    """
+    Dependency factory to check if user has one of the allowed roles
+    Usage: current_user = Depends(require_role([UserRole.ADMIN]))
+    """
+    async def role_checker(current_user: Utilisateurs = Depends(get_current_user)) -> Utilisateurs:
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Accès refusé. Rôles autorisés: {', '.join(allowed_roles)}"
+            )
+        return current_user
+    return role_checker
