@@ -137,6 +137,7 @@ async def login(
             nom=user.nom,
             role=user.role,
             status=user.status,
+            shift_type=user.shift_type.value if hasattr(user.shift_type, "value") else (str(user.shift_type) if getattr(user, "shift_type", None) else None),
             created_at=user.created_at
         )
     )
@@ -152,5 +153,6 @@ async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
         nom=current_user.nom,
         role=current_user.role,
         status=current_user.status,
+        shift_type=current_user.shift_type.value if hasattr(current_user.shift_type, "value") else (str(current_user.shift_type) if getattr(current_user, "shift_type", None) else None),
         created_at=current_user.created_at
     )

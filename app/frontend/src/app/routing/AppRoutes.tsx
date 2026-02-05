@@ -14,6 +14,7 @@ import Interventions from '@/modules/shared/Interventions';
 import PlanningPage from '@/modules/shared/PlanningPage';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
+import UserManagement from '@/modules/admin/UserManagement';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
 import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
@@ -217,6 +218,18 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
               <UserApprovalManagement />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin User Management */}
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <UserManagement />
             </Layout>
           </ProtectedRoute>
         }

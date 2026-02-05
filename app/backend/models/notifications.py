@@ -8,6 +8,8 @@ class Notifications(Base):
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     utilisateur_id = Column(Integer, nullable=False)
+    titre = Column(String, nullable=False)  # Title of the notification
+    priorite = Column(String, nullable=True)  # Priority of the notification
     type = Column(String, nullable=False)  # PLANNING_ASSIGNMENT, STATUS_CHANGE, etc.
     message = Column(String, nullable=False)
     date_envoi = Column(DateTime(timezone=True), nullable=True)

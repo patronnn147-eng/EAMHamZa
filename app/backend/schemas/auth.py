@@ -10,6 +10,7 @@ class UserResponse(BaseModel):
     nom: str
     role: str
     status: str
+    shift_type: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

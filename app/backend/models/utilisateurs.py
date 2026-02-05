@@ -19,6 +19,11 @@ class UserStatus(str, enum.Enum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
 
+class UserShiftType(str, enum.Enum):
+    """Default shift availability for a user"""
+    MORNING = "MORNING"
+    NIGHT = "NIGHT"
+
 class Utilisateurs(Base):
     """Users table for authentication"""
     __tablename__ = "utilisateurs"
@@ -29,6 +34,7 @@ class Utilisateurs(Base):
     mot_de_passe = Column(String(255), nullable=False)
     role = Column(SQLEnum(UserRole), nullable=False, default=UserRole.TECHNICIEN)
     status = Column(SQLEnum(UserStatus), nullable=False, default=UserStatus.PENDING)
+    shift_type = Column(SQLEnum(UserShiftType, native_enum=False), nullable=False, default=UserShiftType.MORNING)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     

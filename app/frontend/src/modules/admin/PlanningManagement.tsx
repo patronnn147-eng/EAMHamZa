@@ -29,6 +29,7 @@ interface User {
   nom: string;
   email: string;
   role: string;
+  shift_type?: string | null;
 }
 
 interface Planning {
@@ -68,6 +69,41 @@ export default function PlanningManagement() {
     chef_technique_id: undefined as number | undefined,
     technicien_ids: [] as number[],
   });
+
+  const getUserShiftBadge = (shiftType?: string | null) => {
+    if (!shiftType) return null;
+    const shiftConfig = {
+      MORNING: { label: 'Morning', className: 'bg-yellow-100 text-yellow-800' },
+      NIGHT: { label: 'Night', className: 'bg-indigo-100 text-indigo-800' },
+    };
+    const config = shiftConfig[shiftType as keyof typeof shiftConfig];
+    return config ? <Badge className={config.className}>{config.label}</Badge> : null;
+  };
+
+  const filterUsersByPlanningShift = (users: User[]) => {
+    if (formData.type !== 'SHIFT' || !formData.shift_type) return users;
+    return users.filter(u => (u.shift_type || 'MORNING') === formData.shift_type);
+  };
+
+  const handleShiftTypeChange = (shiftType: 'MORNING' | 'NIGHT') => {
+    setFormData(prev => {
+      const next = { ...prev, shift_type: shiftType };
+
+      const allowedChefOps = new Set(filterUsersByPlanningShift(chefOperations).map(u => u.id));
+      const allowedChefTechs = new Set(filterUsersByPlanningShift(chefTechniques).map(u => u.id));
+      const allowedTechs = new Set(filterUsersByPlanningShift(techniciens).map(u => u.id));
+
+      if (next.chef_operation_id && !allowedChefOps.has(next.chef_operation_id)) {
+        next.chef_operation_id = undefined;
+      }
+      if (next.chef_technique_id && !allowedChefTechs.has(next.chef_technique_id)) {
+        next.chef_technique_id = undefined;
+      }
+
+      next.technicien_ids = next.technicien_ids.filter(id => allowedTechs.has(id));
+      return next;
+    });
+  };
 
   useEffect(() => {
     fetchPlannings();
@@ -133,9 +169,13 @@ export default function PlanningManagement() {
         shift_type: planning.shift_type as 'MORNING' | 'NIGHT' | undefined,
         chef_operation_id: planning.chef_operation_id,
         chef_technique_id: planning.chef_technique_id,
-        technicien_ids: planning.assigned_users
-          .filter(u => u.role === 'TECHNICIEN')
-          .map(u => u.id),
+        technicien_ids: Array.from(
+          new Set(
+            planning.assigned_users
+              .filter(u => u.role === 'TECHNICIEN')
+              .map(u => u.id)
+          )
+        ),
       });
     } else {
       setEditingPlanning(null);
@@ -219,7 +259,7 @@ export default function PlanningManagement() {
         shift_type: formData.shift_type || null,
         chef_operation_id: formData.chef_operation_id || null,
         chef_technique_id: formData.chef_technique_id || null,
-        technicien_ids: formData.technicien_ids,
+        technicien_ids: Array.from(new Set(formData.technicien_ids)),
       };
 
       if (editingPlanning) {
@@ -398,7 +438,7 @@ export default function PlanningManagement() {
                           <Bell className="h-3 w-3 text-green-600" title="Notified" />
                         </p>
                         <div className="flex flex-wrap gap-1 mt-1">
-                          {planning.assigned_users.map(user => (
+                          {Array.from(new Map(planning.assigned_users.map(user => [user.id, user])).values()).map(user => (
                             <Badge key={user.id} variant="outline" className="text-xs">
                               {user.nom} ({user.role})
                             </Badge>
@@ -480,7 +520,7 @@ export default function PlanningManagement() {
             {formData.type === 'SHIFT' && (
               <div className="grid gap-2">
                 <Label htmlFor="shift_type">Shift Type * (Required for SHIFT)</Label>
-                <Select value={formData.shift_type} onValueChange={(value) => setFormData({ ...formData, shift_type: value as 'MORNING' | 'NIGHT' })}>
+                <Select value={formData.shift_type} onValueChange={(value) => handleShiftTypeChange(value as 'MORNING' | 'NIGHT')}>
                   <SelectTrigger>
                     <SelectValue placeholder="Select shift type" />
                   </SelectTrigger>
@@ -537,12 +577,15 @@ export default function PlanningManagement() {
                       <SelectValue placeholder="Select Chef Operation" />
                     </SelectTrigger>
                     <SelectContent>
-                      {chefOperations.length === 0 ? (
+                      {filterUsersByPlanningShift(chefOperations).length === 0 ? (
                         <SelectItem value="none" disabled>No CHETOP users available</SelectItem>
                       ) : (
-                        chefOperations.map(user => (
+                        filterUsersByPlanningShift(chefOperations).map(user => (
                           <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.nom} - {user.email}
+                            <div className="flex items-center justify-between gap-2 w-full">
+                              <span>{user.nom} - {user.email}</span>
+                              {getUserShiftBadge(user.shift_type)}
+                            </div>
                           </SelectItem>
                         ))
                       )}
@@ -560,12 +603,15 @@ export default function PlanningManagement() {
                       <SelectValue placeholder="Select Chef Technique" />
                     </SelectTrigger>
                     <SelectContent>
-                      {chefTechniques.length === 0 ? (
+                      {filterUsersByPlanningShift(chefTechniques).length === 0 ? (
                         <SelectItem value="none" disabled>No CHEFTECH users available</SelectItem>
                       ) : (
-                        chefTechniques.map(user => (
+                        filterUsersByPlanningShift(chefTechniques).map(user => (
                           <SelectItem key={user.id} value={user.id.toString()}>
-                            {user.nom} - {user.email}
+                            <div className="flex items-center justify-between gap-2 w-full">
+                              <span>{user.nom} - {user.email}</span>
+                              {getUserShiftBadge(user.shift_type)}
+                            </div>
                           </SelectItem>
                         ))
                       )}
@@ -576,10 +622,10 @@ export default function PlanningManagement() {
                 <div className="grid gap-2">
                   <Label>Step 3: Technicians (TECHNICIEN)</Label>
                   <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-                    {techniciens.length === 0 ? (
+                    {filterUsersByPlanningShift(techniciens).length === 0 ? (
                       <p className="text-sm text-gray-500">No technicians available</p>
                     ) : (
-                      techniciens.map(tech => (
+                      filterUsersByPlanningShift(techniciens).map(tech => (
                         <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
                           <Checkbox
                             id={`tech-${tech.id}`}
@@ -592,6 +638,7 @@ export default function PlanningManagement() {
                           >
                             {tech.nom} - {tech.email}
                           </label>
+                          {getUserShiftBadge(tech.shift_type)}
                         </div>
                       ))
                     )}

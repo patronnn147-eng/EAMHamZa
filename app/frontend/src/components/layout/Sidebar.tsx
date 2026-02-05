@@ -9,6 +9,7 @@ import {
   FileText, 
   Archive,
   UserCheck,
+  Users,
   LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,6 +38,12 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       name: 'User Approvals',
       href: '/admin/user-approvals',
       icon: UserCheck,
+    });
+
+    baseItems.push({
+      name: 'User Management',
+      href: '/admin/users',
+      icon: Users,
     });
   }
 
