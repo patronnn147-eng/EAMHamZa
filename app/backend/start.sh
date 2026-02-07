@@ -43,6 +43,7 @@ python migrations/fix_schema.py
 python migrations/add_priorite_to_notifications.py
 python migrations/add_titre_to_ordres_travail.py
 python migrations/add_shift_type_to_utilisateurs.py
+python migrations/add_zones_to_machines.py
 
 echo "🎉 Starting FastAPI application..."
 exec uvicorn main:app --host 0.0.0.0 --port 8000

@@ -25,7 +25,9 @@ export default function TechnicianMachines() {
         (m) =>
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
           m.identifiant_machine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.emplacement.toLowerCase().includes(searchTerm.toLowerCase())
+          m.emplacement.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredMachines(filtered);
     } else {
@@ -121,6 +123,14 @@ export default function TechnicianMachines() {
                     <Wrench className="h-4 w-4" />
                     <span>{machine.type}</span>
                   </div>
+                  {(machine.zone || machine.sous_zone) && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="font-medium">Zone:</span>
+                      <span>
+                        {[machine.zone, machine.sous_zone].filter(Boolean).join(' / ')}
+                      </span>
+                    </div>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

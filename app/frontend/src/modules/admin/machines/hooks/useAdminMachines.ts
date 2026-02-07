@@ -22,6 +22,8 @@ export const useAdminMachines = () => {
     identifiant_machine: '',
     type: '',
     emplacement: '',
+    zone: '',
+    sous_zone: '',
     statut: 'EN_ATTENTE',
     date_derniere_maintenance: '',
     date_prochaine_maintenance: '',
@@ -65,6 +67,8 @@ export const useAdminMachines = () => {
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
           m.identifiant_machine.toLowerCase().includes(searchTerm.toLowerCase()) ||
           m.emplacement.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           m.type.toLowerCase().includes(searchTerm.toLowerCase()),
       );
       setFilteredMachines(filtered);
@@ -81,6 +85,8 @@ export const useAdminMachines = () => {
         identifiant_machine: machine.identifiant_machine,
         type: machine.type,
         emplacement: machine.emplacement,
+        zone: machine.zone || '',
+        sous_zone: machine.sous_zone || '',
         statut: machine.statut,
         date_derniere_maintenance: toDateInputValue(machine.date_derniere_maintenance),
         date_prochaine_maintenance: toDateInputValue(machine.date_prochaine_maintenance),
@@ -93,6 +99,8 @@ export const useAdminMachines = () => {
         identifiant_machine: '',
         type: '',
         emplacement: '',
+        zone: '',
+        sous_zone: '',
         statut: 'EN_ATTENTE',
         date_derniere_maintenance: '',
         date_prochaine_maintenance: '',
@@ -104,10 +112,16 @@ export const useAdminMachines = () => {
 
   const handleSubmit = async () => {
     try {
+      const payload = {
+        ...formData,
+        zone: formData.zone?.trim() || null,
+        sous_zone: formData.sous_zone?.trim() || null,
+      };
+
       if (editingMachine) {
         await client.entities.machines.update({
           id: editingMachine.id.toString(),
-          data: formData,
+          data: payload,
         });
         notifyChange({
           type: 'machine',
@@ -120,7 +134,7 @@ export const useAdminMachines = () => {
         });
       } else {
         const response = await client.entities.machines.create({
-          data: formData,
+          data: payload,
         });
         notifyChange({
           type: 'machine',

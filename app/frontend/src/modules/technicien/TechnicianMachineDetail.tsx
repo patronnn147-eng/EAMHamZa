@@ -189,6 +189,16 @@ export default function TechnicianMachineDetail() {
                     {machine.emplacement}
                   </p>
                 </div>
+                {(machine.zone || machine.sous_zone) && (
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">Zone</p>
+                    <p className="text-base mt-1">
+                      {[machine.zone, machine.sous_zone]
+                        .filter(Boolean)
+                        .join(' / ')}
+                    </p>
+                  </div>
+                )}
                 <div>
                   <p className="text-sm font-medium text-gray-500">Statut</p>
                   <Badge className={`${getStatusColor(machine.statut)} mt-1`}>{machine.statut}</Badge>

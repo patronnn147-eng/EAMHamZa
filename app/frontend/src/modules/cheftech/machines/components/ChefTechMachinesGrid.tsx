@@ -47,6 +47,16 @@ export const ChefTechMachinesGrid: React.FC<ChefTechMachinesGridProps> = ({ mach
                   <span className="text-gray-500">Location:</span>
                   <span className="font-medium">{machine.emplacement}</span>
                 </div>
+                {(machine.zone || machine.sous_zone) && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Zone:</span>
+                    <span className="font-medium">
+                      {[machine.zone, machine.sous_zone]
+                        .filter(Boolean)
+                        .join(' / ')}
+                    </span>
+                  </div>
+                )}
                 {machine.date_derniere_maintenance && (
                   <div className="flex justify-between">
                     <span className="text-gray-500">Last Maintenance:</span>

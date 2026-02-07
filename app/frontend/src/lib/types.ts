@@ -12,6 +12,8 @@ export interface Machine {
   identifiant_machine: string;
   type: string;
   emplacement: string;
+  zone?: string;
+  sous_zone?: string;
   statut: string;
   date_derniere_maintenance?: string;
   date_prochaine_maintenance?: string;

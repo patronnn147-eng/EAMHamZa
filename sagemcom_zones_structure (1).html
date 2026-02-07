@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sagemcom Ezzahra - Production Zones Structure</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #7f8c8d;
+            margin-bottom: 40px;
+            font-size: 1.2em;
+        }
+        
+        .zone-section {
+            margin-bottom: 50px;
+        }
+        
+        .zone-title {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px 10px 0 0;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 0;
+        }
+        
+        .zone-content {
+            border: 3px solid #667eea;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            padding: 30px;
+            background: #f8f9fa;
+        }
+        
+        .line-block {
+            background: white;
+            margin-bottom: 25px;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #667eea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .line-block:last-child {
+            margin-bottom: 0;
+        }
+        
+        .line-title {
+            color: #667eea;
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        
+        .machine-list {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .machine-list > li {
+            margin-bottom: 12px;
+            padding-left: 25px;
+            position: relative;
+        }
+        
+        .machine-list > li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .sub-list {
+            list-style: none;
+            margin-top: 8px;
+            padding-left: 20px;
+        }
+        
+        .sub-list li {
+            margin-bottom: 5px;
+            padding-left: 20px;
+            position: relative;
+            color: #555;
+            font-size: 0.95em;
+        }
+        
+        .sub-list li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: #764ba2;
+        }
+        
+        .flow-diagram {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 30px;
+            border-radius: 10px;
+            margin-top: 50px;
+            text-align: center;
+        }
+        
+        .flow-title {
+            font-size: 1.8em;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        
+        .flow-box {
+            background: white;
+            padding: 20px;
+            margin: 15px auto;
+            max-width: 600px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            font-weight: bold;
+            color: #2c3e50;
+            border-left: 5px solid #667eea;
+        }
+        
+        .flow-arrow {
+            font-size: 2em;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .capacity-info {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            text-align: center;
+            font-weight: bold;
+            color: #856404;
+        }
+        
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .container {
+                box-shadow: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sagemcom Ezzahra</h1>
+        <div class="subtitle">Production Zones Structure & Equipment</div>
+        
+        <!-- ZONE CMS1 -->
+        <div class="zone-section">
+            <div class="zone-title">ZONE CMS1 - COMPONENT SURFACE MOUNTING</div>
+            <div class="zone-content">
+                
+                <div class="line-block">
+                    <div class="line-title">CMS LINE 1 (e.g., BBS - Broadband Products)</div>
+                    <ul class="machine-list">
+                        <li><strong>Machine:</strong> 1. Dépileur (Card Loader)</li>
+                        <li><strong>Machine:</strong> 2. Machine de Sérigraphie (DEK/MPM)
+                      
+                        </li>
+                        <li><strong>Machine:</strong> 3. Machine de Pose (Pick & Place)</li>
+                        <li><strong>Machine:</strong> 4. Machine SPI (Solder Paste Inspection)</li>
+                        <li><strong>Machine:</strong> 5. Machine 2D Scanner (Component Inspection)</li>
+                        <li><strong>Machine:</strong> 6. Machine AOI 3D (Final Inspection)</li>
+                        <li><strong>Machine:</strong> 7. Four de Refusions (Reflow Oven)</li>
+                        <li><strong>Machine:</strong> 8. Poste Insertion Manuelle (Manual THT)</li>
+                        <li><strong>Machine:</strong> 9. Machine de Brassage à la Vague (Wave Soldering)</li>
+                    </ul>
+                </div>
+                
+                <div class="line-block">
+                    <div class="line-title">CMS LINE 2 (e.g., AVS - Audio Video Products)</div>
+                    <ul class="machine-list">
+                        <li><strong>Machine:</strong> 1. Dépileur</li>
+                        <li><strong>Machine:</strong> 2. Machine de Sérigraphie</li>
+                        <li><strong>Machine:</strong> 3. Machine de Pose</li>
+                        <li><strong>Machine:</strong> 4. Machine SPI</li>
+                        <li><strong>Machine:</strong> 5. Machine 2D Scanner</li>
+                        <li><strong>Machine:</strong> 6. Machine AOI 3D</li>
+                        <li><strong>Machine:</strong> 7. Four de Refusions</li>
+                        <li><strong>Machine:</strong> 8. Poste Insertion Manuelle</li>
+                        <li><strong>Machine:</strong> 9. Machine de Brassage à la Vague</li>
+                    </ul>
+                </div>
+                
+             
+                
+            </div>
+        </div>
+        
+        <!-- ZONE CMS2 -->
+        <div class="zone-section">
+            <div class="zone-title">ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)</div>
+            <div class="zone-content">
+                
+                <!-- TEST IN-SITU -->
+                <div class="line-block">
+                    <div class="line-title">1️⃣ TEST IN-SITU (Test des Composants)</div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 40%;">Machine/Équipement</th>
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Fonction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Interface de Test (Bed of Nails)</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Interface avec sondes pour accéder aux composants</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Testeur Marconi 4220</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Testeur principal qui effectue tous les tests électroniques</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                        <strong style="color: #1976d2;">Ce qui est testé:</strong>
+                        <ul style="margin-top: 8px; margin-bottom: 0;">
+                            <li>Courts-circuits et circuits ouverts</li>
+                            <li>Présence et positionnement des composants</li>
+                            <li>Valeurs des composants (résistances, condensateurs, etc.)</li>
+                            <li>Fonctionnement des circuits intégrés</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- TEST FONCTIONNEL -->
+                <div class="line-block">
+                    <div class="line-title">2️⃣ TEST FONCTIONNEL (Test de Fonctionnement)</div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 40%;">Machine/Équipement</th>
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Fonction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Banc TF</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Infrastructure principale (5 écrans + 10 interfaces + 1 PC)</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">BFE (Banc Front End)</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Test de réception des signaux (SAT/Terre/Câble)</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">BAV (Banc Audio Video)</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Test des sorties Audio/Vidéo et HDMI</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Routeur</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Test de connectivité réseau</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                        <strong style="color: #1976d2;">Ce qui est testé:</strong>
+                        <ul style="margin-top: 8px; margin-bottom: 0;">
+                            <li>Réception des signaux TV</li>
+                            <li>Qualité audio/vidéo</li>
+                            <li>Ports HDMI, USB, SCART</li>
+                            <li>Programmation (numéro de série, MAC address)</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- TEST WiFi -->
+                <div class="line-block">
+                    <div class="line-title">3️⃣ TEST WiFi (Test Sans Fil)</div>
+                    
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 15px; background: white;">
+                        <thead>
+                            <tr style="background: #667eea; color: white;">
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd; width: 40%;">Machine/Équipement Principal</th>
+                                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Fonction</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">PC avec Logiciels de Test</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Contrôle tout le système (Test Stand, IQ-wizard, IQ-Debug)</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Caisson Faraday (Shielding Box)</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Isole le produit des interférences électromagnétiques</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">IQflex Analyzer</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Analyse la qualité des signaux WiFi/RF</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Routeur</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Établit la connexion WiFi avec le décodeur</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Switch</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Gère le réseau de test</td>
+                            </tr>
+                            <tr style="background: #f8f9fa;">
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Attenuateurs (30dB, 6dB, 3dB)</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Réduit l'intensité du signal</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Power Splitter</td>
+                                <td style="padding: 10px; border: 1px solid #ddd;">Distribue le signal vers 4 sorties</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: #e3f2fd; border-left: 4px solid #2196f3; border-radius: 4px;">
+                        <strong style="color: #1976d2;">Ce qui est testé:</strong>
+                        <ul style="margin-top: 8px; margin-bottom: 0;">
+                            <li>Performance WiFi</li>
+                            <li>Qualité du signal RF</li>
+                            <li>Calibration des antennes</li>
+                        </ul>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        
+                
+        
+                
+         
+                
+            </div>
+        </div>
+        
+        <!-- PRODUCTION FLOW -->
+        <div class="flow-diagram">
+            <div class="flow-title">SAGEMCOM EZZAHRA - PRODUCTION FLOW</div>
+            
+            <div class="flow-box">
+                ZONE CMS1 - Component Mounting<br>
+                <small>(Multiple parallel CMS lines)</small>
+            </div>
+            <div class="flow-arrow">↓</div>
+            
+            <div class="flow-box">
+                ZONE CMS2 - Testing<br>
+                <small>(In-Situ → Functional → WiFi)</small>
+            </div>
+        
+            
+         
+       
+            
+      
+        </div>
+        
+    </div>
+</body>
+</html>

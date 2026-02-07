@@ -10,6 +10,8 @@ class Machines(Base):
     identifiant_machine = Column(String, nullable=False)
     nom = Column(String, nullable=False)
     emplacement = Column(String, nullable=False)
+    zone = Column(String, nullable=True)
+    sous_zone = Column(String, nullable=True)
     statut = Column(String, nullable=False)
     type = Column(String, nullable=False)
     date_derniere_maintenance = Column(DateTime(timezone=True), nullable=True)

@@ -13,7 +13,7 @@ export const MachinesSearch: React.FC<MachinesSearchProps> = ({ searchTerm, setS
       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
       <Input
         type="text"
-        placeholder="Search machines by name, ID, location, or type..."
+        placeholder="Search machines by name, ID, location, zone, or type..."
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
         className="pl-10"

@@ -18,6 +18,14 @@
             "type": "string",
             "description": "Machine location"
         },
+        "zone": {
+            "type": "string",
+            "description": "Production zone (e.g., CMS1, CMS2)"
+        },
+        "sous_zone": {
+            "type": "string",
+            "description": "Sub-zone / line / test step (e.g., CMS Line 1, Test In-Situ)"
+        },
         "statut": {
             "type": "string",
             "enum": [
