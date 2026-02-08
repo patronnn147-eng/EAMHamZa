@@ -14,6 +14,7 @@ export interface Machine {
   emplacement: string;
   zone?: string;
   sous_zone?: string;
+  ordre?: string;
   statut: string;
   date_derniere_maintenance?: string;
   date_prochaine_maintenance?: string;

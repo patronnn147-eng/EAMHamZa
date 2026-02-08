@@ -32,34 +32,92 @@ const SOUS_ZONE_OPTIONS_BY_ZONE: Record<string, string[]> = {
   ],
 };
 
+type OrdreTemplate = { ordre: number; nom: string; fonction?: string };
+
+const ORDRE_TEMPLATES: Record<string, Record<string, OrdreTemplate[]>> = {
+  'ZONE CMS1 - COMPONENT SURFACE MOUNTING': {
+    'CMS LINE 1 (e.g., BBS - Broadband Products)': [
+      { ordre: 1, nom: 'Dépileur (Card Loader)' },
+      { ordre: 2, nom: 'Machine de Sérigraphie (DEK/MPM)' },
+      { ordre: 3, nom: 'Machine de Pose (Pick & Place)' },
+      { ordre: 4, nom: 'Machine SPI (Solder Paste Inspection)' },
+      { ordre: 5, nom: 'Machine 2D Scanner (Component Inspection)' },
+      { ordre: 6, nom: 'Machine AOI 3D (Final Inspection)' },
+      { ordre: 7, nom: 'Four de Refusions (Reflow Oven)' },
+      { ordre: 8, nom: 'Poste Insertion Manuelle (Manual THT)' },
+      { ordre: 9, nom: 'Machine de Brassage à la Vague (Wave Soldering)' },
+    ],
+    'CMS LINE 2 (e.g., AVS - Audio Video Products)': [
+      { ordre: 1, nom: 'Dépileur' },
+      { ordre: 2, nom: 'Machine de Sérigraphie' },
+      { ordre: 3, nom: 'Machine de Pose' },
+      { ordre: 4, nom: 'Machine SPI' },
+      { ordre: 5, nom: 'Machine 2D Scanner' },
+      { ordre: 6, nom: 'Machine AOI 3D' },
+      { ordre: 7, nom: 'Four de Refusions' },
+      { ordre: 8, nom: 'Poste Insertion Manuelle' },
+      { ordre: 9, nom: 'Machine de Brassage à la Vague' },
+    ],
+  },
+  'ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)': {
+    'TEST IN-SITU (Test des Composants)': [
+      { ordre: 1, nom: 'Interface de Test (Bed of Nails)', fonction: 'Interface avec sondes pour accéder aux composants' },
+      { ordre: 2, nom: 'Testeur Marconi 4220', fonction: 'Testeur principal qui effectue tous les tests électroniques' },
+    ],
+    'TEST FONCTIONNEL (Test de Fonctionnement)': [
+      { ordre: 1, nom: 'Banc TF' },
+      { ordre: 2, nom: 'BFE (Banc Front End)' },
+      { ordre: 3, nom: 'BAV (Banc Audio Video)' },
+      { ordre: 4, nom: 'Routeur' },
+    ],
+    'TEST WiFi (Test Sans Fil)': [
+      { ordre: 1, nom: 'PC avec Logiciels de Test' },
+      { ordre: 2, nom: 'Caisson Faraday (Shielding Box)' },
+      { ordre: 3, nom: 'IQflex Analyzer' },
+      { ordre: 4, nom: 'Routeur' },
+      { ordre: 5, nom: 'Switch' },
+      { ordre: 6, nom: 'Atténuateurs (30dB, 6dB, 3dB)' },
+      { ordre: 7, nom: 'Power Splitter' },
+    ],
+  },
+};
+
+const generateMachineName = (zone: string, sous_zone: string, ordre: string, ordreTemplates: OrdreTemplate[]): string => {
+  if (!zone || !sous_zone || !ordre) return '';
+  
+  let cmsNumber = '';
+  if (zone.includes('CMS1')) {
+    cmsNumber = '1';
+  } else if (zone.includes('CMS2')) {
+    cmsNumber = '2';
+  }
+  
+  const subzoneKey = sous_zone.replace(/[^A-Z0-9]/g, '_').toUpperCase();
+  const selectedTemplate = ordreTemplates.find(t => t.ordre.toString() === ordre);
+  const orderName = selectedTemplate ? selectedTemplate.nom.replace(/[^A-Z0-9]/g, '_').toUpperCase() : '';
+  
+  return `ZONE_CMS${cmsNumber}_${subzoneKey}_${orderName}`;
+};
+
+const getOrdreTemplates = (zone: string, sous_zone: string): OrdreTemplate[] => {
+  if (!zone || !sous_zone) return [];
+  return ORDRE_TEMPLATES[zone]?.[sous_zone] || [];
+};
+
 interface MachineFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingMachine: Machine | null;
   formData: {
     nom: string;
-    identifiant_machine: string;
-    type: string;
-    emplacement: string;
     zone: string;
     sous_zone: string;
-    statut: string;
+    ordre: string;
     date_derniere_maintenance: string;
     date_prochaine_maintenance: string;
     image_url: string;
   };
-  setFormData: (data: {
-    nom: string;
-    identifiant_machine: string;
-    type: string;
-    emplacement: string;
-    zone: string;
-    sous_zone: string;
-    statut: string;
-    date_derniere_maintenance: string;
-    date_prochaine_maintenance: string;
-    image_url: string;
-  }) => void;
+  setFormData: React.Dispatch<React.SetStateAction<any>>;
   onSubmit: () => void;
 }
 
@@ -82,46 +140,20 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid gap-2">
-            <Label htmlFor="nom">Machine Name</Label>
+            <Label htmlFor="nom">Machine Name (Auto-generated)</Label>
             <Input
               id="nom"
               value={formData.nom}
-              onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
-              placeholder="Enter machine name"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="identifiant_machine">Machine ID</Label>
-            <Input
-              id="identifiant_machine"
-              value={formData.identifiant_machine}
-              onChange={(e) => setFormData({ ...formData, identifiant_machine: e.target.value })}
-              placeholder="Enter machine identifier"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="type">Type</Label>
-            <Input
-              id="type"
-              value={formData.type}
-              onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-              placeholder="Enter machine type"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="emplacement">Location</Label>
-            <Input
-              id="emplacement"
-              value={formData.emplacement}
-              onChange={(e) => setFormData({ ...formData, emplacement: e.target.value })}
-              placeholder="Enter location"
+              readOnly
+              placeholder="Generated automatically based on selections"
+              className="bg-gray-50"
             />
           </div>
           <div className="grid gap-2">
             <Label htmlFor="zone">Zone</Label>
             <Select
               value={formData.zone}
-              onValueChange={(value) => setFormData({ ...formData, zone: value, sous_zone: '' })}
+              onValueChange={(value) => setFormData({ ...formData, zone: value, sous_zone: '', ordre: '' })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a zone" />
@@ -139,7 +171,7 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
             <Label htmlFor="sous_zone">Sub-Zone / Line / Test Step</Label>
             <Select
               value={formData.sous_zone}
-              onValueChange={(value) => setFormData({ ...formData, sous_zone: value })}
+              onValueChange={(value) => setFormData({ ...formData, sous_zone: value, ordre: '' })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a sub-zone" />
@@ -160,16 +192,29 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="statut">Status</Label>
-            <Select value={formData.statut} onValueChange={(value) => setFormData({ ...formData, statut: value })}>
+            <Label htmlFor="ordre">Order</Label>
+            <Select
+              value={formData.ordre}
+              onValueChange={(value) => {
+                const templates = getOrdreTemplates(formData.zone, formData.sous_zone);
+                const selected = templates.find((t) => t.ordre.toString() === value);
+                const generatedName = generateMachineName(formData.zone, formData.sous_zone, value, templates);
+                setFormData({
+                  ...formData,
+                  ordre: value,
+                  nom: generatedName || selected?.nom || formData.nom,
+                });
+              }}
+            >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue placeholder="Select order" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="EN_ATTENTE">Pending</SelectItem>
-                <SelectItem value="EN_COURS">In Progress</SelectItem>
-                <SelectItem value="TERMINE">Completed</SelectItem>
-                <SelectItem value="ANNULE">Cancelled</SelectItem>
+                {getOrdreTemplates(formData.zone, formData.sous_zone).map((t) => (
+                  <SelectItem key={t.ordre} value={t.ordre.toString()}>
+                    {t.ordre} - {t.nom}{t.fonction ? ` — ${t.fonction}` : ''}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

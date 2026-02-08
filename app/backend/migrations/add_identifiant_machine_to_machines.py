@@ -19,7 +19,16 @@ async def run_migrations() -> None:
                 text(
                     """
                     ALTER TABLE machines
-                    ADD COLUMN IF NOT EXISTS zone VARCHAR(255)
+                    ADD COLUMN IF NOT EXISTS identifiant_machine VARCHAR(255)
+                    """
+                )
+            )
+            await conn.execute(
+                text(
+                    """
+                    UPDATE machines
+                    SET identifiant_machine = ''
+                    WHERE identifiant_machine IS NULL
                     """
                 )
             )
@@ -27,15 +36,7 @@ async def run_migrations() -> None:
                 text(
                     """
                     ALTER TABLE machines
-                    ADD COLUMN IF NOT EXISTS sous_zone VARCHAR(255)
-                    """
-                )
-            )
-            await conn.execute(
-                text(
-                    """
-                    ALTER TABLE machines
-                    ADD COLUMN IF NOT EXISTS ordre VARCHAR(50)
+                    ALTER COLUMN identifiant_machine SET NOT NULL
                     """
                 )
             )

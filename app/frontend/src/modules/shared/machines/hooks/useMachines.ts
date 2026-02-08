@@ -19,12 +19,9 @@ export const useMachines = () => {
 
   const [formData, setFormData] = useState({
     nom: '',
-    identifiant_machine: '',
-    type: '',
-    emplacement: '',
     zone: '',
     sous_zone: '',
-    statut: 'EN_ATTENTE',
+    ordre: '',
     date_derniere_maintenance: '',
     date_prochaine_maintenance: '',
     image_url: '',
@@ -65,11 +62,9 @@ export const useMachines = () => {
       const filtered = machines.filter(
         (m) =>
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.identifiant_machine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.emplacement.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.type.toLowerCase().includes(searchTerm.toLowerCase()),
+          (m.ordre || '').toLowerCase().includes(searchTerm.toLowerCase()),
       );
       setFilteredMachines(filtered);
     } else {
@@ -82,12 +77,9 @@ export const useMachines = () => {
       setEditingMachine(machine);
       setFormData({
         nom: machine.nom,
-        identifiant_machine: machine.identifiant_machine,
-        type: machine.type,
-        emplacement: machine.emplacement,
         zone: machine.zone || '',
         sous_zone: machine.sous_zone || '',
-        statut: machine.statut,
+        ordre: machine.ordre || '',
         date_derniere_maintenance: toDateInputValue(machine.date_derniere_maintenance),
         date_prochaine_maintenance: toDateInputValue(machine.date_prochaine_maintenance),
         image_url: machine.image_url || '',
@@ -96,12 +88,9 @@ export const useMachines = () => {
       setEditingMachine(null);
       setFormData({
         nom: '',
-        identifiant_machine: '',
-        type: '',
-        emplacement: '',
         zone: '',
         sous_zone: '',
-        statut: 'EN_ATTENTE',
+        ordre: '',
         date_derniere_maintenance: '',
         date_prochaine_maintenance: '',
         image_url: '',
@@ -116,6 +105,7 @@ export const useMachines = () => {
         ...formData,
         zone: formData.zone?.trim() || null,
         sous_zone: formData.sous_zone?.trim() || null,
+        ordre: formData.ordre?.trim() || null,
       };
 
       if (editingMachine) {

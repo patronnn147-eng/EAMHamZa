@@ -20,13 +20,10 @@ router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 # ---------- Pydantic Schemas ----------
 class MachinesData(BaseModel):
     """Entity data schema (for create/update)"""
-    identifiant_machine: str
     nom: str
-    emplacement: str
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
-    statut: str
-    type: str
+    ordre: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None
@@ -35,13 +32,10 @@ class MachinesData(BaseModel):
 
 class MachinesUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
-    identifiant_machine: Optional[str] = None
     nom: Optional[str] = None
-    emplacement: Optional[str] = None
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
-    statut: Optional[str] = None
-    type: Optional[str] = None
+    ordre: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None
@@ -51,13 +45,10 @@ class MachinesUpdateData(BaseModel):
 class MachinesResponse(BaseModel):
     """Entity response schema"""
     id: int
-    identifiant_machine: str
     nom: str
-    emplacement: str
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
-    statut: str
-    type: str
+    ordre: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None

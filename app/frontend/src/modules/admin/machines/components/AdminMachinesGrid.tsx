@@ -3,13 +3,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2 } from 'lucide-react';
 import type { Machine } from '@/lib/types';
-import { StatusBadge } from '../utils/badges';
 
 interface AdminMachinesGridProps {
   machines: Machine[];
   onEdit: (machine: Machine) => void;
   onRequestDelete: (machine: Machine) => void;
 }
+
+// Helper function to truncate text with title attribute for tooltip
+const TruncateText: React.FC<{ text: string; maxLength: number }> = ({ text, maxLength }) => {
+  if (text.length <= maxLength) {
+    return <span>{text}</span>;
+  }
+  
+  return (
+    <span 
+      title={text} 
+      className="cursor-help truncate"
+    >
+      {text.substring(0, maxLength)}...
+    </span>
+  );
+};
 
 export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
   machines,
@@ -27,11 +42,14 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
           <Card key={machine.id} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{machine.nom}</CardTitle>
-                  <p className="text-sm text-gray-500 mt-1">{machine.identifiant_machine}</p>
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-lg truncate">
+                    <TruncateText text={machine.nom} maxLength={25} />
+                  </CardTitle>
+                  {machine.ordre && (
+                    <p className="text-sm text-gray-500 mt-1">Order: {machine.ordre}</p>
+                  )}
                 </div>
-                <StatusBadge statut={machine.statut} />
               </div>
             </CardHeader>
             <CardContent>
