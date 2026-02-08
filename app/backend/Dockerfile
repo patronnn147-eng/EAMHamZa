@@ -21,6 +21,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Copy application code
 COPY . .
 
+# Make start.sh executable
+RUN chmod +x start.sh
+
 # Create logs directory
 RUN mkdir -p logs
 
