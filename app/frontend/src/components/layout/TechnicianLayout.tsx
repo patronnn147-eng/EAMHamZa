@@ -212,16 +212,7 @@ export default function TechnicianLayout() {
                 </Button>
               );
             })}
-            <div className="pt-4 border-t">
-              <Button
-                variant="ghost"
-                className="w-full justify-start text-red-600 hover:text-red-700 hover:bg-red-50"
-                onClick={() => navigate('/technician/urgent-alert')}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Alerte Urgente
-              </Button>
-            </div>
+  
           </nav>
         </aside>
 

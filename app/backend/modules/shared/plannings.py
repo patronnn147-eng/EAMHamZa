@@ -24,6 +24,10 @@ class PlanningsData(BaseModel):
     date_debut: datetime
     date_fin: datetime
     type: str
+    shift_type: Optional[str] = None
+    chef_operation_id: Optional[int] = None
+    chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
@@ -33,6 +37,10 @@ class PlanningsUpdateData(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     type: Optional[str] = None
+    shift_type: Optional[str] = None
+    chef_operation_id: Optional[int] = None
+    chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
@@ -43,6 +51,10 @@ class PlanningsResponse(BaseModel):
     date_debut: datetime
     date_fin: datetime
     type: str
+    shift_type: Optional[str] = None
+    chef_operation_id: Optional[int] = None
+    chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

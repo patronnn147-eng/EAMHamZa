@@ -20,9 +20,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, Plus, Edit, Trash2, Users, Bell } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Users, Bell, Eye, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -41,6 +42,7 @@ interface Planning {
   shift_type?: string;
   chef_operation_id?: number;
   chef_technique_id?: number;
+  zone_travail?: string;
   assigned_users: User[];
   created_at?: string;
 }
@@ -48,11 +50,13 @@ interface Planning {
 export default function PlanningManagement() {
   const [plannings, setPlannings] = useState<Planning[]>([]);
   const [loading, setLoading] = useState(true);
+  const [resendingPlanningId, setResendingPlanningId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingPlanning, setEditingPlanning] = useState<Planning | null>(null);
   const [deletingPlanning, setDeletingPlanning] = useState<Planning | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // User lists for dropdowns
   const [chefOperations, setChefOperations] = useState<User[]>([]);
@@ -67,6 +71,7 @@ export default function PlanningManagement() {
     shift_type: undefined as 'MORNING' | 'NIGHT' | undefined,
     chef_operation_id: undefined as number | undefined,
     chef_technique_id: undefined as number | undefined,
+    zone_travail: '',
     technicien_ids: [] as number[],
   });
 
@@ -169,6 +174,7 @@ export default function PlanningManagement() {
         shift_type: planning.shift_type as 'MORNING' | 'NIGHT' | undefined,
         chef_operation_id: planning.chef_operation_id,
         chef_technique_id: planning.chef_technique_id,
+        zone_travail: planning.zone_travail || '',
         technicien_ids: Array.from(
           new Set(
             planning.assigned_users
@@ -189,6 +195,7 @@ export default function PlanningManagement() {
         shift_type: undefined,
         chef_operation_id: undefined,
         chef_technique_id: undefined,
+        zone_travail: '',
         technicien_ids: [],
       });
     }
@@ -259,6 +266,7 @@ export default function PlanningManagement() {
         shift_type: formData.shift_type || null,
         chef_operation_id: formData.chef_operation_id || null,
         chef_technique_id: formData.chef_technique_id || null,
+        zone_travail: formData.zone_travail?.trim() ? formData.zone_travail : null,
         technicien_ids: Array.from(new Set(formData.technicien_ids)),
       };
 
@@ -321,6 +329,33 @@ export default function PlanningManagement() {
         description: detail || 'Failed to delete planning',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleResendEmails = async (planningId: number) => {
+    try {
+      setResendingPlanningId(planningId);
+      const response = await client.apiCall.invoke({
+        url: `/api/v1/plannings/${planningId}/resend-emails`,
+        method: 'POST',
+      });
+
+      const queued = (response as { data?: { queued?: number } } | undefined)?.data?.queued;
+      toast({
+        title: 'Success',
+        description: `Emails queued: ${queued ?? 0}`,
+      });
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+                  || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to resend emails',
+        variant: 'destructive',
+      });
+    } finally {
+      setResendingPlanningId(null);
     }
   };
 
@@ -429,6 +464,15 @@ export default function PlanningManagement() {
                       </p>
                     </div>
                   </div>
+                  {planning.zone_travail && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="h-4 w-4 text-gray-400">📍</div>
+                      <div>
+                        <p className="text-gray-500">Zone de Travail</p>
+                        <p className="font-medium">{planning.zone_travail}</p>
+                      </div>
+                    </div>
+                  )}
                   {planning.assigned_users.length > 0 && (
                     <div className="flex items-start gap-2 text-sm">
                       <Users className="h-4 w-4 text-gray-400 mt-1" />
@@ -469,6 +513,27 @@ export default function PlanningManagement() {
                   >
                     <Trash2 className="mr-2 h-4 w-4" />
                     Delete
+                  </Button>
+                </div>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => navigate(`/admin/planning/${planning.id}`)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Details
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    disabled={resendingPlanningId === planning.id}
+                    onClick={() => handleResendEmails(planning.id)}
+                  >
+                    <Mail className="mr-2 h-4 w-4" />
+                    {resendingPlanningId === planning.id ? 'Resending...' : 'Resend Emails'}
                   </Button>
                 </div>
               </CardContent>
@@ -551,6 +616,31 @@ export default function PlanningManagement() {
                   onChange={(e) => setFormData({ ...formData, date_fin: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="zone_travail">Zone de Travail</Label>
+              <Select
+                value={formData.zone_travail || undefined}
+                onValueChange={(value) => setFormData({ ...formData, zone_travail: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner une zone de travail" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ZONE CMS1 - COMPONENT SURFACE MOUNTING">ZONE CMS1 - COMPONENT SURFACE MOUNTING</SelectItem>
+                  <SelectItem value="ZONE CMS2 - COMPONENT SURFACE MOUNTING">ZONE CMS2 - COMPONENT SURFACE MOUNTING</SelectItem>
+                  <SelectItem value="ZONE TEST FONCTIONNEL">ZONE TEST FONCTIONNEL</SelectItem>
+                  <SelectItem value="ZONE TEST WiFi">ZONE TEST WiFi</SelectItem>
+                  <SelectItem value="ZONE ASSEMBLAGE">ZONE ASSEMBLAGE</SelectItem>
+                  <SelectItem value="ZONE EMBALLAGE">ZONE EMBALLAGE</SelectItem>
+                  <SelectItem value="ZONE QUALITÉ">ZONE QUALITÉ</SelectItem>
+                  <SelectItem value="ZONE MAINTENANCE">ZONE MAINTENANCE</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Indiquez dans quelle zone l'équipe va travailler pendant ce planning
+              </p>
             </div>
 
             <div className="border-t pt-4 mt-2">

@@ -12,6 +12,7 @@ import ChetopMachines from '@/modules/chetop/ChetopMachines';
 import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
 import PlanningPage from '@/modules/shared/PlanningPage';
+import PlanningDetailPage from '@/modules/shared/PlanningDetailPage';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
 import UserManagement from '@/modules/admin/UserManagement';
@@ -25,7 +26,7 @@ import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
 import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
 import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
 import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
-import TechnicianUrgentAlert from '@/modules/technicien/TechnicianUrgentAlert';
+import ChefTechUrgentAlert from '@/modules/cheftech/ChefTechUrgentAlert';
 import NotFound from '@/modules/shared/NotFound';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleBasedRedirect } from './RoleBasedRedirect';
@@ -67,6 +68,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route path="/cheftech/urgent-alert" element={<ChefTechUrgentAlert />} />
       {/* Admin Routes */}
       <Route
         path="/admin/dashboard"
@@ -211,6 +213,16 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/planning/:id"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <PlanningDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Admin User Approval Management */}
       <Route
         path="/admin/user-approvals"
@@ -245,6 +257,16 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/cheftech/planning/:id"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <PlanningDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Chetop Planning (Read-only) */}
       <Route
         path="/chetop/planning"
@@ -256,12 +278,24 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      {/* Legacy planning route redirect */}
       <Route
-        path="/planning"
+        path="/chetop/planning/:id"
         element={
-          <ProtectedRoute>
-            <SectionRedirect section="planning" />
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <PlanningDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Shared Planning Detail Page */}
+      <Route
+        path="/planning/:id"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH', 'TECHNICIEN']}>
+            <Layout>
+              <PlanningDetailPage />
+            </Layout>
           </ProtectedRoute>
         }
       />
@@ -301,8 +335,8 @@ export function AppRoutes() {
         <Route path="machines" element={<TechnicianMachines />} />
         <Route path="machines/:id" element={<TechnicianMachineDetail />} />
         <Route path="planning" element={<TechnicianPlanning />} />
+        <Route path="planning/:id" element={<PlanningDetailPage />} />
         <Route path="documents" element={<TechnicianDocuments />} />
-        <Route path="urgent-alert" element={<TechnicianUrgentAlert />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

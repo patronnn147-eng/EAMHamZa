@@ -21,6 +21,16 @@ services:
     networks:
       - asset_management_network
 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: asset_management_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - asset_management_network
+
   # pgAdmin
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -56,17 +66,54 @@ services:
       PORT: 8000
       ENVIRONMENT: ${ENVIRONMENT:-production}
       PYTHONUNBUFFERED: 1
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://guest:guest@rabbitmq:5672//}
+      SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-krhcqurxeiazyvbt}
+      FROM_EMAIL: ${FROM_EMAIL:-hamza.mbarki2002@gmail.com}
+      FROM_NAME: ${FROM_NAME:-Asset Management System}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
+      rabbitmq:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
+    networks:
+      - asset_management_network
+
+  celery_worker:
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
+    container_name: asset_management_celery_worker
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-asset_management}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      PYTHONUNBUFFERED: 1
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-amqp://guest:guest@rabbitmq:5672//}
+      SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-krhcqurxeiazyvbt}
+      FROM_EMAIL: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
+      FROM_NAME: ${FROM_NAME:-Asset Management System}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+    command: ["celery", "-A", "core.celery_app", "worker", "-l", "info"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
     networks:
       - asset_management_network
 

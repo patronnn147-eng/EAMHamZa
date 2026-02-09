@@ -1,5 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
 import {
   DashboardStatsCards,
   InterventionsTab,
@@ -52,6 +56,7 @@ const CheftechDashboard: React.FC = () => {
             <TabsTrigger value="ordres">Ordres de travail</TabsTrigger>
             <TabsTrigger value="techniciens">Techniciens</TabsTrigger>
             <TabsTrigger value="machines">Machines</TabsTrigger>
+            <TabsTrigger value="urgent-alert">Alerte Urgente</TabsTrigger>
           </TabsList>
 
           <TabsContent value="interventions">
@@ -81,6 +86,43 @@ const CheftechDashboard: React.FC = () => {
               fetchMachines={fetchMachines}
               updateMachineStatus={updateMachineStatus}
             />
+          </TabsContent>
+
+          <TabsContent value="urgent-alert">
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                  <AlertTriangle className="h-6 w-6" />
+                  Alertes Urgentes
+                </h2>
+                <Button 
+                  onClick={() => navigate('/cheftech/urgent-alert')}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Nouvelle Alerte
+                </Button>
+              </div>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="text-center text-gray-600">
+                    <AlertTriangle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p className="text-lg font-medium mb-2">Gestion des Alertes Urgentes</p>
+                    <p className="text-sm">
+                      Créez et gérez les alertes urgentes émises par les techniciens.
+                      Les responsables sont notifiés immédiatement.
+                    </p>
+                    <Button 
+                      onClick={() => navigate('/cheftech/urgent-alert')}
+                      className="mt-4 bg-red-600 hover:bg-red-700"
+                    >
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Créer une Alerte
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>

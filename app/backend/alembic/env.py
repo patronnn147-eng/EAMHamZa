@@ -4,6 +4,7 @@
 
 import asyncio
 import importlib
+import os
 import pkgutil
 from logging.config import fileConfig
 
@@ -19,6 +20,10 @@ for _, module_name, _ in pkgutil.iter_modules(models.__path__):
 
 config = context.config
 
+database_url = os.getenv("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
+
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
@@ -32,7 +37,11 @@ def alembic_include_object(object, name, type_, reflected, compare_to):
 
 
 async def run_migrations_online():
-    connectable = create_async_engine(config.get_main_option("sqlalchemy.url"), poolclass=pool.NullPool)
+    db_url = config.get_main_option("sqlalchemy.url")
+    if not db_url:
+        raise RuntimeError("Alembic sqlalchemy.url is empty and DATABASE_URL is not set")
+
+    connectable = create_async_engine(db_url, poolclass=pool.NullPool)
     async with connectable.connect() as connection:
         await connection.run_sync(
             lambda sync_conn: context.configure(
@@ -49,12 +58,7 @@ async def run_migrations_online():
 
 
 def run_migrations():
-    try:
-        # If there is no event loop currently, use asyncio.run directly
-        loop = asyncio.get_running_loop()
-        loop.create_task(run_migrations_online())
-    except RuntimeError:
-        asyncio.run(run_migrations_online())
+    asyncio.run(run_migrations_online())
 
 
 run_migrations()

@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Calendar, Users, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface User {
   id: number;
@@ -29,6 +31,7 @@ export default function TechnicianPlanning() {
   const [plannings, setPlannings] = useState<Planning[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchPlannings();
@@ -168,6 +171,17 @@ export default function TechnicianPlanning() {
                       </div>
                     </div>
                   )}
+                </div>
+                <div className="flex gap-2 pt-2 border-t">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1"
+                    onClick={() => navigate(`/planning/${planning.id}`)}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Voir Détails
+                  </Button>
                 </div>
               </CardContent>
             </Card>

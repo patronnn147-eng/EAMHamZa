@@ -21,10 +21,28 @@ from models.notifications import Notifications
 from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
 from services.notifications import NotificationsService
+from tasks.planning_emails import send_planning_assignment_emails
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
+
+
+def _serialize_planning_for_email(payload: dict) -> dict:
+    def _dt(value: object) -> str:
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return "" if value is None else str(value)
+
+    return {
+        "id": payload.get("id"),
+        "identifiant_planning": payload.get("identifiant_planning", ""),
+        "date_debut": _dt(payload.get("date_debut")),
+        "date_fin": _dt(payload.get("date_fin")),
+        "type": payload.get("type", ""),
+        "shift_type": payload.get("shift_type") or "",
+        "zone_travail": payload.get("zone_travail") or "",
+    }
 
 
 # ---------- Pydantic Schemas ----------
@@ -37,6 +55,7 @@ class PlanningCreateData(BaseModel):
     shift_type: Optional[ShiftType] = None
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     technicien_ids: List[int] = Field(default_factory=list, description="List of technician IDs")
 
 
@@ -49,6 +68,7 @@ class PlanningUpdateData(BaseModel):
     shift_type: Optional[ShiftType] = None
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     technicien_ids: Optional[List[int]] = None
 
 
@@ -62,6 +82,7 @@ class PlanningResponse(BaseModel):
     shift_type: Optional[str] = None
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
+    zone_travail: Optional[str] = None
     created_at: Optional[datetime] = None
     assigned_users: List[dict] = Field(default_factory=list)
 
@@ -223,6 +244,7 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
         "shift_type": planning.shift_type.value if planning.shift_type else None,
         "chef_operation_id": planning.chef_operation_id,
         "chef_technique_id": planning.chef_technique_id,
+        "zone_travail": planning.zone_travail,
         "created_at": planning.created_at,
         "assigned_users": assigned_users
     }
@@ -405,6 +427,7 @@ async def create_planning(
             "shift_type": data.shift_type.value if data.shift_type else None,
             "chef_operation_id": data.chef_operation_id,
             "chef_technique_id": data.chef_technique_id,
+            "zone_travail": data.zone_travail,
             "created_at": datetime.now()
         }
         
@@ -432,6 +455,7 @@ async def create_planning(
             "shift_type": data.shift_type.value if data.shift_type else None,
             "chef_operation_id": data.chef_operation_id,
             "chef_technique_id": data.chef_technique_id,
+            "zone_travail": data.zone_travail,
             "created_at": datetime.now(),
             "assigned_users": []
         }
@@ -474,6 +498,12 @@ async def create_planning(
 
         if all_assigned_users:
             await send_planning_notifications(db, planning_id, data.identifiant_planning, all_assigned_users)
+
+            users_result = await db.execute(select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users)))
+            users = users_result.scalars().all()
+            recipients = [{"id": u.id, "nom": u.nom, "email": u.email} for u in users if getattr(u, "email", None)]
+            if recipients:
+                send_planning_assignment_emails.delay(recipients, _serialize_planning_for_email(planning_response_data))
         
         # Return simple dict to avoid greenlet_spawn issues
         return planning_response_data
@@ -516,6 +546,7 @@ async def update_planning(
         original_shift_type = planning.shift_type.value if planning.shift_type else None
         original_chef_operation_id = planning.chef_operation_id
         original_chef_technique_id = planning.chef_technique_id
+        original_zone_travail = getattr(planning, "zone_travail", None)
         original_created_at = planning.created_at
 
         # Build update dict
@@ -534,6 +565,8 @@ async def update_planning(
             update_dict["chef_operation_id"] = data.chef_operation_id
         if data.chef_technique_id is not None:
             update_dict["chef_technique_id"] = data.chef_technique_id
+        if data.zone_travail is not None:
+            update_dict["zone_travail"] = data.zone_travail
         
         # Update planning
         updated_planning = await service.update(planning_id, update_dict)
@@ -549,6 +582,7 @@ async def update_planning(
             "shift_type": update_dict.get("shift_type", original_shift_type),
             "chef_operation_id": update_dict.get("chef_operation_id", original_chef_operation_id),
             "chef_technique_id": update_dict.get("chef_technique_id", original_chef_technique_id),
+            "zone_travail": update_dict.get("zone_travail", original_zone_travail),
             "created_at": original_created_at,
             "assigned_users": [],
         }
@@ -591,6 +625,12 @@ async def update_planning(
         if all_assigned_users:
             await send_planning_notifications(db, planning_id, identifiant_planning, all_assigned_users)
 
+            users_result = await db.execute(select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users)))
+            users = users_result.scalars().all()
+            recipients = [{"id": u.id, "nom": u.nom, "email": u.email} for u in users if getattr(u, "email", None)]
+            if recipients:
+                send_planning_assignment_emails.delay(recipients, _serialize_planning_for_email(planning_response_data))
+
         return PlanningResponse(**planning_response_data)
         
     except HTTPException:
@@ -602,6 +642,50 @@ async def update_planning(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update planning: {str(e)}"
         )
+
+
+@router.post("/{planning_id}/resend-emails")
+async def resend_planning_emails(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually re-send planning assignment emails to currently assigned users (admin only)."""
+    await verify_admin(current_user)
+
+    service = PlanningsService(db)
+    planning = await service.get_by_id(planning_id)
+    if not planning:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Planning not found")
+
+    assigned_ids_result = await db.execute(
+        select(Planning_utilisateurs.utilisateur_id).where(Planning_utilisateurs.planning_id == planning_id)
+    )
+    user_ids = [row[0] for row in assigned_ids_result.fetchall()]
+
+    if not user_ids:
+        return {"queued": 0}
+
+    users_result = await db.execute(select(Utilisateurs).where(Utilisateurs.id.in_(user_ids)))
+    users = users_result.scalars().all()
+    recipients = [{"id": u.id, "nom": u.nom, "email": u.email} for u in users if getattr(u, "email", None)]
+    if not recipients:
+        return {"queued": 0}
+
+    planning_payload = _serialize_planning_for_email(
+        {
+            "id": planning.id,
+            "identifiant_planning": planning.identifiant_planning,
+            "date_debut": planning.date_debut,
+            "date_fin": planning.date_fin,
+            "type": planning.type.value if getattr(planning, "type", None) else "",
+            "shift_type": planning.shift_type.value if getattr(planning, "shift_type", None) else None,
+            "zone_travail": getattr(planning, "zone_travail", None),
+        }
+    )
+
+    send_planning_assignment_emails.delay(recipients, planning_payload)
+    return {"queued": len(recipients)}
 
 
 @router.delete("/{planning_id}")

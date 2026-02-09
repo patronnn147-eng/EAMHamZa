@@ -27,4 +27,5 @@ class Plannings(Base):
     shift_type = Column(SQLEnum(ShiftType), nullable=True)  # Only for SHIFT type
     chef_operation_id = Column(Integer, nullable=True)  # CHETOP user
     chef_technique_id = Column(Integer, nullable=True)  # CHEFTECH user
+    zone_travail = Column(String(100), nullable=True)  # Zone where team will work
     created_at = Column(DateTime(timezone=True), nullable=True)

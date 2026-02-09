@@ -16,7 +16,7 @@ import {
 import { AlertTriangle, ArrowLeft, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function TechnicianUrgentAlert() {
+export default function ChefTechUrgentAlert() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -61,7 +61,7 @@ export default function TechnicianUrgentAlert() {
         description: 'Votre alerte urgente a été transmise aux responsables',
       });
 
-      navigate('/technician/dashboard');
+      navigate('/cheftech/dashboard');
     } catch (error: unknown) {
       const detail =
         (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data
@@ -81,7 +81,7 @@ export default function TechnicianUrgentAlert() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" onClick={() => navigate('/technician/dashboard')}>
+        <Button variant="ghost" onClick={() => navigate('/cheftech/dashboard')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour
         </Button>
@@ -90,7 +90,7 @@ export default function TechnicianUrgentAlert() {
             <AlertTriangle className="h-8 w-8" />
             Alerte Urgente
           </h2>
-          <p className="mt-1 text-sm text-gray-500">Signalez un problème critique immédiatement</p>
+          <p className="mt-1 text-sm text-gray-500">Signalez un problème critique nécessitant une intervention immédiate</p>
         </div>
       </div>
 
@@ -154,7 +154,7 @@ export default function TechnicianUrgentAlert() {
           </div>
 
           <div className="flex gap-3 pt-4">
-            <Button variant="outline" className="flex-1" onClick={() => navigate('/technician/dashboard')}>
+            <Button variant="outline" className="flex-1" onClick={() => navigate('/cheftech/dashboard')}>
               Annuler
             </Button>
             <Button
