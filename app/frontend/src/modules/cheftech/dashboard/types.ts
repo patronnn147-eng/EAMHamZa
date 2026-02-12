@@ -1,16 +1,13 @@
 export interface Intervention {
   id: number;
-  titre: string;
-  description: string;
-  statut: string;
-  priorite: string;
-  machine_id: number;
-  machine_nom?: string;
+  date_intervention: string;
+  rapport?: string;
+  ordre_travail_id: number;
   technicien_id?: number;
-  technicien_nom?: string;
+  statut?: string;
   date_debut?: string;
   date_fin?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 export interface WorkOrder {
@@ -25,6 +22,7 @@ export interface WorkOrder {
   utilisateur_nom?: string;
   date_echeance?: string;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface Technician {
@@ -37,7 +35,7 @@ export interface Technician {
 
 export interface Machine {
   id: number;
-  identifiant_machine: string;
+  identifiant_machine?: string;
   nom: string;
   emplacement: string;
   statut: string;

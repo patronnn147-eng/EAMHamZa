@@ -246,7 +246,7 @@ export default function TechnicianWorkOrderDetail() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Identifiant</p>
-                    <p className="text-base mt-1">{machine.identifiant_machine}</p>
+                    <p className="text-base mt-1">#{machine.id}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Type</p>

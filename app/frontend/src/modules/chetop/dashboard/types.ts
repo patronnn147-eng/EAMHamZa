@@ -14,6 +14,7 @@ export interface WorkOrder {
 
 export interface Machine {
   id: number;
+  identifiant_machine?: string;
   nom: string;
   emplacement?: string;
   type?: string;
@@ -35,7 +36,27 @@ export interface CreateWorkOrderFormData {
   titre: string;
   description: string;
   priorite: string;
-  machine_id: number;
-  utilisateur_id: number | null;
+  machine_ids: number[];
+  planning_id: number | null;
+  chef_technique_id: number | null;
+  technicien_ids: number[];
   date_echeance: string;
+  statut: string;
+}
+
+export interface PlanningUser {
+  id: number;
+  nom: string;
+  email: string;
+  role: string;
+}
+
+export interface Planning {
+  id: number;
+  identifiant_planning: string;
+  date_debut: string;
+  date_fin: string;
+  chef_technique_id?: number | null;
+  assigned_users: PlanningUser[];
+  machine_ids?: number[];
 }

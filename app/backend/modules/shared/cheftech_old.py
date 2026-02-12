@@ -52,7 +52,6 @@ class WorkOrderResponse(BaseModel):
 
 class MachineResponse(BaseModel):
     id: int
-    identifiant_machine: str
     nom: str
     emplacement: str
     statut: str
@@ -333,7 +332,6 @@ async def get_machines(
         machines = [
             MachineResponse(
                 id=machine.id,
-                identifiant_machine=machine.identifiant_machine,
                 nom=machine.nom,
                 emplacement=machine.emplacement,
                 statut=machine.statut,

@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'update_ordres_travail_chetop'
-down_revision = 'standardize_utilisateurs_schema'
+down_revision = 'standardize_utilisateurs'
 branch_labels = None
 depends_on = None
 

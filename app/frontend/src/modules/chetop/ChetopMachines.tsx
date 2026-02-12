@@ -32,9 +32,8 @@ export default function ChetopMachines() {
       const filtered = machines.filter(
         (m) =>
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.identifiant_machine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.emplacement.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.type.toLowerCase().includes(searchTerm.toLowerCase())
+          (m.emplacement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.type || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredMachines(filtered);
     } else {
@@ -112,7 +111,7 @@ export default function ChetopMachines() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg">{machine.nom}</CardTitle>
-                    <p className="text-sm text-gray-500 mt-1">{machine.identifiant_machine}</p>
+                    <p className="text-sm text-gray-500 mt-1">#{machine.id}</p>
                   </div>
                   {getStatusBadge(machine.statut)}
                 </div>

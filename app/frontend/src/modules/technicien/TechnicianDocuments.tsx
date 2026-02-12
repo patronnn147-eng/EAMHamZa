@@ -75,7 +75,7 @@ export default function TechnicianDocuments() {
         url: '/api/v1/storage/download-url',
         method: 'POST',
         data: {
-          bucket_name: 'archives',
+          bucket_name: 'attachments',
           object_key: doc.object_key,
         },
       });

@@ -47,6 +47,15 @@ class MarkAsReadRequest(BaseModel):
     notification_ids: List[int]
 
 
+class BulkNotificationCreateRequest(BaseModel):
+    """Schema for creating notifications for multiple users"""
+    utilisateur_ids: List[int]
+    titre: str
+    priorite: str = "MOYENNE"
+    type: str
+    message: str
+
+
 # ---------- Routes ----------
 @router.get("", response_model=NotificationListResponse)
 async def get_my_notifications(
@@ -176,6 +185,41 @@ async def mark_all_as_read(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to mark all notifications as read: {str(e)}"
         )
+
+
+@router.post("/bulk")
+async def create_bulk_notifications(
+    data: BulkNotificationCreateRequest,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Create notifications for multiple users (ChefOp/ChefTech/Admin)."""
+    if current_user.role not in {"CHETOP", "CHEFTECH", "ADMIN"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
+
+    if not data.utilisateur_ids:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="utilisateur_ids is required")
+
+    service = NotificationsService(db)
+    now = datetime.now()
+    created = 0
+
+    for user_id in sorted(set(data.utilisateur_ids)):
+        await service.create(
+            {
+                "utilisateur_id": user_id,
+                "titre": data.titre,
+                "priorite": data.priorite,
+                "type": data.type,
+                "message": data.message,
+                "date_envoi": now,
+                "lu": False,
+                "created_at": now,
+            }
+        )
+        created += 1
+
+    return {"created": created}
 
 
 @router.delete("/{notification_id}")

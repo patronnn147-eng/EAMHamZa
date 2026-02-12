@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { CreateWorkOrderFormData, Machine } from '../types';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { CreateWorkOrderFormData, Machine, Planning } from '../types';
 
 interface CreateOrderModalProps {
   open: boolean;
@@ -13,6 +14,9 @@ interface CreateOrderModalProps {
   formData: CreateWorkOrderFormData;
   setFormData: (data: CreateWorkOrderFormData) => void;
   machines: Machine[];
+  plannings: Planning[];
+  attachments: File[];
+  setAttachments: (files: File[]) => void;
   onSubmit: (e: React.FormEvent) => void;
 }
 
@@ -22,9 +26,20 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   formData,
   setFormData,
   machines,
+  plannings,
+  attachments,
+  setAttachments,
   onSubmit,
 }) => {
   if (!open) return null;
+
+  const selectedPlanning = formData.planning_id
+    ? plannings.find((p) => p.id === formData.planning_id)
+    : null;
+
+  const planningTechnicians = selectedPlanning
+    ? selectedPlanning.assigned_users.filter((u) => u.role === 'TECHNICIEN')
+    : [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -77,23 +92,139 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               </div>
 
               <div>
-                <Label htmlFor="machine">Machine *</Label>
+                <Label>Machines *</Label>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                  {machines.length === 0 ? (
+                    <p className="text-sm text-gray-500">Aucune machine disponible</p>
+                  ) : (
+                    machines.map((m) => (
+                      <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
+                        <Checkbox
+                          id={`machine-${m.id}`}
+                          checked={formData.machine_ids.includes(m.id)}
+                          onCheckedChange={() =>
+                            setFormData({
+                              ...formData,
+                              machine_ids: formData.machine_ids.includes(m.id)
+                                ? formData.machine_ids.filter((id) => id !== m.id)
+                                : [...formData.machine_ids, m.id],
+                            })
+                          }
+                        />
+                        <label htmlFor={`machine-${m.id}`} className="text-sm font-medium cursor-pointer flex-1">
+                          {m.nom} {m.identifiant_machine ? `(${m.identifiant_machine})` : ''}
+                        </label>
+                      </div>
+                    ))
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">Selected: {formData.machine_ids.length} machine(s)</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label>Due Date</Label>
+                <Input
+                  type="date"
+                  value={formData.date_echeance}
+                  onChange={(e) => setFormData({ ...formData, date_echeance: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Status</Label>
                 <Select
-                  value={formData.machine_id.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, machine_id: parseInt(value) })}
+                  value={formData.statut}
+                  onValueChange={(value) => setFormData({ ...formData, statut: value })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une machine" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {machines.map((machine) => (
-                      <SelectItem key={machine.id} value={machine.id.toString()}>
-                        {machine.nom}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="EN_ATTENTE">EN_ATTENTE</SelectItem>
+                    <SelectItem value="ASSIGNÉ">ASSIGNÉ</SelectItem>
+                    <SelectItem value="EN_COURS">EN_COURS</SelectItem>
+                    <SelectItem value="TERMINÉ">TERMINÉ</SelectItem>
+                    <SelectItem value="BLOQUÉ">BLOQUÉ</SelectItem>
+                    <SelectItem value="ANNULÉ">ANNULÉ</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Planning</Label>
+              <Select
+                value={formData.planning_id?.toString() || ''}
+                onValueChange={(value) => {
+                  const pid = value ? parseInt(value) : null;
+                  const p = pid ? plannings.find((x) => x.id === pid) : null;
+                  setFormData({
+                    ...formData,
+                    planning_id: pid,
+                    chef_technique_id: p?.chef_technique_id || null,
+                    technicien_ids: [],
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un planning" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plannings.map((p) => (
+                    <SelectItem key={p.id} value={p.id.toString()}>
+                      {p.identifiant_planning}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedPlanning && (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label>ChefTech (superviseur)</Label>
+                  <Input value={formData.chef_technique_id?.toString() || ''} disabled />
+                </div>
+                <div className="grid gap-2">
+                  <Label>Techniciens (du planning)</Label>
+                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                    {planningTechnicians.length === 0 ? (
+                      <p className="text-sm text-gray-500">Aucun technicien dans ce planning</p>
+                    ) : (
+                      planningTechnicians.map((t) => (
+                        <div key={t.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
+                          <Checkbox
+                            id={`tech-${t.id}`}
+                            checked={formData.technicien_ids.includes(t.id)}
+                            onCheckedChange={() =>
+                              setFormData({
+                                ...formData,
+                                technicien_ids: formData.technicien_ids.includes(t.id)
+                                  ? formData.technicien_ids.filter((id) => id !== t.id)
+                                  : [...formData.technicien_ids, t.id],
+                              })
+                            }
+                          />
+                          <label htmlFor={`tech-${t.id}`} className="text-sm font-medium cursor-pointer flex-1">
+                            {t.nom} - {t.email}
+                          </label>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid gap-2">
+              <Label>Attachments</Label>
+              <Input
+                type="file"
+                multiple
+                onChange={(e) => setAttachments(Array.from(e.target.files || []))}
+              />
+              <p className="text-xs text-gray-500">Selected: {attachments.length} file(s)</p>
             </div>
 
             <div className="flex justify-end gap-2 pt-4">

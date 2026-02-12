@@ -43,7 +43,6 @@ class WorkOrderResponse(BaseModel):
 
 class MachineResponse(BaseModel):
     id: int
-    identifiant_machine: str
     nom: str
     emplacement: str
     statut: str
@@ -74,10 +73,19 @@ class DashboardStats(BaseModel):
     total_machines: int
     machines_critiques: int
 
+class WorkOrderAssignRequest(BaseModel):
+    technicien_ids: List[int]
+    estimated_completion_date: Optional[datetime] = None
+
 # Helper function to check if user has CHEFTECH role
 async def verify_cheftech(current_user: Utilisateurs = Depends(get_current_user)):
     if current_user.role != "CHEFTECH":
         raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle CHEFTECH requis.")
+    return current_user
+
+async def verify_cheftech_or_admin(current_user: Utilisateurs = Depends(get_current_user)):
+    if current_user.role not in ["CHEFTECH", "ADMIN"]:
+        raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle CHEFTECH ou ADMIN requis.")
     return current_user
 
 @router.get("/dashboard", response_model=DashboardStats)
@@ -230,7 +238,6 @@ async def get_machines(
         machines = [
             MachineResponse(
                 id=machine.id,
-                identifiant_machine=machine.identifiant_machine,
                 nom=machine.nom,
                 emplacement=machine.emplacement,
                 statut=machine.statut,
@@ -246,6 +253,63 @@ async def get_machines(
         return machines
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/ordres-travail/{ordre_id}/assign")
+async def assign_work_order(
+    ordre_id: int,
+    data: WorkOrderAssignRequest,
+    current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if not data.technicien_ids:
+        raise HTTPException(status_code=400, detail="technicien_ids is required")
+
+    ordre = await db.scalar(select(Ordres_travail).where(Ordres_travail.id == ordre_id))
+    if not ordre:
+        raise HTTPException(status_code=404, detail="Work order not found")
+
+    tech_result = await db.execute(
+        select(Utilisateurs.id).where(
+            and_(
+                Utilisateurs.id.in_(data.technicien_ids),
+                cast(Utilisateurs.role, String) == "TECHNICIEN",
+            )
+        )
+    )
+    found_ids = set(tech_result.scalars().all())
+    missing = [tid for tid in data.technicien_ids if tid not in found_ids]
+    if missing:
+        raise HTTPException(status_code=400, detail=f"Invalid technician ids: {missing}")
+
+    now = datetime.utcnow()
+    for technicien_id in data.technicien_ids:
+        existing = await db.scalar(
+            select(Ordres_intervention).where(
+                and_(
+                    Ordres_intervention.ordre_travail_id == ordre_id,
+                    Ordres_intervention.technicien_id == technicien_id,
+                )
+            )
+        )
+        if existing:
+            continue
+        db.add(
+            Ordres_intervention(
+                date_intervention=now,
+                ordre_travail_id=ordre_id,
+                technicien_id=technicien_id,
+                statut="EN_ATTENTE",
+            )
+        )
+
+    ordre.statut = "ASSIGNÉ"
+    ordre.validated_by = current_user.id
+    ordre.date_validation = ordre.date_validation or now
+    if data.estimated_completion_date:
+        ordre.date_echeance = data.estimated_completion_date
+
+    await db.commit()
+    return {"message": "Work order assigned", "ordre_id": ordre_id, "technicien_ids": data.technicien_ids}
 
 @router.put("/machines/{machine_id}/status")
 async def update_machine_status(

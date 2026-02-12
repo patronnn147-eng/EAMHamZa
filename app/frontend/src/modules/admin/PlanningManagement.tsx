@@ -24,6 +24,7 @@ import { Calendar, Plus, Edit, Trash2, Users, Bell, Eye, Mail } from 'lucide-rea
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
+import type { Machine } from '@/lib/types';
 
 interface User {
   id: number;
@@ -44,6 +45,7 @@ interface Planning {
   chef_technique_id?: number;
   zone_travail?: string;
   assigned_users: User[];
+  machine_ids?: number[];
   created_at?: string;
 }
 
@@ -62,6 +64,7 @@ export default function PlanningManagement() {
   const [chefOperations, setChefOperations] = useState<User[]>([]);
   const [chefTechniques, setChefTechniques] = useState<User[]>([]);
   const [techniciens, setTechniciens] = useState<User[]>([]);
+  const [machines, setMachines] = useState<Machine[]>([]);
 
   const [formData, setFormData] = useState({
     identifiant_planning: '',
@@ -73,6 +76,7 @@ export default function PlanningManagement() {
     chef_technique_id: undefined as number | undefined,
     zone_travail: '',
     technicien_ids: [] as number[],
+    machine_ids: [] as number[],
   });
 
   const getUserShiftBadge = (shiftType?: string | null) => {
@@ -108,6 +112,15 @@ export default function PlanningManagement() {
       next.technicien_ids = next.technicien_ids.filter(id => allowedTechs.has(id));
       return next;
     });
+  };
+
+  const toggleMachine = (machineId: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      machine_ids: prev.machine_ids.includes(machineId)
+        ? prev.machine_ids.filter((id) => id !== machineId)
+        : [...prev.machine_ids, machineId],
+    }));
   };
 
   useEffect(() => {
@@ -154,15 +167,17 @@ export default function PlanningManagement() {
 
   const handleOpenDialog = async (planning?: Planning) => {
     // Fetch users for dropdowns
-    const [chefOps, chefTechs, techs] = await Promise.all([
+    const [chefOps, chefTechs, techs, machinesResponse] = await Promise.all([
       fetchUsersByRole('CHETOP'),
       fetchUsersByRole('CHEFTECH'),
       fetchUsersByRole('TECHNICIEN'),
+      client.entities.machines.query({ query: {}, sort: '-created_at', limit: 200 }),
     ]);
 
     setChefOperations(chefOps);
     setChefTechniques(chefTechs);
     setTechniciens(techs);
+    setMachines(machinesResponse.data.items || []);
 
     if (planning) {
       setEditingPlanning(planning);
@@ -182,6 +197,7 @@ export default function PlanningManagement() {
               .map(u => u.id)
           )
         ),
+        machine_ids: Array.from(new Set(planning.machine_ids || [])),
       });
     } else {
       setEditingPlanning(null);
@@ -197,6 +213,7 @@ export default function PlanningManagement() {
         chef_technique_id: undefined,
         zone_travail: '',
         technicien_ids: [],
+        machine_ids: [],
       });
     }
     setDialogOpen(true);
@@ -268,6 +285,7 @@ export default function PlanningManagement() {
         chef_technique_id: formData.chef_technique_id || null,
         zone_travail: formData.zone_travail?.trim() ? formData.zone_travail : null,
         technicien_ids: Array.from(new Set(formData.technicien_ids)),
+        machine_ids: Array.from(new Set(formData.machine_ids)),
       };
 
       if (editingPlanning) {
@@ -643,100 +661,130 @@ export default function PlanningManagement() {
               </p>
             </div>
 
-            <div className="border-t pt-4 mt-2">
-              <h3 className="font-semibold mb-1 flex items-center gap-2">
-                Team Assignment
-                <Badge variant="outline" className="text-xs">Step-by-step</Badge>
-              </h3>
-              <p className="text-xs text-gray-500 mb-3">
-                {formData.type === 'SHIFT' 
-                  ? '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians → 4. Choose Shift Type' 
-                  : '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians'}
-              </p>
-              
-              <div className="grid gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="chef_operation">
-                    Step 1: Chef Operation (CHETOP) {formData.type === 'SHIFT' && '*'}
-                  </Label>
-                  <Select 
-                    value={formData.chef_operation_id?.toString()} 
-                    onValueChange={(value) => setFormData({ ...formData, chef_operation_id: parseInt(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Chef Operation" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filterUsersByPlanningShift(chefOperations).length === 0 ? (
-                        <SelectItem value="none" disabled>No CHETOP users available</SelectItem>
-                      ) : (
-                        filterUsersByPlanningShift(chefOperations).map(user => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            <div className="flex items-center justify-between gap-2 w-full">
-                              <span>{user.nom} - {user.email}</span>
-                              {getUserShiftBadge(user.shift_type)}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
+            <div className="grid gap-2">
+              <Label>Machines</Label>
+              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                {machines.length === 0 ? (
+                  <p className="text-sm text-gray-500">No machines available</p>
+                ) : (
+                  machines.map((m) => (
+                    <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
+                      <Checkbox
+                        id={`machine-${m.id}`}
+                        checked={formData.machine_ids.includes(m.id)}
+                        onCheckedChange={() => toggleMachine(m.id)}
+                      />
+                      <label
+                        htmlFor={`machine-${m.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                      >
+                        #{m.id}
+                      </label>
+                    </div>
+                  ))
+                )}
+              </div>
+              <p className="text-xs text-gray-500">Selected: {formData.machine_ids.length} machine(s)</p>
+            </div>
 
-                <div className="grid gap-2">
-                  <Label htmlFor="chef_technique">Step 2: Chef Technique (CHEFTECH)</Label>
-                  <Select 
-                    value={formData.chef_technique_id?.toString()} 
-                    onValueChange={(value) => setFormData({ ...formData, chef_technique_id: parseInt(value) })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select Chef Technique" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filterUsersByPlanningShift(chefTechniques).length === 0 ? (
-                        <SelectItem value="none" disabled>No CHEFTECH users available</SelectItem>
-                      ) : (
-                        filterUsersByPlanningShift(chefTechniques).map(user => (
-                          <SelectItem key={user.id} value={user.id.toString()}>
-                            <div className="flex items-center justify-between gap-2 w-full">
-                              <span>{user.nom} - {user.email}</span>
-                              {getUserShiftBadge(user.shift_type)}
-                            </div>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>Step 3: Technicians (TECHNICIEN)</Label>
-                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-                    {filterUsersByPlanningShift(techniciens).length === 0 ? (
-                      <p className="text-sm text-gray-500">No technicians available</p>
+            <div className="grid gap-2">
+              <Label>Team Assignment</Label>
+              <Badge variant="outline" className="text-xs">Step-by-step</Badge>
+            </div>
+            <p className="text-xs text-gray-500 mb-3">
+              {formData.type === 'SHIFT' 
+                ? '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians → 4. Choose Shift Type' 
+                : '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians'}
+            </p>
+            
+            <div className="grid gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="chef_operation">
+                  Step 1: Chef Operation (CHETOP) {formData.type === 'SHIFT' && '*'}
+                </Label>
+                <Select 
+                  value={formData.chef_operation_id?.toString()} 
+                  onValueChange={(value) => setFormData({ ...formData, chef_operation_id: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Chef Operation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterUsersByPlanningShift(chefOperations).length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No CHETOP users available
+                      </SelectItem>
                     ) : (
-                      filterUsersByPlanningShift(techniciens).map(tech => (
-                        <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
-                          <Checkbox
-                            id={`tech-${tech.id}`}
-                            checked={formData.technicien_ids.includes(tech.id)}
-                            onCheckedChange={() => toggleTechnicien(tech.id)}
-                          />
-                          <label
-                            htmlFor={`tech-${tech.id}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                          >
-                            {tech.nom} - {tech.email}
-                          </label>
-                          {getUserShiftBadge(tech.shift_type)}
-                        </div>
+                      filterUsersByPlanningShift(chefOperations).map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <span>
+                              {user.nom} - {user.email}
+                            </span>
+                            {getUserShiftBadge(user.shift_type)}
+                          </div>
+                        </SelectItem>
                       ))
                     )}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Selected: {formData.technicien_ids.length} technician(s)
-                  </p>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="chef_technique">Step 2: Chef Technique (CHEFTECH)</Label>
+                <Select
+                  value={formData.chef_technique_id?.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, chef_technique_id: parseInt(value) })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Chef Technique" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filterUsersByPlanningShift(chefTechniques).length === 0 ? (
+                      <SelectItem value="none" disabled>
+                        No CHEFTECH users available
+                      </SelectItem>
+                    ) : (
+                      filterUsersByPlanningShift(chefTechniques).map((user) => (
+                        <SelectItem key={user.id} value={user.id.toString()}>
+                          <div className="flex items-center justify-between gap-2 w-full">
+                            <span>
+                              {user.nom} - {user.email}
+                            </span>
+                            {getUserShiftBadge(user.shift_type)}
+                          </div>
+                        </SelectItem>
+                      ))
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Step 3: Technicians (TECHNICIEN)</Label>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
+                  {filterUsersByPlanningShift(techniciens).length === 0 ? (
+                    <p className="text-sm text-gray-500">No technicians available</p>
+                  ) : (
+                    filterUsersByPlanningShift(techniciens).map((tech) => (
+                      <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
+                        <Checkbox
+                          id={`tech-${tech.id}`}
+                          checked={formData.technicien_ids.includes(tech.id)}
+                          onCheckedChange={() => toggleTechnicien(tech.id)}
+                        />
+                        <label
+                          htmlFor={`tech-${tech.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                        >
+                          {tech.nom} - {tech.email}
+                        </label>
+                        {getUserShiftBadge(tech.shift_type)}
+                      </div>
+                    ))
+                  )}
                 </div>
+                <p className="text-xs text-gray-500">Selected: {formData.technicien_ids.length} technician(s)</p>
               </div>
             </div>
           </div>

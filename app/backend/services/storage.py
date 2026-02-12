@@ -1,9 +1,14 @@
 import logging
 from typing import Literal, Optional, Union
 from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 import httpx
 import mimetypes
+from datetime import datetime, timedelta, timezone
+
+from minio import Minio
+from minio.error import S3Error
 from core.config import settings
 from schemas.storage import (
     BucketInfo,
@@ -31,10 +36,70 @@ class StorageService:
         if not settings.oss_service_url or not settings.oss_api_key:
             raise ValueError("OSS service not configured. Set OSS_SERVICE_URL and OSS_API_KEY.")
 
+        # If OSS_SECRET_KEY is provided, we assume S3/MinIO mode for presigned URLs.
+        # The existing code path that calls `/api/v1/infra/client/oss/...` is for a custom OSS gateway,
+        # not for MinIO itself.
+        self._minio_client: Optional[Minio] = None
+        if getattr(settings, "oss_secret_key", ""):
+            parsed = urlparse(settings.oss_service_url)
+            endpoint = parsed.netloc or parsed.path
+            secure = (parsed.scheme == "https")
+            if not endpoint:
+                raise ValueError("Invalid OSS_SERVICE_URL. Expected something like http://minio:9000/")
+            self._minio_client = Minio(
+                endpoint,
+                access_key=settings.oss_api_key,
+                secret_key=settings.oss_secret_key,
+                secure=secure,
+                region="us-east-1",
+            )
+
         self.headers = {
             "Authorization": f"Bearer {settings.oss_api_key}",
             "Content-Type": "application/json",
         }
+
+    def _get_presign_client(self) -> Optional[Minio]:
+        """Return a MinIO client configured for presigning URLs.
+
+        Important: For AWS SigV4, the request Host is part of the signature.
+        Rewriting the host *after* presigning will often lead to 403 SignatureDoesNotMatch.
+
+        If OSS_PUBLIC_URL is provided, we sign using that host (e.g. localhost:9000)
+        so the browser can use the URL as-is.
+        """
+
+        if not getattr(settings, "oss_secret_key", ""):
+            return None
+
+        public_base = getattr(settings, "oss_public_url", "")
+        if not public_base:
+            return self._minio_client
+
+        parsed = urlparse(public_base)
+        endpoint = parsed.netloc or parsed.path
+        if not endpoint:
+            return self._minio_client
+
+        secure = (parsed.scheme == "https")
+        return Minio(
+            endpoint,
+            access_key=settings.oss_api_key,
+            secret_key=settings.oss_secret_key,
+            secure=secure,
+            region="us-east-1",
+        )
+
+    def _ensure_bucket_exists(self, bucket_name: str) -> None:
+        if not self._minio_client:
+            return
+
+        try:
+            if not self._minio_client.bucket_exists(bucket_name):
+                self._minio_client.make_bucket(bucket_name)
+        except S3Error as e:
+            logger.error(f"Failed to ensure bucket exists '{bucket_name}': {e}")
+            raise
 
     async def create_bucket(self, request: BucketRequest) -> BucketResponse:
         """
@@ -134,42 +199,77 @@ class StorageService:
         """
         Create presigned URL for file upload with access URL.
         """
-        endpoint = f"/api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/upload_url"
-        payload = {"expires_in": 0, "object_key": request.object_key}
+        if not self._minio_client:
+            endpoint = f"/api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/upload_url"
+            payload = {"expires_in": 0, "object_key": request.object_key}
+            try:
+                result = await self._apost_oss_service(endpoint, payload)
+                return FileUpDownResponse(
+                    upload_url=result.get("upload_url"),
+                    expires_at=result.get("expires_at"),
+                )
+            except Exception as e:
+                logger.error(f"Failed to create upload URL: {e}")
+                raise
+
         try:
-            result = await self._apost_oss_service(endpoint, payload)
-            # Format response according to ObjectStorage service response
-            return FileUpDownResponse(
-                upload_url=result.get("upload_url"),
-                expires_at=result.get("expires_at"),
+            self._ensure_bucket_exists(request.bucket_name)
+            expires = timedelta(hours=1)
+            presign_client = self._get_presign_client()
+            if not presign_client:
+                raise ValueError("OSS presign client not configured")
+
+            url = presign_client.presigned_put_object(
+                request.bucket_name,
+                request.object_key,
+                expires=expires,
             )
-        except Exception as e:
-            logger.error(f"Failed to create upload URL: {e}")
+            expires_at = (datetime.now(timezone.utc) + expires).isoformat()
+            return FileUpDownResponse(upload_url=url, expires_at=expires_at)
+        except S3Error as e:
+            logger.error(f"Failed to create MinIO upload URL: {e}")
             raise
 
     async def create_download_url(self, request: FileUpDownRequest) -> FileUpDownResponse:
         """
         Create presigned URL for file download with access URL.
         """
-        endpoint = f"/api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/download_url"
-        content_type, _ = mimetypes.guess_type(str(request.object_key))
-        if not content_type:
-            content_type = "application/octet-stream"
-        payload = {
-            "content_type": content_type,  # like "image/jpeg"
-            "expires_in": 0,
-            "object_key": request.object_key,
-        }
-        try:
-            result = await self._apost_oss_service(endpoint, payload)
-            # Format response according to ObjectStorage service response
-            return FileUpDownResponse(
-                download_url=result.get("download_url"),
-                expires_at=result.get("expires_at"),
-            )
+        if not self._minio_client:
+            endpoint = f"/api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/download_url"
+            content_type, _ = mimetypes.guess_type(str(request.object_key))
+            if not content_type:
+                content_type = "application/octet-stream"
+            payload = {
+                "content_type": content_type,
+                "expires_in": 0,
+                "object_key": request.object_key,
+            }
+            try:
+                result = await self._apost_oss_service(endpoint, payload)
+                return FileUpDownResponse(
+                    download_url=result.get("download_url"),
+                    expires_at=result.get("expires_at"),
+                )
+            except Exception as e:
+                logger.error(f"Failed to create upload URL: {e}")
+                raise
 
-        except Exception as e:
-            logger.error(f"Failed to create upload URL: {e}")
+        try:
+            self._ensure_bucket_exists(request.bucket_name)
+            expires = timedelta(hours=1)
+            presign_client = self._get_presign_client()
+            if not presign_client:
+                raise ValueError("OSS presign client not configured")
+
+            url = presign_client.presigned_get_object(
+                request.bucket_name,
+                request.object_key,
+                expires=expires,
+            )
+            expires_at = (datetime.now(timezone.utc) + expires).isoformat()
+            return FileUpDownResponse(download_url=url, expires_at=expires_at)
+        except S3Error as e:
+            logger.error(f"Failed to create MinIO download URL: {e}")
             raise
 
     async def _aget_oss_service(self, endpoint: str, params: dict) -> dict:

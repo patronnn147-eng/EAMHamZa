@@ -1,14 +1,16 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Calendar, Edit, Trash2 } from 'lucide-react';
+import { AlertCircle, Calendar, Edit, Trash2, Eye } from 'lucide-react';
 import type { Machine, OrdreTravail } from '@/lib/types';
 import { isOverdue, PriorityBadge, StatusBadge } from '../utils/badges';
 
 interface WorkOrdersListProps {
   workOrders: OrdreTravail[];
   machines: Machine[];
-  isAdmin: boolean;
+  canEdit: boolean;
+  canDelete: boolean;
+  onViewDetails: (workOrder: OrdreTravail) => void;
   onEdit: (workOrder: OrdreTravail) => void;
   onRequestDelete: (workOrder: OrdreTravail) => void;
 }
@@ -16,7 +18,9 @@ interface WorkOrdersListProps {
 export const WorkOrdersList: React.FC<WorkOrdersListProps> = ({
   workOrders,
   machines,
-  isAdmin,
+  canEdit,
+  canDelete,
+  onViewDetails,
   onEdit,
   onRequestDelete,
 }) => {
@@ -87,12 +91,23 @@ export const WorkOrdersList: React.FC<WorkOrdersListProps> = ({
                 variant="outline"
                 size="sm"
                 className="flex-1"
-                onClick={() => onEdit(wo)}
+                onClick={() => onViewDetails(wo)}
               >
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
               </Button>
-              {isAdmin && (
+              {canEdit ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => onEdit(wo)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              ) : null}
+              {canDelete && (
                 <Button
                   variant="outline"
                   size="sm"

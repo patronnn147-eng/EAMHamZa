@@ -238,7 +238,8 @@ async def create_work_order(
             machine_id=data.machine_id,
             utilisateur_id=data.utilisateur_id,
             date_echeance=date_echeance,
-            statut="EN_ATTENTE"  # Initial status
+            statut="EN_ATTENTE",  # Initial status
+            created_by=current_user.id,
         )
         
         db.add(new_ordre)

@@ -11,10 +11,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Calendar, AlertTriangle, Clock, CheckCircle, Play, Square } from 'lucide-react';
+import { Search, Calendar, AlertTriangle, CheckCircle, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import type { OrdreTravail, Machine } from '@/lib/types';
+import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
 
 export default function TechnicianWorkOrders() {
   const [workOrders, setWorkOrders] = useState<OrdreTravail[]>([]);
@@ -50,27 +50,34 @@ export default function TechnicianWorkOrders() {
 
   const fetchData = async () => {
     try {
-      const user = await client.auth.me();
-      if (!user.data) return;
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
 
-      const [ordresResponse, machinesResponse] = await Promise.all([
-        client.entities.ordres_travail.query({
-          query: { utilisateur_id: user.data.id },
-          sort: '-priorite,-date_echeance',
-          limit: 100,
-        }),
-        client.entities.machines.queryAll({
-          query: {},
-          limit: 100,
-        }),
-      ]);
+      const interventionsRes = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!interventionsRes.ok) throw new Error('Erreur lors du chargement des interventions');
+      const interventions: Intervention[] = await interventionsRes.json();
 
-      const ordresList = ordresResponse.data.items || [];
+      const ordreIds = Array.from(new Set(interventions.map((i) => i.ordre_travail_id)));
+      const workOrdersList = (
+        await Promise.all(
+          ordreIds.map(async (id) => {
+            const res = await client.entities.ordres_travail.get({ id: id.toString() });
+            return res.data;
+          }),
+        )
+      ).filter(Boolean);
+
+      const machinesResponse = await client.entities.machines.queryAll({ query: {}, limit: 100 });
       const machinesList = machinesResponse.data.items || [];
 
-      setWorkOrders(ordresList);
+      setWorkOrders(workOrdersList);
       setMachines(machinesList);
-      setFilteredOrders(ordresList);
+      setFilteredOrders(workOrdersList);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -128,8 +135,12 @@ export default function TechnicianWorkOrders() {
         return 'bg-blue-100 text-blue-800';
       case 'EN_ATTENTE':
         return 'bg-yellow-100 text-yellow-800';
-      case 'TERMINE':
+      case 'ASSIGNÉ':
+        return 'bg-purple-100 text-purple-800';
+      case 'TERMINÉ':
         return 'bg-green-100 text-green-800';
+      case 'BLOQUÉ':
+        return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -169,8 +180,10 @@ export default function TechnicianWorkOrders() {
           <SelectContent>
             <SelectItem value="ALL">Tous les statuts</SelectItem>
             <SelectItem value="EN_ATTENTE">En Attente</SelectItem>
+            <SelectItem value="ASSIGNÉ">Assigné</SelectItem>
             <SelectItem value="EN_COURS">En Cours</SelectItem>
-            <SelectItem value="TERMINE">Terminé</SelectItem>
+            <SelectItem value="TERMINÉ">Terminé</SelectItem>
+            <SelectItem value="BLOQUÉ">Bloqué</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -203,7 +216,7 @@ export default function TechnicianWorkOrders() {
                       </CardTitle>
                       {machine && (
                         <p className="text-sm text-gray-500 mt-1">
-                          Machine: {machine.nom} ({machine.identifiant_machine}) - {machine.emplacement}
+                          Machine: {machine.nom} ({machine.identifiant_machine || `#${machine.id}`}) - {machine.emplacement}
                         </p>
                       )}
                     </div>
@@ -247,7 +260,7 @@ export default function TechnicianWorkOrders() {
                         <Button
                           size="sm"
                           className="flex-1 bg-green-600 hover:bg-green-700"
-                          onClick={() => handleStatusChange(ordre.id, 'TERMINE')}
+                          onClick={() => handleStatusChange(ordre.id, 'TERMINÉ')}
                         >
                           <CheckCircle className="mr-2 h-4 w-4" />
                           Terminer

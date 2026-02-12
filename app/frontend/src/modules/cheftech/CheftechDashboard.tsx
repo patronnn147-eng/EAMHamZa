@@ -14,6 +14,7 @@ import {
 import { useCheftechDashboardData } from './dashboard/hooks';
 
 const CheftechDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const {
     stats,
     interventions,
@@ -21,14 +22,10 @@ const CheftechDashboard: React.FC = () => {
     technicians,
     machines,
     loading,
-    selectedTechnician,
-    selectedIntervention,
-    setSelectedTechnician,
-    setSelectedIntervention,
     fetchInterventions,
     fetchTechnicians,
     fetchMachines,
-    assignTechnician,
+    assignWorkOrder,
     updateMachineStatus,
   } = useCheftechDashboardData();
 
@@ -62,18 +59,12 @@ const CheftechDashboard: React.FC = () => {
           <TabsContent value="interventions">
             <InterventionsTab
               interventions={interventions}
-              technicians={technicians}
-              selectedTechnician={selectedTechnician}
-              selectedIntervention={selectedIntervention}
-              setSelectedTechnician={setSelectedTechnician}
-              setSelectedIntervention={setSelectedIntervention}
               fetchInterventions={fetchInterventions}
-              assignTechnician={assignTechnician}
             />
           </TabsContent>
 
           <TabsContent value="ordres">
-            <WorkOrdersTab workOrders={workOrders} />
+            <WorkOrdersTab workOrders={workOrders} technicians={technicians} assignWorkOrder={assignWorkOrder} />
           </TabsContent>
 
           <TabsContent value="techniciens">

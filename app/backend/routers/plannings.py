@@ -16,7 +16,9 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings, PlanningType, ShiftType
+from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
+from models.machines import Machines
 from models.notifications import Notifications
 from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
@@ -57,6 +59,7 @@ class PlanningCreateData(BaseModel):
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
     technicien_ids: List[int] = Field(default_factory=list, description="List of technician IDs")
+    machine_ids: List[int] = Field(default_factory=list, description="List of machine IDs")
 
 
 class PlanningUpdateData(BaseModel):
@@ -70,6 +73,7 @@ class PlanningUpdateData(BaseModel):
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
     technicien_ids: Optional[List[int]] = None
+    machine_ids: Optional[List[int]] = None
 
 
 class PlanningResponse(BaseModel):
@@ -85,6 +89,7 @@ class PlanningResponse(BaseModel):
     zone_travail: Optional[str] = None
     created_at: Optional[datetime] = None
     assigned_users: List[dict] = Field(default_factory=list)
+    machine_ids: List[int] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
@@ -105,6 +110,26 @@ class UserOption(BaseModel):
     email: str
     role: str
     shift_type: Optional[str] = None
+
+
+class PlanningMachineResponse(BaseModel):
+    """Machine as returned when listing planning machines"""
+
+    id: int
+    nom: str
+    type: Optional[str] = None
+    emplacement: Optional[str] = None
+    zone: Optional[str] = None
+    sous_zone: Optional[str] = None
+    ordre: Optional[str] = None
+    statut: Optional[str] = None
+    date_derniere_maintenance: Optional[datetime] = None
+    date_prochaine_maintenance: Optional[datetime] = None
+    image_url: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 
 # ---------- Helper Functions ----------
@@ -235,6 +260,11 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
             "shift_type": user.shift_type.value if hasattr(user.shift_type, "value") else (str(user.shift_type) if getattr(user, "shift_type", None) else None),
         })
     
+    machines_result = await db.execute(
+        select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning.id)
+    )
+    machine_ids = [row[0] for row in machines_result.fetchall()]
+    
     return {
         "id": planning.id,
         "identifiant_planning": planning.identifiant_planning,
@@ -246,7 +276,8 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
         "chef_technique_id": planning.chef_technique_id,
         "zone_travail": planning.zone_travail,
         "created_at": planning.created_at,
-        "assigned_users": assigned_users
+        "assigned_users": assigned_users,
+        "machine_ids": machine_ids,
     }
 
 
@@ -405,6 +436,54 @@ async def get_planning(
         )
 
 
+@router.get("/{planning_id}/machines", response_model=List[PlanningMachineResponse])
+async def get_planning_machines(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get machines assigned to a planning with role-based access control"""
+    try:
+        service = PlanningsService(db)
+        planning = await service.get_by_id(planning_id)
+
+        if not planning:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Planning not found",
+            )
+
+        if current_user.role != UserRole.ADMIN:
+            assignment_query = select(Planning_utilisateurs).where(
+                Planning_utilisateurs.planning_id == planning_id,
+                Planning_utilisateurs.utilisateur_id == current_user.id,
+            )
+            assignment_result = await db.execute(assignment_query)
+            assignment = assignment_result.scalar_one_or_none()
+            if not assignment:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to view this planning",
+                )
+
+        result = await db.execute(
+            select(Machines)
+            .join(Planning_machines, Planning_machines.machine_id == Machines.id)
+            .where(Planning_machines.planning_id == planning_id)
+            .order_by(Machines.nom.asc())
+        )
+        machines = result.scalars().all()
+        return [PlanningMachineResponse.model_validate(m) for m in machines]
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching planning machines for {planning_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch planning machines: {str(e)}",
+        )
+
+
 @router.post("", response_model=PlanningResponse, status_code=status.HTTP_201_CREATED)
 async def create_planning(
     data: PlanningCreateData,
@@ -457,8 +536,22 @@ async def create_planning(
             "chef_technique_id": data.chef_technique_id,
             "zone_travail": data.zone_travail,
             "created_at": datetime.now(),
-            "assigned_users": []
+            "assigned_users": [],
+            "machine_ids": [],
         }
+
+        if data.machine_ids:
+            now = datetime.now()
+            for machine_id in sorted(set(data.machine_ids)):
+                db.add(
+                    Planning_machines(
+                        planning_id=planning_id,
+                        machine_id=machine_id,
+                        created_at=now,
+                    )
+                )
+            await db.commit()
+            planning_response_data["machine_ids"] = sorted(set(data.machine_ids))
         
         # Assign users (dedupe + single commit)
         user_ids_set = set()
@@ -569,7 +662,7 @@ async def update_planning(
             update_dict["zone_travail"] = data.zone_travail
         
         # Update planning
-        updated_planning = await service.update(planning_id, update_dict)
+        await service.update(planning_id, update_dict)
 
         identifiant_planning = update_dict.get("identifiant_planning", original_identifiant_planning)
 
@@ -585,7 +678,29 @@ async def update_planning(
             "zone_travail": update_dict.get("zone_travail", original_zone_travail),
             "created_at": original_created_at,
             "assigned_users": [],
+            "machine_ids": [],
         }
+
+        if data.machine_ids is not None:
+            await db.execute(
+                delete(Planning_machines).where(Planning_machines.planning_id == planning_id)
+            )
+            now = datetime.now()
+            for machine_id in sorted(set(data.machine_ids)):
+                db.add(
+                    Planning_machines(
+                        planning_id=planning_id,
+                        machine_id=machine_id,
+                        created_at=now,
+                    )
+                )
+            await db.commit()
+            planning_response_data["machine_ids"] = sorted(set(data.machine_ids))
+        else:
+            machines_result = await db.execute(
+                select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning_id)
+            )
+            planning_response_data["machine_ids"] = [row[0] for row in machines_result.fetchall()]
 
         all_assigned_users: List[int] = []
         

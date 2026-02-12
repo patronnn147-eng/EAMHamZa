@@ -23,6 +23,10 @@ class Ordres_interventionData(BaseModel):
     date_intervention: datetime
     rapport: str = None
     ordre_travail_id: int
+    technicien_id: Optional[int] = None
+    statut: Optional[str] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
 
@@ -31,6 +35,10 @@ class Ordres_interventionUpdateData(BaseModel):
     date_intervention: Optional[datetime] = None
     rapport: Optional[str] = None
     ordre_travail_id: Optional[int] = None
+    technicien_id: Optional[int] = None
+    statut: Optional[str] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
 
@@ -40,6 +48,10 @@ class Ordres_interventionResponse(BaseModel):
     date_intervention: datetime
     rapport: Optional[str] = None
     ordre_travail_id: int
+    technicien_id: Optional[int] = None
+    statut: Optional[str] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     class Config:

@@ -58,6 +58,7 @@ class FileUpDownRequest(OSSBaseModel):
     """Request for generating presigned upload URL."""
 
     object_key: str = Field(..., description="Name of the file to upload")
+    bucket_name: str = Field(default="attachments", description="The bucket name")
 
     @field_validator("object_key")
     @classmethod

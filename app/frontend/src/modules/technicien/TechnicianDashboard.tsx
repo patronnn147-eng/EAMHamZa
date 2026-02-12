@@ -197,7 +197,7 @@ export default function TechnicianDashboard() {
                         </div>
                         {machine && (
                           <p className="text-sm text-gray-600 mb-1">
-                            Machine: {machine.nom} ({machine.identifiant_machine})
+                            Machine: {machine.nom} (#{machine.id})
                           </p>
                         )}
                         <div className="flex items-center gap-4 text-xs text-gray-500">

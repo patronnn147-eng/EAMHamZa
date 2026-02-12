@@ -15,12 +15,15 @@ const ChetopDashboard: React.FC = () => {
     stats,
     workOrders,
     machines,
+    plannings,
     loading,
     showCreateModal,
     setShowCreateModal,
     setSelectedOrder,
     formData,
     setFormData,
+    attachments,
+    setAttachments,
     handleCreateOrder,
   } = useChetopDashboardData();
 
@@ -66,6 +69,9 @@ const ChetopDashboard: React.FC = () => {
           formData={formData}
           setFormData={setFormData}
           machines={machines}
+          plannings={plannings}
+          attachments={attachments}
+          setAttachments={setAttachments}
           onSubmit={handleCreateOrder}
         />
       </div>

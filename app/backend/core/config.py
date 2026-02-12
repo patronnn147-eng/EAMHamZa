@@ -29,9 +29,15 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./app.db"
     
     # JWT Configuration
-    jwt_secret_key: str = "your-secret-key-change-in-production"
+    jwt_secret_key: str = "tIRsAEcKfeyd8YN2SqdaiKZWCkinh-KcCm96v0PlDfM"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440  # 24 hours
+
+    # Object Storage Service (OSS)
+    oss_service_url: str = ""
+    oss_api_key: str = ""
+    oss_secret_key: str = ""
+    oss_public_url: str = ""
 
     @property
     def backend_url(self) -> str:

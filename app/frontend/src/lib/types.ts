@@ -9,18 +9,17 @@ export interface User {
 export interface Machine {
   id: number;
   nom: string;
-  identifiant_machine: string;
-  type: string;
-  emplacement: string;
+  type?: string;
+  emplacement?: string;
   zone?: string;
   sous_zone?: string;
   ordre?: string;
-  statut: string;
+  statut?: string;
   date_derniere_maintenance?: string;
   date_prochaine_maintenance?: string;
   image_url?: string;
-  user_id: string;
-  created_at: string;
+  user_id?: string;
+  created_at?: string;
 }
 
 export interface OrdreTravail {
@@ -40,6 +39,10 @@ export interface OrdreTravail {
 export interface Intervention {
   id: number;
   date_intervention: string;
+  statut?: string;
+  technicien_id?: number;
+  date_debut?: string;
+  date_fin?: string;
   rapport: string;
   ordre_travail_id: number;
   created_at: string;
@@ -51,6 +54,15 @@ export interface Planning {
   date_debut: string;
   date_fin: string;
   type: string;
+  chef_technique_id?: number | null;
+  machine_ids?: number[];
+  assigned_users?: Array<{
+    id: number;
+    nom: string;
+    email: string;
+    role: string;
+    shift_type?: string | null;
+  }>;
   created_at: string;
 }
 

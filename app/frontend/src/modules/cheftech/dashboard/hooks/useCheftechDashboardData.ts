@@ -51,10 +51,49 @@ export const useCheftechDashboardData = () => {
     }
   };
 
+  const assignWorkOrder = async (ordreId: number, technicienIds: number[], estimatedCompletionDate?: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/ordres-travail/${ordreId}/assign`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            technicien_ids: technicienIds,
+            estimated_completion_date: estimatedCompletionDate ? new Date(estimatedCompletionDate).toISOString() : null,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Erreur lors de l'assignation");
+      }
+
+      toast({
+        title: 'Succès',
+        description: 'Ordre de travail assigné',
+      });
+
+      fetchWorkOrders();
+      fetchInterventions();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : "Impossible d'assigner l'ordre",
+        variant: 'destructive',
+      });
+    }
+  };
+
   const fetchInterventions = async (filters?: {
     statut?: string;
-    priorite?: string;
-    technicien_id?: number;
   }) => {
     try {
       const token = getAuthToken();
@@ -62,10 +101,6 @@ export const useCheftechDashboardData = () => {
 
       const params = new URLSearchParams();
       if (filters?.statut) params.append('statut', filters.statut);
-      if (filters?.priorite) params.append('priorite', filters.priorite);
-      if (filters?.technicien_id) {
-        params.append('technicien_id', filters.technicien_id.toString());
-      }
 
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions?${params}`,
@@ -179,40 +214,6 @@ export const useCheftechDashboardData = () => {
     }
   };
 
-  const assignTechnician = async (interventionId: number, technicianId: number) => {
-    try {
-      const token = getAuthToken();
-      if (!token) return;
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions/${interventionId}/assign`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ technicien_id: technicianId }),
-        },
-      );
-
-      if (!response.ok) throw new Error("Erreur lors de l'assignation");
-
-      toast({
-        title: 'Succès',
-        description: 'Technicien assigné avec succès',
-      });
-
-      fetchInterventions();
-      fetchTechnicians();
-    } catch {
-      toast({
-        title: 'Erreur',
-        description: "Impossible d'assigner le technicien",
-        variant: 'destructive',
-      });
-    }
-  };
 
   const updateMachineStatus = async (machineId: number, status: string) => {
     try {
@@ -279,7 +280,7 @@ export const useCheftechDashboardData = () => {
     fetchWorkOrders,
     fetchTechnicians,
     fetchMachines,
-    assignTechnician,
+    assignWorkOrder,
     updateMachineStatus,
   };
 };

@@ -15,5 +15,9 @@ class Ordres_travail(Base):
     utilisateur_id = Column(Integer, nullable=True)  # US-CHETOP-005: Assigned user
     date_echeance = Column(DateTime(timezone=True), nullable=True)  # US-CHETOP-001: Due date
     statut = Column(String(20), nullable=False, default="EN_ATTENTE")  # US-CHETOP-004: EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ
+    created_by = Column(Integer, nullable=True)
+    validated_by = Column(Integer, nullable=True)
+    date_validation = Column(DateTime(timezone=True), nullable=True)
+    estimated_duration = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)

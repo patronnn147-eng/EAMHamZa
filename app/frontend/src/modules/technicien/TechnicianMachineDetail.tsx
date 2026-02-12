@@ -149,7 +149,7 @@ export default function TechnicianMachineDetail() {
         </Button>
         <div className="flex-1">
           <h2 className="text-3xl font-bold text-gray-900">{machine.nom}</h2>
-          <p className="text-sm text-gray-500 mt-1">{machine.identifiant_machine}</p>
+          <p className="text-sm text-gray-500 mt-1">#{machine.id}</p>
         </div>
         <Badge className={getStatusColor(machine.statut)}>{machine.statut}</Badge>
         <Button onClick={() => setStatusDialogOpen(true)}>
@@ -173,7 +173,7 @@ export default function TechnicianMachineDetail() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Identifiant</p>
-                  <p className="text-base mt-1">{machine.identifiant_machine}</p>
+                  <p className="text-base mt-1">#{machine.id}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Type</p>

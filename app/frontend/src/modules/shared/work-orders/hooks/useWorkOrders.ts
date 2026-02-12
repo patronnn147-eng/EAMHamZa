@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { client } from '@/lib/api';
 import { toDateInputValue } from '@/lib/date';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSync } from '@/contexts/DataSyncContext';
 import type { Machine, OrdreTravail } from '@/lib/types';
 
-export const useWorkOrders = () => {
+type UseWorkOrdersOptions = {
+  attachments: File[];
+  clearAttachments: () => void;
+  userRole?: string;
+};
+
+export const useWorkOrders = (options: UseWorkOrdersOptions) => {
   const [workOrders, setWorkOrders] = useState<OrdreTravail[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [filteredWorkOrders, setFilteredWorkOrders] = useState<OrdreTravail[]>([]);
@@ -20,9 +26,16 @@ export const useWorkOrders = () => {
   const { toast } = useToast();
   const { notifyChange, subscribe } = useDataSync();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+  const isChetop = useMemo(() => options.userRole === 'CHETOP', [options.userRole]);
+
   const [formData, setFormData] = useState({
-    machine_id: '',
-    utilisateur_id: '',
+    titre: '',
+    description: '',
+    machine_ids: [] as number[],
+    planning_id: null as number | null,
+    chef_technique_id: null as number | null,
+    technicien_ids: [] as number[],
     date_echeance: '',
     priorite: 'MOYENNE',
     statut: 'EN_ATTENTE',
@@ -38,7 +51,7 @@ export const useWorkOrders = () => {
         }),
         client.entities.machines.query({
           query: {},
-          limit: 100,
+          limit: 2000,
         }),
       ]);
 
@@ -87,39 +100,83 @@ export const useWorkOrders = () => {
   }, [searchTerm, statusFilter, priorityFilter, workOrders]);
 
   const handleOpenDialog = (workOrder?: OrdreTravail) => {
-    if (workOrder) {
+    const openForEdit = async () => {
+      if (!workOrder) return;
+
       setEditingWorkOrder(workOrder);
+
+      let planningId: number | null = null;
+      try {
+        const relResp = await client.entities.planning_ordres_travail.queryAll({
+          query: { ordre_travail_id: workOrder.id },
+          limit: 1,
+        });
+        const rel = relResp.data.items?.[0];
+        planningId = rel?.planning_id ?? null;
+      } catch {
+        planningId = null;
+      }
+
+      let technicienIds: number[] = [];
+      try {
+        const interResp = await client.entities.ordres_intervention.queryAll({
+          query: { ordre_travail_id: workOrder.id },
+          limit: 2000,
+        });
+        technicienIds = (interResp.data.items || [])
+          .map((i: { technicien_id?: number | null }) => i.technicien_id)
+          .filter((id: number | null | undefined): id is number => typeof id === 'number');
+      } catch {
+        technicienIds = [];
+      }
+
       setFormData({
-        machine_id: workOrder.machine_id.toString(),
-        utilisateur_id: workOrder.utilisateur_id?.toString() || '',
+        titre: workOrder.titre || '',
+        description: workOrder.description || '',
+        machine_ids: [workOrder.machine_id],
+        planning_id: planningId,
+        chef_technique_id: workOrder.utilisateur_id || null,
+        technicien_ids: technicienIds,
         date_echeance: toDateInputValue(workOrder.date_echeance),
         priorite: workOrder.priorite,
         statut: workOrder.statut,
       });
+    };
+
+    if (workOrder) {
+      void openForEdit();
     } else {
       setEditingWorkOrder(null);
       setFormData({
-        machine_id: '',
-        utilisateur_id: '',
+        titre: '',
+        description: '',
+        machine_ids: [],
+        planning_id: null,
+        chef_technique_id: null,
+        technicien_ids: [],
         date_echeance: '',
         priorite: 'MOYENNE',
         statut: 'EN_ATTENTE',
       });
     }
+
+    options.clearAttachments();
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
     try {
-      const submitData = {
-        machine_id: parseInt(formData.machine_id),
-        utilisateur_id: formData.utilisateur_id ? parseInt(formData.utilisateur_id) : null,
-        date_echeance: formData.date_echeance,
-        priorite: formData.priorite,
-        statut: formData.statut,
-      };
-
       if (editingWorkOrder) {
+        const submitData = {
+          titre: formData.titre,
+          description: formData.description,
+          machine_id: formData.machine_ids[0],
+          utilisateur_id: formData.chef_technique_id,
+          date_echeance: formData.date_echeance,
+          priorite: formData.priorite,
+          statut: formData.statut,
+        };
+
         await client.entities.ordres_travail.update({
           id: editingWorkOrder.id.toString(),
           data: submitData,
@@ -134,14 +191,202 @@ export const useWorkOrders = () => {
           description: 'Work order updated successfully',
         });
       } else {
-        const response = await client.entities.ordres_travail.create({
-          data: submitData,
-        });
-        notifyChange({
-          type: 'work_order',
-          action: 'create',
-          id: response.data.id,
-        });
+        if (!formData.titre || !formData.description || formData.machine_ids.length === 0) {
+          toast({
+            title: 'Error',
+            description: 'Please fill title, description, and select at least one machine',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const createdIds: number[] = [];
+
+        if (isChetop) {
+
+          const token = localStorage.getItem('access_token');
+          if (!token) throw new Error('No authentication token');
+
+          if (!formData.planning_id) {
+            toast({
+              title: 'Error',
+              description: 'Please select a planning so related users can be notified',
+              variant: 'destructive',
+            });
+            return;
+          }
+
+
+             if (!token) throw new Error('No authentication token');
+
+          const relatedUserIds = Array.from(
+            new Set([
+              ...(formData.chef_technique_id ? [formData.chef_technique_id] : []),
+              ...formData.technicien_ids,
+            ])
+          );
+
+          if (relatedUserIds.length === 0) {
+            toast({
+              title: 'Error',
+              description: 'Please select related users (ChefTech and/or technicians) to notify',
+              variant: 'destructive',
+            });
+            return;
+          }
+
+          for (const machineId of formData.machine_ids) {
+            const response = await fetch(`${API_BASE_URL}/api/v1/chetop/ordres`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                titre: formData.titre,
+                description: formData.description,
+                priorite: formData.priorite,
+                machine_id: machineId,
+                utilisateur_id: formData.chef_technique_id,
+                date_echeance: formData.date_echeance ? new Date(formData.date_echeance).toISOString() : null,
+              }),
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.detail || 'Failed to create work order');
+            }
+
+            const newOrder = (await response.json()) as { id: number };
+            createdIds.push(newOrder.id);
+
+            if (formData.planning_id) {
+              await client.entities.planning_ordres_travail.create({
+                data: {
+                  planning_id: formData.planning_id,
+                  ordre_travail_id: newOrder.id,
+                  created_at: new Date().toISOString(),
+                },
+              });
+            }
+
+            for (const technicienId of formData.technicien_ids) {
+              await client.entities.ordres_intervention.create({
+                data: {
+                  date_intervention: new Date().toISOString(),
+                  ordre_travail_id: newOrder.id,
+                  technicien_id: technicienId,
+                  statut: 'EN_ATTENTE',
+                },
+              });
+            }
+
+    await client.apiCall.invoke({
+              url: '/api/v1/notifications/bulk',
+              method: 'POST',
+              data: {
+                utilisateur_ids: relatedUserIds,
+                titre: 'Work Order Created',
+                priorite: formData.priorite,
+                type: 'WORK_ORDER_CREATED',
+                message: `New work order #${newOrder.id}: ${formData.titre}`,
+              },
+            });
+
+            for (const file of options.attachments) {
+              const objectKey = `${newOrder.id}/${file.name}`;
+              const uploadUrlResp = await client.apiCall.invoke({
+                url: '/api/v1/storage/upload-url',
+                method: 'POST',
+                data: {
+                  bucket_name: 'attachments',
+                  object_key: objectKey,
+                },
+              });
+
+              const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
+              if (!uploadUrl) {
+                continue;
+              }
+
+              await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+              });
+
+              await client.entities.archives.create({
+                data: {
+                  identifiant_archive: `ARCH-${Date.now()}`,
+                  nom: file.name,
+                  date_archivage: new Date().toISOString(),
+                  type: 'DOCUMENT',
+                  object_key: objectKey,
+                  ordre_travail_id: newOrder.id,
+                  created_at: new Date().toISOString(),
+                },
+              });
+            }
+          }
+        } else {
+          for (const machineId of formData.machine_ids) {
+            const response = await client.entities.ordres_travail.create({
+              data: {
+                titre: formData.titre,
+                description: formData.description,
+                priorite: formData.priorite,
+                machine_id: machineId,
+                utilisateur_id: formData.chef_technique_id,
+                date_echeance: formData.date_echeance,
+                statut: formData.statut,
+              },
+            });
+
+            createdIds.push(response.data.id);
+
+            for (const file of options.attachments) {
+              const objectKey = `${response.data.id}/${file.name}`;
+              const uploadUrlResp = await client.apiCall.invoke({
+                url: '/api/v1/storage/upload-url',
+                method: 'POST',
+                data: {
+                  bucket_name: 'attachments',
+                  object_key: objectKey,
+                },
+              });
+
+              const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
+              if (!uploadUrl) {
+                continue;
+              }
+
+              await fetch(uploadUrl, {
+                method: 'PUT',
+                body: file,
+              });
+
+              await client.entities.archives.create({
+                data: {
+                  identifiant_archive: `ARCH-${Date.now()}`,
+                  nom: file.name,
+                  date_archivage: new Date().toISOString(),
+                  type: 'DOCUMENT',
+                  object_key: objectKey,
+                  ordre_travail_id: response.data.id,
+                  created_at: new Date().toISOString(),
+                },
+              });
+            }
+          }
+        }
+
+        for (const id of createdIds) {
+          notifyChange({
+            type: 'work_order',
+            action: 'create',
+            id,
+          });
+        }
+
         toast({
           title: 'Success',
           description: 'Work order created successfully',
@@ -149,6 +394,7 @@ export const useWorkOrders = () => {
       }
 
       setDialogOpen(false);
+      options.clearAttachments();
       fetchData();
     } catch (error: unknown) {
       const detail =

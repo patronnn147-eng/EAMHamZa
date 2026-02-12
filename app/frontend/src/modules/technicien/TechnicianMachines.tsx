@@ -24,8 +24,7 @@ export default function TechnicianMachines() {
       const filtered = machines.filter(
         (m) =>
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.identifiant_machine.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          m.emplacement.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.emplacement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
@@ -87,7 +86,7 @@ export default function TechnicianMachines() {
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
         <Input
           type="text"
-          placeholder="Rechercher par nom, identifiant ou emplacement..."
+          placeholder="Rechercher par nom ou emplacement..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
@@ -108,7 +107,7 @@ export default function TechnicianMachines() {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <CardTitle className="text-lg">{machine.nom}</CardTitle>
-                    <p className="text-sm text-gray-500 mt-1">{machine.identifiant_machine}</p>
+                    <p className="text-sm text-gray-500 mt-1">#{machine.id}</p>
                   </div>
                   <Badge className={getStatusColor(machine.statut)}>{machine.statut}</Badge>
                 </div>
