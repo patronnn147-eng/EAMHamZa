@@ -10,7 +10,11 @@ def _get_broker_url() -> str:
 celery_app = Celery(
     "asset_management",
     broker=_get_broker_url(),
-    include=["tasks.planning_emails"],
+    include=[
+        "tasks.planning_emails",
+        "tasks.work_order_events",
+        "tasks.intervention_events",
+    ],
 )
 
 celery_app.conf.update(

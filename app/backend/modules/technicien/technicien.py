@@ -7,10 +7,19 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.rabbitmq import (
+    get_rabbitmq,
+    ROUTING_KEY_INT_REQUESTED,
+    ROUTING_KEY_INT_STATUS_CHANGED,
+)
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
-from models.utilisateurs import Utilisateurs
+from models.utilisateurs import Utilisateurs, UserRole
 from modules.auth.auth import get_current_user
+from tasks.intervention_events import (
+    notify_intervention_requested,
+    notify_intervention_status_changed,
+)
 
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 
@@ -108,6 +117,8 @@ async def update_intervention_status(
 
     now = datetime.utcnow()
 
+    old_status = intervention.statut
+
     intervention.statut = data.statut
     if data.rapport is not None:
         intervention.rapport = data.rapport
@@ -126,6 +137,40 @@ async def update_intervention_status(
 
     await db.commit()
     await db.refresh(intervention)
+
+    # RabbitMQ event + Celery email for status change
+    if data.statut != old_status:
+        int_payload = {
+            "id": intervention.id,
+            "ordre_travail_id": intervention.ordre_travail_id,
+            "statut": intervention.statut,
+        }
+        changer_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+        try:
+            rmq = await get_rabbitmq()
+            await rmq.publish_intervention_event(ROUTING_KEY_INT_STATUS_CHANGED, {
+                "intervention": int_payload,
+                "old_status": old_status,
+                "new_status": data.statut,
+                "changed_by": changer_payload,
+            })
+        except Exception as rmq_err:
+            logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+        try:
+            ct_result = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.role == UserRole.CHEFTECH)
+            )
+            recipients = [
+                {"email": u.email, "nom": u.nom} for u in ct_result.scalars().all()
+            ]
+            if recipients:
+                notify_intervention_status_changed.delay(
+                    int_payload, old_status, data.statut, changer_payload, recipients
+                )
+        except Exception as task_err:
+            logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
 
     # Propagate status to the parent work order
     ordre_id = intervention.ordre_travail_id
@@ -204,4 +249,39 @@ async def request_intervention(
 
     await db.commit()
     await db.refresh(intervention)
+
+    # RabbitMQ event + Celery email for intervention request
+    int_payload = {
+        "id": intervention.id,
+        "ordre_travail_id": intervention.ordre_travail_id,
+        "statut": intervention.statut,
+        "problem_description": payload.problem_description,
+        "priority": payload.priority,
+        "estimated_duration_minutes": payload.estimated_duration_minutes,
+        "required_materials": payload.required_materials,
+        "machine_id": payload.machine_id,
+    }
+    tech_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+    try:
+        rmq = await get_rabbitmq()
+        await rmq.publish_intervention_event(ROUTING_KEY_INT_REQUESTED, {
+            "intervention": int_payload,
+            "requested_by": tech_payload,
+        })
+    except Exception as rmq_err:
+        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+    try:
+        ct_result = await db.execute(
+            select(Utilisateurs).where(Utilisateurs.role == UserRole.CHEFTECH)
+        )
+        cheftech_recipients = [
+            {"email": u.email, "nom": u.nom} for u in ct_result.scalars().all()
+        ]
+        if cheftech_recipients:
+            notify_intervention_requested.delay(int_payload, tech_payload, cheftech_recipients)
+    except Exception as task_err:
+        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
+
     return intervention

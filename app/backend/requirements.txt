@@ -30,6 +30,9 @@ greenlet
 # Background jobs
 celery>=5.3.0
 
+# Async RabbitMQ (AMQP)
+aio-pika>=9.3.0
+
 # Auth module dependencies
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt,argon2]==1.7.4

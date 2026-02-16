@@ -13,9 +13,18 @@ from sqlalchemy import select, and_, or_
 
 from core.database import get_db
 from core.auth import get_current_user
-from models.utilisateurs import Utilisateurs
+from core.rabbitmq import (
+    get_rabbitmq,
+    ROUTING_KEY_WO_CREATED,
+    ROUTING_KEY_WO_STATUS_CHANGED,
+)
+from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import Ordres_travail
 from models.machines import Machines
+from tasks.work_order_events import (
+    notify_work_order_created,
+    notify_work_order_status_changed,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -246,6 +255,40 @@ async def create_work_order(
         await db.commit()
         await db.refresh(new_ordre)
         
+        # Publish RabbitMQ event + dispatch Celery email task
+        wo_payload = {
+            "id": new_ordre.id,
+            "titre": new_ordre.titre,
+            "description": new_ordre.description,
+            "priorite": new_ordre.priorite,
+            "machine_id": new_ordre.machine_id,
+            "date_echeance": str(new_ordre.date_echeance) if new_ordre.date_echeance else None,
+            "statut": new_ordre.statut,
+        }
+        creator_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+        try:
+            rmq = await get_rabbitmq()
+            await rmq.publish_work_order_event(ROUTING_KEY_WO_CREATED, {
+                "work_order": wo_payload,
+                "created_by": creator_payload,
+            })
+        except Exception as rmq_err:
+            logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+        # Send async email notifications to ChefTech users
+        try:
+            ct_result = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.role == UserRole.CHEFTECH)
+            )
+            cheftech_users = [
+                {"email": u.email, "nom": u.nom} for u in ct_result.scalars().all()
+            ]
+            if cheftech_users:
+                notify_work_order_created.delay(wo_payload, creator_payload, cheftech_users)
+        except Exception as task_err:
+            logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
+
         # Get related data for response
         machine_result = await db.execute(
             select(Machines.nom).where(Machines.id == new_ordre.machine_id)
@@ -298,6 +341,8 @@ async def update_work_order(
         if not ordre:
             raise HTTPException(status_code=404, detail="Work order not found")
         
+        old_status = ordre.statut
+
         # Update fields
         if data.statut:
             ordre.statut = data.statut
@@ -313,6 +358,43 @@ async def update_work_order(
         
         await db.commit()
         await db.refresh(ordre)
+
+        # Publish RabbitMQ event if status changed
+        if data.statut and data.statut != old_status:
+            wo_payload = {
+                "id": ordre.id,
+                "titre": ordre.titre,
+                "priorite": ordre.priorite,
+                "statut": ordre.statut,
+            }
+            changer_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+            try:
+                rmq = await get_rabbitmq()
+                await rmq.publish_work_order_event(ROUTING_KEY_WO_STATUS_CHANGED, {
+                    "work_order": wo_payload,
+                    "old_status": old_status,
+                    "new_status": data.statut,
+                    "changed_by": changer_payload,
+                })
+            except Exception as rmq_err:
+                logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+            try:
+                recipients = []
+                if getattr(ordre, "created_by", None):
+                    creator_result = await db.execute(
+                        select(Utilisateurs).where(Utilisateurs.id == ordre.created_by)
+                    )
+                    creator = creator_result.scalar_one_or_none()
+                    if creator:
+                        recipients.append({"email": creator.email, "nom": creator.nom})
+                if recipients:
+                    notify_work_order_status_changed.delay(
+                        wo_payload, old_status, data.statut, changer_payload, recipients
+                    )
+            except Exception as task_err:
+                logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
         
         # Get related data for response
         machine_result = await db.execute(

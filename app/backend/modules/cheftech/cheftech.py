@@ -7,12 +7,23 @@ from sqlalchemy import and_, or_, select, func, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.rabbitmq import (
+    get_rabbitmq,
+    ROUTING_KEY_WO_ASSIGNED,
+    ROUTING_KEY_INT_APPROVED,
+    ROUTING_KEY_INT_REJECTED,
+)
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs, UserRole
 from modules.auth.auth import get_current_user
 from services.notifications import NotificationsService
+from tasks.work_order_events import notify_work_order_assigned
+from tasks.intervention_events import (
+    notify_intervention_approved,
+    notify_intervention_rejected,
+)
 
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
@@ -187,6 +198,39 @@ async def approve_intervention(
 
     await db.commit()
     await db.refresh(intervention)
+
+    # RabbitMQ event + Celery email for approval
+    int_payload = {
+        "id": intervention.id,
+        "ordre_travail_id": intervention.ordre_travail_id,
+        "statut": intervention.statut,
+    }
+    approver_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+    try:
+        rmq = await get_rabbitmq()
+        await rmq.publish_intervention_event(ROUTING_KEY_INT_APPROVED, {
+            "intervention": int_payload,
+            "approved_by": approver_payload,
+        })
+    except Exception as rmq_err:
+        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+    try:
+        if intervention.technicien_id:
+            tech_res = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.id == intervention.technicien_id)
+            )
+            tech_user = tech_res.scalar_one_or_none()
+            if tech_user:
+                notify_intervention_approved.delay(
+                    int_payload,
+                    approver_payload,
+                    {"email": tech_user.email, "nom": tech_user.nom},
+                )
+    except Exception as task_err:
+        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
+
     return intervention
 
 
@@ -212,6 +256,41 @@ async def reject_intervention(
 
     await db.commit()
     await db.refresh(intervention)
+
+    # RabbitMQ event + Celery email for rejection
+    int_payload = {
+        "id": intervention.id,
+        "ordre_travail_id": intervention.ordre_travail_id,
+        "statut": intervention.statut,
+    }
+    rejector_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+    try:
+        rmq = await get_rabbitmq()
+        await rmq.publish_intervention_event(ROUTING_KEY_INT_REJECTED, {
+            "intervention": int_payload,
+            "rejected_by": rejector_payload,
+            "reason": data.rejection_reason or "",
+        })
+    except Exception as rmq_err:
+        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+    try:
+        if intervention.technicien_id:
+            tech_res = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.id == intervention.technicien_id)
+            )
+            tech_user = tech_res.scalar_one_or_none()
+            if tech_user:
+                notify_intervention_rejected.delay(
+                    int_payload,
+                    rejector_payload,
+                    {"email": tech_user.email, "nom": tech_user.nom},
+                    data.rejection_reason or "",
+                )
+    except Exception as task_err:
+        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
+
     return intervention
 
 @router.get("/ordres-travail", response_model=List[WorkOrderResponse])
@@ -441,6 +520,50 @@ async def assign_work_order(
                 "created_at": notif_now,
             }
         )
+
+    # RabbitMQ event + Celery email for work order assignment
+    wo_payload = {
+        "id": ordre.id,
+        "titre": ordre.titre,
+        "description": ordre.description,
+        "priorite": ordre.priorite,
+        "statut": ordre.statut,
+    }
+    assigner_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+
+    try:
+        rmq = await get_rabbitmq()
+        await rmq.publish_work_order_event(ROUTING_KEY_WO_ASSIGNED, {
+            "work_order": wo_payload,
+            "assigned_by": assigner_payload,
+            "technicien_ids": data.technicien_ids,
+            "assigned_order_ids": assigned_order_ids,
+        })
+    except Exception as rmq_err:
+        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
+
+    try:
+        tech_result_notif = await db.execute(
+            select(Utilisateurs).where(Utilisateurs.id.in_(data.technicien_ids))
+        )
+        tech_recipients = [
+            {"email": u.email, "nom": u.nom} for u in tech_result_notif.scalars().all()
+        ]
+        creator_recipient = None
+        if getattr(ordre, "created_by", None):
+            creator_res = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.id == ordre.created_by)
+            )
+            creator_user = creator_res.scalar_one_or_none()
+            if creator_user:
+                creator_recipient = {"email": creator_user.email, "nom": creator_user.nom}
+
+        if tech_recipients:
+            notify_work_order_assigned.delay(
+                wo_payload, assigner_payload, tech_recipients, creator_recipient
+            )
+    except Exception as task_err:
+        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
 
     return {
         "message": "Work order assigned",

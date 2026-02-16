@@ -13,6 +13,7 @@ from fastapi.routing import APIRouter
 # MODULE_IMPORTS_START
 from services.database import initialize_database, close_database
 from services.mock_data import initialize_mock_data
+from core.rabbitmq import get_rabbitmq, RabbitMQService
 # Import all models to ensure they are registered with SQLAlchemy metadata
 import models
 # MODULE_IMPORTS_END
@@ -67,11 +68,22 @@ async def lifespan(app: FastAPI):
     # MODULE_STARTUP_START
     await initialize_database()
     await initialize_mock_data()
+    try:
+        await get_rabbitmq()
+        logger.info("RabbitMQ connection established")
+    except Exception as e:
+        logger.warning(f"RabbitMQ connection failed (app will still run): {e}")
     # MODULE_STARTUP_END
 
     logger.info("=== Application startup completed successfully ===")
     yield
     # MODULE_SHUTDOWN_START
+    try:
+        rmq = RabbitMQService._instance
+        if rmq:
+            await rmq.close()
+    except Exception as e:
+        logger.warning(f"RabbitMQ close failed: {e}")
     await close_database()
     # MODULE_SHUTDOWN_END
 
