@@ -27,6 +27,8 @@ const CheftechDashboard: React.FC = () => {
     fetchMachines,
     assignWorkOrder,
     updateMachineStatus,
+    approveIntervention,
+    rejectIntervention,
   } = useCheftechDashboardData();
 
   if (loading) {
@@ -60,11 +62,18 @@ const CheftechDashboard: React.FC = () => {
             <InterventionsTab
               interventions={interventions}
               fetchInterventions={fetchInterventions}
+              approveIntervention={approveIntervention}
+              rejectIntervention={rejectIntervention}
             />
           </TabsContent>
 
           <TabsContent value="ordres">
-            <WorkOrdersTab workOrders={workOrders} technicians={technicians} assignWorkOrder={assignWorkOrder} />
+            <WorkOrdersTab
+              workOrders={workOrders}
+              technicians={technicians}
+              machines={machines}
+              assignWorkOrder={assignWorkOrder}
+            />
           </TabsContent>
 
           <TabsContent value="techniciens">

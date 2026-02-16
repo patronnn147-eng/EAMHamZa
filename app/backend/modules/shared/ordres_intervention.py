@@ -25,6 +25,15 @@ class Ordres_interventionData(BaseModel):
     ordre_travail_id: int
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
+    problem_description: Optional[str] = None
+    priority: Optional[str] = None
+    estimated_duration_minutes: Optional[int] = None
+    required_materials: Optional[str] = None
+    machine_id: Optional[int] = None
+    requested_at: Optional[datetime] = None
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -37,6 +46,15 @@ class Ordres_interventionUpdateData(BaseModel):
     ordre_travail_id: Optional[int] = None
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
+    problem_description: Optional[str] = None
+    priority: Optional[str] = None
+    estimated_duration_minutes: Optional[int] = None
+    required_materials: Optional[str] = None
+    machine_id: Optional[int] = None
+    requested_at: Optional[datetime] = None
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
@@ -50,6 +68,15 @@ class Ordres_interventionResponse(BaseModel):
     ordre_travail_id: int
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
+    problem_description: Optional[str] = None
+    priority: Optional[str] = None
+    estimated_duration_minutes: Optional[int] = None
+    required_materials: Optional[str] = None
+    machine_id: Optional[int] = None
+    requested_at: Optional[datetime] = None
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None

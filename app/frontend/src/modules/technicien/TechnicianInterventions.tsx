@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention } from '@/lib/types';
+import { InterventionRequestDialog } from './components/InterventionRequestDialog';
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();
@@ -13,6 +14,38 @@ export default function TechnicianInterventions() {
   const [filteredInterventions, setFilteredInterventions] = useState<Intervention[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [requestIntervention, setRequestIntervention] = useState<Intervention | null>(null);
+
+  const getStatusLabel = (statut?: string) => {
+    const s = statut || 'EN_ATTENTE';
+    if (s === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
+    if (s === 'APPROVED') return 'APPROVED';
+    if (s === 'REJECTED') return 'REJECTED';
+    return s;
+  };
+
+  const getStatusColor = (statut?: string) => {
+    const s = getStatusLabel(statut);
+    switch (s) {
+      case 'PENDING_APPROVAL':
+        return 'bg-orange-100 text-orange-800';
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800';
+      case 'EN_COURS':
+        return 'bg-blue-100 text-blue-800';
+      case 'EN_ATTENTE':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'TERMINÉ':
+        return 'bg-green-100 text-green-800';
+      case 'BLOQUÉ':
+        return 'bg-red-100 text-red-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -31,19 +64,59 @@ export default function TechnicianInterventions() {
     }
   }, [searchTerm, interventions]);
 
+  const submitRequest = async (data: {
+    ordre_travail_id: number;
+    machine_id: number | null;
+    problem_description: string;
+    priority: string;
+    estimated_duration_minutes: number | null;
+    required_materials: string | null;
+  }) => {
+    try {
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions/request`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Échec de la demande');
+      }
+
+      toast({
+        title: 'Demande envoyée',
+        description: 'En attente de validation ChefTech',
+      });
+
+      setRequestOpen(false);
+      setRequestIntervention(null);
+      fetchData();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : 'Échec de la demande',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const fetchData = async () => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Erreur lors du chargement');
@@ -63,17 +136,14 @@ export default function TechnicianInterventions() {
       const token = localStorage.getItem('access_token');
       if (!token) return;
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions/${interventionId}/status`,
-        {
-          method: 'PUT',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ statut }),
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions/${interventionId}/status`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({ statut }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Échec de la mise à jour');
@@ -148,6 +218,13 @@ export default function TechnicianInterventions() {
                 </div>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center gap-2 mb-3">
+                  <Badge className={getStatusColor(intervention.statut)}>{getStatusLabel(intervention.statut)}</Badge>
+                  {intervention.rejection_reason ? (
+                    <span className="text-xs text-red-600">Motif: {intervention.rejection_reason}</span>
+                  ) : null}
+                </div>
+
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport:</h4>
                   <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-md line-clamp-4">
@@ -157,11 +234,44 @@ export default function TechnicianInterventions() {
 
                 <div className="flex flex-wrap gap-2">
                   {(intervention.statut || 'EN_ATTENTE') === 'EN_ATTENTE' && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setRequestIntervention(intervention);
+                        setRequestOpen(true);
+                      }}
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      Demander démarrage
+                    </Button>
+                  )}
+
+                  {(intervention.statut || 'EN_ATTENTE') === 'PENDING_APPROVAL' && (
+                    <Button size="sm" variant="outline" disabled>
+                      En attente approbation
+                    </Button>
+                  )}
+
+                  {(intervention.statut || 'EN_ATTENTE') === 'APPROVED' && (
                     <Button size="sm" onClick={() => updateStatus(intervention.id, 'EN_COURS')}>
                       <Play className="mr-2 h-4 w-4" />
                       Démarrer
                     </Button>
                   )}
+
+                  {(intervention.statut || 'EN_ATTENTE') === 'REJECTED' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setRequestIntervention(intervention);
+                        setRequestOpen(true);
+                      }}
+                    >
+                      Re-demander
+                    </Button>
+                  )}
+
                   {(intervention.statut || 'EN_ATTENTE') === 'EN_COURS' && (
                     <Button size="sm" onClick={() => updateStatus(intervention.id, 'TERMINÉ')}>
                       <CheckCircle className="mr-2 h-4 w-4" />
@@ -182,6 +292,14 @@ export default function TechnicianInterventions() {
           ))
         )}
       </div>
+
+      <InterventionRequestDialog
+        open={requestOpen}
+        onOpenChange={setRequestOpen}
+        initialOrdreTravailId={requestIntervention?.ordre_travail_id || 0}
+        initialMachineId={requestIntervention?.machine_id ?? null}
+        onSubmit={submitRequest}
+      />
     </div>
   );
 }

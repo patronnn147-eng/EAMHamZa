@@ -51,7 +51,77 @@ export const useCheftechDashboardData = () => {
     }
   };
 
-  const assignWorkOrder = async (ordreId: number, technicienIds: number[], estimatedCompletionDate?: string) => {
+  const approveIntervention = async (interventionId: number) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions/${interventionId}/approve`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Erreur lors de l'approbation");
+      }
+
+      toast({ title: 'Succès', description: 'Intervention approuvée' });
+      fetchInterventions();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : "Impossible d'approuver",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const rejectIntervention = async (interventionId: number, reason?: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions/${interventionId}/reject`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ rejection_reason: reason || null }),
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Erreur lors du rejet');
+      }
+
+      toast({ title: 'Succès', description: 'Intervention rejetée' });
+      fetchInterventions();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : 'Impossible de rejeter',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const assignWorkOrder = async (
+    ordreId: number,
+    technicienIds: number[],
+    machineIds: number[],
+    estimatedCompletionDate?: string,
+  ) => {
     try {
       const token = getAuthToken();
       if (!token) return;
@@ -66,6 +136,7 @@ export const useCheftechDashboardData = () => {
           },
           body: JSON.stringify({
             technicien_ids: technicienIds,
+            machine_ids: machineIds,
             estimated_completion_date: estimatedCompletionDate ? new Date(estimatedCompletionDate).toISOString() : null,
           }),
         },
@@ -203,8 +274,31 @@ export const useCheftechDashboardData = () => {
       );
 
       if (!response.ok) throw new Error('Erreur lors du chargement des machines');
-      const data = await response.json();
-      setMachines(data);
+      const data = (await response.json()) as unknown;
+      const items = Array.isArray(data) ? (data as Machine[]) : [];
+      if (items.length > 0) {
+        setMachines(items);
+        return;
+      }
+
+      const fallback = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/machines?query=${encodeURIComponent(
+          JSON.stringify({}),
+        )}&limit=2000`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!fallback.ok) {
+        setMachines([]);
+        return;
+      }
+
+      const fallbackData = (await fallback.json()) as { items?: Machine[] };
+      setMachines(fallbackData.items || []);
     } catch {
       toast({
         title: 'Erreur',
@@ -272,15 +366,13 @@ export const useCheftechDashboardData = () => {
     technicians,
     machines,
     loading,
-    selectedTechnician,
-    selectedIntervention,
-    setSelectedTechnician,
-    setSelectedIntervention,
     fetchInterventions,
     fetchWorkOrders,
     fetchTechnicians,
     fetchMachines,
     assignWorkOrder,
     updateMachineStatus,
+    approveIntervention,
+    rejectIntervention,
   };
 };

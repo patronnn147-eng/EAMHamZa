@@ -5,6 +5,15 @@ export interface Intervention {
   ordre_travail_id: number;
   technicien_id?: number;
   statut?: string;
+  problem_description?: string;
+  priority?: string;
+  estimated_duration_minutes?: number;
+  required_materials?: string;
+  machine_id?: number;
+  requested_at?: string;
+  approved_by?: number;
+  approved_at?: string;
+  rejection_reason?: string;
   date_debut?: string;
   date_fin?: string;
   created_at?: string;

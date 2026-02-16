@@ -5,6 +5,27 @@ import { Button } from '@/components/ui/button';
 import { Calendar, Edit, FileText, Trash2 } from 'lucide-react';
 import type { Intervention, OrdreTravail } from '@/lib/types';
 
+const getInterventionStatusColor = (status: string) => {
+  switch (status) {
+    case 'PENDING_APPROVAL':
+      return 'bg-orange-100 text-orange-800';
+    case 'APPROVED':
+      return 'bg-green-100 text-green-800';
+    case 'REJECTED':
+      return 'bg-red-100 text-red-800';
+    case 'EN_COURS':
+      return 'bg-blue-100 text-blue-800';
+    case 'EN_ATTENTE':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'TERMINÉ':
+      return 'bg-green-100 text-green-800';
+    case 'BLOQUÉ':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
 interface InterventionsListProps {
   interventions: Intervention[];
   workOrders: OrdreTravail[];
@@ -48,10 +69,15 @@ export const InterventionsList: React.FC<InterventionsListProps> = ({
                 </CardTitle>
                 <p className="text-sm text-gray-500 mt-1">{getWorkOrderInfo(intervention.ordre_travail_id)}</p>
               </div>
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
-                {new Date(intervention.date_intervention).toLocaleDateString()}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <Badge className={getInterventionStatusColor(intervention.statut || 'EN_ATTENTE')}>
+                  {intervention.statut || 'EN_ATTENTE'}
+                </Badge>
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(intervention.date_intervention).toLocaleDateString()}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent>

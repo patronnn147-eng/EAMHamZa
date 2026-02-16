@@ -20,6 +20,15 @@ class InterventionResponse(BaseModel):
     ordre_travail_id: int
     statut: str
     date_intervention: datetime
+    problem_description: Optional[str] = None
+    priority: Optional[str] = None
+    estimated_duration_minutes: Optional[int] = None
+    required_materials: Optional[str] = None
+    machine_id: Optional[int] = None
+    requested_at: Optional[datetime] = None
+    approved_by: Optional[int] = None
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     rapport: Optional[str] = None
@@ -31,6 +40,15 @@ class InterventionResponse(BaseModel):
 class InterventionStatusUpdate(BaseModel):
     statut: str
     rapport: Optional[str] = None
+
+
+class InterventionRequestPayload(BaseModel):
+    ordre_travail_id: int
+    machine_id: Optional[int] = None
+    problem_description: str
+    priority: str
+    estimated_duration_minutes: Optional[int] = None
+    required_materials: Optional[str] = None
 
 
 async def verify_technicien(current_user: Utilisateurs = Depends(get_current_user)) -> Utilisateurs:
@@ -74,9 +92,19 @@ async def update_intervention_status(
     if not intervention:
         raise HTTPException(status_code=404, detail="Intervention not found")
 
-    valid_statuses = {"EN_ATTENTE", "EN_COURS", "TERMINÉ", "BLOQUÉ"}
+    # Approval workflow:
+    # - Technician can request an intervention start (PENDING_APPROVAL)
+    # - Only after approval can they move to EN_COURS
+    # - Rejected stays REJECTED
+    valid_statuses = {"EN_ATTENTE", "EN_COURS", "TERMINÉ", "BLOQUÉ", "PENDING_APPROVAL", "APPROVED", "REJECTED"}
     if data.statut not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid statut. Allowed: {sorted(valid_statuses)}")
+
+    if data.statut == "EN_COURS" and intervention.statut not in {"APPROVED", "EN_COURS"}:
+        raise HTTPException(status_code=400, detail="Intervention must be approved by ChefTech before starting")
+
+    if intervention.statut == "REJECTED" and data.statut in {"EN_COURS", "TERMINÉ"}:
+        raise HTTPException(status_code=400, detail="Rejected intervention cannot be started")
 
     now = datetime.utcnow()
 
@@ -128,4 +156,52 @@ async def update_intervention_status(
 
         await db.commit()
 
+    return intervention
+
+
+@router.post("/interventions/request", response_model=InterventionResponse, status_code=201)
+async def request_intervention(
+    payload: InterventionRequestPayload,
+    current_user: Utilisateurs = Depends(verify_technicien),
+    db: AsyncSession = Depends(get_db),
+):
+    now = datetime.utcnow()
+
+    intervention = await db.scalar(
+        select(Ordres_intervention).where(
+            and_(
+                Ordres_intervention.ordre_travail_id == payload.ordre_travail_id,
+                Ordres_intervention.technicien_id == current_user.id,
+            )
+        )
+    )
+
+    if not intervention:
+        intervention = Ordres_intervention(
+            date_intervention=now,
+            ordre_travail_id=payload.ordre_travail_id,
+            technicien_id=current_user.id,
+            statut="PENDING_APPROVAL",
+            requested_at=now,
+        )
+        db.add(intervention)
+        await db.flush()
+    else:
+        # Allow re-request if previously rejected
+        if intervention.statut not in {"EN_ATTENTE", "PENDING_APPROVAL", "REJECTED"}:
+            raise HTTPException(status_code=400, detail="Intervention cannot be requested in its current status")
+        intervention.statut = "PENDING_APPROVAL"
+        intervention.requested_at = now
+        intervention.approved_by = None
+        intervention.approved_at = None
+        intervention.rejection_reason = None
+
+    intervention.machine_id = payload.machine_id
+    intervention.problem_description = payload.problem_description
+    intervention.priority = payload.priority
+    intervention.estimated_duration_minutes = payload.estimated_duration_minutes
+    intervention.required_materials = payload.required_materials
+
+    await db.commit()
+    await db.refresh(intervention)
     return intervention

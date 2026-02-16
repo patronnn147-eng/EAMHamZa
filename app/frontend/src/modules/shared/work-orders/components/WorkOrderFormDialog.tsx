@@ -207,8 +207,7 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
                 const pid = value ? Number.parseInt(value) : null;
                 const p = pid ? plannings.find((x) => x.id === pid) : null;
 
-                const chefTechFromPlanning =
-                  (p?.assigned_users || []).find((u) => u.role === 'CHEFTECH')?.id || p?.chef_technique_id || null;
+                const chefTechFromPlanning = (p?.assigned_users || []).find((u) => u.role === 'CHEFTECH')?.id || null;
 
                 setFormData({
                   ...formData,

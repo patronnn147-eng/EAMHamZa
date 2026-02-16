@@ -45,6 +45,15 @@ export interface Intervention {
   date_fin?: string;
   rapport: string;
   ordre_travail_id: number;
+  problem_description?: string;
+  priority?: string;
+  estimated_duration_minutes?: number;
+  required_materials?: string;
+  machine_id?: number;
+  requested_at?: string;
+  approved_by?: number;
+  approved_at?: string;
+  rejection_reason?: string;
   created_at: string;
 }
 

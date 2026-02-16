@@ -159,10 +159,11 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 onValueChange={(value) => {
                   const pid = value ? parseInt(value) : null;
                   const p = pid ? plannings.find((x) => x.id === pid) : null;
+                  const chefTechFromPlanning = (p?.assigned_users || []).find((u) => u.role === 'CHEFTECH')?.id || null;
                   setFormData({
                     ...formData,
                     planning_id: pid,
-                    chef_technique_id: p?.chef_technique_id || null,
+                    chef_technique_id: chefTechFromPlanning,
                     technicien_ids: [],
                   });
                 }}

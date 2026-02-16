@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Calendar, Edit, Trash2, Eye } from 'lucide-react';
+import { AlertCircle, Calendar, Edit, Trash2, Eye, Users } from 'lucide-react';
 import type { Machine, OrdreTravail } from '@/lib/types';
 import { isOverdue, PriorityBadge, StatusBadge } from '../utils/badges';
 
@@ -10,6 +10,8 @@ interface WorkOrdersListProps {
   machines: Machine[];
   canEdit: boolean;
   canDelete: boolean;
+  canAssign?: boolean;
+  onAssign?: (workOrder: OrdreTravail) => void;
   onViewDetails: (workOrder: OrdreTravail) => void;
   onEdit: (workOrder: OrdreTravail) => void;
   onRequestDelete: (workOrder: OrdreTravail) => void;
@@ -20,6 +22,8 @@ export const WorkOrdersList: React.FC<WorkOrdersListProps> = ({
   machines,
   canEdit,
   canDelete,
+  canAssign = false,
+  onAssign,
   onViewDetails,
   onEdit,
   onRequestDelete,
@@ -96,6 +100,12 @@ export const WorkOrdersList: React.FC<WorkOrdersListProps> = ({
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </Button>
+              {canAssign && onAssign ? (
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => onAssign(wo)}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Assign
+                </Button>
+              ) : null}
               {canEdit ? (
                 <Button
                   variant="outline"

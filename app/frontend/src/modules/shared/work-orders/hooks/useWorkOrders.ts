@@ -464,5 +464,6 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
     handleOpenDialog,
     handleSubmit,
     handleDelete,
+    refresh: fetchData,
   };
 };
