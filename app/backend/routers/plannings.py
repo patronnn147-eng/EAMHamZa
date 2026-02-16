@@ -7,6 +7,8 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
+from collections import defaultdict
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -187,24 +189,8 @@ async def send_planning_notifications(
             logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
 
 
-async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict:
-    """Get planning with assigned users"""
-    # Get assigned users
-    result = await db.execute(
-        select(Planning_utilisateurs, Utilisateurs)
-        .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
-        .where(Planning_utilisateurs.planning_id == planning.id)
-    )
-    
-    assigned_users = []
-    for pu, user in result:
-        assigned_users.append({
-            "id": user.id,
-            "nom": user.nom,
-            "email": user.email,
-            "role": user.role.value
-        })
-    
+def _planning_to_dict(planning: Plannings, assigned_users: List[dict]) -> dict:
+    """Convert a planning ORM object to a response dict."""
     return {
         "id": planning.id,
         "identifiant_planning": planning.identifiant_planning,
@@ -215,8 +201,50 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
         "chef_operation_id": planning.chef_operation_id,
         "chef_technique_id": planning.chef_technique_id,
         "created_at": planning.created_at,
-        "assigned_users": assigned_users
+        "assigned_users": assigned_users,
     }
+
+
+async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict:
+    """Get planning with assigned users"""
+    result = await db.execute(
+        select(Planning_utilisateurs, Utilisateurs)
+        .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
+        .where(Planning_utilisateurs.planning_id == planning.id)
+    )
+
+    assigned_users = [
+        {"id": user.id, "nom": user.nom, "email": user.email, "role": user.role.value}
+        for _pu, user in result
+    ]
+    return _planning_to_dict(planning, assigned_users)
+
+
+async def get_plannings_with_users_batch(
+    db: AsyncSession, plannings: List[Plannings]
+) -> List[dict]:
+    """Batch-load assigned users for multiple plannings in a single query."""
+    if not plannings:
+        return []
+
+    planning_ids = [p.id for p in plannings]
+
+    result = await db.execute(
+        select(Planning_utilisateurs, Utilisateurs)
+        .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
+        .where(Planning_utilisateurs.planning_id.in_(planning_ids))
+    )
+
+    users_by_planning: dict[int, list[dict]] = defaultdict(list)
+    for pu, user in result:
+        users_by_planning[pu.planning_id].append(
+            {"id": user.id, "nom": user.nom, "email": user.email, "role": user.role.value}
+        )
+
+    return [
+        _planning_to_dict(planning, users_by_planning.get(planning.id, []))
+        for planning in plannings
+    ]
 
 
 # ---------- Routes ----------
@@ -263,13 +291,10 @@ async def list_plannings(
     try:
         service = PlanningsService(db)
         result = await service.get_list(skip=skip, limit=limit, sort="-date_debut")
-        
-        # Enrich with assigned users
-        items_with_users = []
-        for planning in result["items"]:
-            planning_dict = await get_planning_with_users(db, planning)
-            items_with_users.append(PlanningResponse(**planning_dict))
-        
+
+        planning_dicts = await get_plannings_with_users_batch(db, result["items"])
+        items_with_users = [PlanningResponse(**d) for d in planning_dicts]
+
         return PlanningListResponse(
             items=items_with_users,
             total=result["total"],
