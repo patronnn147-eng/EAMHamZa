@@ -144,11 +144,12 @@ def notify_intervention_rejected(
     </html>
     """
 
+    reason_line = f"Raison: {reason}\n" if reason else ""
     text_content = (
         f"Bonjour {user_name},\n\n"
         f"Votre demande d'intervention a été rejetée par {rejected_by.get('nom', 'ChefTech')}.\n"
         f"Ordre de travail: #{intervention.get('ordre_travail_id', '')}\n"
-        f"Raison: {reason}\n" if reason else ""
+        f"{reason_line}"
     )
 
     if email_service.send_email(to_email, subject, html_content, text_content):
