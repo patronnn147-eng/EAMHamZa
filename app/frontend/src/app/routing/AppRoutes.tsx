@@ -11,6 +11,7 @@ import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
 import ChetopMachines from '@/modules/chetop/ChetopMachines';
 import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
+import CheftechInterventionsPage from '@/modules/cheftech/CheftechInterventionsPage';
 import PlanningPage from '@/modules/shared/PlanningPage';
 import PlanningDetailPage from '@/modules/shared/PlanningDetailPage';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
@@ -187,7 +188,7 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
-              <Interventions />
+              <CheftechInterventionsPage />
             </Layout>
           </ProtectedRoute>
         }

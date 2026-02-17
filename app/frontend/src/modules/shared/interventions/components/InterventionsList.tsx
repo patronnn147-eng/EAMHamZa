@@ -11,6 +11,8 @@ const getInterventionStatusColor = (status: string) => {
       return 'bg-orange-100 text-orange-800';
     case 'APPROVED':
       return 'bg-green-100 text-green-800';
+    case 'DECLINED':
+      return 'bg-red-100 text-red-800';
     case 'REJECTED':
       return 'bg-red-100 text-red-800';
     case 'EN_COURS':

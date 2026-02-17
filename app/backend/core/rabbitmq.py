@@ -21,7 +21,9 @@ ROUTING_KEY_WO_STATUS_CHANGED = "work_order.status_changed"
 
 ROUTING_KEY_INT_REQUESTED = "intervention.requested"
 ROUTING_KEY_INT_APPROVED = "intervention.approved"
-ROUTING_KEY_INT_REJECTED = "intervention.rejected"
+ROUTING_KEY_INT_DECLINED = "intervention.declined"
+# Backward compatibility (older code/status naming)
+ROUTING_KEY_INT_REJECTED = ROUTING_KEY_INT_DECLINED
 ROUTING_KEY_INT_STATUS_CHANGED = "intervention.status_changed"
 
 

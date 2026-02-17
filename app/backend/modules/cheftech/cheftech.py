@@ -11,7 +11,7 @@ from core.rabbitmq import (
     get_rabbitmq,
     ROUTING_KEY_WO_ASSIGNED,
     ROUTING_KEY_INT_APPROVED,
-    ROUTING_KEY_INT_REJECTED,
+    ROUTING_KEY_INT_DECLINED,
 )
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
@@ -22,7 +22,7 @@ from services.notifications import NotificationsService
 from tasks.work_order_events import notify_work_order_assigned
 from tasks.intervention_events import (
     notify_intervention_approved,
-    notify_intervention_rejected,
+    notify_intervention_declined,
 )
 
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
@@ -44,6 +44,10 @@ class InterventionResponse(BaseModel):
     approved_by: Optional[int] = None
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    work_order_due_date: Optional[datetime] = None
+    is_overdue: Optional[bool] = None
     created_at: Optional[datetime] = None
 
     class Config:
@@ -168,7 +172,34 @@ async def get_interventions(
             query = query.where(Ordres_intervention.statut == statut)
         query = query.order_by(Ordres_intervention.date_intervention.desc())
         result = await db.execute(query)
-        return list(result.scalars().all())
+        interventions = list(result.scalars().all())
+
+        ordre_ids = [i.ordre_travail_id for i in interventions if i.ordre_travail_id is not None]
+        due_map = {}
+        if ordre_ids:
+            ordres_res = await db.execute(
+                select(Ordres_travail.id, Ordres_travail.date_echeance).where(Ordres_travail.id.in_(ordre_ids))
+            )
+            due_map = {row.id: row.date_echeance for row in ordres_res.all()}
+
+        now = datetime.utcnow()
+        enriched: List[dict] = []
+        for i in interventions:
+            due = due_map.get(i.ordre_travail_id)
+            is_done = (i.statut or "") in {"TERMINÉ"} or i.date_fin is not None
+            status = (i.statut or "")
+            eligible = status in {"APPROVED", "EN_COURS", "BLOQUÉ"}
+            overdue = bool(eligible and due and (due < now) and (not is_done))
+
+            enriched.append(
+                {
+                    **InterventionResponse.model_validate(i).model_dump(),
+                    "work_order_due_date": due,
+                    "is_overdue": overdue,
+                }
+            )
+
+        return enriched
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -246,10 +277,10 @@ async def reject_intervention(
         raise HTTPException(status_code=404, detail="Intervention not found")
 
     if intervention.statut != "PENDING_APPROVAL":
-        raise HTTPException(status_code=400, detail="Only pending interventions can be rejected")
+        raise HTTPException(status_code=400, detail="Only pending interventions can be declined")
 
     now = datetime.utcnow()
-    intervention.statut = "REJECTED"
+    intervention.statut = "DECLINED"
     intervention.approved_by = current_user.id
     intervention.approved_at = now
     intervention.rejection_reason = data.rejection_reason
@@ -257,7 +288,7 @@ async def reject_intervention(
     await db.commit()
     await db.refresh(intervention)
 
-    # RabbitMQ event + Celery email for rejection
+    # RabbitMQ event + Celery email for decline
     int_payload = {
         "id": intervention.id,
         "ordre_travail_id": intervention.ordre_travail_id,
@@ -267,7 +298,7 @@ async def reject_intervention(
 
     try:
         rmq = await get_rabbitmq()
-        await rmq.publish_intervention_event(ROUTING_KEY_INT_REJECTED, {
+        await rmq.publish_intervention_event(ROUTING_KEY_INT_DECLINED, {
             "intervention": int_payload,
             "rejected_by": rejector_payload,
             "reason": data.rejection_reason or "",
@@ -282,7 +313,7 @@ async def reject_intervention(
             )
             tech_user = tech_res.scalar_one_or_none()
             if tech_user:
-                notify_intervention_rejected.delay(
+                notify_intervention_declined.delay(
                     int_payload,
                     rejector_payload,
                     {"email": tech_user.email, "nom": tech_user.nom},

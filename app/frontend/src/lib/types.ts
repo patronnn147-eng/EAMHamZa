@@ -45,6 +45,8 @@ export interface Intervention {
   date_fin?: string;
   rapport: string;
   ordre_travail_id: number;
+  work_order_due_date?: string;
+  is_overdue?: boolean;
   problem_description?: string;
   priority?: string;
   estimated_duration_minutes?: number;

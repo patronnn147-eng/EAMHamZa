@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,6 +43,29 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
 
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  };
+
+  const getElapsedMs = (i: Intervention) => {
+    const start = i.date_debut ? new Date(i.date_debut).getTime() : null;
+    if (!start) return 0;
+    const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
+    return Math.max(0, end - start);
+  };
+
   const pending = useMemo(
     () => interventions.filter((i) => (i.statut || 'EN_ATTENTE') === 'PENDING_APPROVAL'),
     [interventions],
@@ -67,7 +90,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
               <SelectItem value="BLOQUÉ">Bloqué</SelectItem>
               <SelectItem value="PENDING_APPROVAL">Pending approval</SelectItem>
               <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
+              <SelectItem value="DECLINED">Declined</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -87,6 +110,9 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                       <Badge className={getStatusColor(intervention.statut || 'EN_ATTENTE')}>
                         {intervention.statut || 'EN_ATTENTE'}
                       </Badge>
+                      {intervention.is_overdue ? (
+                        <Badge className="bg-red-100 text-red-800">Overdue</Badge>
+                      ) : null}
                       <span className="text-sm text-gray-500">Intervention #{intervention.id}</span>
                       <span className="text-sm text-gray-500">Ordre: #{intervention.ordre_travail_id}</span>
                       {typeof intervention.technicien_id === 'number' && (
@@ -117,7 +143,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                     {(intervention.statut || 'EN_ATTENTE') === 'PENDING_APPROVAL' ? (
                       <>
                         <Button size="sm" onClick={() => approveIntervention(intervention.id)}>
-                          Approuver
+                          Accept
                         </Button>
                         <Button
                           size="sm"
@@ -128,7 +154,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                             setRejectOpen(true);
                           }}
                         >
-                          Rejeter
+                          Decline
                         </Button>
                       </>
                     ) : null}
@@ -193,6 +219,25 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                     <div className="font-medium whitespace-pre-wrap">{selected.rejection_reason}</div>
                   </div>
                 )}
+
+                {selected.is_overdue ? (
+                  <div>
+                    <div className="text-gray-500">Échéance</div>
+                    <div className="font-medium text-red-700">Overdue</div>
+                  </div>
+                ) : selected.work_order_due_date ? (
+                  <div>
+                    <div className="text-gray-500">Échéance</div>
+                    <div className="font-medium">
+                      {new Date(selected.work_order_due_date).toLocaleString()}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div>
+                  <div className="text-gray-500">Chrono</div>
+                  <div className="font-medium">{formatDuration(getElapsedMs(selected))}</div>
+                </div>
               </div>
             ) : null}
             <DialogFooter>
@@ -206,7 +251,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
         <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Rejeter l'intervention</DialogTitle>
+              <DialogTitle>Decline l'intervention</DialogTitle>
               <DialogDescription>Ajoute un motif (optionnel).</DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -225,7 +270,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                   setRejectOpen(false);
                 }}
               >
-                Rejeter
+                Decline
               </Button>
             </DialogFooter>
           </DialogContent>

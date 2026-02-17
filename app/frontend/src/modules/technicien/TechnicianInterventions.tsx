@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { InterventionRequestDialog } from './components/InterventionRequestDialo
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();
+
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [filteredInterventions, setFilteredInterventions] = useState<Intervention[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,11 +18,48 @@ export default function TechnicianInterventions() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestIntervention, setRequestIntervention] = useState<Intervention | null>(null);
 
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  };
+
+  const getElapsedMs = (i: Intervention) => {
+    const status = i.statut || 'EN_ATTENTE';
+    const startIso = i.date_debut || (status === 'APPROVED' ? i.approved_at : undefined);
+    const start = startIso ? new Date(startIso).getTime() : null;
+    if (!start) return 0;
+    const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
+    return Math.max(0, end - start);
+  };
+
+  const hasChrono = (i: Intervention) => {
+    const s = i.statut || 'EN_ATTENTE';
+    return s === 'APPROVED' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
+  };
+
+  const overdueInterventions = useMemo(
+    () => interventions.filter((i) => i.is_overdue),
+    [interventions],
+  );
+
   const getStatusLabel = (statut?: string) => {
     const s = statut || 'EN_ATTENTE';
     if (s === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
     if (s === 'APPROVED') return 'APPROVED';
-    if (s === 'REJECTED') return 'REJECTED';
+    if (s === 'DECLINED') return 'DECLINED';
+    if (s === 'REJECTED') return 'DECLINED';
     return s;
   };
 
@@ -32,8 +70,11 @@ export default function TechnicianInterventions() {
         return 'bg-orange-100 text-orange-800';
       case 'APPROVED':
         return 'bg-green-100 text-green-800';
+      case 'DECLINED':
+        return 'bg-red-100 text-red-800';
       case 'REJECTED':
         return 'bg-red-100 text-red-800';
+
       case 'EN_COURS':
         return 'bg-blue-100 text-blue-800';
       case 'EN_ATTENTE':
@@ -50,6 +91,19 @@ export default function TechnicianInterventions() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    for (const i of overdueInterventions) {
+      const key = `overdue_intervention_alert_${i.id}`;
+      if (localStorage.getItem(key)) continue;
+      localStorage.setItem(key, '1');
+      toast({
+        title: 'Échéance dépassée',
+        description: `Intervention #${i.id} (OT #${i.ordre_travail_id}) a dépassé la date d'échéance.`,
+        variant: 'destructive',
+      });
+    }
+  }, [overdueInterventions, toast]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -220,10 +274,20 @@ export default function TechnicianInterventions() {
               <CardContent>
                 <div className="flex items-center gap-2 mb-3">
                   <Badge className={getStatusColor(intervention.statut)}>{getStatusLabel(intervention.statut)}</Badge>
+                  {intervention.is_overdue ? (
+                    <Badge className="bg-red-100 text-red-800">Overdue</Badge>
+                  ) : null}
                   {intervention.rejection_reason ? (
                     <span className="text-xs text-red-600">Motif: {intervention.rejection_reason}</span>
                   ) : null}
                 </div>
+
+                {hasChrono(intervention) ? (
+                  <div className="mb-3 text-sm">
+                    <span className="text-gray-500">Chrono:</span>{' '}
+                    <span className="font-medium">{formatDuration(getElapsedMs(intervention))}</span>
+                  </div>
+                ) : null}
 
                 <div className="mb-4">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport:</h4>
@@ -256,6 +320,19 @@ export default function TechnicianInterventions() {
                     <Button size="sm" onClick={() => updateStatus(intervention.id, 'EN_COURS')}>
                       <Play className="mr-2 h-4 w-4" />
                       Démarrer
+                    </Button>
+                  )}
+
+                  {(intervention.statut || 'EN_ATTENTE') === 'DECLINED' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setRequestIntervention(intervention);
+                        setRequestOpen(true);
+                      }}
+                    >
+                      Re-demander
                     </Button>
                   )}
 

@@ -1,16 +1,20 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, AlertTriangle, CheckCircle, Clock, Wrench } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { OrdreTravail, Machine } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
+import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
 
 export default function TechnicianDashboard() {
+  const { toast } = useToast();
   const [workOrders, setWorkOrders] = useState<OrdreTravail[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [stats, setStats] = useState({
     total: 0,
     enCours: 0,
@@ -19,6 +23,42 @@ export default function TechnicianDashboard() {
     urgent: 0,
   });
   const navigate = useNavigate();
+
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const formatDuration = (ms: number) => {
+    const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  };
+
+  const getElapsedMs = (i: Intervention) => {
+    const status = i.statut || 'EN_ATTENTE';
+    const startIso = i.date_debut || (status === 'APPROVED' ? i.approved_at : undefined);
+    const start = startIso ? new Date(startIso).getTime() : null;
+    if (!start) return 0;
+    const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
+    return Math.max(0, end - start);
+  };
+
+  const activeInterventions = useMemo(
+    () =>
+      interventions.filter((i) => {
+        const s = i.statut || 'EN_ATTENTE';
+        return s === 'APPROVED' || s === 'EN_COURS' || s === 'BLOQUÉ';
+      }),
+    [interventions],
+  );
+
+  const overdueInterventions = useMemo(() => interventions.filter((i) => i.is_overdue), [interventions]);
 
   useEffect(() => {
     fetchData();
@@ -48,6 +88,23 @@ export default function TechnicianDashboard() {
       setWorkOrders(ordresList);
       setMachines(machinesList);
 
+      try {
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          if (res.ok) {
+            const ints = await res.json();
+            setInterventions(Array.isArray(ints) ? ints : []);
+          }
+        }
+      } catch {
+        // ignore
+      }
+
       // Calculate stats
       const statsData = {
         total: ordresList.length,
@@ -63,6 +120,19 @@ export default function TechnicianDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    for (const i of overdueInterventions) {
+      const key = `overdue_intervention_alert_${i.id}`;
+      if (localStorage.getItem(key)) continue;
+      localStorage.setItem(key, '1');
+      toast({
+        title: 'Échéance dépassée',
+        description: `Intervention #${i.id} (OT #${i.ordre_travail_id}) a dépassé la date d'échéance.`,
+        variant: 'destructive',
+      });
+    }
+  }, [overdueInterventions, toast]);
 
   const getMachineInfo = (machineId: number) => {
     return machines.find((m) => m.id === machineId);
@@ -221,6 +291,38 @@ export default function TechnicianDashboard() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Active Interventions Chrono */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Chrono Interventions</CardTitle>
+            <Button onClick={() => navigate('/technician/interventions')}>Voir Tout</Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {activeInterventions.length === 0 ? (
+            <div className="text-sm text-gray-500">Aucune intervention approuvée / en cours</div>
+          ) : (
+            <div className="space-y-3">
+              {activeInterventions.slice(0, 5).map((i) => (
+                <div key={i.id} className="p-3 border rounded-lg">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="font-medium">Intervention #{i.id}</div>
+                      <div className="text-xs text-gray-500">OT #{i.ordre_travail_id}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {i.is_overdue ? <Badge className="bg-red-100 text-red-800">Overdue</Badge> : null}
+                      <Badge variant="outline">{formatDuration(getElapsedMs(i))}</Badge>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

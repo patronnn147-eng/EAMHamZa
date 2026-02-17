@@ -110,15 +110,15 @@ def notify_intervention_approved(
     return {"sent": 0, "failed": [to_email]}
 
 
-@celery_app.task(name="tasks.notify_intervention_rejected")
-def notify_intervention_rejected(
+@celery_app.task(name="tasks.notify_intervention_declined")
+def notify_intervention_declined(
     intervention: Dict[str, Any],
     rejected_by: Dict[str, Any],
     technician_recipient: Dict[str, Any],
     reason: str = "",
 ) -> Dict[str, Any]:
     email_service = EmailService()
-    subject = f"Intervention rejetée - OT #{intervention.get('ordre_travail_id', '')}"
+    subject = f"Intervention refusée - OT #{intervention.get('ordre_travail_id', '')}"
 
     to_email = technician_recipient.get("email")
     if not to_email:
@@ -130,9 +130,9 @@ def notify_intervention_rejected(
     <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                <h2 style="color: #ef4444;">Intervention Rejetée</h2>
+                <h2 style="color: #ef4444;">Intervention Refusée</h2>
                 <p>Bonjour {user_name},</p>
-                <p>Votre demande d'intervention a été <strong style="color: #ef4444;">rejetée</strong> par <strong>{rejected_by.get('nom', 'ChefTech')}</strong>.</p>
+                <p>Votre demande d'intervention a été <strong style="color: #ef4444;">refusée</strong> par <strong>{rejected_by.get('nom', 'ChefTech')}</strong>.</p>
                 <ul>
                     <li><strong>Ordre de travail:</strong> #{intervention.get('ordre_travail_id', '')}</li>
                     <li><strong>Intervention ID:</strong> #{intervention.get('id', '')}</li>
@@ -147,17 +147,28 @@ def notify_intervention_rejected(
     reason_line = f"Raison: {reason}\n" if reason else ""
     text_content = (
         f"Bonjour {user_name},\n\n"
-        f"Votre demande d'intervention a été rejetée par {rejected_by.get('nom', 'ChefTech')}.\n"
+        f"Votre demande d'intervention a été refusée par {rejected_by.get('nom', 'ChefTech')}.\n"
         f"Ordre de travail: #{intervention.get('ordre_travail_id', '')}\n"
         f"{reason_line}"
     )
 
     if email_service.send_email(to_email, subject, html_content, text_content):
-        logger.info("Intervention rejected notification sent")
+        logger.info("Intervention declined notification sent")
         return {"sent": 1, "failed": []}
 
-    logger.warning(f"Failed to send intervention rejected notification to {to_email}")
+    logger.warning(f"Failed to send intervention declined notification to {to_email}")
     return {"sent": 0, "failed": [to_email]}
+
+
+# Backward compatibility alias
+@celery_app.task(name="tasks.notify_intervention_rejected")
+def notify_intervention_rejected(
+    intervention: Dict[str, Any],
+    rejected_by: Dict[str, Any],
+    technician_recipient: Dict[str, Any],
+    reason: str = "",
+) -> Dict[str, Any]:
+    return notify_intervention_declined(intervention, rejected_by, technician_recipient, reason)
 
 
 @celery_app.task(name="tasks.notify_intervention_status_changed")

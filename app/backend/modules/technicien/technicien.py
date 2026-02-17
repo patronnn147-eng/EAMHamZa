@@ -41,6 +41,8 @@ class InterventionResponse(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     rapport: Optional[str] = None
+    work_order_due_date: Optional[datetime] = None
+    is_overdue: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -80,7 +82,34 @@ async def list_my_interventions(
 
     query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(limit)
     result = await db.execute(query)
-    return list(result.scalars().all())
+    interventions = list(result.scalars().all())
+
+    ordre_ids = [i.ordre_travail_id for i in interventions if i.ordre_travail_id is not None]
+    due_map = {}
+    if ordre_ids:
+        ordres_res = await db.execute(
+            select(Ordres_travail.id, Ordres_travail.date_echeance).where(Ordres_travail.id.in_(ordre_ids))
+        )
+        due_map = {row.id: row.date_echeance for row in ordres_res.all()}
+
+    now = datetime.utcnow()
+    enriched: List[dict] = []
+    for i in interventions:
+        due = due_map.get(i.ordre_travail_id)
+        is_done = (i.statut or "") in {"TERMINÉ"} or i.date_fin is not None
+        status = (i.statut or "")
+        eligible = status in {"APPROVED", "EN_COURS", "BLOQUÉ"}
+        overdue = bool(eligible and due and (due < now) and (not is_done))
+
+        enriched.append(
+            {
+                **InterventionResponse.model_validate(i).model_dump(),
+                "work_order_due_date": due,
+                "is_overdue": overdue,
+            }
+        )
+
+    return enriched
 
 
 @router.put("/interventions/{intervention_id}/status", response_model=InterventionResponse)
@@ -104,16 +133,16 @@ async def update_intervention_status(
     # Approval workflow:
     # - Technician can request an intervention start (PENDING_APPROVAL)
     # - Only after approval can they move to EN_COURS
-    # - Rejected stays REJECTED
-    valid_statuses = {"EN_ATTENTE", "EN_COURS", "TERMINÉ", "BLOQUÉ", "PENDING_APPROVAL", "APPROVED", "REJECTED"}
+    # - Declined stays DECLINED
+    valid_statuses = {"EN_ATTENTE", "EN_COURS", "TERMINÉ", "BLOQUÉ", "PENDING_APPROVAL", "APPROVED", "DECLINED"}
     if data.statut not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid statut. Allowed: {sorted(valid_statuses)}")
 
     if data.statut == "EN_COURS" and intervention.statut not in {"APPROVED", "EN_COURS"}:
         raise HTTPException(status_code=400, detail="Intervention must be approved by ChefTech before starting")
 
-    if intervention.statut == "REJECTED" and data.statut in {"EN_COURS", "TERMINÉ"}:
-        raise HTTPException(status_code=400, detail="Rejected intervention cannot be started")
+    if intervention.statut == "DECLINED" and data.statut in {"EN_COURS", "TERMINÉ"}:
+        raise HTTPException(status_code=400, detail="Declined intervention cannot be started")
 
     now = datetime.utcnow()
 
@@ -232,8 +261,8 @@ async def request_intervention(
         db.add(intervention)
         await db.flush()
     else:
-        # Allow re-request if previously rejected
-        if intervention.statut not in {"EN_ATTENTE", "PENDING_APPROVAL", "REJECTED"}:
+        # Allow re-request if previously declined
+        if intervention.statut not in {"EN_ATTENTE", "PENDING_APPROVAL", "DECLINED"}:
             raise HTTPException(status_code=400, detail="Intervention cannot be requested in its current status")
         intervention.statut = "PENDING_APPROVAL"
         intervention.requested_at = now

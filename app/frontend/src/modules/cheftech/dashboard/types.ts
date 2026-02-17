@@ -5,6 +5,8 @@ export interface Intervention {
   ordre_travail_id: number;
   technicien_id?: number;
   statut?: string;
+  work_order_due_date?: string;
+  is_overdue?: boolean;
   problem_description?: string;
   priority?: string;
   estimated_duration_minutes?: number;
