@@ -28,6 +28,8 @@ class PlanningsData(BaseModel):
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
+    sous_zone: Optional[str] = None
+    ordre: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
@@ -41,6 +43,8 @@ class PlanningsUpdateData(BaseModel):
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
+    sous_zone: Optional[str] = None
+    ordre: Optional[str] = None
     created_at: Optional[datetime] = None
 
 
@@ -55,6 +59,8 @@ class PlanningsResponse(BaseModel):
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
+    sous_zone: Optional[str] = None
+    ordre: Optional[str] = None
     created_at: Optional[datetime] = None
 
     class Config:

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
+import { toDateTimeLocalInputValue } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -25,6 +26,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import type { Machine } from '@/lib/types';
+
+import { ZONE_OPTIONS, SOUS_ZONE_OPTIONS_BY_ZONE, ORDRE_TEMPLATES } from '@/lib/constants';
 
 interface User {
   id: number;
@@ -75,6 +78,8 @@ export default function PlanningManagement() {
     chef_operation_id: undefined as number | undefined,
     chef_technique_id: undefined as number | undefined,
     zone_travail: '',
+    sous_zone: '',
+    ordre: '',
     technicien_ids: [] as number[],
     machine_ids: [] as number[],
   });
@@ -132,14 +137,19 @@ export default function PlanningManagement() {
       const response = await client.apiCall.invoke({
         url: '/api/v1/plannings',
         method: 'GET',
-        data: { skip: 0, limit: 100 },
+        query: { skip: 0, limit: 100 },
       });
-      setPlannings(response.data.items || []);
-    } catch (error) {
+
+      const rawData = response?.data || response;
+      const items = rawData?.items || (Array.isArray(rawData) ? rawData : []);
+
+      setPlannings(items);
+    } catch (error: any) {
       console.error('Error fetching plannings:', error);
+      const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to load plannings';
       toast({
         title: 'Error',
-        description: 'Failed to load plannings',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -183,13 +193,15 @@ export default function PlanningManagement() {
       setEditingPlanning(planning);
       setFormData({
         identifiant_planning: planning.identifiant_planning,
-        date_debut: planning.date_debut.split('T')[0],
-        date_fin: planning.date_fin.split('T')[0],
+        date_debut: toDateTimeLocalInputValue(planning.date_debut),
+        date_fin: toDateTimeLocalInputValue(planning.date_fin),
         type: planning.type as 'MAINTENANCE' | 'SHIFT',
         shift_type: planning.shift_type as 'MORNING' | 'NIGHT' | undefined,
         chef_operation_id: planning.chef_operation_id,
         chef_technique_id: planning.chef_technique_id,
         zone_travail: planning.zone_travail || '',
+        sous_zone: (planning as any).sous_zone || '',
+        ordre: (planning as any).ordre || '',
         technicien_ids: Array.from(
           new Set(
             planning.assigned_users
@@ -205,13 +217,15 @@ export default function PlanningManagement() {
       const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
       setFormData({
         identifiant_planning: `PLAN-${Date.now()}`,
-        date_debut: now.toISOString().split('T')[0],
-        date_fin: nextWeek.toISOString().split('T')[0],
+        date_debut: toDateTimeLocalInputValue(now.toISOString()),
+        date_fin: toDateTimeLocalInputValue(nextWeek.toISOString()),
         type: 'MAINTENANCE',
         shift_type: undefined,
         chef_operation_id: undefined,
         chef_technique_id: undefined,
         zone_travail: '',
+        sous_zone: '',
+        ordre: '',
         technicien_ids: [],
         machine_ids: [],
       });
@@ -235,6 +249,55 @@ export default function PlanningManagement() {
         : [...prev.technicien_ids, techId],
     }));
   };
+
+  const handleZoneChange = (zone: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      zone_travail: zone,
+      sous_zone: '',
+      ordre: '',
+      machine_ids: [], // Clear machines when zone changes
+    }));
+  };
+
+  const handleSubZoneChange = (sous_zone: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      sous_zone,
+      ordre: '',
+      machine_ids: [],
+    }));
+  };
+
+  const handleOrderChange = (ordre: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      ordre,
+      machine_ids: [],
+    }));
+  };
+
+  const filteredMachines = machines.filter((m) => {
+    // If no zone selected, show no machines
+    if (!formData.zone_travail) return false;
+
+    // Filter by zone (exact match)
+    const zoneMatch = m.zone === formData.zone_travail;
+
+    // Filter by sub-zone (if selected)
+    const subZoneMatch = !formData.sous_zone || m.sous_zone === formData.sous_zone;
+
+    // Filter by order (if selected)
+    const orderMatch = !formData.ordre || String(m.ordre) === String(formData.ordre);
+
+    // Filter by availability (support both 'disponible' and 'available')
+    const isAvailable = m.statut?.toLowerCase() === 'disponible' || m.statut?.toLowerCase() === 'available' || !m.statut;
+
+    // Always keep already selected machines in the list
+    const isSelected = formData.machine_ids.includes(m.id);
+
+    return (zoneMatch && subZoneMatch && orderMatch && isAvailable) || isSelected;
+  });
 
   const handleSubmit = async () => {
     try {
@@ -284,6 +347,8 @@ export default function PlanningManagement() {
         chef_operation_id: formData.chef_operation_id || null,
         chef_technique_id: formData.chef_technique_id || null,
         zone_travail: formData.zone_travail?.trim() ? formData.zone_travail : null,
+        sous_zone: formData.sous_zone?.trim() ? formData.sous_zone : null,
+        ordre: formData.ordre?.trim() ? formData.ordre : null,
         technicien_ids: Array.from(new Set(formData.technicien_ids)),
         machine_ids: Array.from(new Set(formData.machine_ids)),
       };
@@ -313,8 +378,8 @@ export default function PlanningManagement() {
       fetchPlannings();
     } catch (error: unknown) {
       const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
-                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-                  || (error as { message?: string }).message;
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
       toast({
         title: 'Error',
         description: detail || 'Failed to save planning',
@@ -340,8 +405,8 @@ export default function PlanningManagement() {
       fetchPlannings();
     } catch (error: unknown) {
       const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
-                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-                  || (error as { message?: string }).message;
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
       toast({
         title: 'Error',
         description: detail || 'Failed to delete planning',
@@ -365,8 +430,8 @@ export default function PlanningManagement() {
       });
     } catch (error: unknown) {
       const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
-                  || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-                  || (error as { message?: string }).message;
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
       toast({
         title: 'Error',
         description: detail || 'Failed to resend emails',
@@ -381,8 +446,11 @@ export default function PlanningManagement() {
     const typeConfig = {
       MAINTENANCE: { label: 'Maintenance', className: 'bg-orange-100 text-orange-800' },
       SHIFT: { label: 'Shift', className: 'bg-blue-100 text-blue-800' },
+      HEBDOMADAIRE: { label: 'Weekly', className: 'bg-purple-100 text-purple-800' },
+      MENSUEL: { label: 'Monthly', className: 'bg-indigo-100 text-indigo-800' },
+      JOURNALIER: { label: 'Daily', className: 'bg-teal-100 text-teal-800' },
     };
-    const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.MAINTENANCE;
+    const config = typeConfig[type as keyof typeof typeConfig] || { label: type, className: 'bg-gray-100 text-gray-800' };
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
@@ -467,27 +535,37 @@ export default function PlanningManagement() {
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-gray-500">Start Date</p>
+                      <p className="text-gray-500">Start Date & Time</p>
                       <p className="font-medium">
-                        {new Date(planning.date_debut).toLocaleDateString()}
+                        {new Date(planning.date_debut).toLocaleString('fr-FR', {
+                          year: 'numeric', month: 'long', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="h-4 w-4 text-gray-400" />
                     <div>
-                      <p className="text-gray-500">End Date</p>
+                      <p className="text-gray-500">End Date & Time</p>
                       <p className="font-medium">
-                        {new Date(planning.date_fin).toLocaleDateString()}
+                        {new Date(planning.date_fin).toLocaleString('fr-FR', {
+                          year: 'numeric', month: 'long', day: 'numeric',
+                          hour: '2-digit', minute: '2-digit'
+                        })}
                       </p>
                     </div>
                   </div>
                   {planning.zone_travail && (
                     <div className="flex items-center gap-2 text-sm">
                       <div className="h-4 w-4 text-gray-400">📍</div>
-                      <div>
-                        <p className="text-gray-500">Zone de Travail</p>
-                        <p className="font-medium">{planning.zone_travail}</p>
+                      <div className="flex-1">
+                        <p className="text-gray-500">Localisation</p>
+                        <p className="font-medium">
+                          {planning.zone_travail}
+                          {(planning as any).sous_zone && ` > ${(planning as any).sous_zone}`}
+                          {(planning as any).ordre && ` (Ordre: ${(planning as any).ordre})`}
+                        </p>
                       </div>
                     </div>
                   )}
@@ -534,9 +612,9 @@ export default function PlanningManagement() {
                   </Button>
                 </div>
                 <div className="flex gap-2 pt-2 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => navigate(`/admin/planning/${planning.id}`)}
                   >
@@ -566,8 +644,8 @@ export default function PlanningManagement() {
           <DialogHeader>
             <DialogTitle>{editingPlanning ? 'Edit Planning' : 'Create Planning'}</DialogTitle>
             <DialogDescription>
-              {editingPlanning 
-                ? 'Update planning schedule and team assignments. All assigned users will be notified.' 
+              {editingPlanning
+                ? 'Update planning schedule and team assignments. All assigned users will be notified.'
                 : 'Create a new planning schedule with team assignments. All assigned users will be notified.'}
             </DialogDescription>
           </DialogHeader>
@@ -581,7 +659,7 @@ export default function PlanningManagement() {
                 placeholder="e.g., PLAN-2026-02"
               />
             </div>
-            
+
             <div className="grid gap-2">
               <Label htmlFor="type">Planning Type *</Label>
               <Select value={formData.type} onValueChange={(value) => handleTypeChange(value as 'MAINTENANCE' | 'SHIFT')}>
@@ -594,8 +672,8 @@ export default function PlanningManagement() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500">
-                {formData.type === 'MAINTENANCE' 
-                  ? 'Maintenance planning for equipment servicing and repairs' 
+                {formData.type === 'MAINTENANCE'
+                  ? 'Maintenance planning for equipment servicing and repairs'
                   : 'Shift planning for day/night team operations'}
               </p>
             </div>
@@ -620,7 +698,7 @@ export default function PlanningManagement() {
                 <Label htmlFor="date_debut">Start Date *</Label>
                 <Input
                   id="date_debut"
-                  type="date"
+                  type="datetime-local"
                   value={formData.date_debut}
                   onChange={(e) => setFormData({ ...formData, date_debut: e.target.value })}
                 />
@@ -629,7 +707,7 @@ export default function PlanningManagement() {
                 <Label htmlFor="date_fin">End Date *</Label>
                 <Input
                   id="date_fin"
-                  type="date"
+                  type="datetime-local"
                   value={formData.date_fin}
                   onChange={(e) => setFormData({ ...formData, date_fin: e.target.value })}
                 />
@@ -639,35 +717,77 @@ export default function PlanningManagement() {
             <div className="grid gap-2">
               <Label htmlFor="zone_travail">Zone de Travail</Label>
               <Select
-                value={formData.zone_travail || undefined}
-                onValueChange={(value) => setFormData({ ...formData, zone_travail: value })}
+                value={formData.zone_travail}
+                onValueChange={handleZoneChange}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner une zone de travail" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ZONE CMS1 - COMPONENT SURFACE MOUNTING">ZONE CMS1 - COMPONENT SURFACE MOUNTING</SelectItem>
-                  <SelectItem value="ZONE CMS2 - COMPONENT SURFACE MOUNTING">ZONE CMS2 - COMPONENT SURFACE MOUNTING</SelectItem>
-                  <SelectItem value="ZONE TEST FONCTIONNEL">ZONE TEST FONCTIONNEL</SelectItem>
-                  <SelectItem value="ZONE TEST WiFi">ZONE TEST WiFi</SelectItem>
-                  <SelectItem value="ZONE ASSEMBLAGE">ZONE ASSEMBLAGE</SelectItem>
-                  <SelectItem value="ZONE EMBALLAGE">ZONE EMBALLAGE</SelectItem>
-                  <SelectItem value="ZONE QUALITÉ">ZONE QUALITÉ</SelectItem>
-                  <SelectItem value="ZONE MAINTENANCE">ZONE MAINTENANCE</SelectItem>
+                  {ZONE_OPTIONS.map((zone) => (
+                    <SelectItem key={zone} value={zone}>
+                      {zone}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <p className="text-xs text-gray-500">
-                Indiquez dans quelle zone l'équipe va travailler pendant ce planning
-              </p>
             </div>
 
-            <div className="grid gap-2">
+            {/* Sub-Zone Selection */}
+            {formData.zone_travail && SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail]?.length > 0 && (
+              <div className="space-y-2">
+                <Label>Sous-Zone</Label>
+                <Select
+                  value={formData.sous_zone}
+                  onValueChange={handleSubZoneChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner une sous-zone" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail].map((subZone) => (
+                      <SelectItem key={subZone} value={subZone}>
+                        {subZone}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Order Selection */}
+            {formData.zone_travail && formData.sous_zone && ORDRE_TEMPLATES[formData.zone_travail]?.[formData.sous_zone] && (
+              <div className="space-y-2">
+                <Label>Ordre (Position dans la ligne)</Label>
+                <Select
+                  value={formData.ordre}
+                  onValueChange={handleOrderChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sélectionner un ordre/position" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ORDRE_TEMPLATES[formData.zone_travail][formData.sous_zone].map((template) => (
+                      <SelectItem key={template.ordre} value={String(template.ordre)}>
+                        {template.ordre} - {template.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="space-y-2">
               <Label>Machines</Label>
               <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-                {machines.length === 0 ? (
-                  <p className="text-sm text-gray-500">No machines available</p>
+                {filteredMachines.length === 0 ? (
+                  <p className="text-sm text-gray-500">
+                    {formData.zone_travail
+                      ? 'Aucune machine disponible dans cette zone'
+                      : 'Veuillez sélectionner une zone de travail d\'abord'}
+                  </p>
                 ) : (
-                  machines.map((m) => (
+                  filteredMachines.map((m) => (
                     <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
                       <Checkbox
                         id={`machine-${m.id}`}
@@ -678,7 +798,7 @@ export default function PlanningManagement() {
                         htmlFor={`machine-${m.id}`}
                         className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
                       >
-                        #{m.id}
+                        {m.nom} (#{m.id}) - {m.statut}
                       </label>
                     </div>
                   ))
@@ -692,18 +812,18 @@ export default function PlanningManagement() {
               <Badge variant="outline" className="text-xs">Step-by-step</Badge>
             </div>
             <p className="text-xs text-gray-500 mb-3">
-              {formData.type === 'SHIFT' 
-                ? '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians → 4. Choose Shift Type' 
+              {formData.type === 'SHIFT'
+                ? '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians → 4. Choose Shift Type'
                 : '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians'}
             </p>
-            
+
             <div className="grid gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="chef_operation">
                   Step 1: Chef Operation (CHETOP) {formData.type === 'SHIFT' && '*'}
                 </Label>
-                <Select 
-                  value={formData.chef_operation_id?.toString()} 
+                <Select
+                  value={formData.chef_operation_id?.toString()}
                   onValueChange={(value) => setFormData({ ...formData, chef_operation_id: parseInt(value) })}
                 >
                   <SelectTrigger>
@@ -806,7 +926,7 @@ export default function PlanningManagement() {
           <DialogHeader>
             <DialogTitle>Confirm Deletion</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete planning "{deletingPlanning?.identifiant_planning}"? 
+              Are you sure you want to delete planning "{deletingPlanning?.identifiant_planning}"?
               This will remove all user assignments and cannot be undone.
             </DialogDescription>
           </DialogHeader>

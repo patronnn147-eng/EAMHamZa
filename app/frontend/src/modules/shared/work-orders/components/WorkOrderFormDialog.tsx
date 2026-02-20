@@ -48,7 +48,7 @@ interface WorkOrderFormDialogProps {
   formData: {
     titre: string;
     description: string;
-    machine_ids: number[];
+    machine_id: number | null;
     planning_id: number | null;
     chef_technique_id: number | null;
     technicien_ids: number[];
@@ -59,7 +59,7 @@ interface WorkOrderFormDialogProps {
   setFormData: (data: {
     titre: string;
     description: string;
-    machine_ids: number[];
+    machine_id: number | null;
     planning_id: number | null;
     chef_technique_id: number | null;
     technicien_ids: number[];
@@ -170,33 +170,28 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
             />
           </div>
           <div className="grid gap-2">
-            <Label>Machines</Label>
-            <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-              {machinesEmptyMessage ? (
-                <p className="text-sm text-gray-500">{machinesEmptyMessage}</p>
-              ) : (
-                availableMachines.map((m) => (
-                  <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
-                    <Checkbox
-                      id={`machine-${m.id}`}
-                      checked={formData.machine_ids.includes(m.id)}
-                      onCheckedChange={() =>
-                        setFormData({
-                          ...formData,
-                          machine_ids: formData.machine_ids.includes(m.id)
-                            ? formData.machine_ids.filter((id) => id !== m.id)
-                            : [...formData.machine_ids, m.id],
-                        })
-                      }
-                    />
-                    <label htmlFor={`machine-${m.id}`} className="text-sm font-medium cursor-pointer flex-1">
-                      {m.nom} (#{m.id})
-                    </label>
-                  </div>
-                ))
-              )}
-            </div>
-            <p className="text-xs text-gray-500">Selected: {formData.machine_ids.length} machine(s)</p>
+            <Label htmlFor="machine">Machine</Label>
+            <Select
+              value={formData.machine_id?.toString() || ''}
+              onValueChange={(value) =>
+                setFormData({
+                  ...formData,
+                  machine_id: value ? Number.parseInt(value) : null,
+                })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={machinesEmptyMessage || "Select a machine"} />
+              </SelectTrigger>
+              <SelectContent>
+                {availableMachines.map((m) => (
+                  <SelectItem key={m.id} value={m.id.toString()}>
+                    {m.nom} (#{m.id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {machinesEmptyMessage && <p className="text-xs text-amber-600">{machinesEmptyMessage}</p>}
           </div>
 
           <div className="grid gap-2">
@@ -214,7 +209,7 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
                   planning_id: pid,
                   chef_technique_id: chefTechFromPlanning,
                   technicien_ids: [],
-                  machine_ids: [],
+                  machine_id: null,
                 });
               }}
             >

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
@@ -86,6 +86,77 @@ export default function TechnicianInterventions() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const [downloading, setDownloading] = useState<string | null>(null);
+
+  const handleDownload = async (key: string, filename: string) => {
+    try {
+      setDownloading(key);
+      const token = localStorage.getItem('access_token');
+      if (!token) return;
+
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/storage/download-url`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bucket_name: 'interventions',
+          object_key: key
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to get download URL');
+      const { download_url } = await res.json();
+
+      const a = document.createElement('a');
+      a.href = download_url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (err) {
+      console.error('Download error:', err);
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  const renderContentWithFiles = (content?: string) => {
+    if (!content) return null;
+
+    const parts = content.split(/(\[FILE:[^|]+\|[^\]]+\])/);
+    return (
+      <div className="space-y-1">
+        {parts.map((part, idx) => {
+          const match = part.match(/\[FILE:([^|]+)\|([^\]]+)\]/);
+          if (match) {
+            const [, key, name] = match;
+            return (
+              <div key={idx} className="flex items-center gap-2 mt-1">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-[10px] gap-1 px-2"
+                  onClick={() => handleDownload(key, name)}
+                  disabled={!!downloading}
+                >
+                  {downloading === key ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3" />
+                  )}
+                  {name}
+                </Button>
+              </div>
+            );
+          }
+          return <span key={idx} className="whitespace-pre-wrap">{part}</span>;
+        })}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -290,10 +361,15 @@ export default function TechnicianInterventions() {
                 ) : null}
 
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport:</h4>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap bg-gray-50 p-3 rounded-md line-clamp-4">
-                    {intervention.rapport}
-                  </p>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport / Description:</h4>
+                  <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md line-clamp-4">
+                    {renderContentWithFiles(intervention.problem_description)}
+                    {intervention.rapport && (
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        {renderContentWithFiles(intervention.rapport)}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2">

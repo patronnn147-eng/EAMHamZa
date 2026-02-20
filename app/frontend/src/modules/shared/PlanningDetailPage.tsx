@@ -4,13 +4,13 @@ import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Calendar, 
-  Users, 
-  ArrowLeft, 
-  Clock, 
-  MapPin, 
-  User, 
+import {
+  Calendar,
+  Users,
+  ArrowLeft,
+  Clock,
+  MapPin,
+  User,
   Settings,
   AlertTriangle,
   CheckCircle,
@@ -66,10 +66,10 @@ export default function PlanningDetailPage() {
         for (let i = 0; i < 5; i += 1) {
           if (!current || typeof current !== 'object') return current;
           const obj = current as Record<string, unknown>;
-          
+
           // Check for specific fields to identify the Planning object
           if ('identifiant_planning' in obj) return current;
-          
+
           // Check for list response
           if ('items' in obj && Array.isArray(obj.items)) return current;
 
@@ -77,10 +77,10 @@ export default function PlanningDetailPage() {
             current = obj.data;
             continue;
           }
-          
+
           // Fallback checks
           if ('id' in obj && 'type' in obj) return current;
-          
+
           return current;
         }
         return current;
@@ -140,8 +140,11 @@ export default function PlanningDetailPage() {
     const typeConfig = {
       MAINTENANCE: { label: 'Maintenance', className: 'bg-orange-100 text-orange-800' },
       SHIFT: { label: 'Shift', className: 'bg-blue-100 text-blue-800' },
+      HEBDOMADAIRE: { label: 'Weekly', className: 'bg-purple-100 text-purple-800' },
+      MENSUEL: { label: 'Monthly', className: 'bg-indigo-100 text-indigo-800' },
+      JOURNALIER: { label: 'Daily', className: 'bg-teal-100 text-teal-800' },
     };
-    const config = typeConfig[type as keyof typeof typeConfig] || typeConfig.MAINTENANCE;
+    const config = typeConfig[type as keyof typeof typeConfig] || { label: type, className: 'bg-gray-100 text-gray-800' };
     return <Badge className={config.className}>{config.label}</Badge>;
   };
 
@@ -169,7 +172,7 @@ export default function PlanningDetailPage() {
     const now = new Date();
     const start = new Date(dateDebut);
     const end = new Date(dateFin);
-    
+
     if (now < start) {
       return <Clock className="h-5 w-5 text-gray-400" title="Upcoming" />;
     } else if (now >= start && now <= end) {
@@ -183,7 +186,7 @@ export default function PlanningDetailPage() {
     const now = new Date();
     const start = new Date(dateDebut);
     const end = new Date(dateFin);
-    
+
     if (now < start) {
       return 'Upcoming';
     } else if (now >= start && now <= end) {
@@ -197,7 +200,7 @@ export default function PlanningDetailPage() {
     const now = new Date();
     const start = new Date(dateDebut);
     const end = new Date(dateFin);
-    
+
     if (now < start) {
       return 'text-gray-600';
     } else if (now >= start && now <= end) {
@@ -223,7 +226,8 @@ export default function PlanningDetailPage() {
       month: 'long',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit'
     });
   };
 
@@ -310,7 +314,7 @@ export default function PlanningDetailPage() {
                   <div className="text-lg font-semibold">{formatDate(planning.date_fin)}</div>
                 </div>
               </div>
-              
+
               {(planning.zone_travail && planning.zone_travail.trim() !== '') ? (
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-500">Work Zone</label>
@@ -399,12 +403,14 @@ export default function PlanningDetailPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-center">
-                {getStatusIcon(planning.date_debut, planning.date_fin)}
-                <div className={`text-2xl font-bold mt-2 ${getStatusColor(planning.date_debut, planning.date_fin)}`}>
+                <div className="mb-4 flex justify-center">
+                  {getStatusIcon(planning.date_debut, planning.date_fin)}
+                </div>
+                <div className={`text-2xl font-bold ${getStatusColor(planning.date_debut, planning.date_fin)}`}>
                   {getStatusText(planning.date_debut, planning.date_fin)}
                 </div>
               </div>
-              
+
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Duration:</span>
@@ -428,7 +434,11 @@ export default function PlanningDetailPage() {
               <CardTitle>Quick Actions</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+                onClick={() => navigate('calendar')}
+              >
                 <Calendar className="mr-2 h-4 w-4" />
                 View Calendar
               </Button>

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -92,7 +92,7 @@ async def list_my_interventions(
         )
         due_map = {row.id: row.date_echeance for row in ordres_res.all()}
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     enriched: List[dict] = []
     for i in interventions:
         due = due_map.get(i.ordre_travail_id)
@@ -144,7 +144,7 @@ async def update_intervention_status(
     if intervention.statut == "DECLINED" and data.statut in {"EN_COURS", "TERMINÉ"}:
         raise HTTPException(status_code=400, detail="Declined intervention cannot be started")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     old_status = intervention.statut
 
@@ -239,7 +239,7 @@ async def request_intervention(
     current_user: Utilisateurs = Depends(verify_technicien),
     db: AsyncSession = Depends(get_db),
 ):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     intervention = await db.scalar(
         select(Ordres_intervention).where(

@@ -14,6 +14,7 @@ import Interventions from '@/modules/shared/Interventions';
 import CheftechInterventionsPage from '@/modules/cheftech/CheftechInterventionsPage';
 import PlanningPage from '@/modules/shared/PlanningPage';
 import PlanningDetailPage from '@/modules/shared/PlanningDetailPage';
+import PlanningCalendarView from '@/modules/shared/PlanningCalendarView';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
 import UserManagement from '@/modules/admin/UserManagement';
@@ -224,6 +225,16 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/planning/:id/calendar"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <PlanningCalendarView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Admin User Approval Management */}
       <Route
         path="/admin/user-approvals"
@@ -268,6 +279,16 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/cheftech/planning/:id/calendar"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <PlanningCalendarView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Chetop Planning (Read-only) */}
       <Route
         path="/chetop/planning"
@@ -289,6 +310,16 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/chetop/planning/:id/calendar"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <PlanningCalendarView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Shared Planning Detail Page */}
       <Route
         path="/planning/:id"
@@ -296,6 +327,16 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH', 'TECHNICIEN']}>
             <Layout>
               <PlanningDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/planning/:id/calendar"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH', 'TECHNICIEN']}>
+            <Layout>
+              <PlanningCalendarView />
             </Layout>
           </ProtectedRoute>
         }
@@ -337,6 +378,7 @@ export function AppRoutes() {
         <Route path="machines/:id" element={<TechnicianMachineDetail />} />
         <Route path="planning" element={<TechnicianPlanning />} />
         <Route path="planning/:id" element={<PlanningDetailPage />} />
+        <Route path="planning/:id/calendar" element={<PlanningCalendarView />} />
         <Route path="documents" element={<TechnicianDocuments />} />
       </Route>
       <Route path="*" element={<NotFound />} />

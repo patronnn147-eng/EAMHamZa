@@ -49,17 +49,11 @@ export default function TechnicianWorkOrderDetail() {
 
         // Fetch intervention history for this machine
         const interventionsResponse = await client.entities.ordres_intervention.queryAll({
-          query: {},
+          query: JSON.stringify({ machine_id: ordreData.machine_id }),
           sort: '-date_intervention',
           limit: 50,
         });
-        const allInterventions = interventionsResponse.data.items || [];
-        // Filter interventions related to work orders for this machine
-        const machineInterventions = allInterventions.filter((i) => {
-          // This is a simplified filter - in production, you'd join through work orders
-          return true; // Show all for now
-        });
-        setInterventions(machineInterventions);
+        setInterventions(interventionsResponse.data.items || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);

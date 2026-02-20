@@ -18,6 +18,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Paperclip, Loader2 } from 'lucide-react';
+import type { Machine } from '@/lib/types';
+
+const getAuthToken = () => localStorage.getItem('access_token');
 
 export type InterventionRequestFormData = {
   ordre_travail_id: number;
@@ -59,6 +63,101 @@ export const InterventionRequestDialog: React.FC<Props> = ({
     required_materials: '',
   });
 
+  const [machines, setMachines] = React.useState<Machine[]>([]);
+  const [uploadingField, setUploadingField] = React.useState<'required_materials' | 'problem_description' | null>(null);
+
+  const fetchMachines = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/machines?limit=1000`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMachines(data.items || []);
+      }
+    } catch (e) {
+      console.error('Error fetching machines:', e);
+    }
+  };
+
+  React.useEffect(() => {
+    if (open) {
+      fetchMachines();
+    }
+  }, [open]);
+
+  const handleFileUpload = async (field: 'required_materials' | 'problem_description') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      setUploadingField(field);
+      try {
+        const token = getAuthToken();
+        if (!token) return;
+
+        // 1. Get upload URL
+        const fileName = `${Date.now()}_${file.name}`;
+        const uploadRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/storage/upload-url`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            bucket_name: 'interventions',
+            object_key: fileName
+          })
+        });
+
+        if (!uploadRes.ok) throw new Error('Failed to get upload URL');
+        const { upload_url } = await uploadRes.json();
+
+        // 2. Upload to MinIO
+        const putRes = await fetch(upload_url, {
+          method: 'PUT',
+          body: file
+        });
+
+        if (!putRes.ok) throw new Error('Upload failed');
+
+        // 3. Create Archive entry in database
+        await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/archives`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            identifiant_archive: `ARC-${Date.now()}`,
+            nom: file.name,
+            date_archivage: new Date().toISOString(),
+            type: file.type || 'application/octet-stream',
+            object_key: fileName,
+            ordre_travail_id: form.ordre_travail_id
+          })
+        });
+
+        // 4. Append to field with object key for retrieval
+        const fileMarker = `\n[FILE:${fileName}|${file.name}]`;
+        setForm(prev => ({
+          ...prev,
+          [field]: prev[field] ? `${prev[field]}${fileMarker}` : fileMarker
+        }));
+
+      } catch (err) {
+        console.error('Upload error:', err);
+      } finally {
+        setUploadingField(null);
+      }
+    };
+    input.click();
+  };
+
   React.useEffect(() => {
     if (!open) return;
     setForm({
@@ -92,15 +191,22 @@ export const InterventionRequestDialog: React.FC<Props> = ({
 
           <div className="grid gap-2">
             <Label>Machine concernée (optionnel)</Label>
-            <Input
-              type="number"
-              value={form.machine_id ?? ''}
-              onChange={(e) => {
-                const v = e.target.value;
-                setForm((prev) => ({ ...prev, machine_id: v ? Number.parseInt(v) : null }));
-              }}
-              placeholder="ID machine"
-            />
+            <Select
+              value={form.machine_id?.toString() || 'none'}
+              onValueChange={(v) => setForm(prev => ({ ...prev, machine_id: v === 'none' ? null : Number(v) }))}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Sélectionner une machine" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Aucune</SelectItem>
+                {machines.map(m => (
+                  <SelectItem key={m.id} value={m.id.toString()}>
+                    {m.nom} (#{m.id})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid gap-2">
@@ -132,7 +238,24 @@ export const InterventionRequestDialog: React.FC<Props> = ({
           </div>
 
           <div className="grid gap-2">
-            <Label>Matériels requis</Label>
+            <div className="flex items-center justify-between">
+              <Label>Matériels requis</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => handleFileUpload('required_materials')}
+                disabled={uploadingField === 'required_materials'}
+              >
+                {uploadingField === 'required_materials' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4 mr-1" />
+                )}
+                Joindre un fichier
+              </Button>
+            </div>
             <Textarea
               value={form.required_materials}
               onChange={(e) => setForm((prev) => ({ ...prev, required_materials: e.target.value }))}
@@ -142,7 +265,24 @@ export const InterventionRequestDialog: React.FC<Props> = ({
           </div>
 
           <div className="grid gap-2">
-            <Label>Description du problème</Label>
+            <div className="flex items-center justify-between">
+              <Label>Description du problème</Label>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2"
+                onClick={() => handleFileUpload('problem_description')}
+                disabled={uploadingField === 'problem_description'}
+              >
+                {uploadingField === 'problem_description' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="h-4 w-4 mr-1" />
+                )}
+                Joindre un fichier
+              </Button>
+            </div>
             <Textarea
               value={form.problem_description}
               onChange={(e) => setForm((prev) => ({ ...prev, problem_description: e.target.value }))}

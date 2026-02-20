@@ -47,7 +47,7 @@ const CheftechDashboard: React.FC = () => {
           <p className="text-gray-600 mt-2">Supervision technique et gestion des équipes</p>
         </div>
 
-        {stats && <DashboardStatsCards stats={stats} />}
+        {stats && <DashboardStatsCards stats={stats} machines={machines} />}
 
         <Tabs defaultValue="interventions" className="space-y-6">
           <TabsList>
@@ -95,7 +95,7 @@ const CheftechDashboard: React.FC = () => {
                   <AlertTriangle className="h-6 w-6" />
                   Alertes Urgentes
                 </h2>
-                <Button 
+                <Button
                   onClick={() => navigate('/cheftech/urgent-alert')}
                   className="bg-red-600 hover:bg-red-700 text-white"
                 >
@@ -112,7 +112,7 @@ const CheftechDashboard: React.FC = () => {
                       Créez et gérez les alertes urgentes émises par les techniciens.
                       Les responsables sont notifiés immédiatement.
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => navigate('/cheftech/urgent-alert')}
                       className="mt-4 bg-red-600 hover:bg-red-700"
                     >

@@ -252,12 +252,19 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
         if user.id in seen_user_ids:
             continue
         seen_user_ids.add(user.id)
+        
+        # Safely handle enum values
+        role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+        shift_val = None
+        if user.shift_type:
+            shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
+            
         assigned_users.append({
             "id": user.id,
             "nom": user.nom,
             "email": user.email,
-            "role": user.role.value,
-            "shift_type": user.shift_type.value if hasattr(user.shift_type, "value") else (str(user.shift_type) if getattr(user, "shift_type", None) else None),
+            "role": role_val,
+            "shift_type": shift_val,
         })
     
     machines_result = await db.execute(
@@ -265,13 +272,19 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
     )
     machine_ids = [row[0] for row in machines_result.fetchall()]
     
+    # Safely handle enum values for planning
+    type_val = planning.type.value if hasattr(planning.type, "value") else str(planning.type)
+    planning_shift_val = None
+    if planning.shift_type:
+        planning_shift_val = planning.shift_type.value if hasattr(planning.shift_type, "value") else str(planning.shift_type)
+
     return {
         "id": planning.id,
         "identifiant_planning": planning.identifiant_planning,
         "date_debut": planning.date_debut,
         "date_fin": planning.date_fin,
-        "type": planning.type.value,
-        "shift_type": planning.shift_type.value if planning.shift_type else None,
+        "type": type_val,
+        "shift_type": planning_shift_val,
         "chef_operation_id": planning.chef_operation_id,
         "chef_technique_id": planning.chef_technique_id,
         "zone_travail": planning.zone_travail,
@@ -331,10 +344,19 @@ async def list_plannings(
             result = await service.get_list(skip=skip, limit=limit, sort="-date_debut")
         else:
             # Non-admin users can only see their assigned plannings
-            # Get planning IDs where the user is assigned
-            planning_ids_query = select(Planning_utilisateurs.planning_id).where(
-                Planning_utilisateurs.utilisateur_id == current_user.id
-            )
+            # Get planning IDs where the user is assigned in planning_utilisateurs
+            # OR where they are the chef_operation_id or chef_technique_id
+            from sqlalchemy import or_
+            planning_ids_query = select(Plannings.id).outerjoin(
+                Planning_utilisateurs, Planning_utilisateurs.planning_id == Plannings.id
+            ).where(
+                or_(
+                    Planning_utilisateurs.utilisateur_id == current_user.id,
+                    Plannings.chef_operation_id == current_user.id,
+                    Plannings.chef_technique_id == current_user.id
+                )
+            ).distinct()
+            
             planning_ids_result = await db.execute(planning_ids_query)
             planning_ids = [row[0] for row in planning_ids_result.fetchall()]
             
@@ -348,7 +370,6 @@ async def list_plannings(
                 )
             
             # Get only the plannings where user is assigned
-            # Since service doesn't support id__in, we need to query directly
             query = select(Plannings).where(Plannings.id.in_(planning_ids))
             
             # Apply sorting

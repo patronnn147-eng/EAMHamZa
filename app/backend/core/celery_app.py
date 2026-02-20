@@ -14,6 +14,7 @@ celery_app = Celery(
         "tasks.planning_emails",
         "tasks.work_order_events",
         "tasks.intervention_events",
+        "tasks.maintenance_scheduler",
     ],
 )
 
@@ -23,4 +24,10 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "check-maintenance-daily": {
+            "task": "tasks.check_preventive_maintenance",
+            "schedule": 86400.0,  # Once every 24 hours
+        },
+    },
 )

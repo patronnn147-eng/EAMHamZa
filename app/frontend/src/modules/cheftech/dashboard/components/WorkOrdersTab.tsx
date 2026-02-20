@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Activity, Users } from 'lucide-react';
+import { Activity, Users, Calendar } from 'lucide-react';
 import { getPriorityColor, getStatusColor } from '../utils/badges';
 import type { Machine, Technician, WorkOrder } from '../types';
 
@@ -130,26 +130,38 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {workOrders.map((order) => (
-            <div key={order.id} className="border rounded-lg p-4">
-              <h3 className="font-semibold">{order.titre}</h3>
-              <p className="text-sm text-gray-600">{order.description}</p>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge className={getPriorityColor(order.priorite)}>{order.priorite}</Badge>
-                <Badge className={getStatusColor(order.statut)}>{order.statut}</Badge>
-                {order.machine_nom && (
-                  <span className="text-sm text-gray-500">Machine: {order.machine_nom}</span>
-                )}
-              </div>
+          {workOrders.map((order) => {
+            const isPreventive = order.titre.startsWith('[PRÉVENTIF]');
+            return (
+              <div
+                key={order.id}
+                className={`border rounded-lg p-4 ${isPreventive ? 'border-amber-300 bg-amber-50' : ''}`}
+              >
+                <h3 className="font-semibold">{order.titre}</h3>
+                <p className="text-sm text-gray-600">{order.description}</p>
+                <div className="flex items-center gap-2 mt-2 flex-wrap">
+                  <Badge className={getPriorityColor(order.priorite)}>{order.priorite}</Badge>
+                  <Badge className={getStatusColor(order.statut)}>{order.statut}</Badge>
+                  {isPreventive && (
+                    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Maintenance Automatisée
+                    </Badge>
+                  )}
+                  {order.machine_nom && (
+                    <span className="text-sm text-gray-500">Machine: {order.machine_nom}</span>
+                  )}
+                </div>
 
-              <div className="mt-3">
-                <Button variant="outline" size="sm" onClick={() => void openAssign(order)}>
-                  <Users className="mr-2 h-4 w-4" />
-                  Assigner
-                </Button>
+                <div className="mt-3">
+                  <Button variant="outline" size="sm" onClick={() => void openAssign(order)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    Assigner
+                  </Button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
@@ -170,15 +182,22 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
               <div className="space-y-2">
                 <Label>Machines</Label>
                 <div className="max-h-48 overflow-auto border rounded-md p-2 space-y-2">
-                  {machines.map((m) => (
-                    <label key={m.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox checked={selectedMachineIds.includes(m.id)} onCheckedChange={() => toggleMachine(m.id)} />
-                      <span>
-                        {m.nom} (#{m.id})
-                      </span>
-                    </label>
-                  ))}
-                  {machines.length === 0 && <p className="text-sm text-gray-500">Aucune machine</p>}
+                  {machines
+                    .filter((m) => m.id === selectedOrder?.machine_id)
+                    .map((m) => (
+                      <label key={m.id} className="flex items-center gap-2 text-sm">
+                        <Checkbox
+                          checked={selectedMachineIds.includes(m.id)}
+                          onCheckedChange={() => toggleMachine(m.id)}
+                        />
+                        <span>
+                          {m.nom} (#{m.id})
+                        </span>
+                      </label>
+                    ))}
+                  {machines.filter((m) => m.id === selectedOrder?.machine_id).length === 0 && (
+                    <p className="text-sm text-gray-500">Aucune machine associée à cet ordre</p>
+                  )}
                 </div>
               </div>
 

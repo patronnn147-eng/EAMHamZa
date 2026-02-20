@@ -30,6 +30,7 @@ const CheftechInterventionsPage: React.FC = () => {
         fetchInterventions={fetchInterventions}
         approveIntervention={approveIntervention}
         rejectIntervention={rejectIntervention}
+        noGrouping={true}
       />
     </div>
   );

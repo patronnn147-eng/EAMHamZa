@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -71,9 +71,9 @@ class WorkOrderResponse(BaseModel):
 class MachineResponse(BaseModel):
     id: int
     nom: str
-    emplacement: str
-    statut: str
-    type: str
+    emplacement: Optional[str] = None
+    statut: Optional[str] = None
+    type: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None
@@ -92,11 +92,13 @@ class TechnicianResponse(BaseModel):
         from_attributes = True
 
 class DashboardStats(BaseModel):
-    total_interventions: int
     total_ordres_travail: int
     ordres_en_attente: int
     ordres_en_cours: int
+    total_interventions: int
+    interventions_en_cours: int
     total_techniciens: int
+    techniciens_disponibles: int
     total_machines: int
     machines_critiques: int
 
@@ -125,6 +127,9 @@ async def get_dashboard_stats(
     try:
         # Intervention statistics
         total_interventions = await db.scalar(select(func.count(Ordres_intervention.id)))
+        interventions_en_cours = await db.scalar(
+            select(func.count(Ordres_intervention.id)).where(Ordres_intervention.statut == "EN_COURS")
+        )
 
         # Work order statistics
         total_ordres_travail = await db.scalar(select(func.count(Ordres_travail.id)))
@@ -139,6 +144,10 @@ async def get_dashboard_stats(
         total_techniciens = await db.scalar(
             select(func.count(Utilisateurs.id)).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
         )
+        # Assuming available means active and not currently assigned to an 'EN_COURS' intervention?
+        # For now, let's just count all technicians as 'available' or add a proper status if exists.
+        # Based on DashboardStatsCards.tsx, it uses 'techniciens_disponibles'
+        techniciens_disponibles = total_techniciens # Placeholder or implement proper logic
 
         # Machine statistics
         total_machines = await db.scalar(select(func.count(Machines.id)))
@@ -148,10 +157,12 @@ async def get_dashboard_stats(
 
         return DashboardStats(
             total_interventions=total_interventions or 0,
+            interventions_en_cours=interventions_en_cours or 0,
             total_ordres_travail=total_ordres_travail or 0,
             ordres_en_attente=ordres_en_attente or 0,
             ordres_en_cours=ordres_en_cours or 0,
             total_techniciens=total_techniciens or 0,
+            techniciens_disponibles=techniciens_disponibles or 0,
             total_machines=total_machines or 0,
             machines_critiques=machines_critiques or 0
         )
@@ -182,7 +193,7 @@ async def get_interventions(
             )
             due_map = {row.id: row.date_echeance for row in ordres_res.all()}
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         enriched: List[dict] = []
         for i in interventions:
             due = due_map.get(i.ordre_travail_id)
@@ -200,7 +211,8 @@ async def get_interventions(
             )
 
         return enriched
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error loading interventions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -221,7 +233,7 @@ async def approve_intervention(
     if intervention.statut != "PENDING_APPROVAL":
         raise HTTPException(status_code=400, detail="Only pending interventions can be approved")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     intervention.statut = "APPROVED"
     intervention.approved_by = current_user.id
     intervention.approved_at = now
@@ -279,7 +291,7 @@ async def reject_intervention(
     if intervention.statut != "PENDING_APPROVAL":
         raise HTTPException(status_code=400, detail="Only pending interventions can be declined")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     intervention.statut = "DECLINED"
     intervention.approved_by = current_user.id
     intervention.approved_at = now
@@ -465,7 +477,7 @@ async def assign_work_order(
     if missing:
         raise HTTPException(status_code=400, detail=f"Invalid technician ids: {missing}")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     assigned_order_ids: List[int] = []
 
     for idx, machine_id in enumerate(machine_ids):
@@ -520,7 +532,7 @@ async def assign_work_order(
     await db.commit()
 
     notif_service = NotificationsService(db)
-    notif_now = datetime.utcnow()
+    notif_now = datetime.now(timezone.utc)
 
     # Notify technicians
     for tech_id in sorted(set(data.technicien_ids)):

@@ -32,7 +32,7 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
   const [formData, setFormData] = useState({
     titre: '',
     description: '',
-    machine_ids: [] as number[],
+    machine_id: null as number | null,
     planning_id: null as number | null,
     chef_technique_id: null as number | null,
     technicien_ids: [] as number[],
@@ -133,7 +133,7 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
       setFormData({
         titre: workOrder.titre || '',
         description: workOrder.description || '',
-        machine_ids: [workOrder.machine_id],
+        machine_id: workOrder.machine_id,
         planning_id: planningId,
         chef_technique_id: workOrder.utilisateur_id || null,
         technicien_ids: technicienIds,
@@ -150,7 +150,7 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
       setFormData({
         titre: '',
         description: '',
-        machine_ids: [],
+        machine_id: null,
         planning_id: null,
         chef_technique_id: null,
         technicien_ids: [],
@@ -170,7 +170,7 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
         const submitData = {
           titre: formData.titre,
           description: formData.description,
-          machine_id: formData.machine_ids[0],
+          machine_id: formData.machine_id,
           utilisateur_id: formData.chef_technique_id,
           date_echeance: formData.date_echeance,
           priorite: formData.priorite,
@@ -191,19 +191,18 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
           description: 'Work order updated successfully',
         });
       } else {
-        if (!formData.titre || !formData.description || formData.machine_ids.length === 0) {
+        if (!formData.titre || !formData.description || !formData.machine_id) {
           toast({
             title: 'Error',
-            description: 'Please fill title, description, and select at least one machine',
+            description: 'Please fill title, description, and select a machine',
             variant: 'destructive',
           });
           return;
         }
 
-        const createdIds: number[] = [];
+        let createdId: number | null = null;
 
         if (isChetop) {
-
           const token = localStorage.getItem('access_token');
           if (!token) throw new Error('No authentication token');
 
@@ -215,9 +214,6 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
             });
             return;
           }
-
-
-             if (!token) throw new Error('No authentication token');
 
           const relatedUserIds = Array.from(
             new Set([
@@ -235,80 +231,76 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
             return;
           }
 
-          for (const machineId of formData.machine_ids) {
-            const response = await fetch(`${API_BASE_URL}/api/v1/chetop/ordres`, {
-              method: 'POST',
-              headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
+          const response = await fetch(`${API_BASE_URL}/api/v1/chetop/ordres`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              titre: formData.titre,
+              description: formData.description,
+              priorite: formData.priorite,
+              machine_id: formData.machine_id,
+              utilisateur_id: formData.chef_technique_id,
+              date_echeance: formData.date_echeance ? new Date(formData.date_echeance).toISOString() : null,
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create work order');
+          }
+
+          const newOrder = (await response.json()) as { id: number };
+          createdId = newOrder.id;
+
+          if (formData.planning_id) {
+            await client.entities.planning_ordres_travail.create({
+              data: {
+                planning_id: formData.planning_id,
+                ordre_travail_id: newOrder.id,
+                created_at: new Date().toISOString(),
               },
-              body: JSON.stringify({
-                titre: formData.titre,
-                description: formData.description,
-                priorite: formData.priorite,
-                machine_id: machineId,
-                utilisateur_id: formData.chef_technique_id,
-                date_echeance: formData.date_echeance ? new Date(formData.date_echeance).toISOString() : null,
-              }),
             });
+          }
 
-            if (!response.ok) {
-              const error = await response.json();
-              throw new Error(error.detail || 'Failed to create work order');
-            }
+          for (const technicienId of formData.technicien_ids) {
+            await client.entities.ordres_intervention.create({
+              data: {
+                date_intervention: new Date().toISOString(),
+                ordre_travail_id: newOrder.id,
+                technicien_id: technicienId,
+                statut: 'EN_ATTENTE',
+              },
+            });
+          }
 
-            const newOrder = (await response.json()) as { id: number };
-            createdIds.push(newOrder.id);
+          await client.apiCall.invoke({
+            url: '/api/v1/notifications/bulk',
+            method: 'POST',
+            data: {
+              utilisateur_ids: relatedUserIds,
+              titre: 'Work Order Created',
+              priorite: formData.priorite,
+              type: 'WORK_ORDER_CREATED',
+              message: `New work order #${newOrder.id}: ${formData.titre}`,
+            },
+          });
 
-            if (formData.planning_id) {
-              await client.entities.planning_ordres_travail.create({
-                data: {
-                  planning_id: formData.planning_id,
-                  ordre_travail_id: newOrder.id,
-                  created_at: new Date().toISOString(),
-                },
-              });
-            }
-
-            for (const technicienId of formData.technicien_ids) {
-              await client.entities.ordres_intervention.create({
-                data: {
-                  date_intervention: new Date().toISOString(),
-                  ordre_travail_id: newOrder.id,
-                  technicien_id: technicienId,
-                  statut: 'EN_ATTENTE',
-                },
-              });
-            }
-
-    await client.apiCall.invoke({
-              url: '/api/v1/notifications/bulk',
+          for (const file of options.attachments) {
+            const objectKey = `${newOrder.id}/${file.name}`;
+            const uploadUrlResp = await client.apiCall.invoke({
+              url: '/api/v1/storage/upload-url',
               method: 'POST',
               data: {
-                utilisateur_ids: relatedUserIds,
-                titre: 'Work Order Created',
-                priorite: formData.priorite,
-                type: 'WORK_ORDER_CREATED',
-                message: `New work order #${newOrder.id}: ${formData.titre}`,
+                bucket_name: 'attachments',
+                object_key: objectKey,
               },
             });
 
-            for (const file of options.attachments) {
-              const objectKey = `${newOrder.id}/${file.name}`;
-              const uploadUrlResp = await client.apiCall.invoke({
-                url: '/api/v1/storage/upload-url',
-                method: 'POST',
-                data: {
-                  bucket_name: 'attachments',
-                  object_key: objectKey,
-                },
-              });
-
-              const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
-              if (!uploadUrl) {
-                continue;
-              }
-
+            const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
+            if (uploadUrl) {
               await fetch(uploadUrl, {
                 method: 'PUT',
                 body: file,
@@ -328,37 +320,33 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
             }
           }
         } else {
-          for (const machineId of formData.machine_ids) {
-            const response = await client.entities.ordres_travail.create({
+          const response = await client.entities.ordres_travail.create({
+            data: {
+              titre: formData.titre,
+              description: formData.description,
+              priorite: formData.priorite,
+              machine_id: formData.machine_id,
+              utilisateur_id: formData.chef_technique_id,
+              date_echeance: formData.date_echeance,
+              statut: formData.statut,
+            },
+          });
+
+          createdId = response.data.id;
+
+          for (const file of options.attachments) {
+            const objectKey = `${response.data.id}/${file.name}`;
+            const uploadUrlResp = await client.apiCall.invoke({
+              url: '/api/v1/storage/upload-url',
+              method: 'POST',
               data: {
-                titre: formData.titre,
-                description: formData.description,
-                priorite: formData.priorite,
-                machine_id: machineId,
-                utilisateur_id: formData.chef_technique_id,
-                date_echeance: formData.date_echeance,
-                statut: formData.statut,
+                bucket_name: 'attachments',
+                object_key: objectKey,
               },
             });
 
-            createdIds.push(response.data.id);
-
-            for (const file of options.attachments) {
-              const objectKey = `${response.data.id}/${file.name}`;
-              const uploadUrlResp = await client.apiCall.invoke({
-                url: '/api/v1/storage/upload-url',
-                method: 'POST',
-                data: {
-                  bucket_name: 'attachments',
-                  object_key: objectKey,
-                },
-              });
-
-              const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
-              if (!uploadUrl) {
-                continue;
-              }
-
+            const uploadUrl = (uploadUrlResp as { data?: { upload_url?: string } }).data?.upload_url;
+            if (uploadUrl) {
               await fetch(uploadUrl, {
                 method: 'PUT',
                 body: file,
@@ -379,11 +367,11 @@ export const useWorkOrders = (options: UseWorkOrdersOptions) => {
           }
         }
 
-        for (const id of createdIds) {
+        if (createdId) {
           notifyChange({
             type: 'work_order',
             action: 'create',
-            id,
+            id: createdId,
           });
         }
 

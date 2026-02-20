@@ -7,6 +7,9 @@ class PlanningType(str, enum.Enum):
     """Planning types"""
     MAINTENANCE = "MAINTENANCE"
     SHIFT = "SHIFT"
+    HEBDOMADAIRE = "HEBDOMADAIRE"
+    MENSUEL = "MENSUEL"
+    JOURNALIER = "JOURNALIER"
 
 
 class ShiftType(str, enum.Enum):
@@ -28,4 +31,6 @@ class Plannings(Base):
     chef_operation_id = Column(Integer, nullable=True)  # CHETOP user
     chef_technique_id = Column(Integer, nullable=True)  # CHEFTECH user
     zone_travail = Column(String(100), nullable=True)  # Zone where team will work
+    sous_zone = Column(String(100), nullable=True)
+    ordre = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)

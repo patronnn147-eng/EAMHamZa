@@ -14,6 +14,7 @@ import {
 import { Search, Calendar, AlertTriangle, CheckCircle, Play } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
 
 export default function TechnicianWorkOrders() {
@@ -25,6 +26,7 @@ export default function TechnicianWorkOrders() {
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchData();
@@ -75,9 +77,27 @@ export default function TechnicianWorkOrders() {
       const machinesResponse = await client.entities.machines.queryAll({ query: {}, limit: 100 });
       const machinesList = machinesResponse.data.items || [];
 
-      setWorkOrders(workOrdersList);
+      // Fetch work orders assigned directly to the user
+      let directWorkOrders: OrdreTravail[] = [];
+      if (user?.id) {
+        const directWOsRes = await client.entities.ordres_travail.queryAll({
+          query: JSON.stringify({ utilisateur_id: parseInt(user.id, 10) }),
+          limit: 100,
+        });
+        directWorkOrders = directWOsRes.data.items || [];
+      }
+
+      // Merge and deduplicate
+      const allWorkOrders = [...workOrdersList];
+      directWorkOrders.forEach((wo) => {
+        if (!allWorkOrders.find((existing) => existing.id === wo.id)) {
+          allWorkOrders.push(wo);
+        }
+      });
+
+      setWorkOrders(allWorkOrders);
       setMachines(machinesList);
-      setFilteredOrders(workOrdersList);
+      setFilteredOrders(allWorkOrders);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -202,9 +222,8 @@ export default function TechnicianWorkOrders() {
             return (
               <Card
                 key={ordre.id}
-                className={`hover:shadow-md transition-shadow ${
-                  ordre.priorite === 'URGENTE' ? 'border-l-4 border-l-red-500' : ''
-                }`}
+                className={`hover:shadow-md transition-shadow ${ordre.priorite === 'URGENTE' ? 'border-l-4 border-l-red-500' : ''
+                  }`}
               >
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -216,7 +235,7 @@ export default function TechnicianWorkOrders() {
                       </CardTitle>
                       {machine && (
                         <p className="text-sm text-gray-500 mt-1">
-                          Machine: {machine.nom} ({machine.identifiant_machine || `#${machine.id}`}) - {machine.emplacement}
+                          Machine: {machine.nom} (#{machine.id}) - {machine.emplacement}
                         </p>
                       )}
                     </div>
