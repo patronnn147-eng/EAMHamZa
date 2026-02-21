@@ -619,11 +619,14 @@ async def assign_work_order(
 @router.put("/machines/{machine_id}/status")
 async def update_machine_status(
     machine_id: int,
-    statut: str,
+    payload: dict,
     current_user: Utilisateurs = Depends(verify_cheftech),
     db: AsyncSession = Depends(get_db)
 ):
     """Update machine status"""
+    statut = payload.get("statut")
+    if not statut:
+        raise HTTPException(status_code=400, detail="Le champ 'statut' est requis")
     try:
         machine = await db.scalar(select(Machines).where(Machines.id == machine_id))
         if not machine:
