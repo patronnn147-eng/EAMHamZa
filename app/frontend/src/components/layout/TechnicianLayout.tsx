@@ -31,9 +31,40 @@ export default function TechnicianLayout() {
   useEffect(() => {
     checkAuth();
     fetchNotifications();
-    // Poll for new notifications every 30 seconds
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+
+    // Set up SSE connection
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const eventSource = new EventSource(`${baseUrl}/api/v1/notifications/stream?token=${token}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const newNotif = JSON.parse(event.data);
+        if (newNotif && newNotif.id) {
+          setNotifications(prev => {
+            if (prev.find(n => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev].slice(0, 10);
+          });
+          setUnreadCount(prev => prev + 1);
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
+
+    eventSource.addEventListener('heartbeat', () => {
+      console.debug('SSE Heartbeat');
+    });
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const checkAuth = async () => {
@@ -156,9 +187,8 @@ export default function TechnicianLayout() {
                     notifications.map((notif) => (
                       <DropdownMenuItem
                         key={notif.id}
-                        className={`flex flex-col items-start p-4 cursor-pointer ${
-                          !notif.lu ? 'bg-blue-50' : ''
-                        }`}
+                        className={`flex flex-col items-start p-4 cursor-pointer ${!notif.lu ? 'bg-blue-50' : ''
+                          }`}
                         onClick={() => !notif.lu && markAsRead(notif.id)}
                       >
                         <div className="flex items-start justify-between w-full">
@@ -189,9 +219,8 @@ export default function TechnicianLayout() {
       <div className="flex">
         {/* Sidebar */}
         <aside
-          className={`${
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out`}
+          className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            } lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white border-r border-gray-200 transition-transform duration-300 ease-in-out`}
         >
           <nav className="p-4 space-y-2 mt-16 lg:mt-0">
             {menuItems.map((item) => {
@@ -212,7 +241,7 @@ export default function TechnicianLayout() {
                 </Button>
               );
             })}
-  
+
           </nav>
         </aside>
 

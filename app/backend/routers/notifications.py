@@ -1,16 +1,17 @@
-"""
-Notifications Router - API endpoints for user notifications
-"""
 import logging
-from typing import List, Optional
+import asyncio
+from typing import List, Optional, Dict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+from sse_starlette.sse import EventSourceResponse
 
 from core.database import get_db
-from core.auth import get_current_user
+from core.auth import get_current_user, ALGORITHM, SECRET_KEY
+from core.notifications import broadcaster
+from jose import jwt, JWTError
 from models.utilisateurs import Utilisateurs
 from models.notifications import Notifications
 from services.notifications import NotificationsService
@@ -18,6 +19,62 @@ from services.notifications import NotificationsService
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
+
+
+async def get_user_from_token(token: str, db: AsyncSession) -> Utilisateurs:
+    """Helper to get user from token, used for SSE query params"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        from models.utilisateurs import Utilisateurs
+        from sqlalchemy import select
+        result = await db.execute(select(Utilisateurs).where(Utilisateurs.email == user_id))
+        user = result.scalar_one_or_none()
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Could not validate credentials")
+
+
+@router.get("/stream")
+async def notification_stream(
+    request: Request,
+    token: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """SSE endpoint for real-time notifications"""
+    user = await get_user_from_token(token, db)
+    user_id = user.id
+    
+    async def event_generator():
+        queue = await broadcaster.subscribe(user_id)
+        try:
+            while True:
+                # Check if client is still connected
+                if await request.is_disconnected():
+                    break
+                
+                try:
+                    # Wait for a new notification with a timeout for heartbeat
+                    notification = await asyncio.wait_for(queue.get(), timeout=25.0)
+                    yield {
+                        "event": "message",
+                        "data": notification
+                    }
+                except asyncio.TimeoutError:
+                    # Heartbeat to keep connection alive
+                    yield {
+                        "event": "heartbeat",
+                        "data": "ping"
+                    }
+        finally:
+            broadcaster.unsubscribe(user_id, queue)
+
+    return EventSourceResponse(event_generator())
 
 
 # ---------- Pydantic Schemas ----------

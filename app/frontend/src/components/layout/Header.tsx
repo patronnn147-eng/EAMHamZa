@@ -71,13 +71,48 @@ export default function Header() {
         setNotifications(data?.items || []);
         setUnreadCount(data?.unread_count || 0);
       } catch (error) {
-        console.error('Error fetching notifications:', error);
+        console.error('Error fetching initial notifications:', error);
       }
     };
 
-    void fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30000);
-    return () => clearInterval(interval);
+    fetchNotifications();
+
+    // Set up SSE connection
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const eventSource = new EventSource(`${baseUrl}/api/v1/notifications/stream?token=${token}`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const newNotif = JSON.parse(event.data);
+        if (newNotif && newNotif.id) {
+          setNotifications(prev => {
+            // Avoid duplicates
+            if (prev.find(n => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev].slice(0, 10);
+          });
+          setUnreadCount(prev => prev + 1);
+        }
+      } catch (err) {
+        console.error('Error parsing SSE message:', err);
+      }
+    };
+
+    eventSource.addEventListener('heartbeat', () => {
+      // Just a keep-alive, no action needed
+      console.debug('SSE Heartbeat');
+    });
+
+    eventSource.onerror = (err) => {
+      console.error('SSE Error:', err);
+      // EventSource auto-reconnects by default, but we log the error
+    };
+
+    return () => {
+      eventSource.close();
+    };
   }, []);
 
   const markAsRead = async (notificationId: number) => {
@@ -141,9 +176,9 @@ export default function Header() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
-            <img 
-              src="https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/44d01b7c-ac50-4b6d-9ccb-0a74219d8673.png" 
-              alt="Logo" 
+            <img
+              src="https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/44d01b7c-ac50-4b6d-9ccb-0a74219d8673.png"
+              alt="Logo"
               className="h-8 w-8"
             />
             <h1 className="text-xl font-bold text-gray-900">Asset Management</h1>

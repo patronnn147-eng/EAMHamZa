@@ -24,6 +24,23 @@ class NotificationsService:
             await self.db.commit()
             await self.db.refresh(obj)
             logger.info(f"Created notification with id: {obj.id}")
+            
+            # Broadcast to real-time clients
+            try:
+                from core.notifications import broadcaster
+                notification_data = {
+                    "id": obj.id,
+                    "utilisateur_id": obj.utilisateur_id,
+                    "type": obj.type,
+                    "message": obj.message,
+                    "date_envoi": obj.date_envoi.isoformat() if obj.date_envoi else None,
+                    "lu": obj.lu,
+                    "created_at": obj.created_at.isoformat() if obj.created_at else None
+                }
+                await broadcaster.broadcast(obj.utilisateur_id, notification_data)
+            except Exception as e:
+                logger.error(f"Error broadcasting notification: {e}")
+                
             return obj
         except Exception as e:
             await self.db.rollback()
