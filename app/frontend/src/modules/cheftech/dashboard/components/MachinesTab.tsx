@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,9 +10,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Settings, AlertTriangle, Clock } from 'lucide-react';
+import { Settings, AlertTriangle, Clock, Eye } from 'lucide-react';
 import { getStatusColor } from '../utils/badges';
 import type { Machine } from '../types';
+import MachineHealthBar from '@/modules/cheftech/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/cheftech/machines/utils/healthScore';
 
 interface MachinesTabProps {
   machines: Machine[];
@@ -34,6 +37,8 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
   fetchMachines,
   updateMachineStatus,
 }) => {
+  const navigate = useNavigate();
+
   return (
     <Card>
       <CardHeader>
@@ -54,6 +59,7 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
         <div className="space-y-4">
           {machines.map((machine) => {
             const urgency = getMaintenanceUrgency(machine.date_prochaine_maintenance);
+            const health = computeHealthScore(machine as any);
             const cardBorder =
               urgency === 'overdue'
                 ? 'border-red-400 bg-red-50'
@@ -64,7 +70,7 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
             return (
               <div key={machine.id} className={`rounded-lg p-4 border ${cardBorder}`}>
                 <div className="flex items-center justify-between">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <h3 className="font-semibold">{machine.nom}</h3>
                     <p className="text-sm text-gray-600">
                       {machine.type} • {machine.emplacement}
@@ -73,7 +79,7 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
                       <div className="flex items-center gap-2 mt-1">
                         <p className="text-xs text-gray-500">
                           Prochaine maintenance:{' '}
-                          {new Date(machine.date_prochaine_maintenance).toLocaleDateString()}
+                          {new Date(machine.date_prochaine_maintenance).toLocaleDateString('fr-FR')}
                         </p>
                         {urgency === 'overdue' && (
                           <Badge className="bg-red-100 text-red-700 border-red-300 text-[10px] flex items-center gap-1">
@@ -89,9 +95,21 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
                         )}
                       </div>
                     )}
+                    {/* Inline health score bar */}
+                    <div className="mt-2 max-w-[200px]">
+                      <MachineHealthBar health={health} compact />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 ml-4 shrink-0">
                     <Badge className={getStatusColor(machine.statut)}>{machine.statut}</Badge>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => navigate(`/cheftech/machines/${machine.id}`)}
+                      title="Voir le détail"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Select onValueChange={(value) => updateMachineStatus(machine.id, value)}>
                       <SelectTrigger className="w-32">
                         <SelectValue placeholder="Statut" />
