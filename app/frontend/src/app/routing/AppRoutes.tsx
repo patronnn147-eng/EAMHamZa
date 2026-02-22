@@ -8,6 +8,7 @@ import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
 import CheftechDashboard from '@/modules/cheftech/CheftechDashboard';
 import AdminMachines from '@/modules/admin/AdminMachines';
 import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
+import ChefTechMachineDetail from '@/modules/cheftech/ChefTechMachineDetail';
 import ChetopMachines from '@/modules/chetop/ChetopMachines';
 import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
@@ -125,6 +126,17 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
               <ChefTechMachines />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* ChefTech Machine Detail Route */}
+      <Route
+        path="/cheftech/machines/:id"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <ChefTechMachineDetail />
             </Layout>
           </ProtectedRoute>
         }
