@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Search, Eye, AlertTriangle } from 'lucide-react';
 import { useDataSync } from '@/contexts/DataSyncContext';
 import type { Machine } from '@/lib/types';
-import MachineHealthBar from '@/modules/cheftech/machines/components/MachineHealthBar';
-import { computeHealthScore } from '@/modules/cheftech/machines/utils/healthScore';
+import MachineHealthBar from '@/modules/shared/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/shared/machines/utils/healthScore';
 
 function getMachineStatusConfig(statut = '') {
   const map: Record<string, { label: string; dot: string }> = {
@@ -169,7 +169,7 @@ export default function ChetopMachines() {
                     variant="default"
                     size="sm"
                     className="w-full"
-                    onClick={() => navigate(`/cheftech/machines/${machine.id}`)}
+                    onClick={() => navigate(`/machines/${machine.id}`)}
                   >
                     <Eye className="mr-1.5 h-4 w-4" />
                     Voir les détails

@@ -14,6 +14,8 @@ export const useMachines = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
+  const [telemetryDialogOpen, setTelemetryDialogOpen] = useState(false);
+  const [telemetryMachine, setTelemetryMachine] = useState<Machine | null>(null);
   const { toast } = useToast();
   const { notifyChange, subscribe } = useDataSync();
 
@@ -183,6 +185,11 @@ export const useMachines = () => {
     }
   };
 
+  const handleOpenTelemetry = (machine: Machine) => {
+    setTelemetryMachine(machine);
+    setTelemetryDialogOpen(true);
+  };
+
   return {
     machines,
     filteredMachines,
@@ -193,13 +200,17 @@ export const useMachines = () => {
     setDialogOpen,
     deleteDialogOpen,
     setDeleteDialogOpen,
+    telemetryDialogOpen,
+    setTelemetryDialogOpen,
     editingMachine,
     deletingMachine,
     setDeletingMachine,
+    telemetryMachine,
     formData,
     setFormData,
     handleOpenDialog,
     handleSubmit,
     handleDelete,
+    handleOpenTelemetry,
   };
 };

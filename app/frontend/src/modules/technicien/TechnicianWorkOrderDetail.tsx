@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { OrdreTravail, Machine, Intervention } from '@/lib/types';
+import { FinishInterventionDialog } from '../technicien/components/FinishInterventionDialog';
 
 export default function TechnicianWorkOrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -30,6 +31,8 @@ export default function TechnicianWorkOrderDetail() {
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [comment, setComment] = useState('');
   const [loading, setLoading] = useState(true);
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false);
+  const [finishInterventionId, setFinishInterventionId] = useState<number | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -49,7 +52,7 @@ export default function TechnicianWorkOrderDetail() {
 
         // Fetch intervention history for this machine
         const interventionsResponse = await client.entities.ordres_intervention.queryAll({
-          query: JSON.stringify({ machine_id: ordreData.machine_id }),
+          query: { machine_id: ordreData.machine_id },
           sort: '-date_intervention',
           limit: 50,
         });
@@ -67,6 +70,40 @@ export default function TechnicianWorkOrderDetail() {
     }
   };
 
+  const handleFinishIntervention = async (feedback: { actual_failure_type: string; rapport?: string }) => {
+    if (!ordre || !finishInterventionId) return;
+
+    try {
+      const token = localStorage.getItem('access_token');
+      await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions/${finishInterventionId}/status`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          statut: 'TERMINÉ',
+          ...feedback
+        }),
+      });
+
+      toast({
+        title: 'Succès',
+        description: 'Intervention clôturée avec feedback.',
+      });
+
+      setFinishDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error('Error finishing intervention:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Échec de la clôture',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const handleStatusChange = async (newStatus: string) => {
     if (!ordre) return;
 
@@ -75,6 +112,12 @@ export default function TechnicianWorkOrderDetail() {
         id: ordre.id.toString(),
         data: { statut: newStatus },
       });
+
+      // If there's an active intervention for this WO and we are finishing it
+      if (newStatus === 'TERMINE') {
+        // We handle the intervention update via the separate dialog/flow 
+        // if this was called from the FinishInterventionDialog
+      }
 
       toast({
         title: 'Succès',
@@ -163,7 +206,20 @@ export default function TechnicianWorkOrderDetail() {
             </Button>
           )}
           {ordre.statut === 'EN_COURS' && (
-            <Button onClick={() => handleStatusChange('TERMINE')} className="bg-green-600 hover:bg-green-700">
+            <Button
+              onClick={() => {
+                // Find the latest intervention in progress for this tech
+                const activeInt = interventions.find(i => i.statut === 'EN_COURS');
+                if (activeInt) {
+                  setFinishInterventionId(activeInt.id);
+                  setFinishDialogOpen(true);
+                } else {
+                  // Fallback to simple status change if no intervention record found
+                  handleStatusChange('TERMINE');
+                }
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
               <CheckCircle className="mr-2 h-4 w-4" />
               Terminer
             </Button>
@@ -322,6 +378,15 @@ export default function TechnicianWorkOrderDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {finishInterventionId && (
+        <FinishInterventionDialog
+          open={finishDialogOpen}
+          onOpenChange={setFinishDialogOpen}
+          interventionId={finishInterventionId}
+          onConfirm={handleFinishIntervention}
+        />
+      )}
     </div>
   );
 }

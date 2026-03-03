@@ -43,6 +43,8 @@ class InterventionResponse(BaseModel):
     rapport: Optional[str] = None
     work_order_due_date: Optional[datetime] = None
     is_overdue: Optional[bool] = None
+    actual_failure_type: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
     class Config:
         from_attributes = True
@@ -51,6 +53,8 @@ class InterventionResponse(BaseModel):
 class InterventionStatusUpdate(BaseModel):
     statut: str
     rapport: Optional[str] = None
+    actual_failure_type: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
 
 class InterventionRequestPayload(BaseModel):
@@ -151,6 +155,12 @@ async def update_intervention_status(
     intervention.statut = data.statut
     if data.rapport is not None:
         intervention.rapport = data.rapport
+
+    if data.actual_failure_type is not None:
+        intervention.actual_failure_type = data.actual_failure_type
+    
+    if data.ml_prediction_matched is not None:
+        intervention.ml_prediction_matched = data.ml_prediction_matched
 
     if data.statut == "EN_COURS" and intervention.date_debut is None:
         intervention.date_debut = now

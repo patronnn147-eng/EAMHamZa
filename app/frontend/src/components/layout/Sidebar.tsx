@@ -1,15 +1,16 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Settings, 
-  Wrench, 
-  ClipboardList, 
-  Calendar, 
-  FileText, 
+import {
+  LayoutDashboard,
+  Settings,
+  Wrench,
+  ClipboardList,
+  Calendar,
+  FileText,
   Archive,
   UserCheck,
   Users,
+  Columns,
   LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,10 @@ const getNavigationItems = (role: string): NavigationItem[] => {
     { name: 'Interventions', href: `/${role.toLowerCase()}/interventions`, icon: Wrench },
     { name: 'Planning', href: `/${role.toLowerCase()}/planning`, icon: Calendar },
   ];
+
+  if (['ADMIN', 'CHETOP', 'CHEFTECH'].includes(role)) {
+    baseItems.push({ name: 'PDCA Kanban', href: '/pdca', icon: Columns });
+  }
 
   // Add admin-specific items
   if (role === 'ADMIN') {
@@ -98,8 +103,8 @@ export default function Sidebar() {
         <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
           <nav className="mt-5 flex-1 px-2 space-y-1">
             {navigation.map((item) => {
-              const isActive = location.pathname === item.href || 
-                              location.pathname.startsWith(item.href + '/');
+              const isActive = location.pathname === item.href ||
+                location.pathname.startsWith(item.href + '/');
               return (
                 <Link
                   key={item.name}

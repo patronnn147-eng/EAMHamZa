@@ -3,18 +3,17 @@ import Layout from '@/components/layout/Layout';
 import TechnicianLayout from '@/components/layout/TechnicianLayout';
 import Login from '@/modules/auth/Login';
 import AuthCallback from '@/modules/shared/AuthCallback';
-import Dashboard from '@/modules/shared/Dashboard';
-import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
 import CheftechDashboard from '@/modules/cheftech/CheftechDashboard';
 import AdminMachines from '@/modules/admin/AdminMachines';
 import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
-import ChefTechMachineDetail from '@/modules/cheftech/ChefTechMachineDetail';
+import MachineDetailPage from '@/modules/shared/MachineDetailPage';
 import ChetopMachines from '@/modules/chetop/ChetopMachines';
 import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
 import CheftechInterventionsPage from '@/modules/cheftech/CheftechInterventionsPage';
 import PlanningPage from '@/modules/shared/PlanningPage';
 import PlanningDetailPage from '@/modules/shared/PlanningDetailPage';
+import WorkOrderDetailPage from '@/modules/shared/WorkOrderDetailPage';
 import PlanningCalendarView from '@/modules/shared/PlanningCalendarView';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
@@ -26,7 +25,6 @@ import TechnicianWorkOrders from '@/modules/technicien/TechnicianWorkOrders';
 import TechnicianWorkOrderDetail from '@/modules/technicien/TechnicianWorkOrderDetail';
 import TechnicianInterventions from '@/modules/technicien/TechnicianInterventions';
 import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
-import TechnicianMachineDetail from '@/modules/technicien/TechnicianMachineDetail';
 import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
 import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
 import ChefTechUrgentAlert from '@/modules/cheftech/ChefTechUrgentAlert';
@@ -34,6 +32,8 @@ import NotFound from '@/modules/shared/NotFound';
 import { ProtectedRoute } from './ProtectedRoute';
 import { RoleBasedRedirect } from './RoleBasedRedirect';
 import { SectionRedirect } from './SectionRedirect';
+import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
+import PDCAPage from '@/modules/shared/PDCAPage';
 
 export function AppRoutes() {
   return (
@@ -55,7 +55,7 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CHETOP']}>
             <Layout>
-              <ChetopDashboard />
+              <CheftechDashboard role="CHETOP" />
             </Layout>
           </ProtectedRoute>
         }
@@ -66,7 +66,7 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
-              <CheftechDashboard />
+              <CheftechDashboard role="CHEFTECH" />
             </Layout>
           </ProtectedRoute>
         }
@@ -76,9 +76,9 @@ export function AppRoutes() {
       <Route
         path="/admin/dashboard"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+          <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
-              <Dashboard />
+              <CheftechDashboard role="ADMIN" />
             </Layout>
           </ProtectedRoute>
         }
@@ -130,13 +130,24 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      {/* ChefTech Machine Detail Route */}
+      {/* Shared Machine Detail Route */}
       <Route
-        path="/cheftech/machines/:id"
+        path="/machines/:id"
         element={
-          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
             <Layout>
-              <ChefTechMachineDetail />
+              <MachineDetailPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Shared Work Order Detail Route */}
+      <Route
+        path="/work-orders/:id"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+            <Layout>
+              <WorkOrderDetailPage />
             </Layout>
           </ProtectedRoute>
         }
@@ -354,6 +365,16 @@ export function AppRoutes() {
         }
       />
       <Route
+        path="/pdca"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+            <Layout>
+              <PDCAPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/reports"
         element={
           <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
@@ -387,7 +408,7 @@ export function AppRoutes() {
         <Route path="work-orders/:id" element={<TechnicianWorkOrderDetail />} />
         <Route path="interventions" element={<TechnicianInterventions />} />
         <Route path="machines" element={<TechnicianMachines />} />
-        <Route path="machines/:id" element={<TechnicianMachineDetail />} />
+        <Route path="machines/:id" element={<MachineDetailPage />} />
         <Route path="planning" element={<TechnicianPlanning />} />
         <Route path="planning/:id" element={<PlanningDetailPage />} />
         <Route path="planning/:id/calendar" element={<PlanningCalendarView />} />

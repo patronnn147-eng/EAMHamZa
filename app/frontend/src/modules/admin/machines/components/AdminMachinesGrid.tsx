@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Edit, Trash2, Eye, AlertTriangle } from 'lucide-react';
 import type { Machine } from '@/lib/types';
-import MachineHealthBar from '@/modules/cheftech/machines/components/MachineHealthBar';
-import { computeHealthScore } from '@/modules/cheftech/machines/utils/healthScore';
+import MachineHealthBar from '@/modules/shared/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/shared/machines/utils/healthScore';
+import { MachineQRCode } from '@/modules/shared/MachineQRCode';
 
 interface AdminMachinesGridProps {
   machines: Machine[];
@@ -116,7 +117,7 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
                     variant="default"
                     size="sm"
                     className="flex-1"
-                    onClick={() => navigate(`/cheftech/machines/${machine.id}`)}
+                    onClick={() => navigate(`/machines/${machine.id}`)}
                   >
                     <Eye className="mr-1.5 h-4 w-4" />
                     Voir
@@ -124,6 +125,7 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
                   <Button variant="outline" size="sm" onClick={() => onEdit(machine)}>
                     <Edit className="h-4 w-4" />
                   </Button>
+                  <MachineQRCode machine={machine} compact />
                   <Button
                     variant="outline"
                     size="sm"

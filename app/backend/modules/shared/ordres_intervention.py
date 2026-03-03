@@ -37,6 +37,8 @@ class Ordres_interventionData(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    actual_failure_type: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
 
 class Ordres_interventionUpdateData(BaseModel):
@@ -58,6 +60,8 @@ class Ordres_interventionUpdateData(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    actual_failure_type: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
 
 class Ordres_interventionResponse(BaseModel):
@@ -80,6 +84,8 @@ class Ordres_interventionResponse(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
     created_at: Optional[datetime] = None
+    actual_failure_type: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
     class Config:
         from_attributes = True

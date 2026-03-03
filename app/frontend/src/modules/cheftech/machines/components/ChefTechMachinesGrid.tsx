@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Eye, AlertTriangle } from 'lucide-react';
+import { Eye, AlertTriangle } from 'lucide-react';
 import type { Machine } from '@/lib/types';
-import MachineHealthBar from './MachineHealthBar';
-import { computeHealthScore } from '../utils/healthScore';
+import MachineHealthBar from '@/modules/shared/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/shared/machines/utils/healthScore';
+import { MachineQRCode } from '@/modules/shared/MachineQRCode';
 
 interface ChefTechMachinesGridProps {
   machines: Machine[];
-  onEdit: (machine: Machine) => void;
 }
 
 // Helper function to truncate text with title attribute for tooltip
@@ -39,7 +39,7 @@ function getMachineStatusConfig(statut = '') {
   return map[statut] ?? { label: statut || 'Inconnu', dot: 'bg-gray-300' };
 }
 
-export const ChefTechMachinesGrid: React.FC<ChefTechMachinesGridProps> = ({ machines, onEdit }) => {
+export const ChefTechMachinesGrid: React.FC<ChefTechMachinesGridProps> = ({ machines }) => {
   const navigate = useNavigate();
 
   return (
@@ -130,20 +130,12 @@ export const ChefTechMachinesGrid: React.FC<ChefTechMachinesGridProps> = ({ mach
                     variant="default"
                     size="sm"
                     className="flex-1"
-                    onClick={() => navigate(`/cheftech/machines/${machine.id}`)}
+                    onClick={() => navigate(`/machines/${machine.id}`)}
                   >
                     <Eye className="mr-1.5 h-4 w-4" />
-                    Voir
+                    Voir les détails
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => onEdit(machine)}
-                  >
-                    <Edit className="mr-1.5 h-4 w-4" />
-                    Modifier
-                  </Button>
+                  <MachineQRCode machine={machine} compact />
                 </div>
               </CardContent>
             </Card>

@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String
+from sqlalchemy import Column, DateTime, Integer, String, Float
 
 
 class Machines(Base):
@@ -19,3 +19,10 @@ class Machines(Base):
     date_prochaine_maintenance = Column(DateTime(timezone=True), nullable=True)
     image_url = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Sensor Telemetry for ML failure simulation
+    air_temperature = Column(Float(), nullable=True, server_default="300.0")
+    process_temperature = Column(Float(), nullable=True, server_default="310.0")
+    rotational_speed = Column(Integer(), nullable=True, server_default="1500")
+    torque = Column(Float(), nullable=True, server_default="40.0")
+    tool_wear = Column(Integer(), nullable=True, server_default="0")

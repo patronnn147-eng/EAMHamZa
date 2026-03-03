@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Activity, Users, Calendar } from 'lucide-react';
+import { Activity, Users, Calendar, Eye } from 'lucide-react';
 import { getPriorityColor, getStatusColor } from '../utils/badges';
 import type { Machine, Technician, WorkOrder } from '../types';
 
@@ -32,6 +33,7 @@ interface WorkOrdersTabProps {
 }
 
 export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, technicians, machines, assignWorkOrder }) => {
+  const navigate = useNavigate();
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
   const [selectedTechIds, setSelectedTechIds] = useState<number[]>([]);
@@ -153,10 +155,14 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
                   )}
                 </div>
 
-                <div className="mt-3">
+                <div className="mt-3 flex items-center gap-2">
                   <Button variant="outline" size="sm" onClick={() => void openAssign(order)}>
                     <Users className="mr-2 h-4 w-4" />
                     Assigner
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Voir les détails
                   </Button>
                 </div>
               </div>

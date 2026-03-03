@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean
 from sqlalchemy.sql import func
 
 
@@ -26,3 +26,7 @@ class Ordres_intervention(Base):
     date_fin = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    # PDCA Feedback Fields (Technician fills these out when closing an intervention)
+    actual_failure_type = Column(String(20), nullable=True)    # TWF, HDF, PWF, OSF, RNF, or None
+    ml_prediction_matched = Column(Boolean, nullable=True)     # Did the ML prediction match reality?

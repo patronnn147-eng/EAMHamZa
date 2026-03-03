@@ -2,7 +2,6 @@ import {
   ChefTechMachinesGrid,
   ChefTechMachinesHeader,
   ChefTechMachinesSearch,
-  MachineFormDialog,
 } from './machines/components';
 import { useChefTechMachines } from './machines/hooks';
 
@@ -12,13 +11,6 @@ export default function ChefTechMachines() {
     searchTerm,
     setSearchTerm,
     loading,
-    dialogOpen,
-    setDialogOpen,
-    editingMachine,
-    formData,
-    setFormData,
-    handleOpenDialog,
-    handleSubmit,
   } = useChefTechMachines();
 
   if (loading) {
@@ -31,20 +23,11 @@ export default function ChefTechMachines() {
 
   return (
     <div className="space-y-6">
-      <ChefTechMachinesHeader onCreate={() => handleOpenDialog()} />
+      <ChefTechMachinesHeader />
 
       <ChefTechMachinesSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
-      <ChefTechMachinesGrid machines={filteredMachines} onEdit={handleOpenDialog} />
-
-      <MachineFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        editingMachine={editingMachine}
-        formData={formData}
-        setFormData={setFormData}
-        onSubmit={handleSubmit}
-      />
+      <ChefTechMachinesGrid machines={filteredMachines} />
     </div>
   );
 }

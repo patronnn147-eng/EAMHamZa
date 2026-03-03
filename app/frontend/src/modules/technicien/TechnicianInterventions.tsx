@@ -7,6 +7,7 @@ import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle, Download,
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
+import { FinishInterventionDialog } from './components/FinishInterventionDialog';
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();
@@ -17,6 +18,8 @@ export default function TechnicianInterventions() {
   const [loading, setLoading] = useState(true);
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestIntervention, setRequestIntervention] = useState<Intervention | null>(null);
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false);
+  const [finishIntervention, setFinishIntervention] = useState<Intervention | null>(null);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -256,7 +259,11 @@ export default function TechnicianInterventions() {
     }
   };
 
-  const updateStatus = async (interventionId: number, statut: string) => {
+  const updateStatus = async (
+    interventionId: number,
+    statut: string,
+    feedback?: { actual_failure_type: string; rapport?: string }
+  ) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
@@ -267,7 +274,10 @@ export default function TechnicianInterventions() {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ statut }),
+        body: JSON.stringify({
+          statut,
+          ...feedback
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -426,7 +436,14 @@ export default function TechnicianInterventions() {
                   )}
 
                   {(intervention.statut || 'EN_ATTENTE') === 'EN_COURS' && (
-                    <Button size="sm" onClick={() => updateStatus(intervention.id, 'TERMINÉ')}>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setFinishIntervention(intervention);
+                        setFinishDialogOpen(true);
+                      }}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
                       <CheckCircle className="mr-2 h-4 w-4" />
                       Terminer
                     </Button>
@@ -453,6 +470,18 @@ export default function TechnicianInterventions() {
         initialMachineId={requestIntervention?.machine_id ?? null}
         onSubmit={submitRequest}
       />
+
+      {finishIntervention && (
+        <FinishInterventionDialog
+          open={finishDialogOpen}
+          onOpenChange={setFinishDialogOpen}
+          interventionId={finishIntervention.id}
+          onConfirm={(feedback) => {
+            updateStatus(finishIntervention.id, 'TERMINÉ', feedback);
+            setFinishDialogOpen(false);
+          }}
+        />
+      )}
     </div>
   );
 }

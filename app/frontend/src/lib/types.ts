@@ -20,6 +20,11 @@ export interface Machine {
   image_url?: string;
   user_id?: string;
   created_at?: string;
+  air_temperature?: number;
+  process_temperature?: number;
+  rotational_speed?: number;
+  torque?: number;
+  tool_wear?: number;
 }
 
 export interface OrdreTravail {
@@ -57,6 +62,8 @@ export interface Intervention {
   approved_at?: string;
   rejection_reason?: string;
   created_at: string;
+  actual_failure_type?: string;
+  ml_prediction_matched?: boolean;
 }
 
 export interface Planning {

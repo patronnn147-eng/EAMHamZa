@@ -107,15 +107,15 @@ class WorkOrderAssignRequest(BaseModel):
     estimated_completion_date: Optional[datetime] = None
     machine_ids: Optional[List[int]] = None
 
-# Helper function to check if user has CHEFTECH role
-async def verify_cheftech(current_user: Utilisateurs = Depends(get_current_user)):
-    if current_user.role != "CHEFTECH":
-        raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle CHEFTECH requis.")
+async def verify_management_access(current_user: Utilisateurs = Depends(get_current_user)):
+    if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN, UserRole.CHETOP]:
+        raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle de gestion requis.")
     return current_user
 
-async def verify_cheftech_or_admin(current_user: Utilisateurs = Depends(get_current_user)):
-    if current_user.role not in ["CHEFTECH", "ADMIN"]:
-        raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle CHEFTECH ou ADMIN requis.")
+async def verify_cheftech(current_user: Utilisateurs = Depends(verify_management_access)):
+    return current_user
+
+async def verify_cheftech_or_admin(current_user: Utilisateurs = Depends(verify_management_access)):
     return current_user
 
 @router.get("/dashboard", response_model=DashboardStats)

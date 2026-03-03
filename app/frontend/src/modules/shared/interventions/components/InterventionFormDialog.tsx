@@ -29,14 +29,27 @@ interface InterventionFormDialogProps {
     date_intervention: string;
     rapport: string;
     ordre_travail_id: string;
+    actual_failure_type: string;
+    ml_prediction_matched: string;
   };
   setFormData: (data: {
     date_intervention: string;
     rapport: string;
     ordre_travail_id: string;
+    actual_failure_type: string;
+    ml_prediction_matched: string;
   }) => void;
   onSubmit: () => void;
 }
+
+const FAILURE_TYPES = [
+  { value: 'NONE', label: 'Aucune panne détectée' },
+  { value: 'TWF', label: 'TWF — Tool Wear Failure (Usure outil)' },
+  { value: 'HDF', label: 'HDF — Heat Dissipation Failure (Dissipation thermique)' },
+  { value: 'PWF', label: 'PWF — Power Failure (Défaillance électrique)' },
+  { value: 'OSF', label: 'OSF — Overstrain Failure (Surcharge)' },
+  { value: 'RNF', label: 'RNF — Random Failure (Panne aléatoire)' },
+];
 
 export const InterventionFormDialog: React.FC<InterventionFormDialogProps> = ({
   open,
@@ -93,10 +106,56 @@ export const InterventionFormDialog: React.FC<InterventionFormDialogProps> = ({
               value={formData.rapport}
               onChange={(e) => setFormData({ ...formData, rapport: e.target.value })}
               placeholder="Describe the intervention performed, issues found, and actions taken..."
-              rows={8}
+              rows={6}
               className="resize-none"
             />
             <p className="text-xs text-gray-500">{formData.rapport.length} characters</p>
+          </div>
+
+          {/* PDCA Feedback Section */}
+          <div className="border-t pt-4 mt-2">
+            <p className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
+              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+              Validation ML (PDCA)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="actual_failure_type">Type de panne réel</Label>
+                <Select
+                  value={formData.actual_failure_type}
+                  onValueChange={(value) => setFormData({ ...formData, actual_failure_type: value })}
+                >
+                  <SelectTrigger id="actual_failure_type">
+                    <SelectValue placeholder="Sélectionner le type de panne" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FAILURE_TYPES.map((ft) => (
+                      <SelectItem key={ft.value} value={ft.value}>
+                        {ft.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-400">Quel type de panne avez-vous constaté ?</p>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="ml_prediction_matched">Prédiction ML correcte ?</Label>
+                <Select
+                  value={formData.ml_prediction_matched}
+                  onValueChange={(value) => setFormData({ ...formData, ml_prediction_matched: value })}
+                >
+                  <SelectTrigger id="ml_prediction_matched">
+                    <SelectValue placeholder="La prédiction était-elle correcte ?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="true">✅ Oui — La prédiction ML était correcte</SelectItem>
+                    <SelectItem value="false">❌ Non — La prédiction ML était incorrecte</SelectItem>
+                    <SelectItem value="unknown">❓ Pas de prédiction ML disponible</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-400">La prédiction du modèle correspondait-elle à la réalité ?</p>
+              </div>
+            </div>
           </div>
         </div>
         <DialogFooter>

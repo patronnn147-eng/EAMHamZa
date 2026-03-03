@@ -15,3 +15,5 @@ from . import planning_machines
 from . import planning_utilisateurs
 from . import plannings
 from . import rapports
+from . import ml_prediction_log
+

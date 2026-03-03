@@ -13,8 +13,8 @@ import {
 import { Settings, AlertTriangle, Clock, Eye } from 'lucide-react';
 import { getStatusColor } from '../utils/badges';
 import type { Machine } from '../types';
-import MachineHealthBar from '@/modules/cheftech/machines/components/MachineHealthBar';
-import { computeHealthScore } from '@/modules/cheftech/machines/utils/healthScore';
+import MachineHealthBar from '@/modules/shared/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/shared/machines/utils/healthScore';
 
 interface MachinesTabProps {
   machines: Machine[];
@@ -105,7 +105,7 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => navigate(`/cheftech/machines/${machine.id}`)}
+                      onClick={() => navigate(`/machines/${machine.id}`)}
                       title="Voir le détail"
                     >
                       <Eye className="h-4 w-4" />

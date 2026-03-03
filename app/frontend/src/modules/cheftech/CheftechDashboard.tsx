@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { client } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, BarChart2 } from 'lucide-react';
 import {
   DashboardStatsCards,
   InterventionsTab,
@@ -12,9 +13,15 @@ import {
   WorkOrdersTab,
 } from './dashboard/components';
 import { useCheftechDashboardData } from './dashboard/hooks';
+import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTab';
 
-const CheftechDashboard: React.FC = () => {
+interface CheftechDashboardProps {
+  role?: string;
+}
+
+const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
   const navigate = useNavigate();
+  const [userRole, setUserRole] = useState<string>(role || 'CHEFTECH');
   const {
     stats,
     interventions,
@@ -31,6 +38,27 @@ const CheftechDashboard: React.FC = () => {
     rejectIntervention,
   } = useCheftechDashboardData();
 
+  useEffect(() => {
+    if (role) return; // Skip fetching if role is forced
+    const fetchUserRole = async () => {
+      try {
+        const userData = await client.auth.me();
+        if (userData.data) {
+          const response = await client.entities.utilisateurs.query({
+            query: { user_id: userData.data.id },
+            limit: 1
+          });
+          if (response.data.items && response.data.items.length > 0) {
+            setUserRole(response.data.items[0].role);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user role:', error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -39,12 +67,28 @@ const CheftechDashboard: React.FC = () => {
     );
   }
 
+  const getDashboardTitle = () => {
+    switch (userRole) {
+      case 'ADMIN': return 'Administration - Tableau de Bord';
+      case 'CHETOP': return 'Chef des Opérations - Tableau de Bord';
+      default: return 'Chef Technique - Tableau de Bord';
+    }
+  };
+
+  const getDashboardSubTitle = () => {
+    switch (userRole) {
+      case 'ADMIN': return 'Gestion complète du système et supervision';
+      case 'CHETOP': return 'Pilotage des opérations et maintenance';
+      default: return 'Supervision technique et gestion des équipes';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Chef Technique Dashboard</h1>
-          <p className="text-gray-600 mt-2">Supervision technique et gestion des équipes</p>
+          <h1 className="text-3xl font-bold text-gray-900">{getDashboardTitle()}</h1>
+          <p className="text-gray-600 mt-2">{getDashboardSubTitle()}</p>
         </div>
 
         {stats && <DashboardStatsCards stats={stats} machines={machines} />}
@@ -55,6 +99,10 @@ const CheftechDashboard: React.FC = () => {
             <TabsTrigger value="ordres">Ordres de travail</TabsTrigger>
             <TabsTrigger value="techniciens">Techniciens</TabsTrigger>
             <TabsTrigger value="machines">Machines</TabsTrigger>
+            <TabsTrigger value="fiabilite" className="flex items-center gap-1.5">
+              <BarChart2 className="h-3.5 w-3.5" />
+              Fiabilité
+            </TabsTrigger>
             <TabsTrigger value="urgent-alert">Alerte Urgente</TabsTrigger>
           </TabsList>
 
@@ -86,6 +134,10 @@ const CheftechDashboard: React.FC = () => {
               fetchMachines={fetchMachines}
               updateMachineStatus={updateMachineStatus}
             />
+          </TabsContent>
+
+          <TabsContent value="fiabilite">
+            <ReliabilityDashboardTab />
           </TabsContent>
 
           <TabsContent value="urgent-alert">
