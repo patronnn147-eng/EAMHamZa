@@ -26,7 +26,7 @@ Full-stack EAM system for Sagemcom with FastAPI backend, React frontend, Postgre
 ### Phase 2: Core EAM Features
 **Goal:** Machines, work orders, planning, and interventions
 
-- [ ] **02-PLAN.md** — Core EAM Features Implementation
+- [x] **02-PLAN.md** — Core EAM Features Implementation
 
 **Requirements:** [EAM-01, EAM-02, EAM-03]
 
@@ -34,6 +34,8 @@ Full-stack EAM system for Sagemcom with FastAPI backend, React frontend, Postgre
 
 ### Phase 3: ML Integration
 **Goal:** Predictive maintenance with trained ML models
+
+- [ ] **03-PLAN.md** — ML Integration Implementation
 
 **Requirements:** [ML-01, ML-02, ML-03]
 
