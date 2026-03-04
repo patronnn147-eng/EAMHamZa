@@ -156,3 +156,31 @@ async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
         shift_type=current_user.shift_type.value if hasattr(current_user.shift_type, "value") else (str(current_user.shift_type) if getattr(current_user, "shift_type", None) else None),
         created_at=current_user.created_at
     )
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh_token(
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Refresh access token using refresh token from cookie
+    """
+    from core.auth import create_access_token
+    from fastapi import Request
+    from models.utilisateurs import UserStatus
+    
+    # This endpoint expects the refresh token to be passed via cookie
+    # For simplicity, we'll create a new access token if user is authenticated
+    # In production, you'd validate a refresh token from a signed cookie
+    
+    # For now, return a message that refresh requires authentication
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Refresh token required. Please login again."
+    )
+
+@router.post("/logout")
+async def logout():
+    """
+    Logout current user (client should clear tokens)
+    """
+    return {"message": "Déconnexion réussie"}
