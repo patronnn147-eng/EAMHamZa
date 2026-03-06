@@ -14,7 +14,7 @@ class Machines(Base):
     zone = Column(String, nullable=True)
     sous_zone = Column(String, nullable=True)
     ordre = Column(String, nullable=True)
-    statut = Column(String, nullable=True)
+    statut = Column(String, nullable=True, default="OPERATIONNELLE")
     date_derniere_maintenance = Column(DateTime(timezone=True), nullable=True)
     date_prochaine_maintenance = Column(DateTime(timezone=True), nullable=True)
     image_url = Column(String, nullable=True)

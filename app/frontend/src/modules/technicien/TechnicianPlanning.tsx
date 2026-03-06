@@ -40,9 +40,8 @@ export default function TechnicianPlanning() {
   const fetchPlannings = async () => {
     try {
       const response = await client.apiCall.invoke({
-        url: '/api/v1/plannings',
+        url: '/api/v1/plannings?skip=0&limit=100',
         method: 'GET',
-        data: { skip: 0, limit: 100 },
       });
       setPlannings(response.data.items || []);
     } catch (error) {
@@ -173,9 +172,9 @@ export default function TechnicianPlanning() {
                   )}
                 </div>
                 <div className="flex gap-2 pt-2 border-t">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className="flex-1"
                     onClick={() => navigate(`/planning/${planning.id}`)}
                   >

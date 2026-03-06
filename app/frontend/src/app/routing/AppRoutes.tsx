@@ -18,6 +18,7 @@ import PlanningCalendarView from '@/modules/shared/PlanningCalendarView';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
 import UserManagement from '@/modules/admin/UserManagement';
+import MLDashboard from '@/modules/admin/ml/MLDashboard';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
 import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
@@ -34,6 +35,7 @@ import { RoleBasedRedirect } from './RoleBasedRedirect';
 import { SectionRedirect } from './SectionRedirect';
 import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
 import PDCAPage from '@/modules/shared/PDCAPage';
+import InventoryPage from '@/modules/shared/InventoryPage';
 
 export function AppRoutes() {
   return (
@@ -281,6 +283,17 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Admin ML Dashboard Route */}
+      <Route
+        path="/admin/ml"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <MLDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* ChefTech Planning (Read-only) */}
       <Route
         path="/cheftech/planning"
@@ -394,6 +407,47 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      {/* Inventory Routes */}
+      <Route
+        path="/inventory"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
+            <Layout>
+              <InventoryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/inventory"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <InventoryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cheftech/inventory"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <InventoryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chetop/inventory"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <InventoryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       {/* Technician Routes */}
       <Route
         path="/technician"
@@ -412,6 +466,7 @@ export function AppRoutes() {
         <Route path="planning" element={<TechnicianPlanning />} />
         <Route path="planning/:id" element={<PlanningDetailPage />} />
         <Route path="planning/:id/calendar" element={<PlanningCalendarView />} />
+        <Route path="inventory" element={<InventoryPage />} />
         <Route path="documents" element={<TechnicianDocuments />} />
       </Route>
       <Route path="*" element={<NotFound />} />

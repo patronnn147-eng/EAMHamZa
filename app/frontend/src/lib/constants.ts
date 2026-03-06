@@ -76,3 +76,9 @@ export const ORDRE_TEMPLATES: Record<string, Record<string, OrdreTemplate[]>> = 
         ],
     },
 };
+export const MACHINE_STATUS_OPTIONS = [
+    { value: 'OPERATIONNELLE', label: 'Opérationnelle' },
+    { value: 'EN_MAINTENANCE', label: 'En Maintenance' },
+    { value: 'EN_PANNE', label: 'En Panne' },
+    { value: 'HORS_SERVICE', label: 'Hors Service' },
+];

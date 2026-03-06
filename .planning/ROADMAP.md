@@ -50,6 +50,15 @@ Full-stack EAM system for Sagemcom with FastAPI backend, React frontend, Postgre
 
 ---
 
+### Phase 5: Inventory Management
+**Goal:** Spare parts tracking, stock levels, reorder alerts
+
+- [ ] **05-PLAN.md** — Inventory Management Implementation
+
+**Requirements:** [INV-01, INV-02, INV-03]
+
+---
+
 ## Coverage Map
 
 | Phase | Features | Status |
@@ -69,6 +78,7 @@ Full-stack EAM system for Sagemcom with FastAPI backend, React frontend, Postgre
 | 2 | ✅ | 1/1 | 100% |
 | 3 | ✅ | 1/1 | 100% |
 | 4 | ✅ | 1/1 | 100% |
+| 5 | ○ | 0/1 | 0% |
 
 ---
 

@@ -22,19 +22,25 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
             icon: Calendar,
             label: 'Dernière maintenance',
             value: formatDuration(daysSinceLastMaintenance),
-            deduction: Math.min(daysSinceLastMaintenance * 0.5, 30),
+            deduction: health.deductions.maintenance,
         },
+        ...(health.deductions.overdue > 0 ? [{
+            icon: AlertTriangle,
+            label: 'Maintenance en retard',
+            value: 'À FAIRE IMMÉDIATEMENT',
+            deduction: health.deductions.overdue,
+        }] : []),
         {
             icon: Wrench,
             label: "Ordres de travail ouverts",
             value: `${openWorkOrders} actif${openWorkOrders !== 1 ? 's' : ''}`,
-            deduction: Math.min(openWorkOrders * 10, 30),
+            deduction: health.deductions.workOrders,
         },
         {
             icon: Zap,
             label: 'Interventions (30 jours)',
             value: `${recentInterventions} intervention${recentInterventions !== 1 ? 's' : ''}`,
-            deduction: Math.min(recentInterventions * 8, 24),
+            deduction: health.deductions.interventions,
         },
         ...(isDown
             ? [
@@ -42,7 +48,7 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
                     icon: AlertTriangle,
                     label: 'Statut machine',
                     value: 'EN PANNE / HORS SERVICE',
-                    deduction: 30,
+                    deduction: health.deductions.status,
                 },
             ]
             : []),
@@ -70,9 +76,10 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
                                 <p className="font-semibold mb-1">Formule du score :</p>
                                 <p>Score = 100</p>
                                 <p>− Jours sans maintenance × 0.5 (max 30)</p>
-                                <p>− Ordres ouverts × 10 (max 30)</p>
-                                <p>− Interventions (30j) × 8 (max 24)</p>
-                                <p>− 30 si statut EN_PANNE / HORS_SERVICE</p>
+                                <p>− Maintenance en retard × 2 (max 40)</p>
+                                <p>− Ordres ouverts × 12 (max 36)</p>
+                                <p>− Interventions (30j) × 10 (max 30)</p>
+                                <p>− 60 si statut EN_PANNE / HORS_SERVICE</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>

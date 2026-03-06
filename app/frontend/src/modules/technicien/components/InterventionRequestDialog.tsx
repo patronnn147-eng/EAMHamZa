@@ -68,17 +68,63 @@ export const InterventionRequestDialog: React.FC<Props> = ({
 
   const fetchMachines = async () => {
     try {
+      setMachines([]); // Clear previous state to avoid showing stale data
       const token = getAuthToken();
-      if (!token) return;
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/machines?limit=1000`, {
+      if (!token) {
+        console.error('❌ No auth token found');
+        return;
+      }
+
+      console.log('🔍 Fetching work order for restriction:', initialOrdreTravailId);
+
+      // 1. Fetch the Work Order to get its machine_id
+      const woRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_travail/${initialOrdreTravailId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (res.ok) {
-        const data = await res.json();
-        setMachines(data.items || []);
+
+      if (!woRes.ok) {
+        console.error('❌ Failed to fetch work order:', woRes.status);
+        return;
+      }
+
+      const woResponseData = await woRes.json();
+      console.log('📦 Work order raw response:', woResponseData);
+
+      // Robust unwrap
+      const woData = woResponseData.data || woResponseData;
+      const targetMachineId = woData.machine_id;
+
+      console.log('🎯 Target machine ID:', targetMachineId);
+
+      if (!targetMachineId) {
+        console.warn('⚠️ No machine_id found on work order');
+        setMachines([]);
+        return;
+      }
+
+      // 2. Fetch only that specific machine
+      const mRes = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/machines/${targetMachineId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (mRes.ok) {
+        const mResponseData = await mRes.json();
+        console.log('📦 Machine raw response:', mResponseData);
+
+        const mData = mResponseData.data || mResponseData;
+
+        if (mData && mData.id) {
+          console.log('✅ Setting restricted machine:', mData.nom);
+          setMachines([mData]);
+          setForm(prev => ({ ...prev, machine_id: mData.id }));
+        } else {
+          console.error('❌ Machine data format invalid');
+        }
+      } else {
+        console.error('❌ Failed to fetch specific machine:', mRes.status);
       }
     } catch (e) {
-      console.error('Error fetching machines:', e);
+      console.error('🚨 Error fetching restricted machines:', e);
     }
   };
 

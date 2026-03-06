@@ -6,6 +6,8 @@ from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ml_prediction_log import MlPredictionLog
 from .ml_predictive import MachineLearningService
+from .services.ml_retraining import RetrainingService
+
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 
@@ -269,3 +271,23 @@ async def update_machine_telemetry(
         },
     }
 
+
+@router.get("/retrain/stats")
+async def get_retraining_stats(db: AsyncSession = Depends(get_db)) -> Dict:
+    """
+    Get statistics on new ground truth data available for retraining.
+    Used by the ML Admin Dashboard.
+    """
+    return await RetrainingService.get_retraining_stats(db)
+
+
+@router.post("/retrain")
+async def trigger_retraining(db: AsyncSession = Depends(get_db)):
+    """
+    Manually trigger the PDCA Act Phase: automated retraining.
+    """
+    try:
+        await RetrainingService.run_retraining_pipeline(db)
+        return {"status": "success", "message": "Retraining pipeline completed."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

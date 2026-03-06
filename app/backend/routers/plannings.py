@@ -344,20 +344,20 @@ async def list_plannings(
             result = await service.get_list(skip=skip, limit=limit, sort="-date_debut")
         else:
             # Non-admin users can only see their assigned plannings
-            # Get planning IDs where the user is assigned in planning_utilisateurs
-            # OR where they are the chef_operation_id or chef_technique_id
-            from sqlalchemy import or_
-            planning_ids_query = select(Plannings.id).outerjoin(
-                Planning_utilisateurs, Planning_utilisateurs.planning_id == Plannings.id
-            ).where(
-                or_(
-                    Planning_utilisateurs.utilisateur_id == current_user.id,
-                    Plannings.chef_operation_id == current_user.id,
-                    Plannings.chef_technique_id == current_user.id
+            # Role-specific filtering for more precision
+            if current_user.role == UserRole.CHETOP:
+                # Chef Opérateur sees plannings where they are responsible
+                query = select(Plannings.id).where(Plannings.chef_operation_id == current_user.id)
+            elif current_user.role == UserRole.CHEFTECH:
+                # Chef Technique sees plannings where they are responsible
+                query = select(Plannings.id).where(Plannings.chef_technique_id == current_user.id)
+            else:
+                # Technicians see plannings where they are explicitly assigned in planning_utilisateurs
+                query = select(Planning_utilisateurs.planning_id).where(
+                    Planning_utilisateurs.utilisateur_id == current_user.id
                 )
-            ).distinct()
             
-            planning_ids_result = await db.execute(planning_ids_query)
+            planning_ids_result = await db.execute(query.distinct())
             planning_ids = [row[0] for row in planning_ids_result.fetchall()]
             
             if not planning_ids:
@@ -370,28 +370,34 @@ async def list_plannings(
                 )
             
             # Get only the plannings where user is assigned
-            query = select(Plannings).where(Plannings.id.in_(planning_ids))
+            data_query = select(Plannings).where(Plannings.id.in_(planning_ids))
             
             # Apply sorting
-            query = query.order_by(Plannings.date_debut.desc())
+            data_query = data_query.order_by(Plannings.date_debut.desc())
             
             # Apply pagination
-            query = query.offset(skip).limit(limit)
+            data_query = data_query.offset(skip).limit(limit)
             
             # Execute query
-            plannings_result = await db.execute(query)
-            plannings = plannings_result.scalars().all()
+            plannings_result = await db.execute(data_query)
+            plannings_objs = plannings_result.scalars().all()
             
             # Get total count
             count_query = select(func.count(Plannings.id)).where(Plannings.id.in_(planning_ids))
-            total_result = await db.execute(count_query)
-            total = total_result.scalar()
+            count_result = await db.execute(count_query)
+            total = count_result.scalar() or 0
             
-            result = {
-                "items": plannings,
-                "total": total
-            }
-        
+            items = []
+            for p in plannings_objs:
+                items.append(await get_planning_with_users(db, p))
+            
+            return PlanningListResponse(
+                items=items,
+                total=total,
+                skip=skip,
+                limit=limit
+            )
+            
         # Enrich with assigned users
         items_with_users = []
         for planning in result["items"]:
@@ -431,18 +437,26 @@ async def get_planning(
         
         # Check if user has access to this planning
         if current_user.role != UserRole.ADMIN:
-            # Check if user is assigned to this planning
-            assignment_query = select(Planning_utilisateurs).where(
-                Planning_utilisateurs.planning_id == planning_id,
-                Planning_utilisateurs.utilisateur_id == current_user.id
-            )
-            assignment_result = await db.execute(assignment_query)
-            assignment = assignment_result.scalar_one_or_none()
+            has_access = False
+            if current_user.role == UserRole.CHETOP:
+                has_access = planning.chef_operation_id == current_user.id
+            elif current_user.role == UserRole.CHEFTECH:
+                has_access = planning.chef_technique_id == current_user.id
             
-            if not assignment:
+            # If not already found as chef, check the bridge table (especially for technicians)
+            if not has_access:
+                pu_result = await db.execute(
+                    select(Planning_utilisateurs).where(
+                        Planning_utilisateurs.planning_id == planning_id,
+                        Planning_utilisateurs.utilisateur_id == current_user.id
+                    )
+                )
+                has_access = pu_result.scalar_one_or_none() is not None
+            
+            if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have permission to view this planning"
+                    detail="You do not have access to this planning"
                 )
         
         planning_dict = await get_planning_with_users(db, planning)
@@ -475,16 +489,27 @@ async def get_planning_machines(
             )
 
         if current_user.role != UserRole.ADMIN:
-            assignment_query = select(Planning_utilisateurs).where(
-                Planning_utilisateurs.planning_id == planning_id,
-                Planning_utilisateurs.utilisateur_id == current_user.id,
-            )
-            assignment_result = await db.execute(assignment_query)
-            assignment = assignment_result.scalar_one_or_none()
-            if not assignment:
+            # Check if user is responsible for this planning
+            has_access = False
+            if current_user.role == UserRole.CHETOP:
+                has_access = planning.chef_operation_id == current_user.id
+            elif current_user.role == UserRole.CHEFTECH:
+                has_access = planning.chef_technique_id == current_user.id
+            
+            # If not responsible, check if explicitly assigned (bridge table)
+            if not has_access:
+                assignment_query = select(Planning_utilisateurs).where(
+                    Planning_utilisateurs.planning_id == planning_id,
+                    Planning_utilisateurs.utilisateur_id == current_user.id,
+                )
+                assignment_result = await db.execute(assignment_query)
+                assignment = assignment_result.scalar_one_or_none()
+                has_access = assignment is not None
+            
+            if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You don't have permission to view this planning",
+                    detail="You don't have permission to view machines for this planning",
                 )
 
         result = await db.execute(

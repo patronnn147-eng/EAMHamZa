@@ -16,4 +16,7 @@ from . import planning_utilisateurs
 from . import plannings
 from . import rapports
 from . import ml_prediction_log
-
+from . import pieces
+from . import piece_machine
+from . import stock
+from . import mouvement_stock

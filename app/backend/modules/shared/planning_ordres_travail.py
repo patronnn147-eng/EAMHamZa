@@ -9,6 +9,11 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from core.auth import get_current_user
+from models.utilisateurs import Utilisateurs, UserRole
+from models.planning_utilisateurs import Planning_utilisateurs
+from models.plannings import Plannings
+from sqlalchemy import select, or_
 from services.planning_ordres_travail import Planning_ordres_travailService
 
 # Set up logging
@@ -83,7 +88,7 @@ async def query_planning_ordres_travails(
     db: AsyncSession = Depends(get_db),
 ):
     """Query planning_ordres_travails with filtering, sorting, and pagination"""
-    logger.debug(f"Querying planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(f"User {current_user.email} querying planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}")
     
     service = Planning_ordres_travailService(db)
     try:
@@ -117,10 +122,11 @@ async def query_planning_ordres_travails_all(
     skip: int = Query(0, ge=0, description="Number of records to skip"),
     limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
+    current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     # Query planning_ordres_travails with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(f"User {current_user.email} querying all planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}")
 
     service = Planning_ordres_travailService(db)
     try:
@@ -174,10 +180,46 @@ async def get_planning_ordres_travail(
 @router.post("", response_model=Planning_ordres_travailResponse, status_code=201)
 async def create_planning_ordres_travail(
     data: Planning_ordres_travailData,
+    current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new planning_ordres_travail"""
+    """Create a new planning_ordres_travail with role-based access control"""
     logger.debug(f"Creating new planning_ordres_travail with data: {data}")
+    
+    # Check if user has access to this planning
+    if current_user.role != UserRole.ADMIN:
+        # Fetch the planning to check roles
+        planning_query = select(Plannings).where(Plannings.id == data.planning_id)
+        planning_result = await db.execute(planning_query)
+        planning = planning_result.scalar_one_or_none()
+
+        if not planning:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Planning not found"
+            )
+
+        has_access = False
+        if current_user.role == UserRole.CHEFOP:
+            has_access = planning.chef_operation_id == current_user.id
+        elif current_user.role == UserRole.CHEFTECH:
+            has_access = planning.chef_technique_id == current_user.id
+        
+        # If not responsible, check if explicitly assigned (bridge table)
+        if not has_access:
+            assignment_query = select(Planning_utilisateurs).where(
+                Planning_utilisateurs.planning_id == data.planning_id,
+                Planning_utilisateurs.utilisateur_id == current_user.id,
+            )
+            assignment_result = await db.execute(assignment_query)
+            assignment = assignment_result.scalar_one_or_none()
+            has_access = assignment is not None
+        
+        if not has_access:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to link work orders to this planning",
+            )
     
     service = Planning_ordres_travailService(db)
     try:

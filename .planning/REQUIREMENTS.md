@@ -143,4 +143,41 @@
 
 ---
 
+## Phase 5: Inventory Management
+
+### INV-01: Spare Parts Catalog
+**Type:** Feature
+**Description:** Maintain catalog of spare parts
+
+**Acceptance Criteria:**
+- [ ] Create, read, update, delete spare parts
+- [ ] Part details: name, reference, description, unit price
+- [ ] Categorize parts (electrical, mechanical, hydraulic, etc.)
+- [ ] Link parts to compatible machines
+
+---
+
+### INV-02: Stock Management
+**Type:** Feature
+**Description:** Track inventory levels
+
+**Acceptance Criteria:**
+- [ ] Track quantity on hand for each part
+- [ ] Minimum stock threshold per part
+- [ ] Stock movements (additions, consumption)
+- [ ] Link to interventions (consume parts when used)
+
+---
+
+### INV-03: Reorder Alerts
+**Type:** Feature
+**Description:** Automatic alerts for low stock
+
+**Acceptance Criteria:**
+- [ ] Alert when stock falls below minimum threshold
+- [ ] Dashboard widget showing low-stock items
+- [ ] Notification to relevant roles (CHETOP, CHEFTECH)
+
+---
+
 *Requirements defined: 2026-03-04*

@@ -34,6 +34,13 @@ class MlPredictionLog(Base):
     # P2: Failure Type (stored as JSON string, e.g. '{"TWF": true, "HDF": false, ...}')
     p2_failure_types = Column(Text, nullable=True)
 
+    # Telemetry Snapshot (Used for automated retraining ground truth)
+    air_temperature = Column(Float, nullable=True)
+    process_temperature = Column(Float, nullable=True)
+    rotational_speed = Column(Integer, nullable=True)
+    torque = Column(Float, nullable=True)
+    tool_wear = Column(Integer, nullable=True)
+
     # Metadata
     data_points = Column(Integer, nullable=True)
     ml_model_used = Column(Boolean, nullable=True, default=False)

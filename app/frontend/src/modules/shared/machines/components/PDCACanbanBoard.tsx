@@ -46,14 +46,16 @@ export const PDCACanbanBoard = () => {
             });
             const predictions = fleetRes.data || [];
 
-            // 2. Fetch Do Phase (Active Work Orders)
+            // 2. Fetch Active and Planned Work Orders
             const woRes = await client.entities.ordres_travail.queryAll({
                 query: {},
                 limit: 100
             });
-            const activeWOs = (woRes.data.items || []).filter((wo: any) =>
-                ['EN_ATTENTE', 'EN_COURS'].includes(wo.statut)
-            );
+            const allWOs = (woRes.data.items || []);
+
+            // Filters based on lifecycle
+            const planWOs = allWOs.filter((wo: any) => ['EN_ATTENTE', 'ASSIGNÉ'].includes(wo.statut));
+            const activeWOs = allWOs.filter((wo: any) => ['EN_COURS', 'BLOQUÉ'].includes(wo.statut));
 
             // 3. Fetch Interventions for Check and Act
             const intRes = await client.entities.ordres_intervention.queryAll({
@@ -65,9 +67,9 @@ export const PDCACanbanBoard = () => {
 
             const kanbanItems: KanbanItem[] = [];
 
-            // Map Predictions to PLAN
+            // Map Predictions to PLAN (only if no WO exists for that machine yet)
             predictions.forEach((p: any) => {
-                const hasWO = activeWOs.some(wo => wo.machine_id === p.machine_id);
+                const hasWO = allWOs.some(wo => wo.machine_id === p.machine_id && wo.statut !== 'TERMINÉ' && wo.statut !== 'ANNULÉ');
                 if (!hasWO && (p.risk_level === 'CRITICAL' || p.risk_level === 'HIGH')) {
                     kanbanItems.push({
                         id: `pred-${p.machine_id}`,
@@ -84,10 +86,25 @@ export const PDCACanbanBoard = () => {
                 }
             });
 
-            // Map Work Orders to DO
-            activeWOs.forEach((wo: any) => {
+            // Map Pending/Assigned Work Orders to PLAN
+            planWOs.forEach((wo: any) => {
                 kanbanItems.push({
                     id: `wo-${wo.id}`,
+                    machineId: wo.machine_id,
+                    machineName: wo.machine_nom || `Machine #${wo.machine_id}`,
+                    title: wo.titre,
+                    subtitle: `OT Planifié (${wo.statut})`,
+                    priority: wo.priorite,
+                    phase: 'PLAN',
+                    type: 'WORK_ORDER',
+                    date: wo.created_at
+                });
+            });
+
+            // Map In Progress Work Orders to DO
+            activeWOs.forEach((wo: any) => {
+                kanbanItems.push({
+                    id: `wo-active-${wo.id}`,
                     machineId: wo.machine_id,
                     machineName: wo.machine_nom || `Machine #${wo.machine_id}`,
                     title: wo.titre,
@@ -99,17 +116,31 @@ export const PDCACanbanBoard = () => {
                 });
             });
 
-            // Map Interventions to CHECK and ACT
-            allInts.forEach((i: any) => {
-                const isActed = !!i.actual_failure_type;
+            // Map Finished Interventions without feedback to CHECK
+            allInts.filter((i: any) => i.statut === 'TERMINÉ' && !i.actual_failure_type).forEach((i: any) => {
                 kanbanItems.push({
-                    id: `int-${i.id}`,
+                    id: `int-check-${i.id}`,
                     machineId: i.machine_id,
                     machineName: `Machine #${i.machine_id}`,
                     title: `Intervention #${i.id}`,
-                    subtitle: i.actual_failure_type ? `Feedback: ${i.actual_failure_type}` : 'En attente feedback',
+                    subtitle: 'En attente feedback',
                     priority: i.priority || 'MEDIUM',
-                    phase: isActed ? 'ACT' : 'CHECK',
+                    phase: 'CHECK',
+                    type: 'INTERVENTION',
+                    date: i.date_intervention
+                });
+            });
+
+            // Map Interventions with feedback to ACT
+            allInts.filter((i: any) => !!i.actual_failure_type).forEach((i: any) => {
+                kanbanItems.push({
+                    id: `int-act-${i.id}`,
+                    machineId: i.machine_id,
+                    machineName: `Machine #${i.machine_id}`,
+                    title: `Intervention #${i.id}`,
+                    subtitle: `Feedback: ${i.actual_failure_type}`,
+                    priority: i.priority || 'MEDIUM',
+                    phase: 'ACT',
                     type: 'INTERVENTION',
                     date: i.date_intervention
                 });
@@ -247,6 +278,17 @@ export const PDCACanbanBoard = () => {
                                 onClick={() => navigate('/machines')}
                             >
                                 GÉRER LES ALERTES <ArrowRight className="ml-1 w-3 h-3" />
+                            </Button>
+                        )}
+
+                        {col.id === 'ACT' && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full text-indigo-600 hover:bg-indigo-100/50 text-[10px] h-8 font-bold"
+                                onClick={() => navigate('/admin/ml')}
+                            >
+                                RÉ-ENTRAÎNER L'IA <ArrowRight className="ml-1 w-3 h-3" />
                             </Button>
                         )}
                     </div>

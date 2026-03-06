@@ -16,6 +16,12 @@ import {
 import { client } from '@/lib/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+interface XAIExplanation {
+    factor: string;
+    impact: number;
+    intensity: 'high' | 'medium' | 'low';
+}
+
 interface MLPrediction {
     machine_id: number;
     machine_name: string;
@@ -27,6 +33,7 @@ interface MLPrediction {
     predicted_priority?: string;
     is_anomaly?: boolean;
     anomaly_score?: number;
+    explanations?: XAIExplanation[];
 }
 
 interface PredictivePanelProps {
@@ -171,6 +178,31 @@ export const PredictivePanel: React.FC<PredictivePanelProps> = ({ machineId }) =
                                 {pConfig.label}
                             </Badge>
                         </div>
+
+                        {/* XAI: Risk Factors */}
+                        {prediction.explanations && prediction.explanations.length > 0 && (
+                            <div className="space-y-3 pt-2">
+                                <div className="flex items-center gap-2">
+                                    <BrainCircuit className="h-4 w-4 text-blue-500" />
+                                    <span className="text-sm font-bold text-gray-700">Facteurs de Risque IA (SHAP)</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {prediction.explanations.map((exp, idx) => (
+                                        <div key={idx} className="flex items-center justify-between text-xs p-2 bg-white border border-gray-100 rounded-md shadow-sm">
+                                            <span className="font-medium text-gray-600">{exp.factor}</span>
+                                            <Badge variant="outline" className={`
+                                                ${exp.intensity === 'high' ? 'text-red-600 border-red-200 bg-red-50' :
+                                                    exp.intensity === 'medium' ? 'text-orange-600 border-orange-200 bg-orange-50' :
+                                                        'text-blue-600 border-blue-200 bg-blue-50'}
+                                                capitalize py-0 px-1.5 text-[10px]
+                                            `}>
+                                                {exp.intensity}
+                                            </Badge>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Right Column: Anomaly + Recommendations */}

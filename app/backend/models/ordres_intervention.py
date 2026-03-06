@@ -30,3 +30,4 @@ class Ordres_intervention(Base):
     # PDCA Feedback Fields (Technician fills these out when closing an intervention)
     actual_failure_type = Column(String(20), nullable=True)    # TWF, HDF, PWF, OSF, RNF, or None
     ml_prediction_matched = Column(Boolean, nullable=True)     # Did the ML prediction match reality?
+    retrained = Column(Boolean, nullable=True, default=False)  # Has this feedback been used to retrain the model?

@@ -102,9 +102,8 @@ export default function PlanningDetailPage() {
       if (planningObj && (planningObj.zone_travail == null || `${planningObj.zone_travail}`.trim() === '')) {
         try {
           const listResponse = await client.apiCall.invoke({
-            url: '/api/v1/plannings',
+            url: '/api/v1/plannings?skip=0&limit=200',
             method: 'GET',
-            data: { skip: 0, limit: 200 },
           });
 
           const listWrapped = (listResponse as { data?: unknown } | undefined)?.data;

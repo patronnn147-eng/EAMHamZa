@@ -9,6 +9,8 @@ from sklearn.linear_model import LinearRegression
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.ml_prediction_log import MlPredictionLog
+from .services.ml_xai import XAIService
+
 
 # Load the trained ML models
 MODELS_DIR = os.path.join(os.path.dirname(__file__), 'models')
@@ -125,6 +127,23 @@ class MachineLearningService:
                         float(rpm), float(torque), float(tool_wear)]
             ml_probability = MachineLearningService.predict_failure_probability(features)
 
+            # --- Step 3.5: Explain with SHAP (XAI) ---
+            feature_names = ["Air temperature [K]", "Process temperature [K]", 
+                             "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
+            raw_explanations = XAIService.explain_prediction(_ml_model_p1, features, feature_names)
+            
+            # Map to friendly names
+            explanations = [
+                {
+                    "factor": XAIService.get_friendly_factor_name(exp["factor"]),
+                    "impact": exp["impact"],
+                    "intensity": exp["intensity"]
+                }
+                for exp in raw_explanations
+            ]
+        else:
+            explanations = []
+
         # --- Step 4: Blend RUL-derived probability with ML model probability ---
         rul_probability = round((1 / (1 + np.exp((rul_days - 15) / 5))) * 100, 1)
 
@@ -170,7 +189,13 @@ class MachineLearningService:
             "ml_model_used": _ml_model_p1 is not None,
             "predicted_priority": predicted_priority,
             "is_anomaly": is_anomaly,
-            "anomaly_score": round(float(anomaly_score), 4)
+            "anomaly_score": round(float(anomaly_score), 4),
+            "explanations": explanations,
+            "air_temperature": air_temp,
+            "process_temperature": process_temp,
+            "rotational_speed": rpm,
+            "torque": torque,
+            "tool_wear": tool_wear
         }
 
     @staticmethod
@@ -345,4 +370,9 @@ class MachineLearningService:
             anomaly_score=prediction.get("anomaly_score", 0.0),
             data_points=prediction.get("data_points"),
             ml_model_used=prediction.get("ml_model_used", False),
+            air_temperature=prediction.get("air_temperature"),
+            process_temperature=prediction.get("process_temperature"),
+            rotational_speed=prediction.get("rotational_speed"),
+            torque=prediction.get("torque"),
+            tool_wear=prediction.get("tool_wear")
         )

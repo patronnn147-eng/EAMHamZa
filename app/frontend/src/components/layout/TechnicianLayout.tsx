@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { Bell, Menu, X, LayoutDashboard, ClipboardList, Wrench, Settings, FileText, AlertTriangle, Calendar } from 'lucide-react';
+import { Bell, Menu, X, LayoutDashboard, ClipboardList, Wrench, Settings, FileText, AlertTriangle, Calendar, Package } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -133,6 +133,7 @@ export default function TechnicianLayout() {
     { path: '/technician/interventions', label: 'Interventions', icon: Wrench },
     { path: '/technician/machines', label: 'Machines', icon: Settings },
     { path: '/technician/planning', label: 'Planning', icon: Calendar },
+    { path: '/technician/inventory', label: 'Stocks', icon: Package },
     { path: '/technician/documents', label: 'Documents', icon: FileText },
   ];
 

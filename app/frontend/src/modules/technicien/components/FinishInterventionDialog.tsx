@@ -16,6 +16,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
 
@@ -24,6 +25,7 @@ interface FinishInterventionDialogProps {
     onOpenChange: (open: boolean) => void;
     onConfirm: (data: {
         actual_failure_type: string;
+        ml_prediction_matched: boolean;
         rapport?: string;
     }) => void;
     interventionId: number;
@@ -45,11 +47,13 @@ export const FinishInterventionDialog: React.FC<FinishInterventionDialogProps> =
     interventionId,
 }) => {
     const [failureType, setFailureType] = useState('NONE');
+    const [mlMatched, setMlMatched] = useState(true);
     const [finalReport, setFinalReport] = useState('');
 
     const handleConfirm = () => {
         onConfirm({
             actual_failure_type: failureType,
+            ml_prediction_matched: mlMatched,
             rapport: finalReport.trim() || undefined,
         });
         // Reset state for next use
@@ -87,6 +91,17 @@ export const FinishInterventionDialog: React.FC<FinishInterventionDialogProps> =
                                 ))}
                             </SelectContent>
                         </Select>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 border border-gray-100">
+                        <div className="space-y-0.5">
+                            <Label className="text-sm font-semibold">Prédiction IA correcte ?</Label>
+                            <p className="text-[10px] text-gray-500">L'IA avait-elle bien anticipé ce problème ?</p>
+                        </div>
+                        <Switch
+                            checked={mlMatched}
+                            onCheckedChange={setMlMatched}
+                        />
                     </div>
 
                     <div className="grid gap-2">

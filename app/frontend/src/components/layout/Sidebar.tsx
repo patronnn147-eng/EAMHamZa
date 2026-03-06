@@ -11,6 +11,8 @@ import {
   UserCheck,
   Users,
   Columns,
+  Package,
+  BrainCircuit,
   LucideIcon
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -31,7 +33,9 @@ const getNavigationItems = (role: string): NavigationItem[] => {
     { name: 'Work Orders', href: `/${role.toLowerCase()}/work-orders`, icon: ClipboardList },
     { name: 'Interventions', href: `/${role.toLowerCase()}/interventions`, icon: Wrench },
     { name: 'Planning', href: `/${role.toLowerCase()}/planning`, icon: Calendar },
+    { name: 'Stocks', href: `/${role.toLowerCase()}/inventory`, icon: Package },
   ];
+
 
   if (['ADMIN', 'CHETOP', 'CHEFTECH'].includes(role)) {
     baseItems.push({ name: 'PDCA Kanban', href: '/pdca', icon: Columns });
@@ -49,6 +53,12 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       name: 'User Management',
       href: '/admin/users',
       icon: Users,
+    });
+
+    baseItems.push({
+      name: 'IA & Prédictions',
+      href: '/admin/ml',
+      icon: BrainCircuit,
     });
   }
 

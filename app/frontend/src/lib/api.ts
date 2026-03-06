@@ -57,16 +57,30 @@ if (client.entities) {
   Object.keys(client.entities).forEach(entityName => {
     const entity = (client.entities as Record<string, Record<string, unknown>>)[entityName];
     if (entity && typeof entity === 'object') {
-      ['query', 'get', 'create', 'update', 'delete'].forEach(methodName => {
+      ['query', 'queryAll', 'get', 'create', 'update', 'delete'].forEach(methodName => {
         if (typeof entity[methodName] === 'function') {
           const originalMethod = entity[methodName];
-          entity[methodName] = async function (...args: Record<string, unknown>[]) {
+          entity[methodName] = async function (...args: any[]) {
             console.log(`🔧 DEBUG: entities.${entityName}.${methodName} called with:`, args);
-            // If this is a config object, add auth headers
-            if (args.length > 0 && typeof args[0] === 'object') {
-              args[0] = addAuthHeader(args[0]);
+
+            // For query/queryAll, the first argument is often the config object
+            // For create, first arg is { data: ... }
+            // For update/delete, first arg might be { id: ... } or { id, data }
+            // If the first argument is an object, try to inject headers into it
+            if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
+              const config = args[0] as Record<string, any>;
+              const token = localStorage.getItem('access_token');
+              if (token) {
+                config.options = config.options || {};
+                config.options.headers = config.options.headers || {};
+                config.options.headers['Authorization'] = `Bearer ${token}`;
+              }
+            } else if (args.length === 0) {
+              // If no args, we might need a default config object to hold the token
+              // but most methods expect at least one arg if they take options
             }
-            return (originalMethod as (...args: Record<string, unknown>[]) => Promise<unknown>).apply(this, args);
+
+            return (originalMethod as (...args: any[]) => Promise<any>).apply(this, args);
           };
         }
       });

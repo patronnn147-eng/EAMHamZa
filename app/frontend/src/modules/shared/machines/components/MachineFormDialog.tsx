@@ -22,6 +22,7 @@ import {
   ZONE_OPTIONS,
   SOUS_ZONE_OPTIONS_BY_ZONE,
   ORDRE_TEMPLATES,
+  MACHINE_STATUS_OPTIONS,
   type OrdreTemplate
 } from '@/lib/constants';
 
@@ -56,6 +57,7 @@ interface MachineFormDialogProps {
     zone: string;
     sous_zone: string;
     ordre: string;
+    statut: string;
     date_derniere_maintenance: string;
     date_prochaine_maintenance: string;
     image_url: string;
@@ -156,6 +158,24 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
                 {getOrdreTemplates(formData.zone, formData.sous_zone).map((t) => (
                   <SelectItem key={t.ordre} value={t.ordre.toString()}>
                     {t.ordre} - {t.nom}{t.fonction ? ` — ${t.fonction}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="statut">Status</Label>
+            <Select
+              value={formData.statut}
+              onValueChange={(value) => setFormData({ ...formData, statut: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {MACHINE_STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
                   </SelectItem>
                 ))}
               </SelectContent>
