@@ -16,9 +16,12 @@ import {
     User,
     MapPin,
     Wrench,
+    RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import type { OrdreTravail, Machine, Intervention } from '@/lib/types';
+import { CompleteWorkOrderModal } from './CompleteWorkOrderModal';
 
 export default function WorkOrderDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -28,6 +31,8 @@ export default function WorkOrderDetailPage() {
     const [machine, setMachine] = useState<Machine | null>(null);
     const [interventions, setInterventions] = useState<Intervention[]>([]);
     const [loading, setLoading] = useState(true);
+    const [completeModalOpen, setCompleteModalOpen] = useState(false);
+    const { user } = useAuth();
 
     useEffect(() => {
         if (id) {
@@ -63,6 +68,44 @@ export default function WorkOrderDetailPage() {
             });
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleStartWorkOrder = async () => {
+        if (!id) return;
+        try {
+            const token = localStorage.getItem('access_token');
+            const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+            const roleEndpoint = user?.role?.toLowerCase() === 'technicien' ? 'technicien' : 'chetop';
+            
+            const response = await fetch(`${apiBase}/api/v1/${roleEndpoint}/work-orders/${id}/start`, {
+                method: 'PATCH',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                }
+            });
+
+            if (response.ok) {
+                toast({
+                    title: 'Succès',
+                    description: 'L\'intervention a commencé',
+                });
+                fetchData();
+            } else {
+                const error = await response.json();
+                toast({
+                    title: 'Erreur',
+                    description: error.detail || 'Impossible de commencer l\'intervention',
+                    variant: 'destructive',
+                });
+            }
+        } catch (error) {
+            console.error('Error starting WO:', error);
+            toast({
+                title: 'Erreur',
+                description: 'Erreur réseau',
+                variant: 'destructive',
+            });
         }
     };
 
@@ -127,6 +170,22 @@ export default function WorkOrderDetailPage() {
                         <Badge className={getStatusColor(ordre.statut)}>{ordre.statut}</Badge>
                     </div>
                 </div>
+                {ordre.statut === 'EN_ATTENTE' && (
+                    <Button
+                        onClick={handleStartWorkOrder}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-8 shadow-lg shadow-emerald-500/20"
+                    >
+                        Commencer l'intervention
+                    </Button>
+                )}
+                {ordre.statut === 'EN_COURS' && (
+                    <Button
+                        onClick={() => setCompleteModalOpen(true)}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-8 shadow-lg shadow-emerald-500/20"
+                    >
+                        Terminer l'OT
+                    </Button>
+                )}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -191,21 +250,73 @@ export default function WorkOrderDetailPage() {
                                             <p>Aucune intervention passée pour cette machine.</p>
                                         </div>
                                     ) : (
-                                        <div className="space-y-4">
+                                        <div className="space-y-6">
                                             {interventions.map((int) => (
-                                                <div key={int.id} className="flex gap-4 p-3 rounded-lg border bg-card hover:bg-accent transition-colors">
-                                                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                                        <Wrench className="h-5 w-5 text-primary" />
-                                                    </div>
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center justify-between mb-1">
-                                                            <p className="font-semibold text-sm">Intervention #{int.id}</p>
-                                                            <p className="text-xs text-muted-foreground">
-                                                                {new Date(int.date_intervention).toLocaleDateString('fr-FR')}
-                                                            </p>
+                                                <div key={int.id} className="flex flex-col gap-4 p-4 rounded-xl border bg-card hover:shadow-md transition-all">
+                                                    <div className="flex items-start gap-4">
+                                                        <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                                                            <Wrench className="h-5 w-5 text-primary" />
                                                         </div>
-                                                        <p className="text-sm text-muted-foreground line-clamp-2">{int.rapport || 'Pas de rapport'}</p>
+                                                        <div className="flex-1">
+                                                            <div className="flex items-center justify-between mb-1">
+                                                                <div className="flex items-center gap-2">
+                                                                    <p className="font-bold text-base">Intervention #{int.id}</p>
+                                                                    <Badge variant="outline" className="text-[10px] uppercase">
+                                                                        {int.intervention_type || 'Curative'}
+                                                                    </Badge>
+                                                                </div>
+                                                                <p className="text-xs text-muted-foreground font-medium">
+                                                                    {new Date(int.date_intervention).toLocaleDateString('fr-FR', {
+                                                                        day: '2-digit',
+                                                                        month: 'long',
+                                                                        year: 'numeric'
+                                                                    })}
+                                                                </p>
+                                                            </div>
+                                                            <p className="text-sm font-semibold text-gray-800">{int.rapport}</p>
+                                                        </div>
                                                     </div>
+
+                                                    {/* grid for diagnostic/PDCA info */}
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2 text-xs">
+                                                        {/* --- Diagnostic Info (from DI) --- */}
+                                                        <div className="space-y-2 p-3 bg-muted/30 rounded-lg border border-dashed">
+                                                            <p className="font-bold text-muted-foreground uppercase flex items-center gap-1">
+                                                                <Activity className="h-3 w-3" /> Diagnostic Initial
+                                                            </p>
+                                                            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                                                                <p><span className="text-muted-foreground">État:</span> {int.operating_state || 'N/A'}</p>
+                                                                <p><span className="text-muted-foreground">Fréquence:</span> {int.frequency || 'N/A'}</p>
+                                                                <p className="col-span-2"><span className="text-muted-foreground">Symptômes:</span> {Array.isArray(int.symptoms) ? int.symptoms.join(', ') : (int.symptoms || 'Aucun')}</p>
+                                                                <p className="col-span-2"><span className="text-muted-foreground">Impact:</span> {int.impact || 'Aucun'}</p>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* --- PDCA Summary --- */}
+                                                        <div className="space-y-2 p-3 bg-emerald-50/50 rounded-lg border border-emerald-100">
+                                                            <p className="font-bold text-emerald-700 uppercase flex items-center gap-1">
+                                                                <RefreshCw className="h-3 w-3" /> Cycle PDCA
+                                                            </p>
+                                                            <div className="space-y-1">
+                                                                <p><span className="font-bold text-emerald-600">P (Hypothèse):</span> {int.plan_hypothesis || 'N/A'}</p>
+                                                                <p><span className="font-bold text-emerald-600">D (Cause):</span> {int.root_cause_category} - {int.root_cause_description}</p>
+                                                                <p><span className="font-bold text-emerald-600">C (Résolu):</span> {int.check_resolved ? '✅ Oui' : '❌ Non'} via {int.check_verification_method || '?'}</p>
+                                                                <p><span className="font-bold text-emerald-600">A (Préventif):</span> {int.act_preventive_actions || 'N/A'}</p>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Additional Details (Parts/Tools) */}
+                                                    {(int.parts_replaced || int.tools_used) && (
+                                                        <div className="flex gap-4 text-[11px] px-2 py-1 bg-gray-50 rounded-md">
+                                                            {int.parts_replaced && (
+                                                                <p><span className="font-bold text-gray-500 uppercase">Pièces:</span> {int.parts_replaced}</p>
+                                                            )}
+                                                            {int.tools_used && (
+                                                                <p><span className="font-bold text-gray-500 uppercase">Outils:</span> {int.tools_used}</p>
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -300,6 +411,13 @@ export default function WorkOrderDetailPage() {
                     </Card>
                 </div>
             </div>
+
+            <CompleteWorkOrderModal
+                open={completeModalOpen}
+                onOpenChange={setCompleteModalOpen}
+                workOrderId={parseInt(id!)}
+                onSuccess={fetchData}
+            />
         </div>
     );
 }

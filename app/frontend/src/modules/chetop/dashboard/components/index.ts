@@ -1,4 +1,4 @@
-export * from './CreateOrderModal';
 export * from './DashboardStatsCards';
 export * from './MachinesTab';
-export * from './WorkOrdersTab';
+export * from './InterventionRequestsTab';
+export * from '../../components/CreateItvRequestModal';

@@ -40,14 +40,8 @@ export default function Header() {
         if (userData.data) {
           setUser(userData.data);
 
-          // Fetch user role from utilisateurs table
-          const response = await client.entities.utilisateurs.query({
-            query: { user_id: userData.data.id },
-            limit: 1
-          });
-
-          if (response.data.items && response.data.items.length > 0) {
-            setUserRole(response.data.items[0].role);
+          if (userData.data.role) {
+            setUserRole(userData.data.role);
           }
         }
       } catch (error) {

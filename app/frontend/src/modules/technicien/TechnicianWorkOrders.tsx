@@ -1,298 +1,205 @@
-import { useEffect, useState } from 'react';
-import { client } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Search, Calendar, AlertTriangle, CheckCircle, Play } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import {
+  ClipboardList,
+  Eye,
+  Play,
+  CheckCircle2,
+  Clock,
+  Loader2,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useAuth } from '@/contexts/AuthContext';
-import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
+import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
 
-export default function TechnicianWorkOrders() {
-  const [workOrders, setWorkOrders] = useState<OrdreTravail[]>([]);
-  const [machines, setMachines] = useState<Machine[]>([]);
-  const [filteredOrders, setFilteredOrders] = useState<OrdreTravail[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [loading, setLoading] = useState(true);
+interface WorkOrder {
+  id: number;
+  titre: string;
+  description?: string;
+  priorite: string;
+  statut: string;
+  machine_id: number;
+  machine_nom?: string;
+  created_at: string;
+}
+
+const TechnicianWorkOrders: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [startingId, setStartingId] = useState<number | null>(null); // Kept for types if needed elsewhere, but focus is on new flow
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [selectedWoId, setSelectedWoId] = useState<number | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    let filtered = workOrders;
-
-    if (statusFilter !== 'ALL') {
-      filtered = filtered.filter((o) => o.statut === statusFilter);
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (o) =>
-          o.id.toString().includes(searchTerm) ||
-          machines.find((m) => m.id === o.machine_id)?.nom.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredOrders(filtered);
-  }, [searchTerm, statusFilter, workOrders, machines]);
-
-  const fetchData = async () => {
+  const fetchWorkOrders = async () => {
     try {
       const token = localStorage.getItem('access_token');
-      if (!token) return;
-
-      const interventionsRes = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        },
-      );
-      if (!interventionsRes.ok) throw new Error('Erreur lors du chargement des interventions');
-      const interventions: Intervention[] = await interventionsRes.json();
-
-      const ordreIds = Array.from(new Set(interventions.map((i) => i.ordre_travail_id)));
-      const workOrdersList = (
-        await Promise.all(
-          ordreIds.map(async (id) => {
-            const res = await client.entities.ordres_travail.get({ id: id.toString() });
-            return res.data;
-          }),
-        )
-      ).filter(Boolean);
-
-      const machinesResponse = await client.entities.machines.queryAll({ query: {}, limit: 100 });
-      const machinesList = machinesResponse.data.items || [];
-
-      // Fetch work orders assigned directly to the user
-      let directWorkOrders: OrdreTravail[] = [];
-      if (user?.id) {
-        const directWOsRes = await client.entities.ordres_travail.queryAll({
-          query: JSON.stringify({ utilisateur_id: parseInt(user.id, 10) }),
-          limit: 100,
-        });
-        directWorkOrders = directWOsRes.data.items || [];
-      }
-
-      // Merge and deduplicate
-      const allWorkOrders = [...workOrdersList];
-      directWorkOrders.forEach((wo) => {
-        if (!allWorkOrders.find((existing) => existing.id === wo.id)) {
-          allWorkOrders.push(wo);
-        }
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/technicien/work-orders`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      setWorkOrders(allWorkOrders);
-      setMachines(machinesList);
-      setFilteredOrders(allWorkOrders);
+      if (response.ok) {
+        const data = await response.json();
+        setWorkOrders(data);
+      } else {
+        console.error('Failed to fetch work orders:', await response.text());
+      }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching work orders:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async (ordreId: number, newStatus: string) => {
+  useEffect(() => {
+    fetchWorkOrders();
+  }, []);
+
+  const handleStart = async (orderId: number) => {
+    setStartingId(orderId);
     try {
-      await client.entities.ordres_travail.update({
-        id: ordreId.toString(),
-        data: { statut: newStatus },
+      const token = localStorage.getItem('access_token');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/technicien/work-orders/${orderId}/start`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      toast({
-        title: 'Succès',
-        description: `Statut mis à jour: ${newStatus}`,
-      });
-
-      fetchData();
-    } catch (error: unknown) {
-      const detail =
-        (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data
-          ?.detail ||
-        (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (error as { message?: string }).message;
-      toast({
-        title: 'Erreur',
-        description: detail || 'Échec de la mise à jour du statut',
-        variant: 'destructive',
-      });
+      if (response.ok) {
+        toast({ title: 'Succès', description: "L'intervention a commencé" });
+        fetchWorkOrders();
+      } else {
+        const err = await response.json();
+        toast({ title: 'Erreur', description: err.detail || 'Impossible de démarrer', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Veuillez réessayer', variant: 'destructive' });
+    } finally {
+      setStartingId(null);
     }
   };
 
-  const getMachineInfo = (machineId: number) => {
-    return machines.find((m) => m.id === machineId);
-  };
-
-  const getPriorityColor = (priorite: string) => {
-    switch (priorite) {
-      case 'URGENTE':
-        return 'bg-red-100 text-red-800 border-red-300';
-      case 'HAUTE':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'MOYENNE':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
-    }
-  };
-
-  const getStatusColor = (statut: string) => {
+  const getStatusBadge = (statut: string) => {
     switch (statut) {
-      case 'EN_COURS':
-        return 'bg-blue-100 text-blue-800';
       case 'EN_ATTENTE':
-        return 'bg-yellow-100 text-yellow-800';
       case 'ASSIGNÉ':
-        return 'bg-purple-100 text-purple-800';
+        return <Badge className="bg-amber-500/10 text-amber-600 border-amber-300"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
+      case 'EN_COURS':
+        return <Badge className="bg-blue-500/10 text-blue-600 border-blue-300"><Play className="w-3 h-3 mr-1" />En cours</Badge>;
+      case 'TERMINE':
       case 'TERMINÉ':
-        return 'bg-green-100 text-green-800';
-      case 'BLOQUÉ':
-        return 'bg-red-100 text-red-800';
+        return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-300"><CheckCircle2 className="w-3 h-3 mr-1" />Terminé</Badge>;
       default:
-        return 'bg-gray-100 text-gray-800';
+        return <Badge variant="outline">{statut}</Badge>;
+    }
+  };
+
+  const getPriorityBadge = (priorite: string) => {
+    switch (priorite) {
+      case 'URGENTE': return <Badge variant="destructive">URGENTE</Badge>;
+      case 'ÉLEVÉE': return <Badge className="bg-orange-500 text-white border-none">ÉLEVÉE</Badge>;
+      case 'MOYENNE': return <Badge className="bg-yellow-500/10 text-yellow-700 border-yellow-300">MOYENNE</Badge>;
+      default: return <Badge variant="secondary">{priorite}</Badge>;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 animate-spin text-violet-500" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900">Mes Ordres de Travail</h2>
-        <p className="mt-1 text-sm text-gray-500">Gérez vos interventions assignées</p>
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Rechercher par ID ou machine..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
+    <div className="p-8 animate-premium-fade-in">
+      <div className="max-w-7xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+            Mes Ordres de Travail
+          </h1>
+          <p className="text-gray-500 font-medium mt-1">
+            Ordres de travail qui vous sont assignés
+          </p>
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="Filtrer par statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL">Tous les statuts</SelectItem>
-            <SelectItem value="EN_ATTENTE">En Attente</SelectItem>
-            <SelectItem value="ASSIGNÉ">Assigné</SelectItem>
-            <SelectItem value="EN_COURS">En Cours</SelectItem>
-            <SelectItem value="TERMINÉ">Terminé</SelectItem>
-            <SelectItem value="BLOQUÉ">Bloqué</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
 
-      {/* Work Orders List */}
-      <div className="grid grid-cols-1 gap-4">
-        {filteredOrders.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <p className="text-gray-500">Aucun ordre de travail trouvé</p>
+        {workOrders.length === 0 ? (
+          <Card className="bg-white/70 backdrop-blur-md border border-white/20 shadow-xl">
+            <CardContent className="flex flex-col items-center justify-center py-20 text-center">
+              <ClipboardList className="w-16 h-16 text-gray-300 mb-4" />
+              <h3 className="text-xl font-bold text-gray-600 mb-2">Aucun ordre de travail</h3>
+              <p className="text-gray-400 max-w-sm">
+                Vos ordres de travail apparaîtront ici une fois qu'ils vous seront assignés.
+              </p>
             </CardContent>
           </Card>
         ) : (
-          filteredOrders.map((ordre) => {
-            const machine = getMachineInfo(ordre.machine_id);
-            return (
-              <Card
-                key={ordre.id}
-                className={`hover:shadow-md transition-shadow ${ordre.priorite === 'URGENTE' ? 'border-l-4 border-l-red-500' : ''
-                  }`}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        Ordre de Travail #{ordre.id}
-                        <Badge className={getPriorityColor(ordre.priorite)}>{ordre.priorite}</Badge>
-                        <Badge className={getStatusColor(ordre.statut)}>{ordre.statut}</Badge>
-                      </CardTitle>
-                      {machine && (
-                        <p className="text-sm text-gray-500 mt-1">
-                          Machine: {machine.nom} (#{machine.id}) - {machine.emplacement}
-                        </p>
+          <div className="grid gap-4">
+            {workOrders.map((wo) => (
+              <Card key={wo.id} className="bg-white/70 backdrop-blur-md border border-white/20 shadow-lg hover:shadow-xl transition-all duration-200">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-3 mb-2 flex-wrap">
+                        <h3 className="text-lg font-bold text-gray-900 truncate">{wo.titre}</h3>
+                        {getStatusBadge(wo.statut)}
+                        {getPriorityBadge(wo.priorite)}
+                      </div>
+                      {wo.description && (
+                        <p className="text-sm text-gray-500 line-clamp-2 mb-3">{wo.description}</p>
                       )}
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-4 text-sm text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="h-4 w-4" />
-                        Échéance: {new Date(ordre.date_echeance).toLocaleDateString()}
-                      </span>
-                      {ordre.priorite === 'URGENTE' && (
-                        <span className="flex items-center gap-1 text-red-600">
-                          <AlertTriangle className="h-4 w-4" />
-                          Intervention Urgente
-                        </span>
-                      )}
+                      <div className="flex items-center gap-4 text-xs text-gray-400 font-medium">
+                        <span>Machine: <span className="text-gray-600 font-bold">{wo.machine_nom || `#${wo.machine_id}`}</span></span>
+                        <span>Créé le: <span className="text-gray-600">{new Date(wo.created_at).toLocaleDateString('fr-FR')}</span></span>
+                        <span>OT #{wo.id}</span>
+                      </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/technician/work-orders/${ordre.id}`)}
+                        className="rounded-xl border-gray-200 font-bold"
+                        onClick={() => navigate(`/technician/work-orders/${wo.id}`)}
                       >
-                        Voir Détails
+                        <Eye className="w-4 h-4 mr-1" />
+                        Voir
                       </Button>
-                      {ordre.statut === 'EN_ATTENTE' && (
+                      {(wo.statut === 'EN_ATTENTE' || wo.statut === 'ASSIGNÉ') && (
                         <Button
                           size="sm"
-                          className="flex-1 bg-blue-600 hover:bg-blue-700"
-                          onClick={() => handleStatusChange(ordre.id, 'EN_COURS')}
+                          className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold shadow-md shadow-violet-500/20"
+                          onClick={() => {
+                            setSelectedWoId(wo.id);
+                            setRequestOpen(true);
+                          }}
                         >
-                          <Play className="mr-2 h-4 w-4" />
-                          Démarrer
-                        </Button>
-                      )}
-                      {ordre.statut === 'EN_COURS' && (
-                        <Button
-                          size="sm"
-                          className="flex-1 bg-green-600 hover:bg-green-700"
-                          onClick={() => handleStatusChange(ordre.id, 'TERMINÉ')}
-                        >
-                          <CheckCircle className="mr-2 h-4 w-4" />
-                          Terminer
+                          <Play className="w-4 h-4 mr-1" />
+                          Demander l'intervention
                         </Button>
                       )}
                     </div>
                   </div>
                 </CardContent>
               </Card>
-            );
-          })
+            ))}
+          </div>
         )}
       </div>
+
+      <TechnicianNewInterventionModal
+        open={requestOpen}
+        onOpenChange={setRequestOpen}
+        initialOrdreTravailId={selectedWoId}
+        onSuccess={() => {
+          fetchWorkOrders();
+          toast({ title: 'Demande envoyée', description: 'Votre demande a été enregistrée avec succès.' });
+        }}
+      />
     </div>
   );
-}
+};
+
+export default TechnicianWorkOrders;

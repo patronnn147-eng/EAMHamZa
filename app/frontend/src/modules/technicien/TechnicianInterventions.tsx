@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle, Download, Loader2 } from 'lucide-react';
+import { Search, Calendar, FileText, Play, CheckCircle, AlertTriangle, Download, Loader2, Plus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
 import { FinishInterventionDialog } from './components/FinishInterventionDialog';
+import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();
@@ -20,6 +21,7 @@ export default function TechnicianInterventions() {
   const [requestIntervention, setRequestIntervention] = useState<Intervention | null>(null);
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [finishIntervention, setFinishIntervention] = useState<Intervention | null>(null);
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -59,31 +61,33 @@ export default function TechnicianInterventions() {
 
   const getStatusLabel = (statut?: string) => {
     const s = statut || 'EN_ATTENTE';
-    if (s === 'PENDING_APPROVAL') return 'PENDING_APPROVAL';
-    if (s === 'APPROVED') return 'APPROVED';
-    if (s === 'DECLINED') return 'DECLINED';
-    if (s === 'REJECTED') return 'DECLINED';
+    if (s === 'PENDING_APPROVAL') return 'En attente d\'approbation';
+    if (s === 'APPROVED') return 'Approuvée';
+    if (s === 'DECLINED' || s === 'REJECTED') return 'Refusée';
+    if (s === 'EN_COURS') return 'En cours';
+    if (s === 'TERMINÉ' || s === 'TERMINE') return 'Terminée';
+    if (s === 'BLOQUÉ') return 'Bloquée';
+    if (s === 'EN_ATTENTE') return 'En attente';
     return s;
   };
 
   const getStatusColor = (statut?: string) => {
-    const s = getStatusLabel(statut);
+    const s = statut || 'EN_ATTENTE';
     switch (s) {
       case 'PENDING_APPROVAL':
         return 'bg-orange-100 text-orange-800';
       case 'APPROVED':
         return 'bg-green-100 text-green-800';
       case 'DECLINED':
-        return 'bg-red-100 text-red-800';
       case 'REJECTED':
         return 'bg-red-100 text-red-800';
-
       case 'EN_COURS':
         return 'bg-blue-100 text-blue-800';
       case 'EN_ATTENTE':
         return 'bg-yellow-100 text-yellow-800';
       case 'TERMINÉ':
-        return 'bg-green-100 text-green-800';
+      case 'TERMINE':
+        return 'bg-emerald-100 text-emerald-800';
       case 'BLOQUÉ':
         return 'bg-red-100 text-red-800';
       default:
@@ -312,6 +316,13 @@ export default function TechnicianInterventions() {
           <h2 className="text-3xl font-bold text-gray-900">Mes Interventions</h2>
           <p className="mt-1 text-sm text-gray-500">Mettez à jour le statut en un clic</p>
         </div>
+        <Button 
+          onClick={() => setNewRequestOpen(true)}
+          className="bg-gradient-premium hover:opacity-90 rounded-2xl font-bold px-6 py-6 shadow-lg shadow-violet-500/20 transition-all border-none"
+        >
+          <Plus className="mr-2 h-5 w-5" />
+          Demander l'intervention
+        </Button>
       </div>
 
       <div className="relative">
@@ -482,6 +493,15 @@ export default function TechnicianInterventions() {
           }}
         />
       )}
+      
+      <TechnicianNewInterventionModal
+        open={newRequestOpen}
+        onOpenChange={setNewRequestOpen}
+        onSuccess={() => {
+          fetchData();
+          toast({ title: 'Demande envoyée', description: 'Votre demande a été enregistrée avec succès.' });
+        }}
+      />
     </div>
   );
 }

@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from dependencies.auth import require_role
+from models.utilisateurs import Utilisateurs
 from services.ordres_intervention import Ordres_interventionService
 
 # Set up logging
@@ -22,7 +24,7 @@ class Ordres_interventionData(BaseModel):
     """Entity data schema (for create/update)"""
     date_intervention: datetime
     rapport: str = None
-    ordre_travail_id: int
+    ordre_travail_id: Optional[int] = None
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
     problem_description: Optional[str] = None
@@ -69,7 +71,7 @@ class Ordres_interventionResponse(BaseModel):
     id: int
     date_intervention: datetime
     rapport: Optional[str] = None
-    ordre_travail_id: int
+    ordre_travail_id: Optional[int] = None
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
     problem_description: Optional[str] = None
@@ -89,6 +91,11 @@ class Ordres_interventionResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class Ordres_interventionValidationData(BaseModel):
+    action: str  # "APPROVE" or "REJECT"
+    technicien_id: Optional[int] = None  # Technician to assign
+    rejection_reason: Optional[str] = None
 
 
 class Ordres_interventionListResponse(BaseModel):
@@ -227,6 +234,10 @@ async def create_ordres_intervention(
     """Create a new ordres_intervention"""
     logger.debug(f"Creating new ordres_intervention with data: {data}")
     
+    # Enforce default status
+    data.statut = "EN_ATTENTE"
+    data.requested_at = datetime.now()
+    
     service = Ordres_interventionService(db)
     try:
         result = await service.create(data.model_dump())
@@ -323,6 +334,63 @@ async def update_ordres_intervention(
     except Exception as e:
         logger.error(f"Error updating ordres_intervention {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/{id}/validate", response_model=Ordres_interventionResponse)
+async def validate_ordres_intervention(
+    id: int,
+    data: Ordres_interventionValidationData,
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(require_role(["CHEFTECH"]))
+):
+    """Validate or reject an Intervention (CHEFTECH only)"""
+    logger.debug(f"Validating ordres_intervention {id} with action: {data.action}")
+    service = Ordres_interventionService(db)
+    
+    intervention = await service.get_by_id(id)
+    if not intervention:
+        raise HTTPException(status_code=404, detail="Ordres_intervention not found")
+        
+    update_dict = {}
+    if data.action == "APPROVE":
+        update_dict["statut"] = "ACCEPTED"
+        update_dict["approved_by"] = current_user.id
+        update_dict["approved_at"] = datetime.now()
+        
+        # Create a linked Work Order
+        try:
+            from services.ordres_travail import Ordres_travailService
+            
+            wo_service = Ordres_travailService(db)
+            
+            # Check if machine_id is available, it's required for work orders
+            if not intervention.machine_id:
+                raise HTTPException(status_code=400, detail="Cannot create Work Order: Intervention must be associated with a machine.")
+            
+            new_wo = await wo_service.create({
+                "titre": f"[Intervention Acceptée] Demande #{id}",
+                "description": intervention.problem_description or "Demande d'intervention validée par le ChefTech",
+                "priorite": intervention.priority or "MOYENNE",
+                "statut": "EN_ATTENTE", # Still needs technician assignment later
+                "machine_id": intervention.machine_id,
+                "created_by": intervention.technicien_id, # Can be whoever created it
+            })
+            
+            update_dict["ordre_travail_id"] = new_wo.id
+            logger.info(f"Created linked Work Order #{new_wo.id} for Intervention #{id}")
+        except Exception as e:
+            logger.error(f"Failed to create linked Work Order for accepted intervention #{id}: {e}")
+            raise HTTPException(status_code=500, detail="Failed to create linked Work Order.")
+
+    elif data.action == "REJECT":
+        update_dict["statut"] = "REJETE"
+        update_dict["approved_by"] = current_user.id
+        update_dict["approved_at"] = datetime.now()
+        update_dict["rejection_reason"] = data.rejection_reason
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+        
+    result = await service.update(id, update_dict)
+    return result
 
 
 @router.delete("/batch")

@@ -45,7 +45,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <CardHeader>
-          <CardTitle>Nouvel Ordre de Travail</CardTitle>
+          <CardTitle>Nouvelle Demande d'Intervention / Travail</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -124,54 +124,34 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
 
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Due Date</Label>
+                <Label>Date souhaitée (Échéance)</Label>
                 <Input
                   type="date"
                   value={formData.date_echeance}
                   onChange={(e) => setFormData({ ...formData, date_echeance: e.target.value })}
                 />
               </div>
-              <div className="grid gap-2">
-                <Label>Status</Label>
-                <Select
-                  value={formData.statut}
-                  onValueChange={(value) => setFormData({ ...formData, statut: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="EN_ATTENTE">EN_ATTENTE</SelectItem>
-                    <SelectItem value="ASSIGNÉ">ASSIGNÉ</SelectItem>
-                    <SelectItem value="EN_COURS">EN_COURS</SelectItem>
-                    <SelectItem value="TERMINÉ">TERMINÉ</SelectItem>
-                    <SelectItem value="BLOQUÉ">BLOQUÉ</SelectItem>
-                    <SelectItem value="ANNULÉ">ANNULÉ</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
             <div className="grid gap-2">
-              <Label>Planning</Label>
+              <Label>Planning (Optionnel)</Label>
               <Select
                 value={formData.planning_id?.toString() || ''}
                 onValueChange={(value) => {
                   const pid = value ? parseInt(value) : null;
-                  const p = pid ? plannings.find((x) => x.id === pid) : null;
-                  const chefTechFromPlanning = (p?.assigned_users || []).find((u) => u.role === 'CHEFTECH')?.id || null;
                   setFormData({
                     ...formData,
                     planning_id: pid,
-                    chef_technique_id: chefTechFromPlanning,
+                    chef_technique_id: null,
                     technicien_ids: [],
                   });
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un planning" />
+                  <SelectValue placeholder="Rattacher à un planning" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="null">Aucun</SelectItem>
                   {plannings.map((p) => (
                     <SelectItem key={p.id} value={p.id.toString()}>
                       {p.identifiant_planning}
@@ -180,43 +160,6 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
                 </SelectContent>
               </Select>
             </div>
-
-            {selectedPlanning && (
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>ChefTech (superviseur)</Label>
-                  <Input value={formData.chef_technique_id?.toString() || ''} disabled />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Techniciens (du planning)</Label>
-                  <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-gray-50">
-                    {planningTechnicians.length === 0 ? (
-                      <p className="text-sm text-gray-500">Aucun technicien dans ce planning</p>
-                    ) : (
-                      planningTechnicians.map((t) => (
-                        <div key={t.id} className="flex items-center space-x-2 p-2 hover:bg-white rounded">
-                          <Checkbox
-                            id={`tech-${t.id}`}
-                            checked={formData.technicien_ids.includes(t.id)}
-                            onCheckedChange={() =>
-                              setFormData({
-                                ...formData,
-                                technicien_ids: formData.technicien_ids.includes(t.id)
-                                  ? formData.technicien_ids.filter((id) => id !== t.id)
-                                  : [...formData.technicien_ids, t.id],
-                              })
-                            }
-                          />
-                          <label htmlFor={`tech-${t.id}`} className="text-sm font-medium cursor-pointer flex-1">
-                            {t.nom} - {t.email}
-                          </label>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="grid gap-2">
               <Label>Attachments</Label>
@@ -232,7 +175,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               <Button type="button" variant="outline" onClick={onClose}>
                 Annuler
               </Button>
-              <Button type="submit">Créer l'Ordre</Button>
+              <Button type="submit">Envoyer la Demande</Button>
             </div>
           </form>
         </CardContent>

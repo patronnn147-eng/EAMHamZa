@@ -14,6 +14,10 @@ from core.config import settings
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
 
+# Export constants from settings for legacy imports
+SECRET_KEY = settings.jwt_secret_key
+ALGORITHM = settings.jwt_algorithm
+
 # Password hashing context
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 

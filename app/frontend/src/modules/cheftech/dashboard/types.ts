@@ -2,7 +2,7 @@ export interface Intervention {
   id: number;
   date_intervention: string;
   rapport?: string;
-  ordre_travail_id: number;
+  ordre_travail_id?: number;
   technicien_id?: number;
   statut?: string;
   work_order_due_date?: string;
@@ -19,6 +19,20 @@ export interface Intervention {
   date_debut?: string;
   date_fin?: string;
   created_at?: string;
+  // Enhanced Fields
+  machine_category?: string;
+  symptoms?: string;
+  problem_start_time?: string;
+  frequency?: string;
+  operating_state?: string;
+  load_level?: number;
+  temperature?: string;
+  impact?: string;
+  estimated_loss?: string;
+  similar_issue_before?: boolean;
+  suggested_cause?: string;
+  suggested_priority?: string;
+  risk_score?: string;
 }
 
 export interface WorkOrder {
@@ -31,7 +45,15 @@ export interface WorkOrder {
   machine_nom?: string;
   utilisateur_id?: number;
   utilisateur_nom?: string;
+  technician_nom?: string;
+  technician_email?: string;
   date_echeance?: string;
+  date_debut?: string;
+  date_fin?: string;
+  rapport?: string;
+  failure_type?: string;
+  cheftech_feedback?: string;
+  duration_minutes?: number;
   created_at: string;
   updated_at?: string;
 }

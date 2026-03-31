@@ -6,120 +6,69 @@ export const client = createClient({
   baseURL: getAPIBaseURL(),
 });
 
-// Add JWT token to all requests - comprehensive approach
-const addAuthHeader = (config: Record<string, unknown>) => {
+// Add JWT token to all requests - more robust approach
+const injectToken = (config: any) => {
   const token = localStorage.getItem('access_token');
-  console.log('🔧 DEBUG: Adding auth header, token exists:', !!token);
   if (token) {
+    // Some SDK versions use 'options', others use 'headers' directly
     config.options = config.options || {};
-    (config.options as Record<string, unknown>).headers = (config.options as Record<string, unknown>).headers || {};
-    ((config.options as Record<string, unknown>).headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
-    console.log('🔧 DEBUG: Auth header added:', ((config.options as Record<string, unknown>).headers as Record<string, string>)['Authorization']);
+    config.options.headers = config.options.headers || {};
+    config.options.headers['Authorization'] = `Bearer ${token}`;
+    
+    // Also inject directly into config if it's the top-level object used by fetch
+    config.headers = config.headers || {};
+    config.headers['Authorization'] = `Bearer ${token}`;
   }
   return config;
 };
 
 // Override the main request method
-const originalInvoke = client.apiCall.invoke;
-client.apiCall.invoke = async function (config: Record<string, unknown>) {
-  console.log('🔧 DEBUG: apiCall.invoke called with:', config);
-  config = addAuthHeader(config);
-  console.log('🔧 DEBUG: After adding auth header:', config);
-  return originalInvoke.call(this, config);
+const apiCall = client.apiCall as any;
+const originalInvoke = apiCall.invoke;
+apiCall.invoke = async function (config: any) {
+  return originalInvoke.call(this, injectToken(config));
 };
 
-// Also override any other request methods the SDK might use
-if (client.apiCall.request) {
-  const originalRequest = client.apiCall.request;
-  client.apiCall.request = async function (config: Record<string, unknown>) {
-    console.log('🔧 DEBUG: apiCall.request called with:', config);
-    config = addAuthHeader(config);
-    return originalRequest.call(this, config);
-  };
-}
-
-// Override any HTTP methods if they exist
+// Override all HTTP methods for safety
 ['get', 'post', 'put', 'delete', 'patch'].forEach(method => {
-  if ((client.apiCall as Record<string, unknown>)[method]) {
-    const originalMethod = (client.apiCall as Record<string, unknown>)[method];
-    (client.apiCall as Record<string, unknown>)[method] = async function (url: string, config: Record<string, unknown> = {}) {
-      console.log(`🔧 DEBUG: apiCall.${method} called with url:`, url, 'config:', config);
+  if (apiCall[method]) {
+    const originalMethod = apiCall[method];
+    apiCall[method] = async function (url: string, config: any = {}) {
       config.url = url;
       config.method = method.toUpperCase();
-      config = addAuthHeader(config);
-      return (originalMethod as (config: Record<string, unknown>) => Promise<unknown>).call(this, config);
+      return originalMethod.call(this, injectToken(config));
     };
   }
 });
 
-// Override entities methods specifically if they exist
-if (client.entities) {
-  Object.keys(client.entities).forEach(entityName => {
-    const entity = (client.entities as Record<string, Record<string, unknown>>)[entityName];
-    if (entity && typeof entity === 'object') {
-      ['query', 'queryAll', 'get', 'create', 'update', 'delete'].forEach(methodName => {
-        if (typeof entity[methodName] === 'function') {
-          const originalMethod = entity[methodName];
-          entity[methodName] = async function (...args: any[]) {
-            console.log(`🔧 DEBUG: entities.${entityName}.${methodName} called with:`, args);
-
-            // For query/queryAll, the first argument is often the config object
-            // For create, first arg is { data: ... }
-            // For update/delete, first arg might be { id: ... } or { id, data }
-            // If the first argument is an object, try to inject headers into it
-            if (args.length > 0 && typeof args[0] === 'object' && args[0] !== null) {
-              const config = args[0] as Record<string, any>;
-              const token = localStorage.getItem('access_token');
-              if (token) {
-                config.options = config.options || {};
-                config.options.headers = config.options.headers || {};
-                config.options.headers['Authorization'] = `Bearer ${token}`;
-              }
-            } else if (args.length === 0) {
-              // If no args, we might need a default config object to hold the token
-              // but most methods expect at least one arg if they take options
-            }
-
-            return (originalMethod as (...args: any[]) => Promise<any>).apply(this, args);
-          };
-        }
-      });
-    }
-  });
-}
-
-// Override auth.me to use JWT token from localStorage
-const originalMe = client.auth.me;
-client.auth.me = async function () {
+// Override auth.me to provide consistent behavior
+(client.auth as any).me = async function () {
   const token = localStorage.getItem('access_token');
-  if (!token) {
-    return { data: null };
-  }
+  if (!token) return { data: null };
 
   try {
-    const response = await client.apiCall.invoke({
+    const response = await apiCall.invoke({
       url: '/api/v1/auth/me',
-      method: 'GET',
-      options: {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      },
+      method: 'GET'
     });
-    return { data: response.data };
+    // Handle cases where the response itself is the user object or nested in .data
+    const userData = response?.data || response;
+    return { data: userData };
   } catch (error) {
-    // Token invalid or expired, clear storage
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
+    // If 401, token is definitely bad
+    if ((error as any)?.response?.status === 401) {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('user');
+    }
     return { data: null };
   }
 };
 
-// Override logout to clear localStorage
-client.auth.logout = async function () {
+// Override logout
+(client.auth as any).logout = async function () {
   localStorage.removeItem('access_token');
   localStorage.removeItem('user');
   globalThis.location.href = '/login';
 };
 
-export const api = client;
+export const api = client;

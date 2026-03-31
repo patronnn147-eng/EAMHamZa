@@ -7,6 +7,7 @@ import { Calendar, AlertTriangle, CheckCircle, Clock, Wrench } from 'lucide-reac
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
+import { InterventionRequestDialog } from './components/InterventionRequestDialog';
 
 export default function TechnicianDashboard() {
   const { toast } = useToast();
@@ -14,6 +15,9 @@ export default function TechnicianDashboard() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [loading, setLoading] = useState(true);
+  const [requestOpen, setRequestOpen] = useState(false);
+  const [selectedOrdreId, setSelectedOrdreId] = useState<number>(0);
+  const [selectedMachineId, setSelectedMachineId] = useState<number | null>(null);
 
   const [stats, setStats] = useState({
     total: 0,
@@ -53,7 +57,7 @@ export default function TechnicianDashboard() {
     () =>
       interventions.filter((i) => {
         const s = i.statut || 'EN_ATTENTE';
-        return s === 'APPROVED' || s === 'EN_COURS' || s === 'BLOQUÉ';
+        return s === 'APPROVED' || s === 'VALIDE' || s === 'EN_COURS' || s === 'BLOQUÉ';
       }),
     [interventions],
   );
@@ -108,9 +112,9 @@ export default function TechnicianDashboard() {
       // Calculate stats
       const statsData = {
         total: ordresList.length,
-        enCours: ordresList.filter((o) => o.statut === 'EN_COURS').length,
+        enCours: ordresList.filter((o) => o.statut === 'EN_COURS' || o.statut === 'VALIDE').length,
         enAttente: ordresList.filter((o) => o.statut === 'EN_ATTENTE').length,
-        termine: ordresList.filter((o) => o.statut === 'TERMINE').length,
+        termine: ordresList.filter((o) => o.statut === 'TERMINE' || o.statut === 'TERMINÉ').length,
         urgent: ordresList.filter((o) => o.priorite === 'URGENTE').length,
       };
       setStats(statsData);
@@ -141,26 +145,30 @@ export default function TechnicianDashboard() {
   const getPriorityColor = (priorite: string) => {
     switch (priorite) {
       case 'URGENTE':
-        return 'bg-red-100 text-red-800 border-red-300';
+        return 'bg-gradient-to-r from-red-600 to-rose-600 text-white shadow-[0_2px_8px_rgba(225,29,72,0.3)] border-none px-3 py-1';
       case 'HAUTE':
-        return 'bg-orange-100 text-orange-800 border-orange-300';
+        return 'bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-[0_2px_8px_rgba(245,158,11,0.3)] border-none px-3 py-1';
       case 'MOYENNE':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+        return 'bg-gradient-to-r from-yellow-400 to-orange-400 text-gray-900 border-none px-3 py-1';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-300';
+        return 'bg-gray-200 text-gray-700 font-bold px-3 py-1';
     }
   };
 
   const getStatusColor = (statut: string) => {
+    const base = "rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest border transition-all duration-300 ";
     switch (statut) {
       case 'EN_COURS':
-        return 'bg-blue-100 text-blue-800';
+        return base + 'text-blue-700 bg-blue-50/50 border-blue-200/50 animate-pulse shadow-[0_0_12px_rgba(59,130,246,0.2)]';
+      case 'VALIDE':
+        return base + 'text-emerald-700 bg-emerald-50/50 border-emerald-200/50 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
       case 'EN_ATTENTE':
-        return 'bg-yellow-100 text-yellow-800';
+        return base + 'text-amber-700 bg-amber-50/50 border-amber-200/50';
       case 'TERMINE':
-        return 'bg-green-100 text-green-800';
+      case 'TERMINÉ':
+        return base + 'text-emerald-800 bg-emerald-100/50 border-emerald-300/50';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return base + 'text-gray-600 bg-gray-50/50 border-gray-200/50';
     }
   };
 
@@ -174,60 +182,82 @@ export default function TechnicianDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-900">Tableau de Bord Technicien</h2>
-        <p className="mt-1 text-sm text-gray-500">Vue d'ensemble de vos tâches et interventions</p>
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold text-gray-900">Tableau de Bord Technicien</h2>
+          <p className="mt-1 text-sm text-gray-500">Vue d'ensemble de vos tâches et interventions</p>
+        </div>
+        <Button 
+          variant="destructive" 
+          className="flex items-center gap-2 shadow-lg hover:scale-105 transition-transform"
+          onClick={() => {
+            if (workOrders.length > 0) {
+              setSelectedOrdreId(workOrders[0].id);
+              setSelectedMachineId(workOrders[0].machine_id);
+              setRequestOpen(true);
+            } else {
+              toast({
+                title: "Aucun OT",
+                description: "Vous devez avoir au moins un Ordre de Travail assigné pour demander une intervention.",
+                variant: "destructive"
+              });
+            }
+          }}
+        >
+          <AlertTriangle className="h-4 w-4" />
+          Besoin d'aide / Alerte
+        </Button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Total</CardTitle>
+            <CardTitle className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
-            <p className="text-xs text-gray-500">Ordres de travail</p>
+            <div className="text-3xl font-black text-gray-900 dark:text-white transition-transform group-hover:scale-110 origin-left duration-300">{stats.total}</div>
+            <p className="text-[11px] font-medium text-gray-500 mt-1">Ordres de travail</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">En Cours</CardTitle>
+            <CardTitle className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">En Cours</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.enCours}</div>
-            <p className="text-xs text-gray-500">Interventions actives</p>
+            <div className="text-3xl font-black text-blue-600 transition-transform group-hover:scale-110 origin-left duration-300">{stats.enCours}</div>
+            <p className="text-[11px] font-medium text-gray-500 mt-1">Interventions actives</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">En Attente</CardTitle>
+            <CardTitle className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">En Attente</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">{stats.enAttente}</div>
-            <p className="text-xs text-gray-500">À démarrer</p>
+            <div className="text-3xl font-black text-amber-500 transition-transform group-hover:scale-110 origin-left duration-300">{stats.enAttente}</div>
+            <p className="text-[11px] font-medium text-gray-500 mt-1">À démarrer</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Terminés</CardTitle>
+            <CardTitle className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">Terminés</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.termine}</div>
-            <p className="text-xs text-gray-500">Complétés</p>
+            <div className="text-3xl font-black text-emerald-500 transition-transform group-hover:scale-110 origin-left duration-300">{stats.termine}</div>
+            <p className="text-[11px] font-medium text-gray-500 mt-1">Complétés</p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-none shadow-lg hover:shadow-xl transition-all duration-300 bg-white dark:bg-gray-900 group border-l-4 border-red-500">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-gray-500">Urgent</CardTitle>
+            <CardTitle className="text-[11px] font-bold text-gray-400 uppercase tracking-widest text-red-500">Urgent</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.urgent}</div>
-            <p className="text-xs text-gray-500">Priorité haute</p>
+            <div className="text-3xl font-black text-red-600 transition-transform group-hover:scale-110 origin-left duration-300">{stats.urgent}</div>
+            <p className="text-[11px] font-medium text-gray-500 mt-1">Priorité haute</p>
           </CardContent>
         </Card>
       </div>
@@ -253,17 +283,20 @@ export default function TechnicianDashboard() {
                 return (
                   <div
                     key={ordre.id}
-                    className={`p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer ${
-                      ordre.priorite === 'URGENTE' ? 'border-red-300 bg-red-50' : 'border-gray-200'
+                    className={`p-6 border-none rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer animate-premium-fade-in group relative overflow-hidden ${
+                      ordre.priorite === 'URGENTE' ? 'bg-red-50/50 dark:bg-red-950/20 ring-1 ring-red-200' : 'bg-white dark:bg-gray-900'
                     }`}
                     onClick={() => navigate(`/technician/work-orders/${ordre.id}`)}
                   >
+                    <div className="absolute right-0 top-0 w-32 h-32 bg-gradient-premium opacity-[0.03] -mr-16 -mt-16 rounded-full group-hover:opacity-[0.08] transition-opacity" />
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           <h3 className="font-semibold text-gray-900">Ordre #{ordre.id}</h3>
                           <Badge className={getPriorityColor(ordre.priorite)}>{ordre.priorite}</Badge>
-                          <Badge className={getStatusColor(ordre.statut)}>{ordre.statut}</Badge>
+                          <Badge className={getStatusColor(ordre.statut)}>
+                            {ordre.statut === 'VALIDE' ? 'PRÊT / VALIDÉ' : ordre.statut}
+                          </Badge>
                         </div>
                         {machine && (
                           <p className="text-sm text-gray-600 mb-1">
@@ -327,6 +360,33 @@ export default function TechnicianDashboard() {
           )}
         </CardContent>
       </Card>
+      {/* Request Intervention Dialog */}
+      <InterventionRequestDialog
+        open={requestOpen}
+        onOpenChange={setRequestOpen}
+        initialOrdreTravailId={selectedOrdreId}
+        initialMachineId={selectedMachineId}
+        onSubmit={async (data) => {
+          try {
+            const token = localStorage.getItem('access_token');
+            const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions/request`, {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(data),
+            });
+            if (res.ok) {
+              toast({ title: "Demande envoyée", description: "Votre demande d'intervention est en attente de validation." });
+              setRequestOpen(false);
+              fetchData();
+            }
+          } catch (e) {
+            console.error(e);
+          }
+        }}
+      />
     </div>
   );
 }

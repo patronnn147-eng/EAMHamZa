@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
+from dependencies.auth import require_role
+from models.utilisateurs import Utilisateurs
 from services.ordres_travail import Ordres_travailService
 
 # Set up logging
@@ -41,6 +43,12 @@ class Ordres_travailUpdateData(BaseModel):
     ordre_id: Optional[int] = None
     statut: Optional[str] = None
     created_at: Optional[datetime] = None
+    validated_by: Optional[int] = None
+    date_validation: Optional[datetime] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    rapport: Optional[str] = None
+    failure_type: Optional[str] = None
 
 
 class Ordres_travailResponse(BaseModel):
@@ -55,9 +63,20 @@ class Ordres_travailResponse(BaseModel):
     statut: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    validated_by: Optional[int] = None
+    date_validation: Optional[datetime] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    rapport: Optional[str] = None
+    failure_type: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class Ordres_travailValidationData(BaseModel):
+    action: str  # "APPROVE" or "REJECT"
+    utilisateur_id: Optional[int] = None  # Technician to assign (required if APPROVE)
+    reason: Optional[str] = None
 
 
 class Ordres_travailListResponse(BaseModel):
@@ -196,6 +215,9 @@ async def create_ordres_travail(
     """Create a new ordres_travail"""
     logger.debug(f"Creating new ordres_travail with data: {data}")
     
+    # Enforce default status
+    data.statut = "EN_ATTENTE"
+    
     service = Ordres_travailService(db)
     try:
         result = await service.create(data.model_dump())
@@ -292,6 +314,39 @@ async def update_ordres_travail(
     except Exception as e:
         logger.error(f"Error updating ordres_travail {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/{id}/validate", response_model=Ordres_travailResponse)
+async def validate_ordres_travail(
+    id: int,
+    data: Ordres_travailValidationData,
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(require_role(["CHEFTECH"]))
+):
+    """Validate or reject a Work Order (CHEFTECH only)"""
+    logger.debug(f"Validating ordres_travail {id} with action: {data.action}")
+    service = Ordres_travailService(db)
+    
+    order = await service.get_by_id(id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Ordres_travail not found")
+        
+    update_dict = {}
+    if data.action == "APPROVE":
+        if not data.utilisateur_id:
+            raise HTTPException(status_code=400, detail="utilisateur_id is required to approve & assign.")
+        update_dict["statut"] = "VALIDE"
+        update_dict["utilisateur_id"] = data.utilisateur_id
+        update_dict["validated_by"] = current_user.id
+        update_dict["date_validation"] = datetime.now()
+    elif data.action == "REJECT":
+        update_dict["statut"] = "REJETE"
+        update_dict["validated_by"] = current_user.id
+        update_dict["date_validation"] = datetime.now()
+    else:
+        raise HTTPException(status_code=400, detail="Invalid action")
+        
+    result = await service.update(id, update_dict)
+    return result
 
 
 @router.delete("/batch")

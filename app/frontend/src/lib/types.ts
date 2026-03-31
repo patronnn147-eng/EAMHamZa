@@ -39,6 +39,10 @@ export interface OrdreTravail {
   utilisateur_nom?: string;
   user_id: string;
   created_at: string;
+  date_debut?: string;
+  date_fin?: string;
+  rapport?: string;
+  failure_type?: string;
 }
 
 export interface Intervention {
@@ -49,7 +53,7 @@ export interface Intervention {
   date_debut?: string;
   date_fin?: string;
   rapport: string;
-  ordre_travail_id: number;
+  ordre_travail_id?: number;
   work_order_due_date?: string;
   is_overdue?: boolean;
   problem_description?: string;
@@ -64,6 +68,36 @@ export interface Intervention {
   created_at: string;
   actual_failure_type?: string;
   ml_prediction_matched?: boolean;
+  
+  // New Diagnostic Fields
+  machine_category?: string;
+  symptoms?: string[];
+  problem_start_time?: string;
+  frequency?: string;
+  operating_state?: string;
+  load_level?: string;
+  temperature?: string;
+  impact?: string;
+  estimated_loss?: string;
+  similar_issue_before?: boolean;
+
+  // New Report & PDCA Fields
+  intervention_type?: string;
+  root_cause_category?: string;
+  root_cause_description?: string;
+  actions_performed?: string;
+  parts_replaced?: string;
+  tools_used?: string;
+  machine_status_after?: string;
+  plan_hypothesis?: string;
+  check_resolved?: boolean;
+  check_verification_method?: string;
+  act_preventive_actions?: string;
+  act_recommendations?: string;
+
+  // AI Fields
+  ai_failure_risk?: number;
+  ai_recommended_action?: string;
 }
 
 export interface Planning {

@@ -19,20 +19,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Wrench, Download, FileText, Loader2 } from 'lucide-react';
+import { Wrench, Download, FileText, Loader2, Zap, Activity, History, AlertCircle } from 'lucide-react';
+import { Separator as UISeparator } from '@/components/ui/separator';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { getStatusColor } from '../utils/badges';
-import type { Intervention } from '../types';
+import type { Intervention, Technician } from '../types';
 
 const getAuthToken = () => localStorage.getItem('access_token');
 
 interface InterventionsTabProps {
   interventions: Intervention[];
-  fetchInterventions: (filters?: {
-    statut?: string;
-  }) => Promise<void>;
-  approveIntervention: (interventionId: number) => Promise<void>;
-  rejectIntervention: (interventionId: number, reason?: string) => Promise<void>;
-  noGrouping?: boolean;
+  fetchInterventions: () => Promise<void>;
+  approveIntervention?: (interventionId: number) => Promise<void>;
+  rejectIntervention?: (interventionId: number, reason?: string) => Promise<void>;
 }
 
 export const InterventionsTab: React.FC<InterventionsTabProps> = ({
@@ -40,7 +39,6 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
   fetchInterventions,
   approveIntervention,
   rejectIntervention,
-  noGrouping = false,
 }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selected, setSelected] = useState<Intervention | null>(null);
@@ -136,8 +134,8 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
 
   const getElapsedMs = (i: Intervention) => {
     const status = i.statut || 'EN_ATTENTE';
-    if (!['APPROVED', 'EN_COURS', 'TERMINÉ', 'TERMINE', 'BLOQUÉ'].includes(status)) return 0;
-    const startIso = i.date_debut || (status === 'APPROVED' ? i.approved_at : undefined);
+    if (!['APPROVED', 'VALIDE', 'EN_COURS', 'TERMINÉ', 'TERMINE', 'BLOQUÉ'].includes(status)) return 0;
+    const startIso = i.date_debut || (['APPROVED', 'VALIDE'].includes(status) ? i.approved_at : undefined);
     const start = startIso ? new Date(startIso).getTime() : null;
     if (!start) return 0;
     const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
@@ -146,98 +144,48 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
 
   const hasChrono = (i: Intervention) => {
     const s = i.statut || 'EN_ATTENTE';
-    return s === 'APPROVED' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
+    return s === 'APPROVED' || s === 'VALIDE' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
   };
 
-  const pending = useMemo(
-    () => interventions.filter((i) => (i.statut || 'EN_ATTENTE') === 'PENDING_APPROVAL'),
+  const pendingList = useMemo(
+    () => (interventions || []).filter((i) => {
+      const s = i.statut || 'EN_ATTENTE';
+      return s === 'EN_ATTENTE' || s === 'PENDING_APPROVAL';
+    }).sort((a, b) => new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime()),
     [interventions],
   );
-
-  // Group interventions by work order to avoid showing duplicates
-  const groupedInterventions = useMemo(() => {
-    const groups = new Map<number, Intervention[]>();
-    for (const intervention of interventions) {
-      const woId = intervention.ordre_travail_id;
-      if (!groups.has(woId)) {
-        groups.set(woId, []);
-      }
-      groups.get(woId)!.push(intervention);
-    }
-    // Convert to array of groups, sorted by most recent intervention date
-    return Array.from(groups.values())
-      .map((group) => ({
-        interventions: group.sort((a, b) =>
-          new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime()
-        ),
-        primaryIntervention: group[0], // Use first as representative
-      }))
-      .sort((a, b) =>
-        new Date(b.primaryIntervention.date_intervention).getTime() -
-        new Date(a.primaryIntervention.date_intervention).getTime()
-      );
-  }, [interventions]);
-
-  const displayList = noGrouping
-    ? interventions.map(i => ({ interventions: [i], primaryIntervention: i }))
-    : groupedInterventions;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wrench className="h-5 w-5" />
-          Interventions
+          Demandes d'Intervention en Attente
         </CardTitle>
-        <div className="flex gap-4">
-          <Select onValueChange={(value) => fetchInterventions(value === 'ALL' ? {} : { statut: value })}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Filtrer par statut" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">Tous les statuts</SelectItem>
-              <SelectItem value="EN_ATTENTE">En attente</SelectItem>
-              <SelectItem value="EN_COURS">En cours</SelectItem>
-              <SelectItem value="TERMINÉ">Terminé</SelectItem>
-              <SelectItem value="BLOQUÉ">Bloqué</SelectItem>
-              <SelectItem value="PENDING_APPROVAL">Pending approval</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="DECLINED">Declined</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">Pending requests: {pending.length}</div>
+            <div className="text-sm font-medium text-amber-600">Demandes en attente: {pendingList.length}</div>
           </div>
 
           <div className="space-y-4">
-            {displayList.map((group) => {
-              const intervention = group.primaryIntervention;
-              const hasMultipleTechs = group.interventions.length > 1;
+            {pendingList.map((intervention) => {
               return (
-                <div key={`wo-${intervention.ordre_travail_id}`} className="border rounded-lg p-4">
+                <div key={`req-${intervention.id}`} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow transition-shadow">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge className={getStatusColor(intervention.statut || 'EN_ATTENTE')}>
+                        <Badge className={`${getStatusColor(intervention.statut || 'EN_ATTENTE')} border-none`}>
                           {intervention.statut || 'EN_ATTENTE'}
                         </Badge>
-                        {intervention.is_overdue ? (
-                          <Badge className="bg-red-100 text-red-800">Overdue</Badge>
-                        ) : null}
-                        <span className="text-sm text-gray-500">Ordre: #{intervention.ordre_travail_id}</span>
-                        {hasMultipleTechs ? (
-                          <span className="text-sm font-medium text-blue-600">
-                            {group.interventions.length} Technicians
-                          </span>
-                        ) : (
-                          typeof intervention.technicien_id === 'number' && (
-                            <span className="text-sm text-gray-500">Tech: #{intervention.technicien_id}</span>
-                          )
+                        <span className="text-sm text-gray-500">Demande: #{intervention.id}</span>
+                        {typeof intervention.machine_id === 'number' && (
+                          <span className="text-sm text-gray-500">Machine: #{intervention.machine_id}</span>
                         )}
+                        <span className="text-sm font-medium text-blue-600">
+                          Par: {intervention.technicien_id ? `Tech #${intervention.technicien_id}` : 'ChefOp'}
+                        </span>
                         <span className="text-sm text-gray-500">
                           {new Date(intervention.date_intervention).toLocaleDateString()}
                         </span>
@@ -246,19 +194,6 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                       {intervention.problem_description && (
                         <div className="text-sm text-gray-700 mt-2 line-clamp-3">
                           {renderContentWithFiles(intervention.problem_description)}
-                        </div>
-                      )}
-
-                      {hasMultipleTechs && (
-                        <div className="mt-4 flex flex-wrap gap-2 pt-2 border-t">
-                          {group.interventions.map((i) => (
-                            <div key={`sub-${i.id}`} className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded border text-xs">
-                              <span className="text-gray-600 font-medium">Tech #{i.technicien_id}:</span>
-                              <Badge className={getStatusColor(i.statut || 'EN_ATTENTE')} variant="secondary" style={{ fontSize: '10px', height: '18px' }}>
-                                {i.statut || 'EN_ATTENTE'}
-                              </Badge>
-                            </div>
-                          ))}
                         </div>
                       )}
                     </div>
@@ -275,109 +210,209 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                         Détails
                       </Button>
 
-                      {(intervention.statut || 'EN_ATTENTE') === 'PENDING_APPROVAL' ? (
-                        <>
-                          <Button size="sm" onClick={() => approveIntervention(intervention.id)}>
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => {
-                              setSelected(intervention);
-                              setRejectReason('');
-                              setRejectOpen(true);
-                            }}
-                          >
-                            Decline
-                          </Button>
-                        </>
-                      ) : null}
+                      {approveIntervention && (
+                        <Button 
+                          size="sm" 
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => {
+                            approveIntervention(intervention.id);
+                          }}
+                        >
+                          ✅ Accepter
+                        </Button>
+                      )}
+                      
+                      {rejectIntervention && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setSelected(intervention);
+                            setRejectReason('');
+                            setRejectOpen(true);
+                          }}
+                        >
+                          ❌ Rejeter
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
               )
             })}
 
-            {groupedInterventions.length === 0 && <div className="text-sm text-gray-500">Aucune intervention</div>}
+            {pendingList.length === 0 && <div className="text-sm text-gray-500 text-center py-8">Aucune demande en attente.</div>}
           </div>
         </div>
 
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Détails intervention</DialogTitle>
-              <DialogDescription>Revue de la demande d'intervention.</DialogDescription>
-            </DialogHeader>
-            {selected ? (
-              <div className="space-y-3 text-sm">
-                <div>
-                  <div className="text-gray-500">Statut</div>
-                  <div className="font-medium">{selected.statut || 'EN_ATTENTE'}</div>
-                </div>
-                <div>
-                  <div className="text-gray-500">Ordre de travail</div>
-                  <div className="font-medium">#{selected.ordre_travail_id}</div>
-                </div>
-                {typeof selected.machine_id === 'number' && (
-                  <div>
-                    <div className="text-gray-500">Machine</div>
-                    <div className="font-medium">#{selected.machine_id}</div>
-                  </div>
-                )}
-                {selected.priority && (
-                  <div>
-                    <div className="text-gray-500">Priorité</div>
-                    <div className="font-medium">{selected.priority}</div>
-                  </div>
-                )}
-                {typeof selected.estimated_duration_minutes === 'number' && (
-                  <div>
-                    <div className="text-gray-500">Durée estimée (min)</div>
-                    <div className="font-medium">{selected.estimated_duration_minutes}</div>
-                  </div>
-                )}
-                {selected.required_materials && (
-                  <div>
-                    <div className="text-gray-500">Matériels requis</div>
-                    <div className="mt-1 p-2 bg-gray-50 rounded border">
-                      {renderContentWithFiles(selected.required_materials)}
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 rounded-3xl border-none shadow-2xl">
+            {selected && (
+              <>
+                <DialogHeader className="px-8 pt-8 pb-4 bg-white dark:bg-gray-900">
+                  <DialogTitle className="text-2xl font-black flex items-center gap-2">
+                    <FileText className="h-6 w-6 text-primary" />
+                    Détails de l'Intervention #{selected.id}
+                  </DialogTitle>
+                  <DialogDescription className="text-gray-500 font-medium">Revue complète de la demande d'intervention.</DialogDescription>
+                </DialogHeader>
+                
+                <ScrollArea className="flex-1 px-8">
+                  <div className="space-y-6 py-4 text-sm">
+                    {/* --- Section 1: Statut & Priorité --- */}
+                    <div className="grid grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Statut actuel</div>
+                        <Badge className={`${getStatusColor(selected.statut || 'EN_ATTENTE')} border-none px-3 py-1 font-bold`}>
+                          {selected.statut || 'EN_ATTENTE'}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Priorité</div>
+                        <div className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
+                          <AlertCircle className={`h-4 w-4 ${selected.priority === 'URGENTE' ? 'text-red-500' : 'text-orange-500'}`} />
+                          {selected.priority || 'NON DÉFINIE'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* --- Section 2: Machine & OT --- */}
+                    <div className="space-y-4">
+                      <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Zap className="h-4 w-4" /> Machine & Contexte
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                          <div className="text-gray-400 text-xs mb-1">Ordre de Travail</div>
+                          <div className="font-black text-gray-900 dark:text-gray-100">#{selected.ordre_travail_id}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800 shadow-sm">
+                          <div className="text-gray-400 text-xs mb-1">Machine</div>
+                          <div className="font-black text-gray-900 dark:text-gray-100">#{selected.machine_id}</div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Catégorie</div>
+                          <div className="font-bold">{(selected as any).machine_category || 'Non-critique'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Fréquence Problème</div>
+                          <div className="font-bold">{(selected as any).frequency || 'Première fois'}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <UISeparator />
+
+                    {/* --- Section 3: Analyse du Problème --- */}
+                    <div className="space-y-4">
+                      <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> Analyse Technique
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Début incident</div>
+                          <div className="font-bold">
+                            {(selected as any).problem_start_time ? new Date((selected as any).problem_start_time).toLocaleString() : 'Non spécifié'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Déjà rencontré?</div>
+                          <div className="font-bold">{(selected as any).similar_issue_before ? 'OUI' : 'NON'}</div>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <div className="text-gray-400 text-xs mb-1">Symptômes</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(selected as any).symptoms ? (selected as any).symptoms.split(', ').map((s: string) => (
+                            <Badge key={s} variant="outline" className="text-[10px] font-bold bg-muted/50">{s}</Badge>
+                          )) : <span className="text-gray-400 italic">Aucun symptôme déclaré</span>}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-gray-400 text-xs mb-1">Description détaillée</div>
+                        <div className="mt-1 p-3 bg-gray-50 dark:bg-gray-800/80 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 leading-relaxed font-medium">
+                          {renderContentWithFiles(selected.problem_description)}
+                        </div>
+                      </div>
+                    </div>
+
+                    <UISeparator />
+
+                    {/* --- Section 4: État & Impact --- */}
+                    <div className="space-y-4">
+                      <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <Activity className="h-4 w-4" /> État & Impact Production
+                      </h3>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">État Opérationnel</div>
+                          <div className="font-bold">{(selected as any).operating_state || 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Charge (%)</div>
+                          <div className="font-bold">{(selected as any).load_level ? `${(selected as any).load_level}%` : 'N/A'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Température</div>
+                          <div className="font-bold">{(selected as any).temperature || 'N/A'}</div>
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-gray-400 text-xs mb-1">Impact sur production</div>
+                        <div className="font-bold text-gray-900 dark:text-gray-100">{(selected as any).impact || 'Aucun impact déclaré'}</div>
+                      </div>
+                    </div>
+
+                    <UISeparator />
+
+                    {/* --- Section 5: Planification --- */}
+                    <div className="space-y-4 pb-6">
+                      <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                        <History className="h-4 w-4" /> Planification & Ressources
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Durée estimée</div>
+                          <div className="font-bold">{selected.estimated_duration_minutes ? `${selected.estimated_duration_minutes} min` : 'Non estimée'}</div>
+                        </div>
+                        <div>
+                          <div className="text-gray-400 text-xs mb-1">Matériels</div>
+                          <div className="font-bold truncate">{selected.required_materials || 'Aucun'}</div>
+                        </div>
+                      </div>
+                      {selected.rejection_reason && (
+                        <div className="p-4 bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-900/50 rounded-2xl">
+                          <div className="text-rose-500 text-xs font-black uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                            <AlertCircle className="h-3 w-3" /> Motif du Rejet
+                          </div>
+                          <div className="text-rose-800 dark:text-rose-200 font-bold leading-relaxed">{selected.rejection_reason}</div>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-                <div>
-                  <div className="text-gray-500">Description du problème</div>
-                  <div className="mt-1 p-2 bg-gray-50 rounded border">
-                    {renderContentWithFiles(selected.problem_description)}
-                  </div>
-                </div>
-                {selected.rejection_reason && (
-                  <div>
-                    <div className="text-gray-500">Motif de rejet</div>
-                    <div className="font-medium whitespace-pre-wrap">{selected.rejection_reason}</div>
-                  </div>
-                )}
+                </ScrollArea>
 
-                {selected.is_overdue ? (
-                  <div>
-                    <div className="text-gray-500">Échéance</div>
-                    <div className="font-medium text-red-700">Overdue</div>
-                  </div>
-                ) : selected.work_order_due_date ? (
-                  <div>
-                    <div className="text-gray-500">Échéance</div>
-                    <div className="font-medium">
-                      {new Date(selected.work_order_due_date).toLocaleString()}
+                <DialogFooter className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between gap-4">
+                  <div className="flex-1 text-[10px] text-gray-400 flex items-center gap-4">
+                    <div className="flex items-center gap-1">
+                      <History className="h-3 w-3" /> Chrono: {formatDuration(getElapsedMs(selected))}
                     </div>
+                    {selected.requested_at && (
+                      <div className="flex items-center gap-1">
+                        <Zap className="h-3 w-3" /> Demandé le: {new Date(selected.requested_at).toLocaleDateString()}
+                      </div>
+                    )}
                   </div>
-                ) : null}
-
-                <div>
-                  <div className="text-gray-500">Chrono</div>
-                  <div className="font-medium">{formatDuration(getElapsedMs(selected))}</div>
-                </div>
-              </div>
-            ) : null}
+                  <Button variant="ghost" onClick={() => setDetailsOpen(false)} className="rounded-xl font-bold px-6">
+                    Fermer
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setDetailsOpen(false)}>
                 Fermer

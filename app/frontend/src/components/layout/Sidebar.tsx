@@ -27,50 +27,61 @@ interface NavigationItem {
 }
 
 const getNavigationItems = (role: string): NavigationItem[] => {
-  const baseItems: NavigationItem[] = [
-    { name: 'Dashboard', href: `/${role.toLowerCase()}/dashboard`, icon: LayoutDashboard },
-    { name: 'Machines', href: `/${role.toLowerCase()}/machines`, icon: Settings },
-    { name: 'Work Orders', href: `/${role.toLowerCase()}/work-orders`, icon: ClipboardList },
-    { name: 'Interventions', href: `/${role.toLowerCase()}/interventions`, icon: Wrench },
-    { name: 'Planning', href: `/${role.toLowerCase()}/planning`, icon: Calendar },
-    { name: 'Stocks', href: `/${role.toLowerCase()}/inventory`, icon: Package },
-  ];
-
-
-  if (['ADMIN', 'CHETOP', 'CHEFTECH'].includes(role)) {
-    baseItems.push({ name: 'PDCA Kanban', href: '/pdca', icon: Columns });
-  }
-
-  // Add admin-specific items
+  const roleLower = role.toLowerCase();
+  
   if (role === 'ADMIN') {
-    baseItems.push({
-      name: 'User Approvals',
-      href: '/admin/user-approvals',
-      icon: UserCheck,
-    });
-
-    baseItems.push({
-      name: 'User Management',
-      href: '/admin/users',
-      icon: Users,
-    });
-
-    baseItems.push({
-      name: 'IA & Prédictions',
-      href: '/admin/ml',
-      icon: BrainCircuit,
-    });
-  }
-
-  // Add common items for admin roles
-  if (['ADMIN', 'CHETOP', 'CHEFTECH'].includes(role)) {
-    baseItems.push(
-      { name: 'Reports', href: '/reports', icon: FileText },
+    return [
+      { name: 'Admin Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
+      { name: 'Planning', href: '/admin/planning', icon: Calendar },
+      { name: 'Utilisateurs', href: '/admin/users', icon: Users },
+      { name: 'Approbations Users', href: '/admin/user-approvals', icon: UserCheck },
+      { name: 'Approbations ITV', href: '/admin/itv-approvals', icon: ClipboardList },
+      { name: 'Gestion des OT', href: '/admin/work-orders-management', icon: FileText },
+      { name: 'Machines', href: '/admin/machines', icon: Settings },
+      { name: 'ML & Prédictions', href: '/admin/ml', icon: BrainCircuit },
+      { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Archives', href: '/archives', icon: Archive }
-    );
+    ];
   }
 
-  return baseItems;
+  if (role === 'CHETOP') {
+    return [
+      { name: 'Mes Demandes', href: '/chetop/dashboard', icon: LayoutDashboard },
+      { name: 'Parc Machines', href: '/chetop/machines', icon: Settings },
+      { name: 'Demandes Intervention', href: '/chetop/itv-requests', icon: ClipboardList },
+      { name: 'Ordres de Travail', href: '/chetop/work-orders', icon: Wrench },
+      { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
+      { name: 'Archives', href: '/archives', icon: Archive }
+    ];
+  }
+
+  if (role === 'CHEFTECH') {
+    return [
+      { name: 'Validation Hub', href: '/cheftech/dashboard', icon: LayoutDashboard },
+      { name: 'Planning & Equipes', href: '/cheftech/planning', icon: Calendar },
+      { name: 'Ordres Travail', href: '/cheftech/work-orders', icon: ClipboardList },
+      { name: 'Suivi des OT', href: '/cheftech/work-orders-table', icon: Wrench },
+      { name: 'Interventions', href: '/cheftech/interventions', icon: Wrench },
+      { name: 'Stocks / Pièces', href: '/cheftech/inventory', icon: Package },
+      { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
+      { name: 'Rapports', href: '/reports', icon: FileText }
+    ];
+  }
+
+  if (role === 'TECHNICIEN') {
+    return [
+      { name: 'Mes Tâches', href: '/technicien/dashboard', icon: LayoutDashboard },
+      { name: 'Mes Ordres de Travail', href: '/technicien/work-orders', icon: ClipboardList },
+      { name: 'Interventions', href: '/technicien/interventions', icon: Wrench },
+      { name: 'Planning', href: '/technicien/planning', icon: Calendar },
+      { name: 'Docs Techniques', href: '/technicien/documents', icon: FileText },
+      { name: 'Stocks', href: '/technicien/inventory', icon: Package }
+    ];
+  }
+
+  return [
+    { name: 'Dashboard', href: `/${roleLower}/dashboard`, icon: LayoutDashboard }
+  ];
 };
 
 export default function Sidebar() {
@@ -108,10 +119,15 @@ export default function Sidebar() {
   }, [location.pathname, user?.role]);
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 pt-16">
-      <div className="flex-1 flex flex-col min-h-0 bg-gray-900">
-        <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-          <nav className="mt-5 flex-1 px-2 space-y-1">
+    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 pt-16 z-40">
+      <div className="flex-1 flex flex-col min-h-0 glass-dark m-3 rounded-2xl shadow-2xl border-white/5 overflow-hidden transition-all duration-500">
+        <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto font-sans">
+          <div className="px-6 mb-6">
+            <h2 className="text-[10px] font-bold text-gray-500 uppercase tracking-[0.2em] opacity-80">
+              Navigation Principal
+            </h2>
+          </div>
+          <nav className="flex-1 px-3 space-y-2">
             {navigation.map((item) => {
               const isActive = location.pathname === item.href ||
                 location.pathname.startsWith(item.href + '/');
@@ -120,20 +136,25 @@ export default function Sidebar() {
                   key={item.name}
                   to={item.href}
                   className={cn(
+                    'group flex items-center px-4 py-3 text-[13px] font-semibold rounded-xl transition-all duration-300 relative overflow-hidden',
                     isActive
-                      ? 'bg-gray-800 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white',
-                    'group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors'
+                      ? 'bg-white/10 text-white shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-white'
                   )}
                 >
+                  {isActive && (
+                    <div className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-premium rounded-full shadow-[0_0_15px_rgba(139,92,246,0.8)]" />
+                  )}
                   <item.icon
                     className={cn(
-                      isActive ? 'text-white' : 'text-gray-400 group-hover:text-gray-300',
-                      'mr-3 flex-shrink-0 h-6 w-6'
+                      isActive ? 'text-white scale-110' : 'text-gray-500 group-hover:text-gray-300',
+                      'mr-3 flex-shrink-0 h-5 w-5 transition-all duration-300 group-hover:rotate-3'
                     )}
                     aria-hidden="true"
                   />
-                  {item.name}
+                  <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-1">
+                    {item.name}
+                  </span>
                 </Link>
               );
             })}

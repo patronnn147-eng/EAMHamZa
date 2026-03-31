@@ -47,6 +47,11 @@ import MachineQRCode from '@/modules/shared/MachineQRCode';
 import { PredictivePanel } from './machines/components/PredictivePanel';
 import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
 
+interface MLPrediction {
+    risk_level: string;
+    rul_days: number;
+}
+
 function getMachineStatusConfig(statut: string) {
     const map: Record<string, { label: string; className: string }> = {
         OPERATIONNELLE: { label: '● Opérationnelle', className: 'bg-emerald-100 text-emerald-800 border border-emerald-200' },
@@ -65,6 +70,7 @@ export default function MachineDetailPage() {
 
     const [machine, setMachine] = useState<Machine | null>(null);
     const [interventions, setInterventions] = useState<Intervention[]>([]);
+    const [mlPrediction, setMlPrediction] = useState<MLPrediction | null>(null);
     const [loading, setLoading] = useState(true);
     const [openWorkOrdersCount, setOpenWorkOrdersCount] = useState(0);
 
@@ -92,6 +98,17 @@ export default function MachineDetailPage() {
             const machineResponse = await client.entities.machines.get({ id: id! });
             const m: Machine = machineResponse.data;
             setMachine(m);
+
+            // Fetch ML Prediction for the header badge
+            try {
+                const mlRes = await fetch(`/api/v1/ml/machines/${id}/prediction`);
+                if (mlRes.ok) {
+                    const predictionData = await mlRes.json();
+                    setMlPrediction(predictionData);
+                }
+            } catch (err) {
+                console.error('Failed to fetch ML Prediction for header:', err);
+            }
 
             // Fetch intervention history (using shared query logic)
             const interventionsResponse = await client.entities.ordres_intervention.queryAll({
@@ -195,6 +212,23 @@ export default function MachineDetailPage() {
     const health = computeHealthScore(machine, openWorkOrdersCount, recentInterventionsCount);
     const reliability = computeReliabilityMetrics(interventions, 90);
 
+    const getMlRiskBadge = (prediction: MLPrediction | null) => {
+        if (!prediction) return null;
+        const config: Record<string, { label: string; className: string }> = {
+            CRITICAL: { label: `CRITIQUE (${prediction.rul_days}j restants)`, className: 'bg-red-600 text-white border-red-700 animate-pulse' },
+            HIGH: { label: `ÉLEVÉ (${prediction.rul_days}j restants)`, className: 'bg-orange-500 text-white border-orange-600' },
+            MEDIUM: { label: `MODÉRÉ`, className: 'bg-amber-500 text-white border-amber-600' },
+            LOW: { label: `FAIBLE`, className: 'bg-emerald-500 text-white border-emerald-600' }
+        };
+        const c = config[prediction.risk_level] || config.LOW;
+        return (
+            <Badge className={`shrink-0 text-sm px-3 py-1 flex items-center gap-1.5 shadow-sm ${c.className}`}>
+                <Activity className="h-4 w-4" />
+                Risque ML: {c.label}
+            </Badge>
+        );
+    };
+
     return (
         <div className="space-y-6">
             {/* ── Header ── */}
@@ -213,6 +247,7 @@ export default function MachineDetailPage() {
                     <Badge className={`shrink-0 text-sm px-3 py-1 ${statusConfig.className}`}>
                         {statusConfig.label}
                     </Badge>
+                    {getMlRiskBadge(mlPrediction)}
                     {(user?.role === 'CHEFOP' || user?.role === 'ADMIN') && (
                         <Button
                             variant="outline"

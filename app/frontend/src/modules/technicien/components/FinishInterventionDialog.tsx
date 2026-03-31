@@ -27,6 +27,8 @@ interface FinishInterventionDialogProps {
         actual_failure_type: string;
         ml_prediction_matched: boolean;
         rapport?: string;
+        date_debut?: string;
+        date_fin?: string;
     }) => void;
     interventionId: number;
 }
@@ -49,12 +51,27 @@ export const FinishInterventionDialog: React.FC<FinishInterventionDialogProps> =
     const [failureType, setFailureType] = useState('NONE');
     const [mlMatched, setMlMatched] = useState(true);
     const [finalReport, setFinalReport] = useState('');
+    
+    // Default to current time for end date, we will let users pick their desired dates.
+    const now = new Date();
+    // Format to YYYY-MM-DDThh:mm for datetime-local
+    const defaultDateStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    
+    // Suggest 1 hour of downtime by default relative to now
+    const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+    const defaultStartStr = new Date(oneHourAgo.getTime() - oneHourAgo.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+
+    const [startDate, setStartDate] = useState(defaultStartStr);
+    const [endDate, setEndDate] = useState(defaultDateStr);
 
     const handleConfirm = () => {
         onConfirm({
             actual_failure_type: failureType,
             ml_prediction_matched: mlMatched,
             rapport: finalReport.trim() || undefined,
+            // Convert back to full ISO string for backend
+            date_debut: new Date(startDate).toISOString(),
+            date_fin: new Date(endDate).toISOString(),
         });
         // Reset state for next use
         setFailureType('NONE');
@@ -117,8 +134,35 @@ export const FinishInterventionDialog: React.FC<FinishInterventionDialogProps> =
                             value={finalReport}
                             onChange={(e) => setFinalReport(e.target.value)}
                             className="resize-none"
-                            rows={5}
+                            rows={3}
                         />
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="grid gap-2">
+                            <Label htmlFor="start-date" className="text-sm font-semibold">
+                                Début d'Intervention
+                            </Label>
+                            <input 
+                                type="datetime-local" 
+                                id="start-date"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="end-date" className="text-sm font-semibold">
+                                Fin d'Intervention
+                            </Label>
+                            <input 
+                                type="datetime-local" 
+                                id="end-date"
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                            />
+                        </div>
                     </div>
 
                     <div className="bg-blue-50 p-3 rounded-lg flex gap-2 items-start border border-blue-100">

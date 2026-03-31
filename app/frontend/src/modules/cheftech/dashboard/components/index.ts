@@ -3,3 +3,5 @@ export * from './InterventionsTab';
 export * from './MachinesTab';
 export * from './TechniciansTab';
 export * from './WorkOrdersTab';
+export * from './CompletedWorkOrdersTab';
+export * from './AnalyticsTab';

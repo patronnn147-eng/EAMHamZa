@@ -18,6 +18,8 @@ import PlanningCalendarView from '@/modules/shared/PlanningCalendarView';
 import PlanningManagement from '@/modules/admin/PlanningManagement';
 import UserApprovalManagement from '@/modules/admin/UserApprovalManagement';
 import UserManagement from '@/modules/admin/UserManagement';
+import AdminCompletedWorkOrders from '@/modules/admin/AdminCompletedWorkOrders';
+import SystemAnalytics from '@/modules/admin/SystemAnalytics';
 import MLDashboard from '@/modules/admin/ml/MLDashboard';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
@@ -36,6 +38,12 @@ import { SectionRedirect } from './SectionRedirect';
 import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
 import PDCAPage from '@/modules/shared/PDCAPage';
 import InventoryPage from '@/modules/shared/InventoryPage';
+import AdminWorkOrdersList from '@/modules/admin/AdminWorkOrdersList';
+import AdminWorkOrdersTable from '@/modules/admin/AdminWorkOrdersTable';
+import AdminItvApprovals from '@/modules/admin/AdminItvApprovals';
+import ChefOpItvRequests from '@/modules/chetop/ChefOpItvRequests';
+import ChefOpWorkOrders from '@/modules/chetop/ChefOpWorkOrders';
+import ChefTechWorkOrdersTable from '@/modules/cheftech/ChefTechWorkOrdersTable';
 
 export function AppRoutes() {
   return (
@@ -57,7 +65,7 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CHETOP']}>
             <Layout>
-              <CheftechDashboard role="CHETOP" />
+              <ChetopDashboard />
             </Layout>
           </ProtectedRoute>
         }
@@ -166,13 +174,62 @@ export function AppRoutes() {
         }
       />
 
-      {/* Work Orders - role-specific routes (temporary reuse of shared component) */}
       <Route
         path="/admin/work-orders"
         element={
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
-              <WorkOrders />
+              <AdminWorkOrdersList />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/work-orders-management"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <AdminWorkOrdersTable />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/completed-work-orders"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <AdminCompletedWorkOrders />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/itv-approvals"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <AdminItvApprovals />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/analytics"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <SystemAnalytics />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cheftech/work-orders-table"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <ChefTechWorkOrdersTable />
             </Layout>
           </ProtectedRoute>
         }
@@ -188,11 +245,31 @@ export function AppRoutes() {
         }
       />
       <Route
+        path="/chetop/itv-requests"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <ChefOpItvRequests />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/chetop/work-orders"
         element={
           <ProtectedRoute allowedRoles={['CHETOP']}>
             <Layout>
-              <WorkOrders />
+              <ChefOpWorkOrders />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chetop/work-orders/:id"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <WorkOrderDetailPage />
             </Layout>
           </ProtectedRoute>
         }
@@ -459,7 +536,7 @@ export function AppRoutes() {
       >
         <Route path="dashboard" element={<TechnicianDashboard />} />
         <Route path="work-orders" element={<TechnicianWorkOrders />} />
-        <Route path="work-orders/:id" element={<TechnicianWorkOrderDetail />} />
+        <Route path="work-orders/:id" element={<WorkOrderDetailPage />} />
         <Route path="interventions" element={<TechnicianInterventions />} />
         <Route path="machines" element={<TechnicianMachines />} />
         <Route path="machines/:id" element={<MachineDetailPage />} />

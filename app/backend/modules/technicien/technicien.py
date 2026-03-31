@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -12,21 +13,24 @@ from core.rabbitmq import (
     ROUTING_KEY_INT_REQUESTED,
     ROUTING_KEY_INT_STATUS_CHANGED,
 )
+from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs, UserRole
-from modules.auth.auth import get_current_user
+from core.auth import get_current_user
 from tasks.intervention_events import (
     notify_intervention_requested,
     notify_intervention_status_changed,
 )
+from core.security import verify_technicien
 
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
+logger = logging.getLogger(__name__)
 
 
 class InterventionResponse(BaseModel):
     id: int
-    ordre_travail_id: int
+    ordre_travail_id: Optional[int] = None
     statut: str
     date_intervention: datetime
     problem_description: Optional[str] = None
@@ -45,6 +49,32 @@ class InterventionResponse(BaseModel):
     is_overdue: Optional[bool] = None
     actual_failure_type: Optional[str] = None
     ml_prediction_matched: Optional[bool] = None
+    retrained: Optional[bool] = None
+    machine_category: Optional[str] = None
+    symptoms: Optional[str] = None
+    problem_start_time: Optional[datetime] = None
+    frequency: Optional[str] = None
+    operating_state: Optional[str] = None
+    load_level: Optional[int] = None
+    temperature: Optional[str] = None
+    impact: Optional[str] = None
+    estimated_loss: Optional[str] = None
+    similar_issue_before: Optional[bool] = None
+    suggested_cause: Optional[str] = None
+    suggested_priority: Optional[str] = None
+    risk_score: Optional[str] = None
+    intervention_type: Optional[str] = None
+    root_cause_category: Optional[str] = None
+    root_cause_description: Optional[str] = None
+    actions_performed: Optional[str] = None
+    parts_replaced: Optional[str] = None
+    tools_used: Optional[str] = None
+    machine_status_after: Optional[str] = None
+    plan_hypothesis: Optional[str] = None
+    check_resolved: Optional[bool] = None
+    check_verification_method: Optional[str] = None
+    act_preventive_actions: Optional[str] = None
+    act_recommendations: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -55,21 +85,86 @@ class InterventionStatusUpdate(BaseModel):
     rapport: Optional[str] = None
     actual_failure_type: Optional[str] = None
     ml_prediction_matched: Optional[bool] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
 
 
 class InterventionRequestPayload(BaseModel):
-    ordre_travail_id: int
-    machine_id: Optional[int] = None
+    ordre_travail_id: Optional[int] = None
+    machine_id: int
     problem_description: str
     priority: str
     estimated_duration_minutes: Optional[int] = None
     required_materials: Optional[str] = None
+    
+    # Enhanced Fields from ChefOp flow
+    machine_category: Optional[str] = None
+    symptoms: Optional[str] = None
+    problem_start_time: Optional[datetime] = None
+    frequency: Optional[str] = None
+    operating_state: Optional[str] = None
+    load_level: Optional[int] = None
+    temperature: Optional[str] = None
+    impact: Optional[str] = None
+    estimated_loss: Optional[str] = None
+    similar_issue_before: Optional[bool] = None
 
 
-async def verify_technicien(current_user: Utilisateurs = Depends(get_current_user)) -> Utilisateurs:
-    if current_user.role != "TECHNICIEN":
-        raise HTTPException(status_code=403, detail="Accès non autorisé. Rôle TECHNICIEN requis.")
-    return current_user
+class WorkOrderExecutionUpdate(BaseModel):
+    statut: str
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    rapport: Optional[str] = None
+    failure_type: Optional[str] = None
+
+
+class WorkOrderExecutionUpdate(BaseModel):
+    statut: str
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
+    rapport: Optional[str] = None
+    failure_type: Optional[str] = None
+
+
+
+
+class MachineResponse(BaseModel):
+    id: int
+    nom: str
+    emplacement: Optional[str] = None
+    type: Optional[str] = None
+    statut: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+@router.get("/machines", response_model=List[MachineResponse])
+async def get_machines_list(
+    statut: Optional[str] = Query(None),
+    current_user: Utilisateurs = Depends(verify_technicien),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return all machines for the technician's intervention request form."""
+    try:
+        query = select(Machines)
+        if statut:
+            query = query.where(Machines.statut == statut)
+        query = query.order_by(Machines.nom)
+        result = await db.execute(query)
+        machines = result.scalars().all()
+        return [MachineResponse(
+            id=m.id,
+            nom=m.nom,
+            emplacement=m.emplacement,
+            type=m.type,
+            statut=m.statut,
+            created_at=m.created_at
+        ) for m in machines]
+    except Exception as e:
+        logger.error(f"Error getting machines for technicien: {str(e)}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/interventions", response_model=List[InterventionResponse])
@@ -162,16 +257,27 @@ async def update_intervention_status(
     if data.ml_prediction_matched is not None:
         intervention.ml_prediction_matched = data.ml_prediction_matched
 
-    if data.statut == "EN_COURS" and intervention.date_debut is None:
-        intervention.date_debut = now
+    if data.statut == "EN_COURS":
+        # Allow starting an intervention at a specific past time, else fallback to now
+        if intervention.date_debut is None:
+            intervention.date_debut = data.date_debut or now
 
     if data.statut == "TERMINÉ":
-        if intervention.date_debut is None:
+        # Allow technicians to specify exact timestamps for the intervention
+        if data.date_debut:
+            intervention.date_debut = data.date_debut
+        elif intervention.date_debut is None:
             intervention.date_debut = now
-        intervention.date_fin = intervention.date_fin or now
+            
+        if data.date_fin:
+            intervention.date_fin = data.date_fin
+        else:
+            intervention.date_fin = intervention.date_fin or now
 
     if data.statut == "BLOQUÉ":
-        if intervention.date_debut is None:
+        if data.date_debut:
+            intervention.date_debut = data.date_debut
+        elif intervention.date_debut is None:
             intervention.date_debut = now
 
     await db.commit()
@@ -251,14 +357,16 @@ async def request_intervention(
 ):
     now = datetime.now(timezone.utc)
 
-    intervention = await db.scalar(
-        select(Ordres_intervention).where(
-            and_(
-                Ordres_intervention.ordre_travail_id == payload.ordre_travail_id,
-                Ordres_intervention.technicien_id == current_user.id,
+    intervention = None
+    if payload.ordre_travail_id:
+        intervention = await db.scalar(
+            select(Ordres_intervention).where(
+                and_(
+                    Ordres_intervention.ordre_travail_id == payload.ordre_travail_id,
+                    Ordres_intervention.technicien_id == current_user.id,
+                )
             )
         )
-    )
 
     if not intervention:
         intervention = Ordres_intervention(
@@ -267,6 +375,21 @@ async def request_intervention(
             technicien_id=current_user.id,
             statut="PENDING_APPROVAL",
             requested_at=now,
+            machine_id=payload.machine_id,
+            problem_description=payload.problem_description,
+            priority=payload.priority,
+            estimated_duration_minutes=payload.estimated_duration_minutes,
+            required_materials=payload.required_materials,
+            machine_category=payload.machine_category,
+            symptoms=payload.symptoms,
+            problem_start_time=payload.problem_start_time,
+            frequency=payload.frequency,
+            operating_state=payload.operating_state,
+            load_level=payload.load_level,
+            temperature=payload.temperature,
+            impact=payload.impact,
+            estimated_loss=payload.estimated_loss,
+            similar_issue_before=payload.similar_issue_before,
         )
         db.add(intervention)
         await db.flush()
@@ -279,12 +402,22 @@ async def request_intervention(
         intervention.approved_by = None
         intervention.approved_at = None
         intervention.rejection_reason = None
-
-    intervention.machine_id = payload.machine_id
-    intervention.problem_description = payload.problem_description
-    intervention.priority = payload.priority
-    intervention.estimated_duration_minutes = payload.estimated_duration_minutes
-    intervention.required_materials = payload.required_materials
+        
+        intervention.machine_id = payload.machine_id
+        intervention.problem_description = payload.problem_description
+        intervention.priority = payload.priority
+        intervention.estimated_duration_minutes = payload.estimated_duration_minutes
+        intervention.required_materials = payload.required_materials
+        intervention.machine_category = payload.machine_category
+        intervention.symptoms = payload.symptoms
+        intervention.problem_start_time = payload.problem_start_time
+        intervention.frequency = payload.frequency
+        intervention.operating_state = payload.operating_state
+        intervention.load_level = payload.load_level
+        intervention.temperature = payload.temperature
+        intervention.impact = payload.impact
+        intervention.estimated_loss = payload.estimated_loss
+        intervention.similar_issue_before = payload.similar_issue_before
 
     await db.commit()
     await db.refresh(intervention)

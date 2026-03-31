@@ -11,6 +11,8 @@ import {
   MachinesTab,
   TechniciansTab,
   WorkOrdersTab,
+  CompletedWorkOrdersTab,
+  AnalyticsTab,
 } from './dashboard/components';
 import { useCheftechDashboardData } from './dashboard/hooks';
 import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTab';
@@ -36,7 +38,11 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
     updateMachineStatus,
     approveIntervention,
     rejectIntervention,
+    validateWorkOrder,
+    rejectWorkOrder,
   } = useCheftechDashboardData();
+
+  const isAdmin = userRole === 'ADMIN';
 
   useEffect(() => {
     if (role) return; // Skip fetching if role is forced
@@ -44,13 +50,8 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
       try {
         const userData = await client.auth.me();
         if (userData.data) {
-          const response = await client.entities.utilisateurs.query({
-            query: { user_id: userData.data.id },
-            limit: 1
-          });
-          if (response.data.items && response.data.items.length > 0) {
-            setUserRole(response.data.items[0].role);
-          }
+          // Use the role directly from auth.me response
+          setUserRole(userData.data.role);
         }
       } catch (error) {
         console.error('Error fetching user role:', error);
@@ -84,11 +85,23 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{getDashboardTitle()}</h1>
-          <p className="text-gray-600 mt-2">{getDashboardSubTitle()}</p>
+    <div className="min-h-screen bg-transparent p-8 animate-premium-fade-in">
+      <div className="max-w-[1600px] mx-auto">
+        <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight leading-none mb-3">
+              {getDashboardTitle()}
+            </h1>
+            <p className="text-gray-500 font-medium text-lg max-w-2xl border-l-4 border-gradient-premium pl-4 py-1">
+              {getDashboardSubTitle()}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="px-4 py-2 glass rounded-2xl border-gray-200 dark:border-gray-800 shadow-sm flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-tighter">Système En Ligne</span>
+            </div>
+          </div>
         </div>
 
         {stats && <DashboardStatsCards stats={stats} machines={machines} />}
@@ -103,6 +116,8 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
               <BarChart2 className="h-3.5 w-3.5" />
               Fiabilité
             </TabsTrigger>
+            <TabsTrigger value="analytics">Analytics & PDCA</TabsTrigger>
+            <TabsTrigger value="completes">Complétés</TabsTrigger>
             <TabsTrigger value="urgent-alert">Alerte Urgente</TabsTrigger>
           </TabsList>
 
@@ -110,8 +125,8 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
             <InterventionsTab
               interventions={interventions}
               fetchInterventions={fetchInterventions}
-              approveIntervention={approveIntervention}
-              rejectIntervention={rejectIntervention}
+              approveIntervention={isAdmin ? undefined : approveIntervention}
+              rejectIntervention={isAdmin ? undefined : rejectIntervention}
             />
           </TabsContent>
 
@@ -120,8 +135,18 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
               workOrders={workOrders}
               technicians={technicians}
               machines={machines}
-              assignWorkOrder={assignWorkOrder}
+              assignWorkOrder={isAdmin ? undefined : assignWorkOrder}
+              validateWorkOrder={isAdmin ? undefined : validateWorkOrder}
+              rejectWorkOrder={isAdmin ? undefined : rejectWorkOrder}
             />
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <AnalyticsTab />
+          </TabsContent>
+
+          <TabsContent value="completes">
+            <CompletedWorkOrdersTab />
           </TabsContent>
 
           <TabsContent value="techniciens">

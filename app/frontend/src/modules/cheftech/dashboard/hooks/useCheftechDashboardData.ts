@@ -57,13 +57,16 @@ export const useCheftechDashboardData = () => {
       if (!token) return;
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions/${interventionId}/approve`,
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_intervention/${interventionId}/validate`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify({
+            action: 'APPROVE'
+          }),
         },
       );
 
@@ -72,7 +75,7 @@ export const useCheftechDashboardData = () => {
         throw new Error(err.detail || "Erreur lors de l'approbation");
       }
 
-      toast({ title: 'Succès', description: 'Intervention approuvée' });
+      toast({ title: 'Succès', description: 'Intervention approuvée et assignée' });
       fetchInterventions();
     } catch (e) {
       toast({
@@ -89,14 +92,17 @@ export const useCheftechDashboardData = () => {
       if (!token) return;
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions/${interventionId}/reject`,
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_intervention/${interventionId}/validate`,
         {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ rejection_reason: reason || null }),
+          body: JSON.stringify({
+            action: 'REJECT',
+            rejection_reason: reason || null
+          }),
         },
       );
 
@@ -107,6 +113,78 @@ export const useCheftechDashboardData = () => {
 
       toast({ title: 'Succès', description: 'Intervention rejetée' });
       fetchInterventions();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : 'Impossible de rejeter',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const validateWorkOrder = async (ordreId: number, technicianId: number) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_travail/${ordreId}/validate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'APPROVE',
+            utilisateur_id: technicianId
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || "Erreur lors de la validation");
+      }
+
+      toast({ title: 'Succès', description: 'Ordre de travail validé et assigné' });
+      fetchWorkOrders();
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : "Impossible de valider",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const rejectWorkOrder = async (ordreId: number, reason?: string) => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_travail/${ordreId}/validate`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'REJECT',
+            reason: reason || null
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.detail || 'Erreur lors du rejet');
+      }
+
+      toast({ title: 'Succès', description: 'Ordre de travail rejeté' });
+      fetchWorkOrders();
     } catch (e) {
       toast({
         title: 'Erreur',
@@ -374,5 +452,7 @@ export const useCheftechDashboardData = () => {
     updateMachineStatus,
     approveIntervention,
     rejectIntervention,
+    validateWorkOrder,
+    rejectWorkOrder,
   };
 };

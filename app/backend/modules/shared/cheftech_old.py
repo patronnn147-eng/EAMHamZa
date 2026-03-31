@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_, select, func
 from sqlalchemy.orm import Session
 
 from core.database import get_db
-from models.ordres_intervention import Interventions
+from models.ordres_intervention import Ordres_intervention as Interventions
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs
@@ -21,7 +21,7 @@ class InterventionResponse(BaseModel):
     description: str
     statut: str
     priorite: str
-    machine_id: int
+    machine_id: Optional[int] = None
     machine_nom: Optional[str] = None
     technicien_id: Optional[int] = None
     technicien_nom: Optional[str] = None

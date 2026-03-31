@@ -26,7 +26,7 @@ router = APIRouter(prefix="/api/v1/entities/planning_ordres_travail", tags=["pla
 class Planning_ordres_travailData(BaseModel):
     """Entity data schema (for create/update)"""
     planning_id: int
-    ordre_travail_id: int
+    ordre_travail_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
 
@@ -41,7 +41,7 @@ class Planning_ordres_travailResponse(BaseModel):
     """Entity response schema"""
     id: int
     planning_id: int
-    ordre_travail_id: int
+    ordre_travail_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
     class Config:

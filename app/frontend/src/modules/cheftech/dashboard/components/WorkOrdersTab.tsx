@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Activity, Users, Calendar, Eye } from 'lucide-react';
@@ -24,102 +30,56 @@ interface WorkOrdersTabProps {
   workOrders: WorkOrder[];
   technicians: Technician[];
   machines: Machine[];
-  assignWorkOrder: (
+  assignWorkOrder?: (
     ordreId: number,
     technicienIds: number[],
     machineIds: number[],
     estimatedCompletionDate?: string,
   ) => Promise<void>;
+  validateWorkOrder?: (ordreId: number, technicianId: number) => Promise<void>;
+  rejectWorkOrder?: (ordreId: number, reason?: string) => Promise<void>;
 }
 
-export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, technicians, machines, assignWorkOrder }) => {
+export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ 
+  workOrders, 
+  technicians, 
+  machines, 
+  assignWorkOrder,
+  validateWorkOrder,
+  rejectWorkOrder
+}) => {
   const navigate = useNavigate();
-  const [assignOpen, setAssignOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<WorkOrder | null>(null);
-  const [selectedTechIds, setSelectedTechIds] = useState<number[]>([]);
-  const [selectedMachineIds, setSelectedMachineIds] = useState<number[]>([]);
-  const [estimatedDate, setEstimatedDate] = useState<string>('');
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const [selectedTechs, setSelectedTechs] = useState<Record<number, string>>({});
 
   const sortedTechs = useMemo(
     () => [...technicians].sort((a, b) => a.nom.localeCompare(b.nom)),
     [technicians],
   );
 
-  const displayedTechs = useMemo(() => {
-    if (selectedTechIds.length === 0) return sortedTechs;
-    const allowed = new Set(selectedTechIds);
-    const filtered = sortedTechs.filter((t) => allowed.has(t.id));
-    return filtered.length > 0 ? filtered : sortedTechs;
-  }, [selectedTechIds, sortedTechs]);
+  const pendingAssignments = useMemo(
+    () => (workOrders || []).filter((wo) => wo.utilisateur_id == null),
+    [workOrders],
+  );
 
-  const openAssign = async (order: WorkOrder) => {
-    setSelectedOrder(order);
-    setSelectedMachineIds(order.machine_id ? [order.machine_id] : []);
-    setEstimatedDate(order.date_echeance ? order.date_echeance.slice(0, 10) : '');
-
-    // Preselect technicians already linked to this work order (if any)
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        setSelectedTechIds([]);
-      } else {
-        const resp = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/entities/ordres_intervention?query=${encodeURIComponent(
-            JSON.stringify({ ordre_travail_id: order.id }),
-          )}&limit=2000`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-
-        if (!resp.ok) {
-          setSelectedTechIds([]);
-        } else {
-          const raw = (await resp.json()) as unknown;
-          const unwrap = (value: unknown): unknown => {
-            let current = value;
-            for (let i = 0; i < 5; i += 1) {
-              if (!current || typeof current !== 'object') return current;
-              if (Array.isArray(current)) return current;
-              const obj = current as Record<string, unknown>;
-              if ('items' in obj && Array.isArray(obj.items)) return obj;
-              if ('data' in obj) {
-                current = obj.data;
-                continue;
-              }
-              return current;
-            }
-            return current;
-          };
-
-          const extracted = unwrap(raw) as { items?: Array<{ technicien_id?: number | null }> } | undefined;
-          const techIds = (extracted?.items || [])
-            .map((i) => i.technicien_id)
-            .filter((id): id is number => typeof id === 'number');
-          setSelectedTechIds(Array.from(new Set(techIds)));
-        }
-      }
-    } catch {
-      setSelectedTechIds([]);
-    }
-
-    setAssignOpen(true);
+  const handleTechSelection = (orderId: number, techId: string) => {
+    setSelectedTechs((prev) => ({ ...prev, [orderId]: techId }));
   };
 
-  const toggleTech = (id: number) => {
-    setSelectedTechIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const toggleMachine = (id: number) => {
-    setSelectedMachineIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
-  };
-
-  const submitAssign = async () => {
-    if (!selectedOrder) return;
-    await assignWorkOrder(selectedOrder.id, selectedTechIds, selectedMachineIds, estimatedDate || undefined);
-    setAssignOpen(false);
+  const handleAssign = async (order: WorkOrder) => {
+    const techIdStr = selectedTechs[order.id];
+    if (!techIdStr || !validateWorkOrder) return;
+    
+    await validateWorkOrder(order.id, parseInt(techIdStr, 10));
+    
+    // Clear selection on success
+    setSelectedTechs((prev) => {
+      const next = { ...prev };
+      delete next[order.id];
+      return next;
+    });
   };
 
   return (
@@ -127,12 +87,15 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Activity className="h-5 w-5" />
-          Ordres de travail
+          Unassigned Work Orders
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {workOrders.map((order) => {
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-amber-600">A assigner: {pendingAssignments.length}</div>
+          </div>
+          {pendingAssignments.map((order) => {
             const isPreventive = order.titre.startsWith('[PRÉVENTIF]');
             return (
               <div
@@ -143,7 +106,9 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
                 <p className="text-sm text-gray-600">{order.description}</p>
                 <div className="flex items-center gap-2 mt-2 flex-wrap">
                   <Badge className={getPriorityColor(order.priorite)}>{order.priorite}</Badge>
-                  <Badge className={getStatusColor(order.statut)}>{order.statut}</Badge>
+                  <Badge className={getStatusColor(order.statut)}>
+                    {order.statut === 'EN_ATTENTE' ? 'A VALIDER' : order.statut}
+                  </Badge>
                   {isPreventive && (
                     <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-[10px] flex items-center gap-1">
                       <Calendar className="h-3 w-3" />
@@ -155,86 +120,93 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, techni
                   )}
                 </div>
 
-                <div className="mt-3 flex items-center gap-2">
-                  <Button variant="outline" size="sm" onClick={() => void openAssign(order)}>
-                    <Users className="mr-2 h-4 w-4" />
-                    Assigner
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => navigate(`/work-orders/${order.id}`)}>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Voir les détails
-                  </Button>
+                <div className="mt-4 flex items-center justify-between p-3 bg-gray-50 border rounded gap-4">
+                  {validateWorkOrder && (
+                    <div className="flex-1 max-w-sm">
+                      <Select
+                        value={selectedTechs[order.id] || ''}
+                        onValueChange={(val) => handleTechSelection(order.id, val)}
+                      >
+                        <SelectTrigger className="bg-white">
+                          <SelectValue placeholder="Sélectionner un technicien" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedTechs.map((tech) => (
+                            <SelectItem key={`tech-${tech.id}`} value={tech.id.toString()}>
+                              {tech.nom}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    {validateWorkOrder && (
+                      <Button
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        disabled={!selectedTechs[order.id]}
+                        onClick={() => void handleAssign(order)}
+                      >
+                        <Users className="mr-2 h-4 w-4" />
+                        Assigner
+                      </Button>
+                    )}
+                    
+                    {rejectWorkOrder && (
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => {
+                          setSelectedOrder(order);
+                          setRejectReason('');
+                          setRejectOpen(true);
+                        }}
+                      >
+                        Rejeter
+                      </Button>
+                    )}
+
+                    <Button variant="ghost" size="sm" onClick={() => navigate(`/work-orders/${order.id}`)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      Détails
+                    </Button>
+                  </div>
                 </div>
               </div>
             );
           })}
+          {pendingAssignments.length === 0 && (
+            <div className="text-sm text-gray-500 text-center py-8">Aucun ordre de travail en attente d'assignation.</div>
+          )}
         </div>
-
-        <Dialog open={assignOpen} onOpenChange={setAssignOpen}>
+        <Dialog open={rejectOpen} onOpenChange={setRejectOpen}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Assigner l'ordre de travail</DialogTitle>
-              <DialogDescription>
-                Sélectionne un ou plusieurs techniciens. Le système créera automatiquement les interventions.
-              </DialogDescription>
+              <DialogTitle>Rejeter l'ordre de travail</DialogTitle>
+              <DialogDescription>Ajoutez un motif de rejet pour informer le ChefOp.</DialogDescription>
             </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="grid gap-2">
-                <Label>Date estimée de fin (optionnel)</Label>
-                <Input type="date" value={estimatedDate} onChange={(e) => setEstimatedDate(e.target.value)} />
-              </div>
-
-              <div className="space-y-2">
-                <Label>Machines</Label>
-                <div className="max-h-48 overflow-auto border rounded-md p-2 space-y-2">
-                  {machines
-                    .filter((m) => m.id === selectedOrder?.machine_id)
-                    .map((m) => (
-                      <label key={m.id} className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={selectedMachineIds.includes(m.id)}
-                          onCheckedChange={() => toggleMachine(m.id)}
-                        />
-                        <span>
-                          {m.nom} (#{m.id})
-                        </span>
-                      </label>
-                    ))}
-                  {machines.filter((m) => m.id === selectedOrder?.machine_id).length === 0 && (
-                    <p className="text-sm text-gray-500">Aucune machine associée à cet ordre</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Techniciens</Label>
-                <div className="max-h-64 overflow-auto border rounded-md p-2 space-y-2">
-                  {displayedTechs.map((t) => (
-                    <label key={t.id} className="flex items-center gap-2 text-sm">
-                      <Checkbox
-                        checked={selectedTechIds.includes(t.id)}
-                        onCheckedChange={() => toggleTech(t.id)}
-                      />
-                      <span>{t.nom}</span>
-                    </label>
-                  ))}
-                  {displayedTechs.length === 0 && (
-                    <p className="text-sm text-gray-500">Aucun technicien disponible</p>
-                  )}
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label>Motif du rejet</Label>
+              <Input 
+                placeholder="Ex: Description insuffisante, priorité trop basse..." 
+                value={rejectReason} 
+                onChange={(e) => setRejectReason(e.target.value)} 
+              />
             </div>
-
             <DialogFooter>
-              <Button variant="outline" onClick={() => setAssignOpen(false)}>
-                Annuler
-              </Button>
-              <Button
-                onClick={submitAssign}
-                disabled={!selectedOrder || selectedTechIds.length === 0 || selectedMachineIds.length === 0}
+              <Button variant="outline" onClick={() => setRejectOpen(false)}>Annuler</Button>
+              <Button 
+                variant="destructive" 
+                onClick={async () => {
+                  if (selectedOrder) {
+                    await rejectWorkOrder(selectedOrder.id, rejectReason);
+                    setRejectOpen(false);
+                  }
+                }}
               >
-                Assigner
+                Rejeter l'ordre
               </Button>
             </DialogFooter>
           </DialogContent>

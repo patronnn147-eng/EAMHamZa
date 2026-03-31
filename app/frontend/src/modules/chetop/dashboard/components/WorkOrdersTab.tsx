@@ -30,7 +30,12 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, onSele
                       className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${getStatusColor(order.statut)}`}
                     >
                       {getStatusIcon(order.statut)}
-                      <span>{order.statut.replace('_', ' ')}</span>
+                      <span>
+                        {order.statut === 'EN_ATTENTE' ? 'En attente' : 
+                         order.statut === 'VALIDE' ? 'Validé' : 
+                         order.statut === 'REJETE' ? 'Rejeté' : 
+                         order.statut.replace('_', ' ')}
+                      </span>
                     </div>
                   </div>
                   <p className="text-gray-600 text-sm mb-2">{order.description}</p>

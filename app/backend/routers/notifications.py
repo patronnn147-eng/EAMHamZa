@@ -31,7 +31,12 @@ async def get_user_from_token(token: str, db: AsyncSession) -> Utilisateurs:
         
         from models.utilisateurs import Utilisateurs
         from sqlalchemy import select
-        result = await db.execute(select(Utilisateurs).where(Utilisateurs.email == user_id))
+        try:
+            user_id_int = int(user_id)
+        except ValueError:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+
+        result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id_int))
         user = result.scalar_one_or_none()
         if user is None:
             raise HTTPException(status_code=401, detail="User not found")
