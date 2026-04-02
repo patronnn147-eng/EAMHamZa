@@ -86,9 +86,8 @@ export default function TechnicianLayout() {
   const fetchNotifications = async () => {
     try {
       const response = await client.apiCall.invoke({
-        url: '/api/v1/notifications',
+        url: '/api/v1/notifications?page=1&size=10',
         method: 'GET',
-        data: { skip: 0, limit: 10 },
       });
       setNotifications(response.data.items || []);
       setUnreadCount(response.data.unread_count || 0);

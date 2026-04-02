@@ -4,10 +4,12 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from schemas.pagination import PaginatedResponse
 
 from core.auth import get_current_user
 from core.database import get_db
@@ -29,9 +31,7 @@ class AdminUserResponse(BaseModel):
     updated_at: Optional[datetime] = None
 
 
-class AdminUsersListResponse(BaseModel):
-    items: List[AdminUserResponse]
-    total: int
+# Replaced by PaginatedResponse[AdminUserResponse]
 
 
 class UpdateUserStatusRequest(BaseModel):
@@ -50,14 +50,27 @@ async def _require_admin(current_user: Utilisateurs) -> None:
         )
 
 
-@router.get("", response_model=AdminUsersListResponse)
+@router.get("", response_model=PaginatedResponse[AdminUserResponse])
 async def list_users(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Items per page"),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     await _require_admin(current_user)
 
-    result = await db.execute(select(Utilisateurs).order_by(Utilisateurs.id.desc()))
+    # Get total count
+    total_result = await db.execute(select(func.count()).select_from(Utilisateurs))
+    total_count = total_result.scalar_one()
+
+    # Get paginated users
+    skip = (page - 1) * size
+    result = await db.execute(
+        select(Utilisateurs)
+        .order_by(Utilisateurs.id.desc())
+        .offset(skip)
+        .limit(size)
+    )
     users = result.scalars().all()
 
     items = [
@@ -74,7 +87,7 @@ async def list_users(
         for u in users
     ]
 
-    return AdminUsersListResponse(items=items, total=len(items))
+    return PaginatedResponse.create(items=items, total=total_count, page=page, size=size)
 
 
 @router.patch("/{user_id}/status", response_model=AdminUserResponse)

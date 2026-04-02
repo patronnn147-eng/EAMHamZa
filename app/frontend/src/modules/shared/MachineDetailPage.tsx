@@ -41,7 +41,7 @@ import type { Machine, Intervention } from '@/lib/types';
 
 import MachineHealthPanel from './machines/components/MachineHealthPanel';
 import { ReliabilityTab } from './machines/components/ReliabilityTab';
-import { computeHealthScore } from './machines/utils/healthScore';
+import { computeHealthScoreFromML } from './machines/utils/healthScore';
 import { computeReliabilityMetrics } from './machines/utils/reliabilityMetrics';
 import MachineQRCode from '@/modules/shared/MachineQRCode';
 import { PredictivePanel } from './machines/components/PredictivePanel';
@@ -50,6 +50,13 @@ import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
 interface MLPrediction {
     risk_level: string;
     rul_days: number;
+    data_points: number;
+    health_score?: number;
+    health_breakdown?: any;
+    reliability_score?: number;
+    mtbf_pred?: number;
+    mttr_pred?: number;
+    availability_pred?: number;
 }
 
 function getMachineStatusConfig(statut: string) {
@@ -209,8 +216,25 @@ export default function MachineDetailPage() {
         return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }).length;
 
-    const health = computeHealthScore(machine, openWorkOrdersCount, recentInterventionsCount);
+    // Unified ML-Informed Health (Single Source of Truth)
+    const health = computeHealthScoreFromML(machine, mlPrediction);
+    
+    // Reliability metrics (Calculated from history or ML if available)
     const reliability = computeReliabilityMetrics(interventions, 90);
+    
+    if (mlPrediction && mlPrediction.reliability_score !== undefined) {
+        (reliability as any).reliabilityScore = (mlPrediction as any).reliability_score ?? 100;
+        (reliability as any).mtbf = (mlPrediction as any).mtbf_pred;
+        (reliability as any).mttr = (mlPrediction as any).mttr_pred;
+        (reliability as any).uptimePct = (mlPrediction as any).availability_pred ?? 100;
+        
+        // Update classification if needed for new machines (score 100)
+        if (reliability.reliabilityScore >= 95) {
+            (reliability as any).classification = 'Excellent';
+            (reliability as any).colorClass = 'from-emerald-400 to-emerald-600';
+        }
+    }
+
 
     const getMlRiskBadge = (prediction: MLPrediction | null) => {
         if (!prediction) return null;

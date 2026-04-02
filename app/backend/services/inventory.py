@@ -157,9 +157,13 @@ class StockService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_stock_levels(self) -> List[Dict[str, Any]]:
-        """Get current stock levels for all pieces."""
+    async def get_stock_levels(self, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
+        """Get current stock levels for all pieces with pagination."""
         try:
+            count_query = select(func.count(Stock.id)).join(Piece, Stock.piece_id == Piece.id)
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar() or 0
+
             query = (
                 select(
                     Stock.id,
@@ -171,10 +175,11 @@ class StockService:
                 )
                 .join(Piece, Stock.piece_id == Piece.id)
                 .order_by(Piece.name)
+                .offset(skip).limit(limit)
             )
             result = await self.db.execute(query)
             rows = result.fetchall()
-            return [
+            items = [
                 {
                     "id": row.id,
                     "piece_id": row.piece_id,
@@ -185,6 +190,7 @@ class StockService:
                 }
                 for row in rows
             ]
+            return {"items": items, "total": total}
         except Exception as e:
             logger.error(f"Error fetching stock levels: {str(e)}")
             raise
@@ -257,9 +263,17 @@ class StockService:
             logger.error(f"Error consuming stock for piece {piece_id}: {str(e)}")
             raise
 
-    async def get_alerts(self) -> List[Dict[str, Any]]:
-        """Get low-stock alerts: pieces where quantity < min_stock."""
+    async def get_alerts(self, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
+        """Get low-stock alerts with pagination."""
         try:
+            count_query = (
+                select(func.count(Stock.piece_id))
+                .join(Piece, Stock.piece_id == Piece.id)
+                .where(Stock.quantity < Piece.min_stock)
+            )
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar() or 0
+
             query = (
                 select(
                     Stock.piece_id,
@@ -271,10 +285,11 @@ class StockService:
                 .join(Piece, Stock.piece_id == Piece.id)
                 .where(Stock.quantity < Piece.min_stock)
                 .order_by(Stock.quantity)
+                .offset(skip).limit(limit)
             )
             result = await self.db.execute(query)
             rows = result.fetchall()
-            return [
+            items = [
                 {
                     "piece_id": row.piece_id,
                     "piece_name": row.piece_name,
@@ -285,13 +300,20 @@ class StockService:
                 }
                 for row in rows
             ]
+            return {"items": items, "total": total}
         except Exception as e:
             logger.error(f"Error fetching stock alerts: {str(e)}")
             raise
 
-    async def get_movements(self, piece_id: Optional[int] = None, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get stock movement history."""
+    async def get_movements(self, piece_id: Optional[int] = None, skip: int = 0, limit: int = 50) -> Dict[str, Any]:
+        """Get stock movement history with pagination."""
         try:
+            count_query = select(func.count(MouvementStock.id)).join(Piece, MouvementStock.piece_id == Piece.id)
+            if piece_id:
+                count_query = count_query.where(MouvementStock.piece_id == piece_id)
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar() or 0
+
             query = (
                 select(
                     MouvementStock.id,
@@ -304,13 +326,13 @@ class StockService:
                 )
                 .join(Piece, MouvementStock.piece_id == Piece.id)
                 .order_by(MouvementStock.id.desc())
-                .limit(limit)
+                .offset(skip).limit(limit)
             )
             if piece_id:
                 query = query.where(MouvementStock.piece_id == piece_id)
             result = await self.db.execute(query)
             rows = result.fetchall()
-            return [
+            items = [
                 {
                     "id": row.id,
                     "piece_id": row.piece_id,
@@ -322,6 +344,7 @@ class StockService:
                 }
                 for row in rows
             ]
+            return {"items": items, "total": total}
         except Exception as e:
             logger.error(f"Error fetching stock movements: {str(e)}")
             raise

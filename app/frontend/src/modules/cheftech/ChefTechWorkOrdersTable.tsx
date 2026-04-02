@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/table';
 import { PriorityBadge, StatusBadge } from '@/modules/shared/work-orders/utils/badges';
 import { toast } from 'sonner';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 interface ChefTechWorkOrder {
     id: number;
@@ -31,6 +32,9 @@ export default function ChefTechWorkOrdersTable() {
     const [workOrders, setWorkOrders] = useState<ChefTechWorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pageSize] = useState(100);
     const [currentTime, setCurrentTime] = useState(new Date());
 
     // Live timer tick
@@ -41,13 +45,15 @@ export default function ChefTechWorkOrdersTable() {
 
     const fetchWorkOrders = async () => {
         try {
+            setLoading(true);
             const apiBase = getAPIBaseURL();
-            const response = await fetch(`${apiBase}/api/v1/cheftech/work-orders-table`, {
+            const response = await fetch(`${apiBase}/api/v1/cheftech/work-orders-table?page=${page}&size=${pageSize}`, {
                 headers: { 'Authorization': `Bearer ${localStorage.getItem('access_token')}` }
             });
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
-            setWorkOrders(data);
+            setWorkOrders(data.items || []);
+            setTotalPages(data.total_pages || 1);
         } catch (error) {
             console.error('Error fetching cheftech work orders:', error);
             toast.error("Erreur lors du chargement des ordres de travail");
@@ -56,7 +62,7 @@ export default function ChefTechWorkOrdersTable() {
         }
     };
 
-    useEffect(() => { fetchWorkOrders(); }, []);
+    useEffect(() => { fetchWorkOrders(); }, [page]);
 
     const handleExport = async (woId: number) => {
         try {
@@ -237,6 +243,14 @@ export default function ChefTechWorkOrdersTable() {
                     </div>
                 </CardContent>
             </Card>
+
+            <div className="flex justify-end mt-4">
+                <AppPagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                />
+            </div>
         </div>
     );
 }

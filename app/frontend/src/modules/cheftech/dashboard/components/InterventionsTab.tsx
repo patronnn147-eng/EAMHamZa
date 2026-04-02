@@ -29,9 +29,10 @@ const getAuthToken = () => localStorage.getItem('access_token');
 
 interface InterventionsTabProps {
   interventions: Intervention[];
-  fetchInterventions: () => Promise<void>;
+  fetchInterventions: (filters?: { statut?: string; page?: number; size?: number }) => Promise<void>;
   approveIntervention?: (interventionId: number) => Promise<void>;
   rejectIntervention?: (interventionId: number, reason?: string) => Promise<void>;
+  noGrouping?: boolean;
 }
 
 export const InterventionsTab: React.FC<InterventionsTabProps> = ({
@@ -39,6 +40,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
   fetchInterventions,
   approveIntervention,
   rejectIntervention,
+  noGrouping = false,
 }) => {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [selected, setSelected] = useState<Intervention | null>(null);
@@ -147,12 +149,18 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
     return s === 'APPROVED' || s === 'VALIDE' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
   };
 
-  const pendingList = useMemo(
-    () => (interventions || []).filter((i) => {
-      const s = i.statut || 'EN_ATTENTE';
-      return s === 'EN_ATTENTE' || s === 'PENDING_APPROVAL';
-    }).sort((a, b) => new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime()),
-    [interventions],
+  const displayList = useMemo(
+    () => {
+      let list = [...(interventions || [])];
+      if (!noGrouping) {
+        list = list.filter((i) => {
+          const s = i.statut || 'EN_ATTENTE';
+          return s === 'EN_ATTENTE' || s === 'PENDING_APPROVAL';
+        });
+      }
+      return list.sort((a, b) => new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime());
+    },
+    [interventions, noGrouping],
   );
 
   return (
@@ -166,11 +174,11 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
       <CardContent>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-amber-600">Demandes en attente: {pendingList.length}</div>
+            <div className="text-sm font-medium text-amber-600">Demandes trouvées: {displayList.length}</div>
           </div>
 
           <div className="space-y-4">
-            {pendingList.map((intervention) => {
+            {displayList.map((intervention) => {
               return (
                 <div key={`req-${intervention.id}`} className="border rounded-lg p-4 bg-white shadow-sm hover:shadow transition-shadow">
                   <div className="flex items-start justify-between gap-4">
@@ -210,7 +218,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                         Détails
                       </Button>
 
-                      {approveIntervention && (
+                      {approveIntervention && (intervention.statut === 'EN_ATTENTE' || intervention.statut === 'PENDING_APPROVAL') && (
                         <Button 
                           size="sm" 
                           className="bg-green-600 hover:bg-green-700"
@@ -222,7 +230,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                         </Button>
                       )}
                       
-                      {rejectIntervention && (
+                      {rejectIntervention && (intervention.statut === 'EN_ATTENTE' || intervention.statut === 'PENDING_APPROVAL') && (
                         <Button
                           size="sm"
                           variant="destructive"
@@ -241,7 +249,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
               )
             })}
 
-            {pendingList.length === 0 && <div className="text-sm text-gray-500 text-center py-8">Aucune demande en attente.</div>}
+            {displayList.length === 0 && <div className="text-sm text-gray-500 text-center py-8">Aucune demande trouvée.</div>}
           </div>
         </div>
 

@@ -20,6 +20,17 @@ export const useCheftechDashboardData = () => {
   const [selectedTechnician, setSelectedTechnician] = useState<number | null>(null);
   const [selectedIntervention, setSelectedIntervention] = useState<number | null>(null);
 
+  // Pagination states
+  const [interventionsPage, setInterventionsPage] = useState(1);
+  const [interventionsTotalPages, setInterventionsTotalPages] = useState(1);
+  const [workOrdersPage, setWorkOrdersPage] = useState(1);
+  const [workOrdersTotalPages, setWorkOrdersTotalPages] = useState(1);
+  const [techniciansPage, setTechniciansPage] = useState(1);
+  const [techniciansTotalPages, setTechniciansTotalPages] = useState(1);
+  const [machinesPage, setMachinesPage] = useState(1);
+  const [machinesTotalPages, setMachinesTotalPages] = useState(1);
+  const [pageSize] = useState(100);
+
   const fetchDashboardData = async () => {
     try {
       const token = getAuthToken();
@@ -243,13 +254,20 @@ export const useCheftechDashboardData = () => {
 
   const fetchInterventions = async (filters?: {
     statut?: string;
+    page?: number;
+    size?: number;
   }) => {
     try {
       const token = getAuthToken();
       if (!token) return;
 
+      const pageNum = filters?.page || interventionsPage;
+      const sizeNum = filters?.size || pageSize;
+
       const params = new URLSearchParams();
       if (filters?.statut) params.append('statut', filters.statut);
+      params.append('page', pageNum.toString());
+      params.append('size', sizeNum.toString());
 
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/interventions?${params}`,
@@ -262,7 +280,9 @@ export const useCheftechDashboardData = () => {
 
       if (!response.ok) throw new Error('Erreur lors du chargement des interventions');
       const data = await response.json();
-      setInterventions(data);
+      setInterventions(data.items || []);
+      setInterventionsTotalPages(data.total_pages || 1);
+      setInterventionsPage(pageNum);
     } catch {
       toast({
         title: 'Erreur',
@@ -272,14 +292,19 @@ export const useCheftechDashboardData = () => {
     }
   };
 
-  const fetchWorkOrders = async (filters?: { statut?: string; priorite?: string }) => {
+  const fetchWorkOrders = async (filters?: { statut?: string; priorite?: string; page?: number; size?: number }) => {
     try {
       const token = getAuthToken();
       if (!token) return;
 
+      const pageNum = filters?.page || workOrdersPage;
+      const sizeNum = filters?.size || pageSize;
+
       const params = new URLSearchParams();
       if (filters?.statut) params.append('statut', filters.statut);
       if (filters?.priorite) params.append('priorite', filters.priorite);
+      params.append('page', pageNum.toString());
+      params.append('size', sizeNum.toString());
 
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/ordres-travail?${params}`,
@@ -292,7 +317,9 @@ export const useCheftechDashboardData = () => {
 
       if (!response.ok) throw new Error('Erreur lors du chargement des ordres de travail');
       const data = await response.json();
-      setWorkOrders(data);
+      setWorkOrders(data.items || []);
+      setWorkOrdersTotalPages(data.total_pages || 1);
+      setWorkOrdersPage(pageNum);
     } catch {
       toast({
         title: 'Erreur',
@@ -302,13 +329,18 @@ export const useCheftechDashboardData = () => {
     }
   };
 
-  const fetchTechnicians = async (disponible?: boolean) => {
+  const fetchTechnicians = async (filters?: { disponible?: boolean; page?: number; size?: number }) => {
     try {
       const token = getAuthToken();
       if (!token) return;
 
+      const pageNum = filters?.page || techniciansPage;
+      const sizeNum = filters?.size || pageSize;
+
       const params = new URLSearchParams();
-      if (disponible !== undefined) params.append('disponible', disponible.toString());
+      if (filters?.disponible !== undefined) params.append('disponible', filters.disponible.toString());
+      params.append('page', pageNum.toString());
+      params.append('size', sizeNum.toString());
 
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/techniciens?${params}`,
@@ -321,7 +353,9 @@ export const useCheftechDashboardData = () => {
 
       if (!response.ok) throw new Error('Erreur lors du chargement des techniciens');
       const data = await response.json();
-      setTechnicians(data);
+      setTechnicians(data.items || []);
+      setTechniciansTotalPages(data.total_pages || 1);
+      setTechniciansPage(pageNum);
     } catch {
       toast({
         title: 'Erreur',
@@ -331,16 +365,21 @@ export const useCheftechDashboardData = () => {
     }
   };
 
-  const fetchMachines = async (filters?: { statut?: string; maintenance_required?: boolean }) => {
+  const fetchMachines = async (filters?: { statut?: string; maintenance_required?: boolean; page?: number; size?: number }) => {
     try {
       const token = getAuthToken();
       if (!token) return;
+
+      const pageNum = filters?.page || machinesPage;
+      const sizeNum = filters?.size || pageSize;
 
       const params = new URLSearchParams();
       if (filters?.statut) params.append('statut', filters.statut);
       if (filters?.maintenance_required !== undefined) {
         params.append('maintenance_required', filters.maintenance_required.toString());
       }
+      params.append('page', pageNum.toString());
+      params.append('size', sizeNum.toString());
 
       const response = await fetch(
         `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/machines?${params}`,
@@ -352,11 +391,12 @@ export const useCheftechDashboardData = () => {
       );
 
       if (!response.ok) throw new Error('Erreur lors du chargement des machines');
-      const data = (await response.json()) as unknown;
-      const items = Array.isArray(data) ? (data as Machine[]) : [];
-      if (items.length > 0) {
-        setMachines(items);
-        return;
+      const data = await response.json();
+      if (data && data.items) {
+          setMachines(data.items);
+          setMachinesTotalPages(data.total_pages || 1);
+          setMachinesPage(pageNum);
+          return;
       }
 
       const fallback = await fetch(
@@ -454,5 +494,18 @@ export const useCheftechDashboardData = () => {
     rejectIntervention,
     validateWorkOrder,
     rejectWorkOrder,
+    // Pagination data
+    interventionsPage,
+    interventionsTotalPages,
+    setInterventionsPage,
+    workOrdersPage,
+    workOrdersTotalPages,
+    setWorkOrdersPage,
+    techniciansPage,
+    techniciansTotalPages,
+    setTechniciansPage,
+    machinesPage,
+    machinesTotalPages,
+    setMachinesPage,
   };
 };

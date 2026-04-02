@@ -7,10 +7,12 @@ import type { Machine } from '@/lib/types';
 
 export const useAdminMachines = () => {
   const [machines, setMachines] = useState<Machine[]>([]);
+  const [fleetPredictions, setFleetPredictions] = useState<Record<number, any>>({});
   const [filteredMachines, setFilteredMachines] = useState<Machine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingMachine, setEditingMachine] = useState<Machine | null>(null);
   const [deletingMachine, setDeletingMachine] = useState<Machine | null>(null);
@@ -30,6 +32,7 @@ export const useAdminMachines = () => {
 
   const fetchMachines = async () => {
     try {
+      setLoading(true);
       const response = await client.entities.machines.query({
         query: {},
         sort: '-created_at',
@@ -38,12 +41,29 @@ export const useAdminMachines = () => {
       const machinesList = response.data.items || [];
       setMachines(machinesList);
       setFilteredMachines(machinesList);
+
+      // Fetch ML Fleet Predictions
+      try {
+        const mlRes = await fetch('/api/v1/ml/fleet/dashboard');
+        if (mlRes.ok) {
+          const mlData = await mlRes.json();
+          const predMap: Record<number, any> = {};
+          mlData.forEach((p: any) => {
+            predMap[p.machine_id] = p;
+          });
+          setFleetPredictions(predMap);
+        }
+      } catch (err) {
+        console.error('Failed to fetch fleet ML predictions:', err);
+      }
     } catch (error) {
       console.error('Error fetching machines:', error);
     } finally {
       setLoading(false);
     }
   };
+
+
 
   useEffect(() => {
     fetchMachines();
@@ -193,6 +213,8 @@ export const useAdminMachines = () => {
     loading,
     dialogOpen,
     setDialogOpen,
+    importDialogOpen,
+    setImportDialogOpen,
     deleteDialogOpen,
     setDeleteDialogOpen,
     editingMachine,
@@ -203,5 +225,6 @@ export const useAdminMachines = () => {
     handleOpenDialog,
     handleSubmit,
     handleDelete,
+    fleetPredictions,
   };
 };

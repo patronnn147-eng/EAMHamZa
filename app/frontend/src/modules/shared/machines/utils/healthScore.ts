@@ -13,6 +13,7 @@ export interface HealthScoreDeductions {
     workOrders: number;
     interventions: number;
     status: number;
+    predictive: number;
 }
 
 export interface HealthScoreResult {
@@ -27,34 +28,38 @@ export interface HealthScoreResult {
 }
 
 /**
- * Compute a machine health score (0–100) from live factors.
+ * COMPATIBILITY LAYER: computeHealthScore
+ * This remains the entry point for most UI components (Grids, Tabs).
+ * It performs basic operational scoring and merges ML data if provided.
  */
 export function computeHealthScore(
     machine: Machine,
     openWorkOrders = 0,
-    recentInterventions = 0
+    recentInterventions = 0,
+    mlHealthData?: any
 ): HealthScoreResult {
+    // 1. If we have full ML data, use the specialized mapper
+    if (mlHealthData) {
+        return computeHealthScoreFromML(machine, mlHealthData);
+    }
+
+    // 2. Fallback: Basic Operational Health (for Grid/List views)
     const now = new Date();
-
     const daysSinceLastMaintenance = machine.date_derniere_maintenance
-        ? Math.floor(
-            (now.getTime() - new Date(machine.date_derniere_maintenance).getTime()) /
-            (1000 * 60 * 60 * 24)
-        )
-        : 60;
+        ? Math.floor((now.getTime() - new Date(machine.date_derniere_maintenance).getTime()) / (1000 * 60 * 60 * 24))
+        : -1;
 
-    const isDown =
-        machine.statut === 'EN_PANNE' || machine.statut === 'HORS_SERVICE';
+    const isDown = machine.statut === 'EN_PANNE' || machine.statut === 'HORS_SERVICE';
 
     const deductions: HealthScoreDeductions = {
-        maintenance: Math.min(daysSinceLastMaintenance * 0.5, 30),
+        maintenance: daysSinceLastMaintenance > 0 ? Math.min(daysSinceLastMaintenance * 0.5, 30) : 0,
         overdue: 0,
         workOrders: Math.min(openWorkOrders * 12, 36),
         interventions: Math.min(recentInterventions * 10, 30),
-        status: isDown ? 60 : 0
+        status: isDown ? 60 : 0,
+        predictive: 0
     };
 
-    // Calculate overdue deduction
     if (machine.date_prochaine_maintenance) {
         const nextMaint = new Date(machine.date_prochaine_maintenance);
         if (now > nextMaint) {
@@ -63,35 +68,68 @@ export function computeHealthScore(
         }
     }
 
-    let score = 100 - (deductions.maintenance + deductions.overdue + deductions.workOrders + deductions.interventions + deductions.status);
-    const finalScore = Math.max(0, Math.min(100, Math.round(score)));
-
-    const factors: HealthScoreFactors = {
-        daysSinceLastMaintenance,
-        openWorkOrders,
-        recentInterventions,
-        isDown,
-    };
+    const score = Math.max(0, Math.min(100, Math.round(100 - (deductions.maintenance + deductions.overdue + deductions.workOrders + deductions.interventions + deductions.status))));
 
     const baseResult = {
-        score: finalScore,
-        factors,
+        score,
+        factors: { daysSinceLastMaintenance, openWorkOrders, recentInterventions, isDown },
         deductions,
     };
 
-    if (finalScore >= 80) {
+    return finalizeResult(baseResult, false);
+}
+
+/**
+ * Specialized ML Mapper for Detail Pages.
+ */
+export function computeHealthScoreFromML(
+    machine: Machine,
+    mlHealthData: any
+): HealthScoreResult {
+    if (!mlHealthData) return getNeutralHealth();
+
+    const { health_score, health_breakdown } = mlHealthData;
+    const score = Math.max(0, Math.min(100, Math.round(health_score)));
+    const breakdown = health_breakdown || {};
+
+    const baseResult = {
+        score,
+        factors: {
+            daysSinceLastMaintenance: breakdown.days_since_maintenance ?? -1,
+            openWorkOrders: breakdown.open_work_orders ?? 0,
+            recentInterventions: breakdown.recent_interventions ?? 0,
+            isDown: machine.statut === 'EN_PANNE' || machine.statut === 'HORS_SERVICE',
+        },
+        deductions: {
+            maintenance: breakdown.maintenance_deduction ?? 0,
+            overdue: breakdown.overdue_deduction ?? 0,
+            workOrders: breakdown.work_order_deduction ?? 0,
+            interventions: breakdown.intervention_deduction ?? 0,
+            status: breakdown.status_deduction ?? 0,
+            predictive: (breakdown.predictive_risk ?? 0) + (breakdown.anomaly_penalty ?? 0),
+        }
+    };
+
+    return finalizeResult(baseResult, true);
+}
+
+function finalizeResult(base: any, isIA: boolean): HealthScoreResult {
+    const { score } = base;
+    const suffix = isIA ? ' (IA)' : '';
+    
+    if (score >= 80) {
         return {
-            ...baseResult,
-            label: 'Bonne Condition',
+            ...base,
+            label: `Bonne Condition${suffix}`,
             colorClass: 'from-emerald-400 to-emerald-600',
             barGradient: 'bg-gradient-to-r from-emerald-400 to-emerald-600',
             textColor: 'text-emerald-600',
             iconColor: 'text-emerald-500',
         };
-    } else if (finalScore >= 60) {
+    } else if (score >= 60) {
         return {
-            ...baseResult,
-            label: 'Attention Requise',
+            ...base,
+            label: `Attention Requise${suffix}`,
             colorClass: 'from-amber-400 to-amber-600',
             barGradient: 'bg-gradient-to-r from-amber-400 to-amber-600',
             textColor: 'text-amber-600',
@@ -99,8 +137,8 @@ export function computeHealthScore(
         };
     } else {
         return {
-            ...baseResult,
-            label: 'État Critique',
+            ...base,
+            label: `État Critique${suffix}`,
             colorClass: 'from-red-400 to-red-600',
             barGradient: 'bg-gradient-to-r from-red-400 to-red-600',
             textColor: 'text-red-600',
@@ -109,7 +147,21 @@ export function computeHealthScore(
     }
 }
 
+function getNeutralHealth(): HealthScoreResult {
+    return {
+        score: 100,
+        label: 'Analyse en cours...',
+        colorClass: 'from-gray-400 to-gray-600',
+        barGradient: 'bg-gray-200',
+        textColor: 'text-gray-500',
+        iconColor: 'text-gray-400',
+        factors: { daysSinceLastMaintenance: -1, openWorkOrders: 0, recentInterventions: 0, isDown: false },
+        deductions: { maintenance: 0, overdue: 0, workOrders: 0, interventions: 0, status: 0, predictive: 0 }
+    };
+}
+
 export function formatDuration(days: number): string {
+    if (days < 0) return "Aucune";
     if (days === 0) return "Aujourd'hui";
     if (days === 1) return 'Hier';
     if (days < 30) return `${days} jours`;

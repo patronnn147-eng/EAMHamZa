@@ -6,8 +6,9 @@ from typing import List, Optional
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, and_, or_, func
+from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -22,17 +23,32 @@ router = APIRouter(prefix="/api/v1/admin/work-orders", tags=["admin-work-orders"
 
 @router.get("")
 async def list_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List all work orders with ChefOp and Machine details for Admin"""
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Forbidden: Admin only")
-
     try:
-        # Join Ordres_travail with Machines and Utilisateurs (ChefOp)
-        # Note: In this system, ChefOp is often the one who created the DI
-        # We also need to join with Ordres_intervention to get the requester
+        if current_user.role != UserRole.ADMIN:
+            raise HTTPException(status_code=403, detail="Forbidden: Admin only")
+
+        skip = (page - 1) * size
+
+        # Base query structure for both count and select
+        base_query = select(Ordres_travail).outerjoin(
+            Machines, Ordres_travail.machine_id == Machines.id
+        ).outerjoin(
+            Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
+        ).outerjoin(
+            Utilisateurs, Ordres_travail.created_by == Utilisateurs.id
+        )
+
+        # Count total
+        total_result = await db.execute(select(func.count(Ordres_travail.id)))
+        total = total_result.scalar() or 0
+
+        # Detailed query with pagination
         query = select(
             Ordres_travail,
             Machines.nom.label("machine_nom"),
@@ -45,7 +61,7 @@ async def list_work_orders(
             Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
         ).outerjoin(
             Utilisateurs, Ordres_travail.created_by == Utilisateurs.id
-        ).order_by(Ordres_travail.created_at.desc())
+        ).order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
 
         result = await db.execute(query)
         rows = result.all()
@@ -69,7 +85,7 @@ async def list_work_orders(
                 "statut": wo.statut,
                 "machine_id": wo.machine_id,
                 "machine_nom": m_nom or "N/A",
-                "chefop_id": wo.utilisateur_id, # Or whoever is mapped in the system
+                "chefop_id": wo.utilisateur_id or 0,
                 "chefop_nom": u_nom or "N/A",
                 "chefop_email": u_email or "N/A",
                 "intervention_id": itv_id,
@@ -79,7 +95,12 @@ async def list_work_orders(
                 "duration_minutes": duration_minutes
             })
 
-        return output
+        return PaginatedResponse.create(
+            items=output,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error listing admin work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

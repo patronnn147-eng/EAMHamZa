@@ -4,6 +4,7 @@ import {
   AdminMachinesSearch,
   DeleteMachineDialog,
   MachineFormDialog,
+  MachineImportDialog,
 } from './machines/components';
 import { useAdminMachines } from './machines/hooks';
 
@@ -15,6 +16,8 @@ export default function AdminMachines() {
     loading,
     dialogOpen,
     setDialogOpen,
+    importDialogOpen,
+    setImportDialogOpen,
     deleteDialogOpen,
     setDeleteDialogOpen,
     editingMachine,
@@ -25,6 +28,7 @@ export default function AdminMachines() {
     handleOpenDialog,
     handleSubmit,
     handleDelete,
+    fleetPredictions,
   } = useAdminMachines();
 
   if (loading) {
@@ -37,12 +41,16 @@ export default function AdminMachines() {
 
   return (
     <div className="space-y-6">
-      <AdminMachinesHeader onCreate={() => handleOpenDialog()} />
+      <AdminMachinesHeader 
+        onCreate={() => handleOpenDialog()} 
+        onImport={() => setImportDialogOpen(true)}
+      />
 
       <AdminMachinesSearch searchTerm={searchTerm} setSearchTerm={setSearchTerm} />
 
       <AdminMachinesGrid
         machines={filteredMachines}
+        fleetPredictions={fleetPredictions}
         onEdit={handleOpenDialog}
         onRequestDelete={(machine) => {
           setDeletingMachine(machine);
@@ -57,6 +65,12 @@ export default function AdminMachines() {
         formData={formData}
         setFormData={setFormData}
         onSubmit={handleSubmit}
+      />
+
+      <MachineImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
+        onSuccess={() => {}}
       />
 
       <DeleteMachineDialog

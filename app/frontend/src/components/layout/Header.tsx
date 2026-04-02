@@ -56,9 +56,8 @@ export default function Header() {
     const fetchNotifications = async () => {
       try {
         const response = await client.apiCall.invoke({
-          url: '/api/v1/notifications',
+          url: '/api/v1/notifications?page=1&size=10',
           method: 'GET',
-          data: { skip: 0, limit: 10 },
         });
 
         const data = (response as { data?: { items?: Notification[]; unread_count?: number } }).data;
@@ -118,9 +117,8 @@ export default function Header() {
       });
 
       const response = await client.apiCall.invoke({
-        url: '/api/v1/notifications',
+        url: '/api/v1/notifications?page=1&size=10',
         method: 'GET',
-        data: { skip: 0, limit: 10 },
       });
 
       const data = (response as { data?: { items?: Notification[]; unread_count?: number } }).data;
@@ -139,9 +137,8 @@ export default function Header() {
       });
 
       const response = await client.apiCall.invoke({
-        url: '/api/v1/notifications',
+        url: '/api/v1/notifications?page=1&size=10',
         method: 'GET',
-        data: { skip: 0, limit: 10 },
       });
 
       const data = (response as { data?: { items?: Notification[]; unread_count?: number } }).data;

@@ -39,4 +39,4 @@ class Utilisateurs(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
     def __repr__(self):
-        return f"<Utilisateurs(id={self.id}, email={self.email}, nom={self.nom}, role={self.role}, status={self.status})>"
+        return f"<Utilisateurs id={self.id} nom={self.nom}>"

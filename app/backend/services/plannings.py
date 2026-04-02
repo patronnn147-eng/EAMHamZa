@@ -3,8 +3,10 @@ from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from models.plannings import Plannings
+from models.planning_utilisateurs import Planning_utilisateurs
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +74,12 @@ class PlanningsService:
             else:
                 query = query.order_by(Plannings.id.desc())
 
-            result = await self.db.execute(query.offset(skip).limit(limit))
+            result = await self.db.execute(
+                query.options(
+                    selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
+                    selectinload(Plannings.planning_machines),
+                ).offset(skip).limit(limit)
+            )
             items = result.scalars().all()
 
             return {

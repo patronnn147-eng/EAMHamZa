@@ -57,7 +57,7 @@
     --premium-rose: 339 90% 63%;
     --premium-amber: 38 92% 50%;
     --premium-emerald: 160 84% 39%;
-    
+
     --glass-blur: 12px;
     --glass-opacity: 0.1;
   }
@@ -116,7 +116,7 @@
   .glass {
     @apply bg-white/10 backdrop-blur-[var(--glass-blur)] border border-white/20;
   }
-  
+
   .glass-dark {
     @apply bg-black/40 backdrop-blur-[var(--glass-blur)] border border-white/10;
   }
@@ -138,6 +138,7 @@
       opacity: 0;
       transform: translateY(10px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);

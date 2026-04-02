@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import and_, or_, select, func, cast, String
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from core.rabbitmq import (
@@ -205,18 +207,34 @@ async def get_dashboard_stats(
         print(f"Error in dashboard stats: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/interventions", response_model=List[InterventionResponse])
+@router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
 async def get_interventions(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
     current_user: Utilisateurs = Depends(verify_cheftech),
     db: AsyncSession = Depends(get_db),
 ):
     """Get all interventions (including approval workflow fields)"""
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Ordres_intervention.id))
+        if statut:
+            count_query = count_query.where(Ordres_intervention.statut == statut)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Ordres_intervention)
         if statut:
             query = query.where(Ordres_intervention.statut == statut)
-        query = query.order_by(Ordres_intervention.date_intervention.desc())
+        query = query.options(
+            selectinload(Ordres_intervention.machine),
+            selectinload(Ordres_intervention.technicien),
+            selectinload(Ordres_intervention.ordre_travail),
+        )
+        query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(size)
         result = await db.execute(query)
         interventions = list(result.scalars().all())
 
@@ -245,7 +263,12 @@ async def get_interventions(
                 }
             )
 
-        return enriched
+        return PaginatedResponse.create(
+            items=enriched,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error loading interventions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -371,21 +394,36 @@ async def reject_intervention(
 
     return intervention
 
-@router.get("/ordres-travail", response_model=List[WorkOrderResponse])
+@router.get("/ordres-travail", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
     current_user: Utilisateurs = Depends(verify_cheftech),
     db: AsyncSession = Depends(get_db)
 ):
     """Get work orders with optional status filter"""
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Ordres_travail.id))
+        if statut:
+            count_query = count_query.where(Ordres_travail.statut == statut)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Ordres_travail)
 
         # Apply filter
         if statut:
             query = query.where(Ordres_travail.statut == statut)
 
-        query = query.order_by(Ordres_travail.created_at.desc())
+        query = query.options(
+            selectinload(Ordres_travail.machine),
+            selectinload(Ordres_travail.utilisateur),
+        )
+        query = query.order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
         result = await db.execute(query)
 
         work_orders = [
@@ -404,19 +442,33 @@ async def get_work_orders(
             for ordre in result.scalars()
         ]
 
-        return work_orders
+        return PaginatedResponse.create(
+            items=work_orders,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/techniciens", response_model=List[TechnicianResponse])
+@router.get("/techniciens", response_model=PaginatedResponse[TechnicianResponse])
 async def get_technicians(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(verify_cheftech),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all technicians"""
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Utilisateurs.id)).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Utilisateurs).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
-        query = query.order_by(Utilisateurs.nom)
+        query = query.order_by(Utilisateurs.nom).offset(skip).limit(size)
         result = await db.execute(query)
 
         technicians = [
@@ -429,25 +481,41 @@ async def get_technicians(
             for tech in result.scalars()
         ]
 
-        return technicians
+        return PaginatedResponse.create(
+            items=technicians,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/machines", response_model=List[MachineResponse])
+@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
 async def get_machines(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
     current_user: Utilisateurs = Depends(verify_cheftech),
     db: AsyncSession = Depends(get_db)
 ):
     """Get machines with optional status filter"""
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Machines.id))
+        if statut:
+            count_query = count_query.where(Machines.statut == statut)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Machines)
 
         # Apply filter
         if statut:
             query = query.where(Machines.statut == statut)
 
-        query = query.order_by(Machines.nom)
+        query = query.order_by(Machines.nom).offset(skip).limit(size)
         result = await db.execute(query)
 
         machines = [
@@ -465,7 +533,12 @@ async def get_machines(
             for machine in result.scalars()
         ]
 
-        return machines
+        return PaginatedResponse.create(
+            items=machines,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -711,8 +784,10 @@ class CompletedWorkOrderItem(BaseModel):
     duration_minutes: Optional[int] = None
 
 
-@router.get("/completed-work-orders", response_model=List[CompletedWorkOrderItem])
+@router.get("/completed-work-orders", response_model=PaginatedResponse[CompletedWorkOrderItem])
 async def get_completed_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     technician_id: Optional[int] = Query(None),
     machine_id: Optional[int] = Query(None),
     failure_type: Optional[str] = Query(None),
@@ -722,7 +797,29 @@ async def get_completed_work_orders(
     db: AsyncSession = Depends(get_db),
 ):
     """Get all completed Work Orders enriched with technician and machine info."""
+    skip = (page - 1) * size
+    
+    # Count total with filters
+    count_query = select(func.count(Ordres_travail.id)).where(Ordres_travail.statut == "TERMINE")
+    if technician_id:
+        count_query = count_query.where(Ordres_travail.utilisateur_id == technician_id)
+    if machine_id:
+        count_query = count_query.where(Ordres_travail.machine_id == machine_id)
+    if failure_type:
+        count_query = count_query.where(Ordres_travail.failure_type == failure_type)
+    if date_from:
+        count_query = count_query.where(Ordres_travail.date_fin >= date_from)
+    if date_to:
+        count_query = count_query.where(Ordres_travail.date_fin <= date_to)
+    
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
     query = select(Ordres_travail).where(Ordres_travail.statut == "TERMINE")
+    query = query.options(
+        selectinload(Ordres_travail.machine),
+        selectinload(Ordres_travail.utilisateur),
+    )
 
     if technician_id:
         query = query.where(Ordres_travail.utilisateur_id == technician_id)
@@ -735,7 +832,7 @@ async def get_completed_work_orders(
     if date_to:
         query = query.where(Ordres_travail.date_fin <= date_to)
 
-    query = query.order_by(Ordres_travail.date_fin.desc())
+    query = query.order_by(Ordres_travail.date_fin.desc()).offset(skip).limit(size)
     result = await db.execute(query)
     work_orders = list(result.scalars().all())
 
@@ -825,6 +922,10 @@ async def get_kpi_report(
 ):
     """KPI summary for completed Work Orders. Available to ChefTech and Admin."""
     base_query = select(Ordres_travail).where(Ordres_travail.statut == "TERMINE")
+    base_query = base_query.options(
+        selectinload(Ordres_travail.machine),
+        selectinload(Ordres_travail.utilisateur),
+    )
     if date_from:
         base_query = base_query.where(Ordres_travail.date_fin >= date_from)
     if date_to:
@@ -868,10 +969,18 @@ async def get_cheftech_analytics_dashboard(
     to compute the PDCA stages and performance trends.
     """
     # 1. Fetch all work orders and interventions
-    w_result = await db.execute(select(Ordres_travail))
+    w_result = await db.execute(
+        select(Ordres_travail)
+        .options(selectinload(Ordres_travail.machine))
+        .options(selectinload(Ordres_travail.utilisateur))
+    )
     all_wos = list(w_result.scalars().all())
 
-    i_result = await db.execute(select(Ordres_intervention))
+    i_result = await db.execute(
+        select(Ordres_intervention)
+        .options(selectinload(Ordres_intervention.machine))
+        .options(selectinload(Ordres_intervention.technicien))
+    )
     all_ints = list(i_result.scalars().all())
 
     # Metrics computation

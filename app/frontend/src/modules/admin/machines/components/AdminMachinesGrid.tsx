@@ -10,6 +10,7 @@ import { MachineQRCode } from '@/modules/shared/MachineQRCode';
 
 interface AdminMachinesGridProps {
   machines: Machine[];
+  fleetPredictions?: Record<number, any>;
   onEdit: (machine: Machine) => void;
   onRequestDelete: (machine: Machine) => void;
 }
@@ -31,6 +32,7 @@ function getMachineStatusConfig(statut = '') {
 
 export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
   machines,
+  fleetPredictions = {},
   onEdit,
   onRequestDelete,
 }) => {
@@ -46,13 +48,29 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
         machines.map((machine) => {
           const statusConfig = getMachineStatusConfig(machine.statut);
           const health = computeHealthScore(machine);
+
+          // Override health score with ML prediction if available
+          const prediction = fleetPredictions[machine.id];
+          if (prediction?.health_score !== undefined) {
+            health.score = Math.round(prediction.health_score);
+            if (health.score < 60) {
+              health.label = 'Critique (IA)';
+              health.colorClass = 'from-red-400 to-red-600';
+            } else if (health.score < 80) {
+              health.label = 'Attention (IA)';
+              health.colorClass = 'from-amber-400 to-amber-600';
+            } else {
+              health.label = 'Bonne (IA)';
+              health.colorClass = 'from-emerald-400 to-emerald-600';
+            }
+          }
+
           const isCritical = health.score < 60;
 
           return (
             <Card
               key={machine.id}
-              className={`hover:shadow-xl transition-all duration-200 overflow-hidden ${isCritical ? 'ring-1 ring-red-200' : ''
-                }`}
+              className={`hover:shadow-xl transition-all duration-200 overflow-hidden ${isCritical ? 'ring-1 ring-red-200' : ''}`}
             >
               <div className={`h-1 w-full bg-gradient-to-r ${health.colorClass}`} />
 
@@ -95,6 +113,19 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
                       <span className="text-gray-500">Zone</span>
                       <span className="font-medium text-gray-800">
                         {[machine.zone, machine.sous_zone].filter(Boolean).join(' / ')}
+                      </span>
+                    </div>
+                  )}
+                  {prediction?.risk_level && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Risque IA</span>
+                      <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${
+                        prediction.risk_level === 'CRITICAL' ? 'bg-red-100 text-red-700' :
+                        prediction.risk_level === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                        prediction.risk_level === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+                        'bg-emerald-100 text-emerald-700'
+                      }`}>
+                        {prediction.risk_level}
                       </span>
                     </div>
                   )}

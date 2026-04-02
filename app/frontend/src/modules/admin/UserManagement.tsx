@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Trash2, Users as UsersIcon } from 'lucide-react';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 interface AdminUser {
   id: number;
@@ -47,6 +48,9 @@ export default function UserManagement() {
 
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(100);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<AdminUser | null>(null);
@@ -55,10 +59,12 @@ export default function UserManagement() {
     try {
       setLoading(true);
       const response = await client.apiCall.invoke({
-        url: '/api/v1/admin/users',
+        url: `/api/v1/admin/users?page=${page}&size=${pageSize}`,
         method: 'GET',
       });
-      setUsers(response.data?.items || []);
+      const data = response.data;
+      setUsers(data?.items || []);
+      setTotalPages(data?.total_pages || 1);
     } catch (error) {
       console.error('Error fetching users:', error);
       toast({
@@ -73,7 +79,7 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [page]);
 
   const roleBadge = (role: string) => {
     const map: Record<string, string> = {
@@ -102,7 +108,8 @@ export default function UserManagement() {
   };
 
   const sortedUsers = useMemo(() => {
-    return [...users].sort((a, b) => b.id - a.id);
+    // Note: Backend now handles sorting/pagination, but we keep this as a safety
+    return [...users];
   }, [users]);
 
   const updateStatus = async (userId: number, status: string) => {
@@ -290,6 +297,11 @@ export default function UserManagement() {
               </TableBody>
             </Table>
           </div>
+          <AppPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
         </CardContent>
       </Card>
 

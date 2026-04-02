@@ -1,5 +1,6 @@
 from core.database import Base
 from sqlalchemy import Column, DateTime, Integer
+from sqlalchemy.orm import relationship
 
 
 class Planning_utilisateurs(Base):
@@ -10,3 +11,11 @@ class Planning_utilisateurs(Base):
     planning_id = Column(Integer, nullable=False)
     utilisateur_id = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationship for eager loading the user
+    utilisateur = relationship(
+        "Utilisateurs",
+        primaryjoin="foreign(Planning_utilisateurs.utilisateur_id) == Utilisateurs.id",
+        lazy="noload",
+        viewonly=True,
+    )

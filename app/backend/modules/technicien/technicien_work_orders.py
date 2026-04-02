@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func, and_
+from sqlalchemy.orm import selectinload
 from typing import List, Optional
+from schemas.pagination import PaginatedResponse
 from datetime import datetime
 import logging
 from pydantic import BaseModel
@@ -47,17 +49,29 @@ class WorkOrderCompletePayload(BaseModel):
     act_recommendations: Optional[str] = None
 
 
-@router.get("/work-orders", response_model=List[WorkOrderResponse])
+@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_my_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(verify_technicien),
     db: AsyncSession = Depends(get_db),
 ):
     """TECHNICIEN: List work orders assigned to this technician"""
     try:
+        skip = (page - 1) * size
+
+        # Count total
+        count_query = select(func.count(Ordres_travail.id))\
+            .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
+            .where(Ordres_intervention.technicien_id == current_user.id)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Ordres_travail, Machines.nom.label("machine_nom"))\
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)
+            .where(Ordres_intervention.technicien_id == current_user.id)\
+            .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
         
         result = await db.execute(query)
         rows = result.all()
@@ -74,6 +88,13 @@ async def get_my_work_orders(
                 created_at=wo.created_at
             ) for wo, machine_nom in rows
         ]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error fetching work orders for technician: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -87,6 +108,7 @@ async def start_work_order(
     """TECHNICIEN: Start an assigned work order"""
     try:
         check_query = select(Ordres_intervention)\
+            .options(selectinload(Ordres_intervention.ordre_travail))\
             .where(Ordres_intervention.ordre_travail_id == order_id)\
             .where(Ordres_intervention.technicien_id == current_user.id)
         
@@ -132,6 +154,7 @@ async def complete_work_order(
     """TECHNICIEN: Complete a work order with full PDCA data"""
     try:
         check_query = select(Ordres_intervention)\
+            .options(selectinload(Ordres_intervention.ordre_travail))\
             .where(Ordres_intervention.ordre_travail_id == order_id)\
             .where(Ordres_intervention.technicien_id == current_user.id)
         

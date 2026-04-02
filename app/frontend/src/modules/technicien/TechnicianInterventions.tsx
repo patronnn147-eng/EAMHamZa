@@ -9,6 +9,8 @@ import type { Intervention } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
 import { FinishInterventionDialog } from './components/FinishInterventionDialog';
 import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
+import { AppPagination } from '@/components/shared/AppPagination';
+import { client } from '@/lib/api';
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();
@@ -17,6 +19,9 @@ export default function TechnicianInterventions() {
   const [filteredInterventions, setFilteredInterventions] = useState<Intervention[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(100);
   const [requestOpen, setRequestOpen] = useState(false);
   const [requestIntervention, setRequestIntervention] = useState<Intervention | null>(null);
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
@@ -168,7 +173,7 @@ export default function TechnicianInterventions() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     for (const i of overdueInterventions) {
@@ -241,23 +246,25 @@ export default function TechnicianInterventions() {
 
   const fetchData = async () => {
     try {
-      const token = localStorage.getItem('access_token');
-      if (!token) return;
-
-      const res = await fetch(`${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/technicien/interventions`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      setLoading(true);
+      const res: any = await (client.apiCall as any).get('/api/v1/technicien/interventions', {
+        query: {
+          page: page,
+          size: pageSize
+        }
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || 'Erreur lors du chargement');
-      }
-      const data = await res.json();
-      setInterventions(data);
-      setFilteredInterventions(data);
+      
+      const items = res.items || [];
+      setInterventions(items);
+      setFilteredInterventions(items);
+      setTotalPages(res.total_pages || 1);
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les interventions',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -472,6 +479,14 @@ export default function TechnicianInterventions() {
             </Card>
           ))
         )}
+      </div>
+
+      <div className="flex justify-end mt-4">
+        <AppPagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </div>
 
       <InterventionRequestDialog

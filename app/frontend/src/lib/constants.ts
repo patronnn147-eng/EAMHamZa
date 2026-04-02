@@ -1,12 +1,6 @@
 export const ZONE_OPTIONS = [
     'ZONE CMS1 - COMPONENT SURFACE MOUNTING',
     'ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)',
-    'ZONE TEST FONCTIONNEL',
-    'ZONE TEST WiFi',
-    'ZONE ASSEMBLAGE',
-    'ZONE EMBALLAGE',
-    'ZONE QUALITÉ',
-    'ZONE MAINTENANCE',
 ];
 
 export const SOUS_ZONE_OPTIONS_BY_ZONE: Record<string, string[]> = {
@@ -19,12 +13,6 @@ export const SOUS_ZONE_OPTIONS_BY_ZONE: Record<string, string[]> = {
         'TEST FONCTIONNEL (Test de Fonctionnement)',
         'TEST WiFi (Test Sans Fil)',
     ],
-    'ZONE TEST FONCTIONNEL': [],
-    'ZONE TEST WiFi': [],
-    'ZONE ASSEMBLAGE': [],
-    'ZONE EMBALLAGE': [],
-    'ZONE QUALITÉ': [],
-    'ZONE MAINTENANCE': [],
 };
 
 export type OrdreTemplate = { ordre: number; nom: string; fonction?: string };

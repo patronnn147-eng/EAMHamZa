@@ -50,11 +50,12 @@ function MetricCard({
     );
 }
 
-function UptimeGauge({ pct }: { pct: number }) {
-    const color = pct >= 95 ? 'stroke-emerald-500' : pct >= 85 ? 'stroke-blue-500' : pct >= 70 ? 'stroke-amber-500' : 'stroke-red-500';
+function UptimeGauge({ pct }: { pct: number | null | undefined }) {
+    const value = pct ?? 100; // Default to 100% if unknown (e.g. new machine)
+    const color = value >= 95 ? 'stroke-emerald-500' : value >= 85 ? 'stroke-blue-500' : value >= 70 ? 'stroke-amber-500' : 'stroke-red-500';
     const R = 40;
     const circumference = 2 * Math.PI * R;
-    const arc = (pct / 100) * circumference;
+    const arc = (value / 100) * circumference;
 
     return (
         <div className="flex flex-col items-center justify-center py-4">
@@ -68,7 +69,7 @@ function UptimeGauge({ pct }: { pct: number }) {
                 />
             </svg>
             <div className="-mt-20 mb-16 text-center">
-                <span className="text-2xl font-black text-gray-800">{pct.toFixed(1)}%</span>
+                <span className="text-2xl font-black text-gray-800">{value.toFixed(1)}%</span>
                 <p className="text-xs text-gray-400 mt-0.5">Disponibilité</p>
             </div>
         </div>
@@ -138,10 +139,10 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div>
                             <CardTitle className="text-base flex items-center gap-2">
-                                <Activity className="h-4 w-4 text-gray-500" />
-                                Fiabilité — {machineName}
+                                <Activity className="h-4 w-4 text-indigo-500" />
+                                Fiabilité IA & Disponibilité Prédite — {machineName}
                             </CardTitle>
-                            <p className="text-xs text-gray-400 mt-0.5">Analyse sur les {windowDays} derniers jours</p>
+                            <p className="text-xs text-indigo-400 mt-0.5">Basé sur l'analyse prédictive (XGBoost + RUL)</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="text-right">
@@ -151,6 +152,7 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
                             <ClassificationBadge classification={classification} />
                         </div>
                     </div>
+
                 </CardHeader>
                 <CardContent>
                     {/* Reliability score bar */}

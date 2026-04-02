@@ -7,17 +7,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Search, MapPin, Wrench } from 'lucide-react';
 import type { Machine } from '@/lib/types';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 export default function TechnicianMachines() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [filteredMachines, setFilteredMachines] = useState<Machine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(1200);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -36,15 +40,17 @@ export default function TechnicianMachines() {
 
   const fetchData = async () => {
     try {
-      const response = await client.entities.machines.queryAll({
-        query: {},
-        sort: 'nom',
-        limit: 100,
+      const response: any = await client.apiCall.get('/api/v1/technicien/machines', {
+        query: {
+          page: page,
+          size: pageSize
+        }
       });
 
-      const machinesList = response.data.items || [];
+      const machinesList = response.items || [];
       setMachines(machinesList);
       setFilteredMachines(machinesList);
+      setTotalPages(response.total_pages || 1);
     } catch (error) {
       console.error('Error fetching machines:', error);
     } finally {
@@ -143,6 +149,14 @@ export default function TechnicianMachines() {
             </Card>
           ))
         )}
+      </div>
+
+      <div className="flex justify-end mt-4">
+        <AppPagination
+          currentPage={page}
+          totalPages={totalPages}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

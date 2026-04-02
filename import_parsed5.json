@@ -1,0 +1,85 @@
+﻿{
+    "stats":  {
+                  "total":  4,
+                  "valid":  2,
+                  "invalid":  2
+              },
+    "items":  [
+                  {
+                      "row_index":  2,
+                      "data":  {
+                                   "nom":  "ZONE_CMS1_CMS_LINE_1_E_G_BBS_BROADBAND_PRODUCTS_D_PILEUR_CARD_LOADER",
+                                   "type":  "CMS",
+                                   "emplacement":  "Atelier 1",
+                                   "zone":  "ZONE CMS1 - COMPONENT SURFACE MOUNTING",
+                                   "sous_zone":  "CMS LINE 1 (e.g., BBS - Broadband Products)",
+                                   "ordre":  "1",
+                                   "statut":  "OPERATIONNELLE"
+                               },
+                      "valid":  true,
+                      "errors":  [
+
+                                 ],
+                      "warnings":  [
+
+                                   ]
+                  },
+                  {
+                      "row_index":  3,
+                      "data":  {
+                                   "nom":  "",
+                                   "type":  "Test Invalid Zone",
+                                   "emplacement":  "Atelier 1",
+                                   "zone":  "Zone A",
+                                   "sous_zone":  "CMS LINE 1 (e.g., BBS - Broadband Products)",
+                                   "ordre":  "1",
+                                   "statut":  "OPERATIONNELLE"
+                               },
+                      "valid":  false,
+                      "errors":  [
+                                     "La zone \u0027Zone A\u0027 est invalide. Choisissez parmi les zones d├®finies dans le guide."
+                                 ],
+                      "warnings":  [
+
+                                   ]
+                  },
+                  {
+                      "row_index":  4,
+                      "data":  {
+                                   "nom":  "",
+                                   "type":  "Test Invalid Order",
+                                   "emplacement":  "Atelier 1",
+                                   "zone":  "ZONE CMS1 - COMPONENT SURFACE MOUNTING",
+                                   "sous_zone":  "CMS LINE 1 (e.g., BBS - Broadband Products)",
+                                   "ordre":  "99",
+                                   "statut":  "OPERATIONNELLE"
+                               },
+                      "valid":  false,
+                      "errors":  [
+                                     "L\u0027ordre \u002799\u0027 n\u0027existe pas pour CMS LINE 1 (e.g., BBS - Broadband Products)."
+                                 ],
+                      "warnings":  [
+
+                                   ]
+                  },
+                  {
+                      "row_index":  5,
+                      "data":  {
+                                   "nom":  "ZONE_CMS2_TEST_IN_SITU_TEST_DES_COMPOSANTS_TESTEUR_MARCONI_4220",
+                                   "type":  "Test CMS2",
+                                   "emplacement":  "Atelier 1",
+                                   "zone":  "ZONE CMS2 - TEST ZONE (R├®sum├® des Machines Essentielles)",
+                                   "sous_zone":  "TEST IN-SITU (Test des Composants)",
+                                   "ordre":  "2",
+                                   "statut":  "OPERATIONNELLE"
+                               },
+                      "valid":  true,
+                      "errors":  [
+
+                                 ],
+                      "warnings":  [
+
+                                   ]
+                  }
+              ]
+}

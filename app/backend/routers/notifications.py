@@ -3,7 +3,7 @@ import asyncio
 from typing import List, Optional, Dict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sse_starlette.sse import EventSourceResponse
@@ -15,6 +15,8 @@ from jose import jwt, JWTError
 from models.utilisateurs import Utilisateurs
 from models.notifications import Notifications
 from services.notifications import NotificationsService
+from schemas.pagination import PaginatedResponse
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +99,8 @@ class NotificationResponse(BaseModel):
         from_attributes = True
 
 
-class NotificationListResponse(BaseModel):
-    """List response schema"""
-    items: List[NotificationResponse]
-    total: int
+class NotificationListResponse(PaginatedResponse[NotificationResponse]):
+    """List response schema with unread count"""
     unread_count: int
 
 
@@ -121,13 +121,15 @@ class BulkNotificationCreateRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=NotificationListResponse)
 async def get_my_notifications(
-    skip: int = 0,
-    limit: int = 50,
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(50, ge=1, le=100, description="Items per page"),
     unread_only: bool = False,
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get current user's notifications"""
+    skip = (page - 1) * size
+    limit = size
     try:
         service = NotificationsService(db)
         
@@ -154,6 +156,9 @@ async def get_my_notifications(
         return NotificationListResponse(
             items=[NotificationResponse.model_validate(item) for item in result["items"]],
             total=result["total"],
+            page=page,
+            size=size,
+            total_pages=math.ceil(result["total"] / size) if size > 0 else 0,
             unread_count=unread_result["total"]
         )
     except Exception as e:

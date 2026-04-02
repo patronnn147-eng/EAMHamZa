@@ -1,5 +1,6 @@
 from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Enum as SQLEnum
+from sqlalchemy.orm import relationship
 import enum
 
 
@@ -34,3 +35,17 @@ class Plannings(Base):
     sous_zone = Column(String(100), nullable=True)
     ordre = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships for eager loading (bridge tables)
+    planning_utilisateurs = relationship(
+        "Planning_utilisateurs",
+        primaryjoin="Plannings.id == foreign(Planning_utilisateurs.planning_id)",
+        lazy="noload",
+        viewonly=True,
+    )
+    planning_machines = relationship(
+        "Planning_machines",
+        primaryjoin="Plannings.id == foreign(Planning_machines.planning_id)",
+        lazy="noload",
+        viewonly=True,
+    )

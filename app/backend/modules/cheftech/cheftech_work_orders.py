@@ -4,10 +4,11 @@ import logging
 from typing import List, Optional
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, cast, String
+from sqlalchemy import select, cast, String, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -28,6 +29,8 @@ def _require_cheftech(current_user: Utilisateurs):
 
 @router.get("")
 async def list_cheftech_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -35,7 +38,14 @@ async def list_cheftech_work_orders(
     _require_cheftech(current_user)
 
     try:
-        # Get all WOs that have at least one intervention (assigned to a technician)
+        skip = (page - 1) * size
+
+        # Count total
+        count_query = select(func.count(Ordres_travail.id))
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
+        # Get all WOs assigned to technicians
         query = select(
             Ordres_travail,
             Machines.nom.label("machine_nom"),
@@ -48,7 +58,7 @@ async def list_cheftech_work_orders(
             Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
         ).outerjoin(
             Utilisateurs, Ordres_intervention.technicien_id == Utilisateurs.id
-        ).order_by(Ordres_travail.created_at.desc())
+        ).order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
 
         result = await db.execute(query)
         rows = result.all()
@@ -99,7 +109,12 @@ async def list_cheftech_work_orders(
                 "act_recommendations": getattr(itv, "act_recommendations", None) if itv else None,
             })
 
-        return output
+        return PaginatedResponse.create(
+            items=output,
+            total=total,
+            page=page,
+            size=size
+        )
 
     except Exception as e:
         logger.error(f"Error listing cheftech work orders: {str(e)}")

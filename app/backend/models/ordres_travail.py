@@ -1,5 +1,6 @@
 from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
@@ -27,3 +28,23 @@ class Ordres_travail(Base):
     timer_started_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
+    machine = relationship(
+        "Machines",
+        primaryjoin="foreign(Ordres_travail.machine_id) == Machines.id",
+        lazy="noload",
+        viewonly=True,
+    )
+    utilisateur = relationship(
+        "Utilisateurs",
+        primaryjoin="foreign(Ordres_travail.utilisateur_id) == Utilisateurs.id",
+        lazy="noload",
+        viewonly=True,
+    )
+    interventions = relationship(
+        "Ordres_intervention",
+        primaryjoin="Ordres_travail.id == foreign(Ordres_intervention.ordre_travail_id)",
+        lazy="noload",
+        viewonly=True,
+    )

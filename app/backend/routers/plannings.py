@@ -7,10 +7,11 @@ import logging
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
+from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -24,6 +25,7 @@ from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
 from services.notifications import NotificationsService
 from tasks.planning_emails import send_planning_assignment_emails
+from schemas.pagination import PaginatedResponse
 
 logger = logging.getLogger(__name__)
 
@@ -95,12 +97,7 @@ class PlanningResponse(BaseModel):
         from_attributes = True
 
 
-class PlanningListResponse(BaseModel):
-    """List response schema"""
-    items: List[PlanningResponse]
-    total: int
-    skip: int
-    limit: int
+# Replaced by PaginatedResponse[PlanningResponse]
 
 
 class UserOption(BaseModel):
@@ -238,39 +235,64 @@ async def send_planning_notifications(
 
 
 async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict:
-    """Get planning with assigned users"""
-    # Get assigned users
-    result = await db.execute(
-        select(Planning_utilisateurs, Utilisateurs)
-        .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
-        .where(Planning_utilisateurs.planning_id == planning.id)
-    )
-    
+    """Get planning with assigned users.
+    Uses pre-loaded relationships if available (via selectinload), otherwise falls back to queries.
+    """
+    # Check if relationships were pre-loaded via selectinload
+    pu_loaded = "planning_utilisateurs" in planning.__dict__
+    pm_loaded = "planning_machines" in planning.__dict__
+
     assigned_users = []
     seen_user_ids = set()
-    for pu, user in result:
-        if user.id in seen_user_ids:
-            continue
-        seen_user_ids.add(user.id)
-        
-        # Safely handle enum values
-        role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
-        shift_val = None
-        if user.shift_type:
-            shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
-            
-        assigned_users.append({
-            "id": user.id,
-            "nom": user.nom,
-            "email": user.email,
-            "role": role_val,
-            "shift_type": shift_val,
-        })
-    
-    machines_result = await db.execute(
-        select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning.id)
-    )
-    machine_ids = [row[0] for row in machines_result.fetchall()]
+
+    if pu_loaded:
+        # Use pre-loaded data (no extra queries)
+        for pu in planning.planning_utilisateurs:
+            user = pu.utilisateur
+            if not user or user.id in seen_user_ids:
+                continue
+            seen_user_ids.add(user.id)
+            role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+            shift_val = None
+            if user.shift_type:
+                shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
+            assigned_users.append({
+                "id": user.id,
+                "nom": user.nom,
+                "email": user.email,
+                "role": role_val,
+                "shift_type": shift_val,
+            })
+    else:
+        # Fallback: query the database (single-item endpoints)
+        result = await db.execute(
+            select(Planning_utilisateurs, Utilisateurs)
+            .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
+            .where(Planning_utilisateurs.planning_id == planning.id)
+        )
+        for pu, user in result:
+            if user.id in seen_user_ids:
+                continue
+            seen_user_ids.add(user.id)
+            role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+            shift_val = None
+            if user.shift_type:
+                shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
+            assigned_users.append({
+                "id": user.id,
+                "nom": user.nom,
+                "email": user.email,
+                "role": role_val,
+                "shift_type": shift_val,
+            })
+
+    if pm_loaded:
+        machine_ids = [pm.machine_id for pm in planning.planning_machines]
+    else:
+        machines_result = await db.execute(
+            select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning.id)
+        )
+        machine_ids = [row[0] for row in machines_result.fetchall()]
     
     # Safely handle enum values for planning
     type_val = planning.type.value if hasattr(planning.type, "value") else str(planning.type)
@@ -328,14 +350,16 @@ async def get_users_by_role(
         )
 
 
-@router.get("", response_model=PlanningListResponse)
+@router.get("", response_model=PaginatedResponse[PlanningResponse])
 async def list_plannings(
-    skip: int = 0,
-    limit: int = 100,
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(10, ge=1, le=100, description="Items per page"),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """List plannings filtered by user role and assignments"""
+    skip = (page - 1) * size
+    limit = size
     try:
         service = PlanningsService(db)
         
@@ -362,15 +386,21 @@ async def list_plannings(
             
             if not planning_ids:
                 # User has no assigned plannings
-                return PlanningListResponse(
+                return PaginatedResponse.create(
                     items=[],
                     total=0,
-                    skip=skip,
-                    limit=limit
+                    page=page,
+                    size=size
                 )
             
             # Get only the plannings where user is assigned
             data_query = select(Plannings).where(Plannings.id.in_(planning_ids))
+            
+            # Eager load relationships to avoid N+1 in get_planning_with_users
+            data_query = data_query.options(
+                selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
+                selectinload(Plannings.planning_machines),
+            )
             
             # Apply sorting
             data_query = data_query.order_by(Plannings.date_debut.desc())
@@ -391,11 +421,11 @@ async def list_plannings(
             for p in plannings_objs:
                 items.append(await get_planning_with_users(db, p))
             
-            return PlanningListResponse(
+            return PaginatedResponse.create(
                 items=items,
                 total=total,
-                skip=skip,
-                limit=limit
+                page=page,
+                size=size
             )
             
         # Enrich with assigned users
@@ -404,11 +434,11 @@ async def list_plannings(
             planning_dict = await get_planning_with_users(db, planning)
             items_with_users.append(PlanningResponse(**planning_dict))
         
-        return PlanningListResponse(
+        return PaginatedResponse.create(
             items=items_with_users,
             total=result["total"],
-            skip=skip,
-            limit=limit
+            page=page,
+            size=size
         )
     except Exception as e:
         logger.error(f"Error listing plannings: {str(e)}")

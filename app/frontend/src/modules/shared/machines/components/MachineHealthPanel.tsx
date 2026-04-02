@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Calendar, Wrench, Zap, AlertTriangle, Info, Heart } from 'lucide-react';
+import { Calendar, Wrench, Zap, AlertTriangle, Info, Heart, Activity } from 'lucide-react';
 import MachineHealthBar from './MachineHealthBar';
 import type { HealthScoreResult } from '../utils/healthScore';
 import { formatDuration } from '../utils/healthScore';
@@ -52,6 +52,12 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
                 },
             ]
             : []),
+        ...(health.deductions.predictive > 0 ? [{
+            icon: Activity,
+            label: 'Risque prédictif (IA)',
+            value: health.deductions.predictive > 20 ? 'ÉLEVÉ' : 'MODÉRÉ',
+            deduction: health.deductions.predictive,
+        }] : []),
     ];
 
     return (
@@ -72,17 +78,18 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
                                     <Info className="h-4 w-4" />
                                 </button>
                             </TooltipTrigger>
-                            <TooltipContent side="left" className="max-w-xs text-xs">
-                                <p className="font-semibold mb-1">Formule du score :</p>
-                                <p>Score = 100</p>
-                                <p>− Jours sans maintenance × 0.5 (max 30)</p>
-                                <p>− Maintenance en retard × 2 (max 40)</p>
-                                <p>− Ordres ouverts × 12 (max 36)</p>
-                                <p>− Interventions (30j) × 10 (max 30)</p>
-                                <p>− 60 si statut EN_PANNE / HORS_SERVICE</p>
+                            <TooltipContent side="left" className="max-w-[280px] text-xs">
+                                <p className="font-semibold mb-1">Score de Santé Intelligent (IA) :</p>
+                                <ul className="space-y-1 list-disc px-3">
+                                    <li>Analyse multi-modèle (P1-P6)</li>
+                                    <li>Télémétrie en temps réel (Temp, RPM, Couple)</li>
+                                    <li>Indice de dérive et détection d'anomalies</li>
+                                    <li>Fusion des cycles de maintenance réels</li>
+                                </ul>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
+
                 </div>
             </CardHeader>
 

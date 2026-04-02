@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from core.rabbitmq import (
@@ -140,21 +141,33 @@ class MachineResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/machines", response_model=List[MachineResponse])
+@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
 async def get_machines_list(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None),
     current_user: Utilisateurs = Depends(verify_technicien),
     db: AsyncSession = Depends(get_db),
 ):
     """Return all machines for the technician's intervention request form."""
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Machines.id))
+        if statut:
+            count_query = count_query.where(Machines.statut == statut)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Machines)
         if statut:
             query = query.where(Machines.statut == statut)
-        query = query.order_by(Machines.nom)
+        query = query.order_by(Machines.nom).offset(skip).limit(size)
         result = await db.execute(query)
         machines = result.scalars().all()
-        return [MachineResponse(
+        
+        items = [MachineResponse(
             id=m.id,
             nom=m.nom,
             emplacement=m.emplacement,
@@ -162,24 +175,44 @@ async def get_machines_list(
             statut=m.statut,
             created_at=m.created_at
         ) for m in machines]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error getting machines for technicien: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/interventions", response_model=List[InterventionResponse])
+@router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
 async def list_my_interventions(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=200),
     current_user: Utilisateurs = Depends(verify_technicien),
     db: AsyncSession = Depends(get_db),
 ):
+    skip = (page - 1) * size
+    
+    # Count total
+    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technicien_id == current_user.id)
+    if statut:
+        count_query = count_query.where(Ordres_intervention.statut == statut)
+    total_result = await db.execute(count_query)
+    total = total_result.scalar() or 0
+
     query = select(Ordres_intervention).where(Ordres_intervention.technicien_id == current_user.id)
     if statut:
         query = query.where(Ordres_intervention.statut == statut)
 
-    query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(limit)
+    query = query.options(
+        selectinload(Ordres_intervention.machine),
+        selectinload(Ordres_intervention.ordre_travail),
+    )
+    query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(size)
     result = await db.execute(query)
     interventions = list(result.scalars().all())
 
@@ -208,7 +241,12 @@ async def list_my_interventions(
             }
         )
 
-    return enriched
+    return PaginatedResponse.create(
+        items=enriched,
+        total=total,
+        page=page,
+        size=size
+    )
 
 
 @router.put("/interventions/{intervention_id}/status", response_model=InterventionResponse)

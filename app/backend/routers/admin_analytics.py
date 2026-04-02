@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from models.ordres_intervention import Ordres_intervention
@@ -28,10 +29,18 @@ async def get_admin_analytics_dashboard(
     """
     Returns system-wide analytics, technician performance, and request trends for Admin.
     """
-    w_result = await db.execute(select(Ordres_travail))
+    w_result = await db.execute(
+        select(Ordres_travail)
+        .options(selectinload(Ordres_travail.machine))
+        .options(selectinload(Ordres_travail.utilisateur))
+    )
     all_wos = list(w_result.scalars().all())
 
-    i_result = await db.execute(select(Ordres_intervention))
+    i_result = await db.execute(
+        select(Ordres_intervention)
+        .options(selectinload(Ordres_intervention.machine))
+        .options(selectinload(Ordres_intervention.technicien))
+    )
     all_ints = list(i_result.scalars().all())
 
     completed_wos = [wo for wo in all_wos if wo.statut == "TERMINE"]
@@ -127,7 +136,11 @@ async def export_admin_analytics(
     """
     Exports aggregate analytics data as a CSV file.
     """
-    w_result = await db.execute(select(Ordres_travail))
+    w_result = await db.execute(
+        select(Ordres_travail)
+        .options(selectinload(Ordres_travail.machine))
+        .options(selectinload(Ordres_travail.utilisateur))
+    )
     all_wos = list(w_result.scalars().all())
 
     # Generate CSV content

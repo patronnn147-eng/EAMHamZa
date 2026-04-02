@@ -4,12 +4,15 @@ from sqlalchemy import select, desc
 from core.database import get_db
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
+from models.ordres_travail import Ordres_travail
 from models.ml_prediction_log import MlPredictionLog
 from .ml_predictive import MachineLearningService
 from .services.ml_retraining import RetrainingService
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
+from schemas.pagination import PaginatedResponse
+from sqlalchemy import func
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 
@@ -46,11 +49,38 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
         Ordres_intervention.machine_id == machine_id
     )
     execute_result = await db.execute(interventions_query)
-    interventions = execute_result.scalars().all()
+    interventions = list(execute_result.scalars().all())
 
-    # 3. Calculate prediction
+    # 3. Fetch count of open work orders (Ordres de travail)
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import func
+    now_dt = datetime.now(timezone.utc)
+    
+    # Open = not TERMINÉ or ANNULÉ
+    wo_query = select(func.count(Ordres_travail.id)).where(
+        Ordres_travail.machine_id == machine_id,
+        ~Ordres_travail.statut.in_(["TERMINÉ", "ANNULÉ"])
+    )
+    wo_result = await db.execute(wo_query)
+    open_wo_count = wo_result.scalar() or 0
+
+    # 4. Count recent interventions (last 30 days)
+    thirty_days_ago = now_dt - timedelta(days=30)
+    recent_interventions_count = len([
+        i for i in interventions 
+        if i.date_intervention and (
+            i.date_intervention.replace(tzinfo=timezone.utc) if i.date_intervention.tzinfo is None else i.date_intervention
+        ) > thirty_days_ago
+    ])
+
+    # 5. Calculate prediction with unified health
     try:
-        prediction = MachineLearningService.calculate_rul(machine, list(interventions))
+        prediction = MachineLearningService.calculate_rul(
+            machine, 
+            interventions,
+            open_work_orders=open_wo_count,
+            recent_interventions=recent_interventions_count
+        )
 
         # 4. Shadow Log (PDCA Phase 1): persist prediction without showing to user
         try:
@@ -190,28 +220,36 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
 
 @router.get("/shadow-logs")
 async def get_shadow_logs(
+    page: int = Query(1, ge=1, description="Page number"),
+    size: int = Query(100, ge=1, le=1000, description="Items per page"),
     machine_id: int = Query(None, description="Filter by machine ID"),
     risk_level: str = Query(None, description="Filter by risk level (CRITICAL, HIGH, MEDIUM, LOW)"),
-    limit: int = Query(100, ge=1, le=1000, description="Max records to return"),
     db: AsyncSession = Depends(get_db),
-):
+) -> PaginatedResponse[Dict]:
     """
     PDCA Audit: Retrieve shadow-logged ML predictions.
     Used by managers to compare predictions against actual outcomes.
     """
-    query = select(MlPredictionLog).order_by(desc(MlPredictionLog.created_at))
+    query = select(MlPredictionLog)
+    count_query = select(func.count()).select_from(MlPredictionLog)
 
     if machine_id is not None:
         query = query.where(MlPredictionLog.machine_id == machine_id)
+        count_query = count_query.where(MlPredictionLog.machine_id == machine_id)
     if risk_level is not None:
         query = query.where(MlPredictionLog.risk_level == risk_level)
+        count_query = count_query.where(MlPredictionLog.risk_level == risk_level)
 
-    query = query.limit(limit)
+    total_result = await db.execute(count_query)
+    total_count = total_result.scalar_one()
+
+    skip = (page - 1) * size
+    query = query.order_by(desc(MlPredictionLog.created_at)).offset(skip).limit(size)
 
     result = await db.execute(query)
     logs = result.scalars().all()
 
-    return [
+    items = [
         {
             "id": log.id,
             "machine_id": log.machine_id,
@@ -227,7 +265,10 @@ async def get_shadow_logs(
             "ml_model_used": log.ml_model_used,
             "created_at": log.created_at.isoformat() if log.created_at else None,
         }
+        for log in logs
     ]
+
+    return PaginatedResponse.create(items=items, total=total_count, page=page, size=size)
 
 
 @router.patch("/machines/{machine_id}/telemetry")

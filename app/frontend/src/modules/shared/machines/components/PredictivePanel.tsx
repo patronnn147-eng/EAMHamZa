@@ -34,6 +34,11 @@ interface MLPrediction {
     is_anomaly?: boolean;
     anomaly_score?: number;
     explanations?: XAIExplanation[];
+    health_score: number;
+    reliability_score: number;
+    mtbf_pred: number;
+    mttr_pred: number;
+    availability_pred: number;
 }
 
 interface PredictivePanelProps {

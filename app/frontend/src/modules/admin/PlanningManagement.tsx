@@ -26,6 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import type { Machine } from '@/lib/types';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 import { ZONE_OPTIONS, SOUS_ZONE_OPTIONS_BY_ZONE, ORDRE_TEMPLATES } from '@/lib/constants';
 
@@ -55,6 +56,9 @@ interface Planning {
 export default function PlanningManagement() {
   const [plannings, setPlannings] = useState<Planning[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(12); // 12 fits well in 1, 2, or 3 column grids
   const [resendingPlanningId, setResendingPlanningId] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -130,20 +134,21 @@ export default function PlanningManagement() {
 
   useEffect(() => {
     fetchPlannings();
-  }, []);
+  }, [page]);
 
   const fetchPlannings = async () => {
     try {
+      setLoading(true);
       const response = await client.apiCall.invoke({
-        url: '/api/v1/plannings',
+        url: `/api/v1/plannings?page=${page}&size=${pageSize}`,
         method: 'GET',
-        query: { skip: 0, limit: 100 },
       });
 
-      const rawData = response?.data || response;
-      const items = rawData?.items || (Array.isArray(rawData) ? rawData : []);
-
+      const data = response?.data || response;
+      const items = data?.items || (Array.isArray(data) ? data : []);
+      
       setPlannings(items);
+      setTotalPages(data?.total_pages || 1);
     } catch (error: any) {
       console.error('Error fetching plannings:', error);
       const errorMessage = error?.response?.data?.detail || error?.message || 'Failed to load plannings';
@@ -575,7 +580,7 @@ export default function PlanningManagement() {
                       <div className="flex-1">
                         <p className="text-gray-500 flex items-center gap-1">
                           Assigned Users
-                          <Bell className="h-3 w-3 text-green-600" title="Notified" />
+                          <Bell className="h-3 w-3 text-green-600" />
                         </p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {Array.from(new Map(planning.assigned_users.map(user => [user.id, user])).values()).map(user => (
@@ -637,6 +642,12 @@ export default function PlanningManagement() {
           ))
         )}
       </div>
+
+      <AppPagination 
+        currentPage={page}
+        totalPages={totalPages}
+        onPageChange={setPage}
+      />
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

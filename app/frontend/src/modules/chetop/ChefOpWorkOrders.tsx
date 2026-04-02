@@ -12,6 +12,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 interface WorkOrder {
   id: number;
@@ -30,17 +31,22 @@ const ChefOpWorkOrders: React.FC = () => {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<number | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(10);
 
   const fetchWorkOrders = async () => {
     try {
+      setLoading(true);
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-      const response = await fetch(`${apiBase}/api/v1/chetop/work-orders`, {
+      const response = await fetch(`${apiBase}/api/v1/chetop/work-orders?page=${page}&size=${pageSize}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.ok) {
         const data = await response.json();
-        setWorkOrders(data);
+        setWorkOrders(data.items || []);
+        setTotalPages(data.total_pages || 1);
       } else {
         console.error('Failed to fetch work orders:', await response.text());
       }
@@ -53,7 +59,7 @@ const ChefOpWorkOrders: React.FC = () => {
 
   useEffect(() => {
     fetchWorkOrders();
-  }, []);
+  }, [page]);
 
   const handleStart = async (orderId: number) => {
     setStartingId(orderId);
@@ -184,6 +190,14 @@ const ChefOpWorkOrders: React.FC = () => {
             ))}
           </div>
         )}
+
+        <div className="flex justify-end mt-4">
+          <AppPagination
+            currentPage={page}
+            totalPages={totalPages}
+            onPageChange={setPage}
+          />
+        </div>
       </div>
     </div>
   );

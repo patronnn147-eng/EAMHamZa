@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { InterventionsTab } from './dashboard/components';
 import { useCheftechDashboardData } from './dashboard/hooks';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 const CheftechInterventionsPage: React.FC = () => {
   const {
@@ -9,11 +10,14 @@ const CheftechInterventionsPage: React.FC = () => {
     fetchInterventions,
     approveIntervention,
     rejectIntervention,
+    interventionsPage,
+    interventionsTotalPages,
+    setInterventionsPage,
   } = useCheftechDashboardData();
 
   useEffect(() => {
-    fetchInterventions();
-  }, []);
+    fetchInterventions({ page: interventionsPage });
+  }, [interventionsPage]);
 
   if (loading) {
     return (
@@ -32,6 +36,13 @@ const CheftechInterventionsPage: React.FC = () => {
         rejectIntervention={rejectIntervention}
         noGrouping={true}
       />
+      <div className="flex justify-end mt-4">
+        <AppPagination
+          currentPage={interventionsPage}
+          totalPages={interventionsTotalPages}
+          onPageChange={setInterventionsPage}
+        />
+      </div>
     </div>
   );
 };

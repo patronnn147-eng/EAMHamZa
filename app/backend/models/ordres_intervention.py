@@ -1,5 +1,6 @@
 from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
@@ -64,3 +65,23 @@ class Ordres_intervention(Base):
     check_verification_method = Column(String(100), nullable=True) # Test run, Monitoring, Visual inspection
     act_preventive_actions = Column(Text, nullable=True)
     act_recommendations = Column(Text, nullable=True)
+
+    # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
+    machine = relationship(
+        "Machines",
+        primaryjoin="foreign(Ordres_intervention.machine_id) == Machines.id",
+        lazy="noload",
+        viewonly=True,
+    )
+    technicien = relationship(
+        "Utilisateurs",
+        primaryjoin="foreign(Ordres_intervention.technicien_id) == Utilisateurs.id",
+        lazy="noload",
+        viewonly=True,
+    )
+    ordre_travail = relationship(
+        "Ordres_travail",
+        primaryjoin="foreign(Ordres_intervention.ordre_travail_id) == Ordres_travail.id",
+        lazy="noload",
+        viewonly=True,
+    )

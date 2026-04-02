@@ -9,7 +9,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_
+from sqlalchemy import select, and_, or_, func
+from sqlalchemy.orm import selectinload
+from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -122,7 +124,10 @@ async def get_dashboard_stats(
         from models.ordres_intervention import Ordres_intervention
         
         # Request statistics
-        total_requests_result = await db.execute(select(Ordres_intervention))
+        total_requests_result = await db.execute(
+            select(Ordres_intervention)
+            .options(selectinload(Ordres_intervention.machine))
+        )
         total_requests = len(total_requests_result.scalars().all())
         
         pending_result = await db.execute(
@@ -141,7 +146,9 @@ async def get_dashboard_stats(
         requests_rejected = len(rejected_result.scalars().all())
         
         # Machine statistics
-        total_machines_result = await db.execute(select(Machines))
+        total_machines_result = await db.execute(
+            select(Machines)
+        )
         total_machines = len(total_machines_result.scalars().all())
         
         machines_en_maintenance_result = await db.execute(
@@ -228,8 +235,10 @@ async def create_intervention_request(
         logger.error(f"Error creating request: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/work-orders", response_model=List[WorkOrderResponse])
+@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_my_work_orders(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -238,11 +247,21 @@ async def get_my_work_orders(
         raise HTTPException(status_code=403, detail="Forbidden")
     
     try:
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Ordres_travail.id))\
+            .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
+            .where(Ordres_intervention.technicien_id == current_user.id)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         # Join with Ordres_intervention to find WOs requested by this user
         query = select(Ordres_travail, Machines.nom.label("machine_nom"))\
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
-            .where(Ordres_intervention.technicien_id == current_user.id) # In my implementation, technicien_id stores the requester
+            .where(Ordres_intervention.technicien_id == current_user.id)\
+            .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
         
         result = await db.execute(query)
         rows = result.all()
@@ -259,6 +278,13 @@ async def get_my_work_orders(
                 created_at=wo.created_at
             ) for wo, machine_nom in rows
         ]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error fetching work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -404,8 +430,10 @@ async def complete_work_order(
         logger.error(f"Error completing work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/intervention-requests", response_model=List[InterventionRequestResponse])
+@router.get("/intervention-requests", response_model=PaginatedResponse[InterventionRequestResponse])
 async def get_my_intervention_requests(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -413,10 +441,17 @@ async def get_my_intervention_requests(
     try:
         from models.ordres_intervention import Ordres_intervention
         
+        skip = (page - 1) * size
+        
+        # Count total
+        count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technicien_id == current_user.id)
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Ordres_intervention, Machines.nom.label("machine_nom"))\
             .outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)\
             .where(Ordres_intervention.technicien_id == current_user.id)\
-            .order_by(Ordres_intervention.requested_at.desc())
+            .order_by(Ordres_intervention.requested_at.desc()).offset(skip).limit(size)
         
         result = await db.execute(query)
         rows = result.all()
@@ -433,13 +468,22 @@ async def get_my_intervention_requests(
                 rejection_reason=itv.rejection_reason
             ) for itv, machine_nom in rows
         ]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error listing requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/machines", response_model=List[MachineResponse])
+@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
 async def get_machines(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
     type: Optional[str] = Query(None, description="Filter by type"),
     emplacement: Optional[str] = Query(None, description="Filter by location"),
@@ -448,6 +492,20 @@ async def get_machines(
 ):
     """US-CHETOP-006: Get machines with status overview"""
     try:
+        skip = (page - 1) * size
+        
+        # Count total with filters
+        count_query = select(func.count(Machines.id))
+        if statut:
+            count_query = count_query.where(Machines.statut == statut)
+        if type:
+            count_query = count_query.where(Machines.type == type)
+        if emplacement:
+            count_query = count_query.where(Machines.emplacement.ilike(f"%{emplacement}%"))
+        
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(Machines)
         
         if statut:
@@ -457,7 +515,7 @@ async def get_machines(
         if emplacement:
             query = query.where(Machines.emplacement.ilike(f"%{emplacement}%"))
         
-        query = query.order_by(Machines.nom)
+        query = query.order_by(Machines.nom).offset(skip).limit(size)
         
         result = await db.execute(query)
         machines = result.scalars().all()
@@ -470,6 +528,13 @@ async def get_machines(
             statut=machine.statut,
             created_at=machine.created_at
         ) for machine in machines]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error getting machines: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

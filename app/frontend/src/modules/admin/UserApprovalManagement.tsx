@@ -23,6 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 interface PendingUser {
   id: string;
@@ -36,6 +37,9 @@ interface PendingUser {
 export default function UserApprovalManagement() {
   const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pageSize] = useState(10);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<PendingUser | null>(null);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
@@ -45,13 +49,15 @@ export default function UserApprovalManagement() {
     try {
       setLoading(true);
       const response = await client.apiCall.invoke({
-        url: '/api/v1/user-approvals/pending',
+        url: `/api/v1/user-approvals/pending?page=${page}&size=${pageSize}`,
         method: 'GET',
       });
-      setPendingUsers(response.data || []);
+      const data = response.data;
+      setPendingUsers(data?.items || []);
+      setTotalPages(data?.total_pages || 1);
     } catch (error) {
-      const errorDetail = error instanceof Error 
-        ? error.message 
+      const errorDetail = error instanceof Error
+        ? error.message
         : 'Impossible de charger les utilisateurs en attente';
       toast({
         title: 'Erreur',
@@ -65,14 +71,14 @@ export default function UserApprovalManagement() {
 
   useEffect(() => {
     fetchPendingUsers();
-  }, []);
+  }, [page]);
 
   const handleAction = async () => {
     if (!selectedUser || !actionType) return;
 
     try {
       setActionLoading(selectedUser.id);
-      const endpoint = actionType === 'approve' 
+      const endpoint = actionType === 'approve'
         ? `/api/v1/user-approvals/approve/${selectedUser.id}`
         : `/api/v1/user-approvals/reject/${selectedUser.id}`;
 
@@ -91,8 +97,8 @@ export default function UserApprovalManagement() {
       setSelectedUser(null);
       setActionType(null);
     } catch (error) {
-      const errorDetail = error instanceof Error 
-        ? error.message 
+      const errorDetail = error instanceof Error
+        ? error.message
         : 'Une erreur est survenue';
       toast({
         title: 'Erreur',
@@ -229,6 +235,14 @@ export default function UserApprovalManagement() {
               </Table>
             </div>
           )}
+
+          <div className="mt-4">
+            <AppPagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+            />
+          </div>
         </CardContent>
       </Card>
 

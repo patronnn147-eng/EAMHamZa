@@ -2,10 +2,12 @@
 User Approval Routes - Admin endpoints for managing user registrations
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
 from pydantic import BaseModel
+from schemas.pagination import PaginatedResponse
+import math
 
 from core.database import get_db
 from core.email import email_service
@@ -29,22 +31,35 @@ class PendingUserResponse(BaseModel):
     status: str
     created_at: str
 
-@router.get("/pending", response_model=List[PendingUserResponse])
+@router.get("/pending", response_model=PaginatedResponse[PendingUserResponse])
 async def get_pending_users(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get all pending user registrations (Admin only)
     """
+    skip = (page - 1) * size
+    
+    # Count total
+    total_result = await db.execute(
+        select(func.count(Utilisateurs.id))
+        .where(Utilisateurs.status == UserStatus.PENDING)
+    )
+    total = total_result.scalar() or 0
+
     result = await db.execute(
         select(Utilisateurs)
         .where(Utilisateurs.status == UserStatus.PENDING)
         .order_by(Utilisateurs.created_at.desc())
+        .offset(skip)
+        .limit(size)
     )
     pending_users = result.scalars().all()
 
-    return [
+    items = [
         PendingUserResponse(
             id=str(user.id),
             email=user.email,
@@ -55,6 +70,13 @@ async def get_pending_users(
         )
         for user in pending_users
     ]
+
+    return PaginatedResponse.create(
+        items=items,
+        total=total,
+        page=page,
+        size=size
+    )
 
 @router.post("/approve/{user_id}", response_model=dict)
 async def approve_user(
@@ -171,20 +193,31 @@ async def reject_user(
         }
     }
 
-@router.get("/all", response_model=List[PendingUserResponse])
+@router.get("/all", response_model=PaginatedResponse[PendingUserResponse])
 async def get_all_users_with_status(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Get all users with their approval status (Admin only)
     """
+    skip = (page - 1) * size
+
+    # Count total
+    total_result = await db.execute(select(func.count(Utilisateurs.id)))
+    total = total_result.scalar() or 0
+
     result = await db.execute(
-        select(Utilisateurs).order_by(Utilisateurs.created_at.desc())
+        select(Utilisateurs)
+        .order_by(Utilisateurs.created_at.desc())
+        .offset(skip)
+        .limit(size)
     )
     all_users = result.scalars().all()
 
-    return [
+    items = [
         PendingUserResponse(
             id=str(user.id),
             email=user.email,
@@ -195,3 +228,10 @@ async def get_all_users_with_status(
         )
         for user in all_users
     ]
+
+    return PaginatedResponse.create(
+        items=items,
+        total=total,
+        page=page,
+        size=size
+    )

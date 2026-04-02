@@ -5,7 +5,8 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
+from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -40,8 +41,10 @@ class ItvRequestResponse(BaseModel):
     class Config:
         from_attributes = True
 
-@router.get("", response_model=List[ItvRequestResponse])
+@router.get("", response_model=PaginatedResponse[ItvRequestResponse])
 async def get_all_pending_requests(
+    page: int = Query(1, ge=1),
+    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -50,6 +53,14 @@ async def get_all_pending_requests(
         raise HTTPException(status_code=403, detail="Only Admins can see these requests")
     
     try:
+        skip = (page - 1) * size
+
+        # Count total
+        count_query = select(func.count(Ordres_intervention.id))\
+            .where(Ordres_intervention.statut == "EN_ATTENTE")
+        total_result = await db.execute(count_query)
+        total = total_result.scalar() or 0
+
         query = select(
             Ordres_intervention, 
             Machines.nom.label("machine_nom"),
@@ -57,7 +68,7 @@ async def get_all_pending_requests(
         ).outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)\
          .outerjoin(Utilisateurs, Ordres_intervention.technicien_id == Utilisateurs.id)\
          .where(Ordres_intervention.statut == "EN_ATTENTE")\
-         .order_by(Ordres_intervention.requested_at.asc())
+         .order_by(Ordres_intervention.requested_at.asc()).offset(skip).limit(size)
         
         result = await db.execute(query)
         rows = result.all()
@@ -74,6 +85,13 @@ async def get_all_pending_requests(
                 requested_by_nom=requester_nom
             ) for itv, machine_nom, requester_nom in rows
         ]
+
+        return PaginatedResponse.create(
+            items=items,
+            total=total,
+            page=page,
+            size=size
+        )
     except Exception as e:
         logger.error(f"Error fetching pending requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

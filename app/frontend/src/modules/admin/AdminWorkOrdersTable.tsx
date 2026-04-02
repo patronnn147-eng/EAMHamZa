@@ -16,6 +16,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { PriorityBadge, StatusBadge } from '@/modules/shared/work-orders/utils/badges';
 import { toast } from 'sonner';
+import { AppPagination } from '@/components/shared/AppPagination';
 
 interface AdminWorkOrder {
     id: number;
@@ -38,6 +39,9 @@ interface AdminWorkOrder {
 export default function AdminWorkOrdersTable() {
     const [workOrders, setWorkOrders] = useState<AdminWorkOrder[]>([]);
     const [loading, setLoading] = useState(true);
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pageSize] = useState(100);
     const [searchTerm, setSearchTerm] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
     
@@ -49,15 +53,17 @@ export default function AdminWorkOrdersTable() {
 
     const fetchWorkOrders = async () => {
         try {
+            setLoading(true);
             const apiBase = getAPIBaseURL();
-            const response = await fetch(`${apiBase}/api/v1/admin/work-orders`, {
+            const response = await fetch(`${apiBase}/api/v1/admin/work-orders?page=${page}&size=${pageSize}`, {
                 headers: {
                     'Authorization': `Bearer ${localStorage.getItem('access_token')}`
                 }
             });
             if (!response.ok) throw new Error('Failed to fetch');
             const data = await response.json();
-            setWorkOrders(data);
+            setWorkOrders(data.items || []);
+            setTotalPages(data.total_pages || 1);
         } catch (error) {
             console.error('Error fetching admin work orders:', error);
             toast.error("Erreur lors du chargement des ordres de travail");
@@ -68,7 +74,7 @@ export default function AdminWorkOrdersTable() {
 
     useEffect(() => {
         fetchWorkOrders();
-    }, []);
+    }, [page]);
 
     const handleExport = async (woId: number) => {
         try {
@@ -247,6 +253,14 @@ export default function AdminWorkOrdersTable() {
                     </div>
                 </CardContent>
             </Card>
+
+            <div className="mt-4 flex justify-end">
+                <AppPagination
+                    currentPage={page}
+                    totalPages={totalPages}
+                    onPageChange={setPage}
+                />
+            </div>
         </div>
     );
 }
