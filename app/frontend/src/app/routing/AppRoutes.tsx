@@ -21,6 +21,7 @@ import UserManagement from '@/modules/admin/UserManagement';
 import AdminCompletedWorkOrders from '@/modules/admin/AdminCompletedWorkOrders';
 import SystemAnalytics from '@/modules/admin/SystemAnalytics';
 import MLDashboard from '@/modules/admin/ml/MLDashboard';
+import MLFleetDashboard from '@/modules/shared/MLFleetDashboard';
 import Reports from '@/modules/shared/Reports';
 import Archives from '@/modules/shared/Archives';
 import TechnicianDashboard from '@/modules/technicien/TechnicianDashboard';
@@ -367,6 +368,17 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
               <MLDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* ML Fleet Dashboard Route (ADMIN, CHEFTECH, CHETOP) */}
+      <Route
+        path="/ml-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP']}>
+            <Layout>
+              <MLFleetDashboard />
             </Layout>
           </ProtectedRoute>
         }

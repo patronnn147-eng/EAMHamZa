@@ -39,6 +39,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Gestion des OT', href: '/admin/work-orders-management', icon: FileText },
       { name: 'Machines', href: '/admin/machines', icon: Settings },
       { name: 'ML & Prédictions', href: '/admin/ml', icon: BrainCircuit },
+      { name: 'Dashboard IA Flotte', href: '/ml-dashboard', icon: BrainCircuit },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Archives', href: '/archives', icon: Archive }
     ];

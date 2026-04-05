@@ -136,3 +136,60 @@ export interface Archive {
   user_id: string;
   created_at: string;
 }
+
+// ── ML Fleet Dashboard Types ──
+
+export interface SHAPExplanation {
+  factor: string;
+  impact: number;
+  intensity: 'high' | 'medium' | 'low';
+}
+
+export interface MLPrediction {
+  machine_id: number;
+  machine_name: string;
+  rul_days: number;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  failure_probability: number;
+  predicted_failure_date: string;
+  data_points: number;
+  predicted_priority?: string;
+  is_anomaly?: boolean;
+  anomaly_score?: number;
+  explanations?: SHAPExplanation[];
+  health_score: number;
+  reliability_score: number;
+  mtbf_pred: number;
+  mttr_pred: number;
+  availability_pred: number;
+  failure_type_predictions?: {
+    TWF?: number;
+    HDF?: number;
+    PWF?: number;
+    OSF?: number;
+    RNF?: number;
+  };
+}
+
+export interface FleetMachineCard {
+  id: number;
+  nom: string;
+  zone?: string;
+  sous_zone?: string;
+  statut?: string;
+  ml: MLPrediction;
+}
+
+export interface FleetDashboardResponse {
+  machines: FleetMachineCard[];
+  total_machines: number;
+  critical_count: number;
+  high_risk_count: number;
+  avg_health_score: number;
+  avg_reliability_score: number;
+}
+
+export interface FleetCriticalResponse {
+  machines: FleetMachineCard[];
+  count: number;
+}
