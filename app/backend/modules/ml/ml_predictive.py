@@ -180,11 +180,11 @@ class MachineLearningService:
 
         # --- Step 7: Predicted KPIs (MTBF, MTTR, Availability) ---
         if len(interventions) == 0:
-            ml_mtbf_hours = None
-            ml_mttr_hours = None
-            ml_availability_pct = None
+            ml_mtbf_hours = 0.0
+            ml_mttr_hours = 0.0
+            ml_availability_pct = 0.0
             ml_health_score = 100.0  # Perfect health for new machine
-            ml_reliability_score = None # No reliability score yet
+            ml_reliability_score = 100.0 # New machine = full reliability
             risk_level = "LOW" # Basic assumption
             predicted_priority = "Normal"
         else:
@@ -242,10 +242,10 @@ class MachineLearningService:
                 "open_work_orders": open_work_orders,
                 "recent_interventions": recent_interventions
             },
-            "reliability_score": round(ml_reliability_score, 1) if ml_reliability_score is not None else None,
-            "mtbf_pred": round(ml_mtbf_hours, 1) if ml_mtbf_hours is not None else None,
-            "mttr_pred": round(ml_mttr_hours, 1) if ml_mttr_hours is not None else None,
-            "availability_pred": round(ml_availability_pct, 1) if ml_availability_pct is not None else None,
+            "reliability_score": round(ml_reliability_score, 1) if ml_reliability_score is not None else 0.0,
+            "mtbf_pred": round(ml_mtbf_hours, 1) if ml_mtbf_hours is not None else 0.0,
+            "mttr_pred": round(ml_mttr_hours, 1) if ml_mttr_hours is not None else 0.0,
+            "availability_pred": round(ml_availability_pct, 1) if ml_availability_pct is not None else 0.0,
             
             # Raw Telemetry (for reference)
             "air_temperature": air_temp,

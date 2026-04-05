@@ -187,7 +187,7 @@ async def get_fleet_critical_predictions(db: AsyncSession = Depends(get_db)):
         if pred["risk_level"] in ["CRITICAL", "HIGH"]:
             predictions.append(pred)
 
-    return sorted(predictions, key=lambda x: x["rul_days"])
+    return {"machines": sorted(predictions, key=lambda x: x["rul_days"])}
 
 
 @router.get("/fleet/dashboard")

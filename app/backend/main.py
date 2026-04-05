@@ -190,12 +190,17 @@ def root():
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy"}
+    return {"status": "ok"}
 
 
 @app.get("/api/v1/health")
-def api_health_check():
-    return {"status": "healthy"}
+async def api_health_check():
+    from services.database import check_database_health
+    db_healthy = await check_database_health()
+    return {
+        "status": "ok",
+        "database": "connected" if db_healthy else "disconnected"
+    }
 
 
 def run_in_debug_mode(app: FastAPI):
