@@ -73,5 +73,18 @@
 
 ---
 
+### Phase 06: ML Fleet Dashboard (Complete ✅)
+
+**Goal:** Build a React frontend dashboard that visualizes all 6 ML model predictions (P1-P6) for the entire machine fleet, with fleet overview, machine detail panels, trend charts, SHAP explanations, and anomaly alerts.
+
+**Requirements:** [ML-DASH-01, ML-DASH-02, ML-DASH-03]
+
+**Plans:** 1 plan in 1 wave (Complete ✅)
+
+**Plan list:**
+- [x] 06-01-PLAN.md — Build ML Fleet Dashboard with fleet overview, machine detail, charts, SHAP, and manual verification
+
+---
+
 *Generated: 2026-04-03*
 *Updated: 2026-04-05*
