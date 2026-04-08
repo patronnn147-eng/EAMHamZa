@@ -84,38 +84,38 @@ export const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({ machine,
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
-        const res = await fetch(`/api/v1/ml/machines/${machine.id}/prediction`, { headers });
+        const res = await fetch(`/api/v1/ml/machines/${machine.machine_id}/prediction`, { headers });
         if (res.ok) {
           const data = await res.json();
           setPrediction(data);
         } else {
           // Fallback to card data if detailed endpoint not available
           setPrediction({
-            machine_id: machine.id,
-            machine_name: machine.nom,
-            rul_days: machine.ml.rul_days,
-            risk_level: machine.ml.risk_level,
-            failure_probability: machine.ml.failure_probability,
-            predicted_failure_date: machine.ml.predicted_failure_date,
-            data_points: machine.ml.data_points,
-            predicted_priority: machine.ml.predicted_priority,
-            is_anomaly: machine.ml.is_anomaly,
-            anomaly_score: machine.ml.anomaly_score,
-            explanations: machine.ml.explanations,
-            health_score: machine.ml.health_score,
-            reliability_score: machine.ml.reliability_score,
-            mtbf_pred: machine.ml.mtbf_pred,
-            mttr_pred: machine.ml.mttr_pred,
-            availability_pred: machine.ml.availability_pred,
-            failure_type_predictions: machine.ml.failure_type_predictions,
+            machine_id: machine.machine_id,
+            machine_name: machine.machine_name,
+            rul_days: machine.rul_days,
+            risk_level: machine.risk_level,
+            failure_probability: machine.failure_probability,
+            predicted_failure_date: machine.predicted_failure_date,
+            data_points: machine.data_points,
+            predicted_priority: machine.predicted_priority,
+            is_anomaly: machine.is_anomaly,
+            anomaly_score: machine.anomaly_score,
+            explanations: machine.explanations,
+            health_score: machine.health_score,
+            reliability_score: machine.reliability_score,
+            mtbf_pred: machine.mtbf_pred,
+            mttr_pred: machine.mttr_pred,
+            availability_pred: machine.availability_pred,
+            failure_type_predictions: undefined,
             health_history: Array.from({ length: 14 }, (_, i) => {
               const d = new Date();
               d.setDate(d.getDate() - 13 + i);
               const variance = (Math.random() - 0.5) * 20;
               return {
                 date: d.toISOString().split('T')[0],
-                health_score: Math.max(0, Math.min(100, machine.ml.health_score + variance)),
-                rul: Math.max(0, machine.ml.rul_days + (i - 7) * 2),
+                health_score: Math.max(0, Math.min(100, machine.health_score + variance)),
+                rul: Math.max(0, machine.rul_days + (i - 7) * 2),
               };
             }),
           });
@@ -128,14 +128,14 @@ export const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({ machine,
     };
 
     fetchPrediction();
-  }, [machine.id]);
+  }, [machine.machine_id]);
 
-  const rc = riskConfig[prediction?.risk_level || machine.ml.risk_level] || riskConfig.LOW;
+  const rc = riskConfig[prediction?.risk_level || machine.risk_level] || riskConfig.LOW;
   const pConfig = priorityConfig[prediction?.predicted_priority || 'Medium'] || priorityConfig.Medium;
   const displayData = prediction || {
-    ...machine.ml,
-    machine_id: machine.id,
-    machine_name: machine.nom,
+    ...machine,
+    machine_id: machine.machine_id,
+    machine_name: machine.machine_name,
   };
 
   return (
@@ -144,7 +144,7 @@ export const MachineDetailPanel: React.FC<MachineDetailPanelProps> = ({ machine,
         <DialogHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b">
           <div>
             <DialogTitle className="text-xl font-bold text-gray-900">
-              {displayData.machine_name || machine.nom}
+              {displayData.machine_name || machine.machine_name}
             </DialogTitle>
             <p className="text-sm text-gray-500 mt-0.5">
               {[machine.zone, machine.sous_zone].filter(Boolean).join(' · ')} — Analyse IA prédictive

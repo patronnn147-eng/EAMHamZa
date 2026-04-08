@@ -66,7 +66,6 @@ class InterventionResponse(BaseModel):
     problem_start_time: Optional[datetime] = None
     frequency: Optional[str] = None
     operating_state: Optional[str] = None
-    load_level: Optional[int] = None
     temperature: Optional[str] = None
     impact: Optional[str] = None
     estimated_loss: Optional[str] = None
@@ -219,14 +218,28 @@ async def get_interventions(
     try:
         skip = (page - 1) * size
         
-        # Count total
-        count_query = select(func.count(Ordres_intervention.id))
+        # Count total - only show interventions where current user is involved
+        count_query = select(func.count(Ordres_intervention.id))\
+            .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
+            .where(
+                or_(
+                    Ordres_intervention.technicien_id == current_user.id,
+                    Ordres_travail.created_by == current_user.id
+                )
+            )
         if statut:
             count_query = count_query.where(Ordres_intervention.statut == statut)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(Ordres_intervention)
+        query = select(Ordres_intervention)\
+            .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
+            .where(
+                or_(
+                    Ordres_intervention.technicien_id == current_user.id,
+                    Ordres_travail.created_by == current_user.id
+                )
+            )
         if statut:
             query = query.where(Ordres_intervention.statut == statut)
         query = query.options(
@@ -276,123 +289,8 @@ async def get_interventions(
 
 class InterventionDecisionRequest(BaseModel):
     rejection_reason: Optional[str] = None
+    technician_id: Optional[int] = None
 
-
-@router.post("/interventions/{intervention_id}/approve", response_model=InterventionResponse)
-async def approve_intervention(
-    intervention_id: int,
-    current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    intervention = await db.scalar(select(Ordres_intervention).where(Ordres_intervention.id == intervention_id))
-    if not intervention:
-        raise HTTPException(status_code=404, detail="Intervention not found")
-
-    if intervention.statut != "PENDING_APPROVAL":
-        raise HTTPException(status_code=400, detail="Only pending interventions can be approved")
-
-    now = datetime.now(timezone.utc)
-    intervention.statut = "APPROVED"
-    intervention.approved_by = current_user.id
-    intervention.approved_at = now
-    intervention.rejection_reason = None
-
-    await db.commit()
-    await db.refresh(intervention)
-
-    # RabbitMQ event + Celery email for approval
-    int_payload = {
-        "id": intervention.id,
-        "ordre_travail_id": intervention.ordre_travail_id,
-        "statut": intervention.statut,
-    }
-    approver_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
-
-    try:
-        rmq = await get_rabbitmq()
-        await rmq.publish_intervention_event(ROUTING_KEY_INT_APPROVED, {
-            "intervention": int_payload,
-            "approved_by": approver_payload,
-        })
-    except Exception as rmq_err:
-        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
-
-    try:
-        if intervention.technicien_id:
-            tech_res = await db.execute(
-                select(Utilisateurs).where(Utilisateurs.id == intervention.technicien_id)
-            )
-            tech_user = tech_res.scalar_one_or_none()
-            if tech_user:
-                notify_intervention_approved.delay(
-                    int_payload,
-                    approver_payload,
-                    {"email": tech_user.email, "nom": tech_user.nom},
-                )
-    except Exception as task_err:
-        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
-
-    return intervention
-
-
-@router.post("/interventions/{intervention_id}/reject", response_model=InterventionResponse)
-async def reject_intervention(
-    intervention_id: int,
-    data: InterventionDecisionRequest,
-    current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
-    db: AsyncSession = Depends(get_db),
-):
-    intervention = await db.scalar(select(Ordres_intervention).where(Ordres_intervention.id == intervention_id))
-    if not intervention:
-        raise HTTPException(status_code=404, detail="Intervention not found")
-
-    if intervention.statut != "PENDING_APPROVAL":
-        raise HTTPException(status_code=400, detail="Only pending interventions can be declined")
-
-    now = datetime.now(timezone.utc)
-    intervention.statut = "DECLINED"
-    intervention.approved_by = current_user.id
-    intervention.approved_at = now
-    intervention.rejection_reason = data.rejection_reason
-
-    await db.commit()
-    await db.refresh(intervention)
-
-    # RabbitMQ event + Celery email for decline
-    int_payload = {
-        "id": intervention.id,
-        "ordre_travail_id": intervention.ordre_travail_id,
-        "statut": intervention.statut,
-    }
-    rejector_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
-
-    try:
-        rmq = await get_rabbitmq()
-        await rmq.publish_intervention_event(ROUTING_KEY_INT_DECLINED, {
-            "intervention": int_payload,
-            "rejected_by": rejector_payload,
-            "reason": data.rejection_reason or "",
-        })
-    except Exception as rmq_err:
-        logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
-
-    try:
-        if intervention.technicien_id:
-            tech_res = await db.execute(
-                select(Utilisateurs).where(Utilisateurs.id == intervention.technicien_id)
-            )
-            tech_user = tech_res.scalar_one_or_none()
-            if tech_user:
-                notify_intervention_declined.delay(
-                    int_payload,
-                    rejector_payload,
-                    {"email": tech_user.email, "nom": tech_user.nom},
-                    data.rejection_reason or "",
-                )
-    except Exception as task_err:
-        logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
-
-    return intervention
 
 @router.get("/ordres-travail", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_work_orders(

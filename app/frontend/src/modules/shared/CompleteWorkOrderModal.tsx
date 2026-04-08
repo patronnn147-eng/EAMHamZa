@@ -80,10 +80,19 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
       const token = localStorage.getItem('access_token');
       if (!token) throw new Error('Non authentifié');
 
-      const roleEndpoint = user?.role?.toLowerCase() === 'technicien' ? 'technicien' : 'chetop';
+      // Check localStorage first for user role (more reliable)
+      const storedUser = localStorage.getItem('user');
+      const userData = storedUser ? JSON.parse(storedUser) : null;
+      const userRole = userData?.role || user?.role || '';
+      
+      // Use correct endpoint based on user role - check both uppercase and lowercase
+      let endpoint = 'chetop';
+      if (userRole.toUpperCase() === 'TECHNICIEN' || userRole.toLowerCase() === 'technicien') {
+        endpoint = 'technicien';
+      }
 
       // 1. Complete work order
-      const res = await fetch(`${apiBase}/api/v1/${roleEndpoint}/work-orders/${workOrderId}/complete`, {
+      const res = await fetch(`${apiBase}/api/v1/${endpoint}/work-orders/${workOrderId}/complete`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,

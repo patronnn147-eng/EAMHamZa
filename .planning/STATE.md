@@ -32,6 +32,11 @@
   - TestSprite: 4/4 tests passed (100%)
   - API fixes: health endpoints, fleet/critical format, None→0.0
 
+## Accumulated Context
+
+### Roadmap Evolution
+- Phase 7 added: ML Pipeline End-to-End: Model Training to Frontend Integration
+
 ## Blocker / Issues
 
 (None)

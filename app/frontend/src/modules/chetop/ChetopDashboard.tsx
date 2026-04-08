@@ -90,7 +90,7 @@ const ChetopDashboard: React.FC = () => {
 
         <CreateItvRequestModal
           open={showCreateModal}
-          onClose={() => setShowCreateModal(false)}
+          onOpenChange={(open) => setShowCreateModal(open)}
           onSuccess={() => {
             setShowCreateModal(false);
             refreshData();

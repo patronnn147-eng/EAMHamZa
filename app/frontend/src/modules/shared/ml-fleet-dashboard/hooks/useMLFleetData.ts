@@ -46,14 +46,20 @@ export function useMLFleetData(): UseMLFleetDataReturn {
       // Fetch fleet dashboard data
       const dashboardRes = await fetch(`${API_BASE}/api/v1/ml/fleet/dashboard`, { headers });
       if (dashboardRes.ok) {
-        const dashboardData: FleetDashboardResponse = await dashboardRes.json();
-        setMachines(dashboardData.machines || []);
+        const dashboardData = await dashboardRes.json();
+        // Backend returns array or { machines: [] }
+        const machineList = Array.isArray(dashboardData) ? dashboardData : (dashboardData.machines || []);
+        setMachines(machineList);
         setSummary({
-          totalMachines: dashboardData.total_machines || 0,
-          criticalCount: dashboardData.critical_count || 0,
-          highRiskCount: dashboardData.high_risk_count || 0,
-          avgHealthScore: dashboardData.avg_health_score || 0,
-          avgReliabilityScore: dashboardData.avg_reliability_score || 0,
+          totalMachines: machineList.length,
+          criticalCount: machineList.filter((m: FleetMachineCard) => m.risk_level === 'CRITICAL').length,
+          highRiskCount: machineList.filter((m: FleetMachineCard) => m.risk_level === 'HIGH').length,
+          avgHealthScore: machineList.length > 0 
+            ? machineList.reduce((sum: number, m: FleetMachineCard) => sum + (m.health_score || 0), 0) / machineList.length 
+            : 0,
+          avgReliabilityScore: machineList.length > 0 
+            ? machineList.reduce((sum: number, m: FleetMachineCard) => sum + (m.reliability_score || 0), 0) / machineList.length 
+            : 0,
         });
       }
 

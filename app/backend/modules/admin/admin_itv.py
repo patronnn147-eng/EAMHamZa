@@ -5,7 +5,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, cast, String
 from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
@@ -25,8 +25,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin/itv-requests", tags=["admin-itv"])
 
 class ItvRequestValidation(BaseModel):
-    status: str  # ACCEPTED, REJECTED
+    status: str  # APPROVED, REJECTED
     rejection_reason: Optional[str] = None
+    technician_id: Optional[int] = None  # Optional technician to assign
 
 class ItvRequestResponse(BaseModel):
     id: int
@@ -55,9 +56,9 @@ async def get_all_pending_requests(
     try:
         skip = (page - 1) * size
 
-        # Count total
+        # Count total - get PENDING_APPROVAL status
         count_query = select(func.count(Ordres_intervention.id))\
-            .where(Ordres_intervention.statut == "EN_ATTENTE")
+            .where(Ordres_intervention.statut == "PENDING_APPROVAL")
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -66,14 +67,14 @@ async def get_all_pending_requests(
             Machines.nom.label("machine_nom"),
             Utilisateurs.nom.label("requester_nom")
         ).outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)\
-         .outerjoin(Utilisateurs, Ordres_intervention.technicien_id == Utilisateurs.id)\
-         .where(Ordres_intervention.statut == "EN_ATTENTE")\
+         .outerjoin(Utilisateurs, Ordres_intervention.requested_by == Utilisateurs.id)\
+         .where(Ordres_intervention.statut == "PENDING_APPROVAL")\
          .order_by(Ordres_intervention.requested_at.asc()).offset(skip).limit(size)
         
         result = await db.execute(query)
         rows = result.all()
         
-        return [
+        items = [
             ItvRequestResponse(
                 id=itv.id,
                 machine_id=itv.machine_id,
@@ -85,7 +86,7 @@ async def get_all_pending_requests(
                 requested_by_nom=requester_nom
             ) for itv, machine_nom, requester_nom in rows
         ]
-
+        
         return PaginatedResponse.create(
             items=items,
             total=total,
@@ -108,30 +109,43 @@ async def validate_itv_request(
         raise HTTPException(status_code=403, detail="Only Admins can validate requests")
     
     try:
-        # Get request
+        # Get request - check for PENDING_APPROVAL status
         request_result = await db.execute(select(Ordres_intervention).where(Ordres_intervention.id == request_id))
         itv_request = request_result.scalar_one_or_none()
         if not itv_request:
             raise HTTPException(status_code=404, detail="Request not found")
         
-        itv_request.statut = data.status
+        if itv_request.statut != "PENDING_APPROVAL":
+            raise HTTPException(status_code=400, detail="Only pending approval requests can be validated")
+        
+        # Assign work order to the ChefOp who requested it (not to a technician)
+        assigned_user_id = itv_request.requested_by
+        
         itv_request.approved_by = current_user.id
         itv_request.approved_at = datetime.utcnow()
-        if data.status == "REJECTED":
-            itv_request.rejection_reason = data.rejection_reason
         
-        # If ACCEPTED, create a Work Order
-        if data.status == "ACCEPTED":
+        if data.status == "REJECTED":
+            itv_request.statut = "DECLINED"
+            itv_request.rejection_reason = data.rejection_reason
+        elif data.status == "APPROVED":
+            itv_request.statut = "APPROVED"
+            
+            # Create a Work Order when approved - assign to the ChefOp who requested it
             new_wo = Ordres_travail(
-                titre=f"Maintenance sur {itv_request.machine_id}", # We'll improve this title
-                description=itv_request.problem_description,
+                titre=f"Intervention #{itv_request.id}",
+                description=itv_request.problem_description or "",
                 priorite=itv_request.priority or "MOYENNE",
                 machine_id=itv_request.machine_id,
-                statut="EN_ATTENTE",
-                created_by=current_user.id
+                utilisateur_id=assigned_user_id,  # Assign to ChefOp who requested
+                statut="ASSIGNÉ",
+                date_echeance=itv_request.requested_at,
+                created_by=current_user.id,
+                validated_by=current_user.id,
+                date_validation=datetime.utcnow(),
+                estimated_duration=itv_request.estimated_duration_minutes,
             )
             db.add(new_wo)
-            await db.flush() # Get ID
+            await db.flush()
             
             # Link WO to ITV
             itv_request.ordre_travail_id = new_wo.id
@@ -140,7 +154,7 @@ async def validate_itv_request(
             machine_result = await db.execute(select(Machines.nom).where(Machines.id == itv_request.machine_id))
             machine_nom = machine_result.scalar_one_or_none()
             if machine_nom:
-                new_wo.titre = f"Intervention: {machine_nom}"
+                new_wo.titre = f"Intervention #{itv_request.id} - {machine_nom}"
 
             # Publish Event
             try:
@@ -159,8 +173,10 @@ async def validate_itv_request(
                 logger.warning(f"RabbitMQ publish failed: {rmq_err}")
 
         await db.commit()
-        return {"message": f"Request {data.status}"}
+        return {"message": f"Request {itv_request.statut}"}
         
+    except HTTPException:
+        raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Error validating request: {str(e)}")

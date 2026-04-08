@@ -4,12 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
   ClipboardList,
   Eye,
   Play,
   CheckCircle2,
   Clock,
   Loader2,
+  Flag,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { AppPagination } from '@/components/shared/AppPagination';
@@ -31,6 +41,10 @@ const ChefOpWorkOrders: React.FC = () => {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [startingId, setStartingId] = useState<number | null>(null);
+  const [completingId, setCompletingId] = useState<number | null>(null);
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [rapport, setRapport] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pageSize] = useState(10);
@@ -84,13 +98,50 @@ const ChefOpWorkOrders: React.FC = () => {
     }
   };
 
+  const openCompleteModal = (orderId: number) => {
+    setSelectedOrderId(orderId);
+    setRapport('');
+    setCompleteModalOpen(true);
+  };
+
+  const handleComplete = async () => {
+    if (!selectedOrderId || !rapport.trim()) return;
+    setCompletingId(selectedOrderId);
+    try {
+      const token = localStorage.getItem('access_token');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/chetop/work-orders/${selectedOrderId}/complete`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ rapport }),
+      });
+      if (response.ok) {
+        toast({ title: 'Succès', description: "L'intervention a été clôturée" });
+        setCompleteModalOpen(false);
+        fetchWorkOrders();
+      } else {
+        const err = await response.json();
+        toast({ title: 'Erreur', description: err.detail || 'Impossible de terminer', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Veuillez réessayer', variant: 'destructive' });
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
   const getStatusBadge = (statut: string) => {
     switch (statut) {
+      case 'ASSIGNÉ':
       case 'EN_ATTENTE':
         return <Badge className="bg-amber-500/10 text-amber-600 border-amber-300"><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
       case 'EN_COURS':
         return <Badge className="bg-blue-500/10 text-blue-600 border-blue-300"><Play className="w-3 h-3 mr-1" />En cours</Badge>;
       case 'TERMINE':
+      case 'TERMINÉ':
         return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-300"><CheckCircle2 className="w-3 h-3 mr-1" />Terminé</Badge>;
       default:
         return <Badge variant="outline">{statut}</Badge>;
@@ -168,7 +219,7 @@ const ChefOpWorkOrders: React.FC = () => {
                         <Eye className="w-4 h-4 mr-1" />
                         Voir
                       </Button>
-                      {wo.statut === 'EN_ATTENTE' && (
+                      {(wo.statut === 'ASSIGNÉ' || wo.statut === 'EN_ATTENTE') && (
                         <Button
                           size="sm"
                           className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-md shadow-emerald-500/20"
@@ -181,6 +232,21 @@ const ChefOpWorkOrders: React.FC = () => {
                             <Play className="w-4 h-4 mr-1" />
                           )}
                           Commencer
+                        </Button>
+                      )}
+                      {wo.statut === 'EN_COURS' && (
+                        <Button
+                          size="sm"
+                          className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold shadow-md shadow-violet-500/20"
+                          onClick={() => openCompleteModal(wo.id)}
+                          disabled={completingId === wo.id}
+                        >
+                          {completingId === wo.id ? (
+                            <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          ) : (
+                            <Flag className="w-4 h-4 mr-1" />
+                          )}
+                          Terminer
                         </Button>
                       )}
                     </div>
@@ -199,6 +265,41 @@ const ChefOpWorkOrders: React.FC = () => {
           />
         </div>
       </div>
+
+      <Dialog open={completeModalOpen} onOpenChange={setCompleteModalOpen}>
+        <DialogContent className="sm:max-w-[480px] rounded-[2rem] border-none shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+              <Flag className="h-5 w-5 text-violet-500" />
+              Clôturer l'intervention
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="font-bold text-sm">Rapport de clôture *</Label>
+              <Textarea
+                placeholder="Décrivez les actions effectuées, le résultat et l'état final de la machine..."
+                value={rapport}
+                onChange={(e) => setRapport(e.target.value)}
+                className="min-h-[120px] rounded-xl border-gray-200"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="ghost" onClick={() => setCompleteModalOpen(false)} className="rounded-xl font-bold">
+              Annuler
+            </Button>
+            <Button
+              onClick={handleComplete}
+              disabled={!rapport.trim() || completingId !== null}
+              className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black px-8"
+            >
+              {completingId !== null ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              Confirmer la clôture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

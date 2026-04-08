@@ -76,12 +76,23 @@ export default function WorkOrderDetailPage() {
         try {
             const token = localStorage.getItem('access_token');
             const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-            const roleEndpoint = user?.role?.toLowerCase() === 'technicien' ? 'technicien' : 'chetop';
             
-            const response = await fetch(`${apiBase}/api/v1/${roleEndpoint}/work-orders/${id}/start`, {
+            // Check localStorage for user role (more reliable)
+            const storedUser = localStorage.getItem('user');
+            const userData = storedUser ? JSON.parse(storedUser) : null;
+            const userRole = userData?.role || user?.role || '';
+            
+            // Use correct endpoint based on user role
+            let endpoint = 'chetop';
+            if (userRole.toUpperCase() === 'TECHNICIEN' || userRole.toLowerCase() === 'technicien') {
+                endpoint = 'technicien';
+            }
+            
+            const response = await fetch(`${apiBase}/api/v1/${endpoint}/work-orders/${id}/start`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                 }
             });
 

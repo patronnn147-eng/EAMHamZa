@@ -155,7 +155,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
       if (!noGrouping) {
         list = list.filter((i) => {
           const s = i.statut || 'EN_ATTENTE';
-          return s === 'EN_ATTENTE' || s === 'PENDING_APPROVAL';
+          return s === 'EN_ATTENTE';  // ChefTech only sees their own interventions, not ChefOp's pending requests
         });
       }
       return list.sort((a, b) => new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime());
@@ -355,14 +355,10 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                       <h3 className="text-[11px] font-black uppercase tracking-widest text-primary flex items-center gap-2">
                         <Activity className="h-4 w-4" /> État & Impact Production
                       </h3>
-                      <div className="grid grid-cols-3 gap-4">
+                      <div className="grid grid-cols-2 gap-4">
                         <div>
                           <div className="text-gray-400 text-xs mb-1">État Opérationnel</div>
                           <div className="font-bold">{(selected as any).operating_state || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <div className="text-gray-400 text-xs mb-1">Charge (%)</div>
-                          <div className="font-bold">{(selected as any).load_level ? `${(selected as any).load_level}%` : 'N/A'}</div>
                         </div>
                         <div>
                           <div className="text-gray-400 text-xs mb-1">Température</div>

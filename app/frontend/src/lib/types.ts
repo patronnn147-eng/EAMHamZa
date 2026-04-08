@@ -75,7 +75,6 @@ export interface Intervention {
   problem_start_time?: string;
   frequency?: string;
   operating_state?: string;
-  load_level?: string;
   temperature?: string;
   impact?: string;
   estimated_loss?: string;
@@ -172,24 +171,55 @@ export interface MLPrediction {
 }
 
 export interface FleetMachineCard {
-  id: number;
-  nom: string;
+  machine_id: number;
+  machine_name: string;
   zone?: string;
   sous_zone?: string;
   statut?: string;
-  ml: MLPrediction;
+  rul_days: number;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  failure_probability: number;
+  predicted_failure_date: string;
+  data_points: number;
+  ml_model_used?: boolean;
+  predicted_priority?: string;
+  is_anomaly?: boolean;
+  anomaly_score?: number;
+  explanations?: SHAPExplanation[];
+  health_score: number;
+  reliability_score: number;
+  mtbf_pred: number;
+  mttr_pred: number;
+  availability_pred: number;
+  air_temperature?: number;
+  process_temperature?: number;
+  rotational_speed?: number;
+  torque?: number;
+  tool_wear?: number;
+  health_breakdown?: {
+    predictive_risk: number;
+    anomaly_penalty: number;
+    maintenance_deduction: number;
+    overdue_deduction: number;
+    status_deduction: number;
+    work_order_deduction: number;
+    intervention_deduction: number;
+    days_since_maintenance: number;
+    open_work_orders: number;
+    recent_interventions: number;
+  };
 }
 
 export interface FleetDashboardResponse {
   machines: FleetMachineCard[];
-  total_machines: number;
-  critical_count: number;
-  high_risk_count: number;
-  avg_health_score: number;
-  avg_reliability_score: number;
+  total_machines?: number;
+  critical_count?: number;
+  high_risk_count?: number;
+  avg_health_score?: number;
+  avg_reliability_score?: number;
 }
 
 export interface FleetCriticalResponse {
   machines: FleetMachineCard[];
-  count: number;
+  count?: number;
 }

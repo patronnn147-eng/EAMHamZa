@@ -40,17 +40,16 @@ export default function TechnicianMachines() {
 
   const fetchData = async () => {
     try {
-      const response: any = await client.apiCall.get('/api/v1/technicien/machines', {
-        query: {
-          page: page,
-          size: pageSize
-        }
+      const token = localStorage.getItem('access_token');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/technicien/machines`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-
-      const machinesList = response.items || [];
+      if (!response.ok) throw new Error('Failed to fetch machines');
+      const machinesList = await response.json();
       setMachines(machinesList);
       setFilteredMachines(machinesList);
-      setTotalPages(response.total_pages || 1);
+      setTotalPages(1);
     } catch (error) {
       console.error('Error fetching machines:', error);
     } finally {

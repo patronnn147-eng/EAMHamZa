@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
 from schemas.pagination import PaginatedResponse
+from sqlalchemy import func as sa_func
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -46,7 +47,6 @@ class InterventionRequestCreate(BaseModel):
     problem_start_time: Optional[datetime] = None
     frequency: Optional[str] = None
     operating_state: Optional[str] = None
-    load_level: Optional[int] = None
     temperature: Optional[str] = None
     impact: Optional[str] = None
     estimated_loss: Optional[str] = None
@@ -195,11 +195,12 @@ async def create_intervention_request(
             machine_id=data.machine_id,
             priority=data.priorite,
             problem_description=data.description,
-            statut="EN_ATTENTE",
+            statut="PENDING_APPROVAL",
             date_intervention=datetime.utcnow(),  # Required NOT NULL field
             requested_at=datetime.utcnow(),
-            ordre_travail_id=0, # Temporary placeholder
-            technicien_id=current_user.id, # ChefOp who requested
+            requested_by=current_user.id,  # Store who requested
+            ordre_travail_id=None, # Will be created by Admin on approval
+            technicien_id=None, # Will be assigned by Admin on approval
             
             # New enhanced fields
             machine_category=data.machine_category,
@@ -207,7 +208,6 @@ async def create_intervention_request(
             problem_start_time=data.problem_start_time,
             frequency=data.frequency,
             operating_state=data.operating_state,
-            load_level=data.load_level,
             temperature=data.temperature,
             impact=data.impact,
             estimated_loss=data.estimated_loss,
@@ -245,28 +245,26 @@ async def get_my_work_orders(
     """CHETOP: List work orders generated from my intervention requests"""
     if current_user.role != UserRole.CHETOP:
         raise HTTPException(status_code=403, detail="Forbidden")
-    
+
     try:
         skip = (page - 1) * size
-        
-        # Count total
-        count_query = select(func.count(Ordres_travail.id))\
+
+        count_query = select(sa_func.count(Ordres_travail.id))\
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        # Join with Ordres_intervention to find WOs requested by this user
         query = select(Ordres_travail, Machines.nom.label("machine_nom"))\
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)\
+            .where(Ordres_intervention.requested_by == current_user.id)\
             .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
-        
+
         result = await db.execute(query)
         rows = result.all()
-        
-        return [
+
+        items = [
             WorkOrderResponse(
                 id=wo.id,
                 titre=wo.titre,
@@ -279,12 +277,7 @@ async def get_my_work_orders(
             ) for wo, machine_nom in rows
         ]
 
-        return PaginatedResponse.create(
-            items=items,
-            total=total,
-            page=page,
-            size=size
-        )
+        return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
         logger.error(f"Error fetching work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -300,10 +293,10 @@ async def start_work_order(
         raise HTTPException(status_code=403, detail="Forbidden")
     
     try:
-        # Verify ownership via intervention request
+        # Verify ownership via intervention request - check requested_by not technician_id
         check_query = select(Ordres_intervention)\
             .where(Ordres_intervention.ordre_travail_id == order_id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         
         check_result = await db.execute(check_query)
         if not check_result.scalar_one_or_none():
@@ -314,8 +307,8 @@ async def start_work_order(
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
         
-        if wo.statut != "EN_ATTENTE":
-            raise HTTPException(status_code=400, detail="Only 'EN_ATTENTE' orders can be started")
+        if wo.statut != "ASSIGNÉ":
+            raise HTTPException(status_code=400, detail="Only 'ASSIGNÉ' orders can be started")
             
         wo.statut = "EN_COURS"
         wo.date_debut = datetime.utcnow()
@@ -360,10 +353,10 @@ async def complete_work_order(
         raise HTTPException(status_code=403, detail="Forbidden")
     
     try:
-        # Verify ownership via intervention request
+        # Verify ownership via intervention request - check requested_by not technician_id
         check_query = select(Ordres_intervention)\
             .where(Ordres_intervention.ordre_travail_id == order_id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         
         check_result = await db.execute(check_query)
         intervention = check_result.scalar_one_or_none()
@@ -430,32 +423,23 @@ async def complete_work_order(
         logger.error(f"Error completing work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.get("/intervention-requests", response_model=PaginatedResponse[InterventionRequestResponse])
+@router.get("/intervention-requests", response_model=List[InterventionRequestResponse])
 async def get_my_intervention_requests(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """List ChefOp's own intervention requests"""
     try:
         from models.ordres_intervention import Ordres_intervention
-        
-        skip = (page - 1) * size
-        
-        # Count total
-        count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technicien_id == current_user.id)
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
 
         query = select(Ordres_intervention, Machines.nom.label("machine_nom"))\
             .outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)\
-            .where(Ordres_intervention.technicien_id == current_user.id)\
-            .order_by(Ordres_intervention.requested_at.desc()).offset(skip).limit(size)
-        
+            .where(Ordres_intervention.requested_by == current_user.id)\
+            .order_by(Ordres_intervention.requested_at.desc())
+
         result = await db.execute(query)
         rows = result.all()
-        
+
         return [
             InterventionRequestResponse(
                 id=itv.id,
@@ -468,22 +452,13 @@ async def get_my_intervention_requests(
                 rejection_reason=itv.rejection_reason
             ) for itv, machine_nom in rows
         ]
-
-        return PaginatedResponse.create(
-            items=items,
-            total=total,
-            page=page,
-            size=size
-        )
     except Exception as e:
         logger.error(f"Error listing requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
+@router.get("/machines", response_model=List[MachineResponse])
 async def get_machines(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None, description="Filter by status"),
     type: Optional[str] = Query(None, description="Filter by type"),
     emplacement: Optional[str] = Query(None, description="Filter by location"),
@@ -492,34 +467,20 @@ async def get_machines(
 ):
     """US-CHETOP-006: Get machines with status overview"""
     try:
-        skip = (page - 1) * size
-        
-        # Count total with filters
-        count_query = select(func.count(Machines.id))
-        if statut:
-            count_query = count_query.where(Machines.statut == statut)
-        if type:
-            count_query = count_query.where(Machines.type == type)
-        if emplacement:
-            count_query = count_query.where(Machines.emplacement.ilike(f"%{emplacement}%"))
-        
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
-
         query = select(Machines)
-        
+
         if statut:
             query = query.where(Machines.statut == statut)
         if type:
             query = query.where(Machines.type == type)
         if emplacement:
             query = query.where(Machines.emplacement.ilike(f"%{emplacement}%"))
-        
-        query = query.order_by(Machines.nom).offset(skip).limit(size)
-        
+
+        query = query.order_by(Machines.nom)
+
         result = await db.execute(query)
         machines = result.scalars().all()
-        
+
         return [MachineResponse(
             id=machine.id,
             nom=machine.nom,
@@ -528,13 +489,6 @@ async def get_machines(
             statut=machine.statut,
             created_at=machine.created_at
         ) for machine in machines]
-
-        return PaginatedResponse.create(
-            items=items,
-            total=total,
-            page=page,
-            size=size
-        )
     except Exception as e:
         logger.error(f"Error getting machines: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

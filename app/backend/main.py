@@ -182,6 +182,9 @@ app.include_router(cheftech_work_orders_router)
 from modules.technicien.technicien_work_orders import router as technicien_work_orders_router
 app.include_router(technicien_work_orders_router, prefix="/api/v1/technicien", tags=["technicien_work_orders"])
 
+from modules.technicien.technicien import router as technicien_router
+app.include_router(technicien_router)
+
 
 @app.get("/")
 def root():

@@ -20,6 +20,7 @@ class Ordres_intervention(Base):
     required_materials = Column(Text, nullable=True)
     machine_id = Column(Integer, nullable=True)
     requested_at = Column(DateTime(timezone=True), nullable=True)
+    requested_by = Column(Integer, nullable=True)  # User who requested the intervention (ChefOp)
     approved_by = Column(Integer, nullable=True)
     approved_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(Text, nullable=True)
@@ -39,7 +40,6 @@ class Ordres_intervention(Base):
     problem_start_time = Column(DateTime(timezone=True), nullable=True)
     frequency = Column(String(50), nullable=True)  # First time, Occasional, Recurrent
     operating_state = Column(String(50), nullable=True)  # Running, Idle, Startup, Shutdown
-    load_level = Column(Integer, nullable=True)  # %
     temperature = Column(String(50), nullable=True)
     impact = Column(String(100), nullable=True)  # Production stopped, Reduced performance, No impact yet
     estimated_loss = Column(String(100), nullable=True)

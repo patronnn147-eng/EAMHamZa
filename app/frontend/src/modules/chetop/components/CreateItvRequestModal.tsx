@@ -58,7 +58,6 @@ export const CreateItvRequestModal: React.FC<Props> = ({
     problem_start_time: '',
     frequency: 'Première fois',
     operating_state: 'En marche',
-    load_level: '',
     temperature: '',
     impact: 'Aucun impact pour le moment',
     estimated_loss: '',
@@ -98,7 +97,6 @@ export const CreateItvRequestModal: React.FC<Props> = ({
         problem_start_time: '',
         frequency: 'Première fois',
         operating_state: 'En marche',
-        load_level: '',
         temperature: '',
         impact: 'Aucun impact pour le moment',
         estimated_loss: '',
@@ -170,25 +168,22 @@ export const CreateItvRequestModal: React.FC<Props> = ({
       
       const payload = {
         machine_id: parseInt(formData.machine_id),
-        problem_description: formData.description,
-        priority: formData.priority,
-        estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,
-        required_materials: formData.required_materials || null,
-        
+        description: formData.description,
+        priorite: formData.priority,
+
         // Enhanced Fields
         machine_category: formData.machine_category,
         symptoms: formData.symptoms.join(', '),
         problem_start_time: formData.problem_start_time ? new Date(formData.problem_start_time).toISOString() : null,
         frequency: formData.frequency,
         operating_state: formData.operating_state,
-        load_level: formData.load_level ? parseInt(formData.load_level) : null,
         temperature: formData.temperature,
         impact: formData.impact,
         estimated_loss: formData.estimated_loss,
         similar_issue_before: formData.similar_issue_before,
       };
 
-      const response = await fetch(`${apiBase}/api/v1/chetop/interventions/request`, {
+      const response = await fetch(`${apiBase}/api/v1/chetop/intervention-requests`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -197,13 +192,17 @@ export const CreateItvRequestModal: React.FC<Props> = ({
         body: JSON.stringify(payload),
       });
 
-      if (response.ok) {
+      if (response.ok || response.status === 201) {
         onSuccess();
         onOpenChange(false);
         toast({ title: 'Succès', description: 'Demande créée avec succès' });
       } else {
-        const error = await response.json();
-        toast({ title: 'Erreur', description: error.detail || 'Échec de la demande', variant: 'destructive' });
+        try {
+          const error = await response.json();
+          toast({ title: 'Erreur', description: error.detail || 'Échec de la demande', variant: 'destructive' });
+        } catch {
+          toast({ title: 'Erreur', description: 'Une erreur est survenue', variant: 'destructive' });
+        }
       }
     } catch (error) {
       console.error('Error submitting request:', error);
@@ -367,26 +366,16 @@ export const CreateItvRequestModal: React.FC<Props> = ({
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label className="font-bold text-sm ml-1">Niveau de charge (%)</Label>
+                    <Label className="font-bold text-sm ml-1">Température (si connue)</Label>
                     <Input 
-                      type="number" 
-                      placeholder="ex: 85"
-                      value={formData.load_level}
-                      onChange={(e) => setFormData({...formData, load_level: e.target.value})}
+                      placeholder="ex: 45°C"
+                      value={formData.temperature}
+                      onChange={(e) => setFormData({...formData, temperature: e.target.value})}
                       className="rounded-xl border-gray-200 py-6"
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                      <Label className="font-bold text-sm ml-1">Température (si connue)</Label>
-                      <Input 
-                        placeholder="ex: 45°C"
-                        value={formData.temperature}
-                        onChange={(e) => setFormData({...formData, temperature: e.target.value})}
-                        className="rounded-xl border-gray-200 py-6"
-                      />
-                   </div>
                    <div className="space-y-2">
                       <Label className="font-bold text-sm ml-1">Durée Estimée (min)</Label>
                       <Input

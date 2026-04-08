@@ -43,12 +43,21 @@ const TechnicianWorkOrders: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setWorkOrders(data);
+        // Handle both paginated response and array response
+        if (data && typeof data === 'object' && 'items' in data) {
+          setWorkOrders(data.items || []);
+        } else if (Array.isArray(data)) {
+          setWorkOrders(data);
+        } else {
+          setWorkOrders([]);
+        }
       } else {
         console.error('Failed to fetch work orders:', await response.text());
+        setWorkOrders([]);
       }
     } catch (error) {
       console.error('Error fetching work orders:', error);
+      setWorkOrders([]);
     } finally {
       setLoading(false);
     }
@@ -171,13 +180,28 @@ const TechnicianWorkOrders: React.FC = () => {
                         <Button
                           size="sm"
                           className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold shadow-md shadow-violet-500/20"
-                          onClick={() => {
-                            setSelectedWoId(wo.id);
-                            setRequestOpen(true);
+                          onClick={async () => {
+                            try {
+                              const token = localStorage.getItem('access_token');
+                              const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+                              const response = await fetch(`${apiBase}/api/v1/technicien/work-orders/${wo.id}/start`, {
+                                method: 'PATCH',
+                                headers: { Authorization: `Bearer ${token}` }
+                              });
+                              if (response.ok) {
+                                toast({ title: 'Succès', description: "L'intervention a commencé" });
+                                fetchWorkOrders();
+                              } else {
+                                const err = await response.json();
+                                toast({ title: 'Erreur', description: err.detail || 'Impossible de démarrer', variant: 'destructive' });
+                              }
+                            } catch {
+                              toast({ title: 'Erreur réseau', description: 'Veuillez réessayer', variant: 'destructive' });
+                            }
                           }}
                         >
                           <Play className="w-4 h-4 mr-1" />
-                          Demander l'intervention
+                          Commencer
                         </Button>
                       )}
                     </div>

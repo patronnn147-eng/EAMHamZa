@@ -8,6 +8,7 @@ from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.rabbitmq import (
     get_rabbitmq,
@@ -56,7 +57,6 @@ class InterventionResponse(BaseModel):
     problem_start_time: Optional[datetime] = None
     frequency: Optional[str] = None
     operating_state: Optional[str] = None
-    load_level: Optional[int] = None
     temperature: Optional[str] = None
     impact: Optional[str] = None
     estimated_loss: Optional[str] = None
@@ -104,7 +104,6 @@ class InterventionRequestPayload(BaseModel):
     problem_start_time: Optional[datetime] = None
     frequency: Optional[str] = None
     operating_state: Optional[str] = None
-    load_level: Optional[int] = None
     temperature: Optional[str] = None
     impact: Optional[str] = None
     estimated_loss: Optional[str] = None
@@ -141,33 +140,22 @@ class MachineResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
+@router.get("/machines", response_model=List[MachineResponse])
 async def get_machines_list(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
     statut: Optional[str] = Query(None),
     current_user: Utilisateurs = Depends(verify_technicien),
     db: AsyncSession = Depends(get_db),
 ):
     """Return all machines for the technician's intervention request form."""
     try:
-        skip = (page - 1) * size
-        
-        # Count total
-        count_query = select(func.count(Machines.id))
-        if statut:
-            count_query = count_query.where(Machines.statut == statut)
-        total_result = await db.execute(count_query)
-        total = total_result.scalar() or 0
-
         query = select(Machines)
         if statut:
             query = query.where(Machines.statut == statut)
-        query = query.order_by(Machines.nom).offset(skip).limit(size)
+        query = query.order_by(Machines.nom)
         result = await db.execute(query)
         machines = result.scalars().all()
-        
-        items = [MachineResponse(
+
+        return [MachineResponse(
             id=m.id,
             nom=m.nom,
             emplacement=m.emplacement,
@@ -175,13 +163,6 @@ async def get_machines_list(
             statut=m.statut,
             created_at=m.created_at
         ) for m in machines]
-
-        return PaginatedResponse.create(
-            items=items,
-            total=total,
-            page=page,
-            size=size
-        )
     except Exception as e:
         logger.error(f"Error getting machines for technicien: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -423,7 +404,6 @@ async def request_intervention(
             problem_start_time=payload.problem_start_time,
             frequency=payload.frequency,
             operating_state=payload.operating_state,
-            load_level=payload.load_level,
             temperature=payload.temperature,
             impact=payload.impact,
             estimated_loss=payload.estimated_loss,
@@ -451,7 +431,6 @@ async def request_intervention(
         intervention.problem_start_time = payload.problem_start_time
         intervention.frequency = payload.frequency
         intervention.operating_state = payload.operating_state
-        intervention.load_level = payload.load_level
         intervention.temperature = payload.temperature
         intervention.impact = payload.impact
         intervention.estimated_loss = payload.estimated_loss

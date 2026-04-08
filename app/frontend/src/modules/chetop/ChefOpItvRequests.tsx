@@ -68,11 +68,15 @@ const ChefOpItvRequests: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'PENDING_APPROVAL':
+        return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> En attente d'approbation</Badge>;
       case 'EN_ATTENTE':
         return <Badge className="bg-amber-500/10 text-amber-500 border-amber-500/20"><Clock className="w-3 h-3 mr-1" /> En attente</Badge>;
+      case 'APPROVED':
       case 'ACCEPTED':
         return <Badge className="bg-emerald-500/10 text-emerald-500 border-emerald-500/20"><CheckCircle2 className="w-3 h-3 mr-1" /> Approuvée</Badge>;
       case 'REJECTED':
+      case 'DECLINED':
         return <Badge className="bg-rose-500/10 text-rose-500 border-rose-500/20"><XCircle className="w-3 h-3 mr-1" /> Rejetée</Badge>;
       default:
         return <Badge>{status}</Badge>;

@@ -247,13 +247,14 @@ export default function TechnicianInterventions() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const res: any = await (client.apiCall as any).get('/api/v1/technicien/interventions', {
-        query: {
-          page: page,
-          size: pageSize
-        }
+      const token = localStorage.getItem('access_token');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const response = await fetch(`${apiBase}/api/v1/technicien/interventions?page=${page}&size=${pageSize}`, {
+        headers: { Authorization: `Bearer ${token}` }
       });
-      
+      if (!response.ok) throw new Error('Failed to fetch interventions');
+      const res = await response.json();
+
       const items = res.items || [];
       setInterventions(items);
       setFilteredInterventions(items);
@@ -320,8 +321,8 @@ export default function TechnicianInterventions() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-gray-900">Mes Interventions</h2>
-          <p className="mt-1 text-sm text-gray-500">Mettez à jour le statut en un clic</p>
+          <h2 className="text-3xl font-bold text-gray-900">Mes Demandes d'Intervention</h2>
+          <p className="mt-1 text-sm text-gray-500">Liste des demandes d'intervention que vous avez soumises</p>
         </div>
         <Button 
           onClick={() => setNewRequestOpen(true)}
@@ -379,6 +380,9 @@ export default function TechnicianInterventions() {
                   {intervention.rejection_reason ? (
                     <span className="text-xs text-red-600">Motif: {intervention.rejection_reason}</span>
                   ) : null}
+                  {intervention.priority && (
+                    <Badge variant="outline">Priorité: {intervention.priority}</Badge>
+                  )}
                 </div>
 
                 {hasChrono(intervention) ? (
@@ -388,17 +392,80 @@ export default function TechnicianInterventions() {
                   </div>
                 ) : null}
 
+                {/* Machine & Category Info */}
+                <div className="mb-4 grid grid-cols-2 gap-2 text-sm">
+                  {intervention.machine_category && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <span className="text-gray-500">Catégorie:</span> {intervention.machine_category}
+                    </div>
+                  )}
+                  {intervention.frequency && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <span className="text-gray-500">Fréquence:</span> {intervention.frequency}
+                    </div>
+                  )}
+                  {intervention.operating_state && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <span className="text-gray-500">État:</span> {intervention.operating_state}
+                    </div>
+                  )}
+                  {intervention.temperature && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <span className="text-gray-500">Température:</span> {intervention.temperature}
+                    </div>
+                  )}
+                  {intervention.impact && (
+                    <div className="bg-gray-50 p-2 rounded">
+                      <span className="text-gray-500">Impact:</span> {intervention.impact}
+                    </div>
+                  )}
+                </div>
+
+                {/* Problem Details */}
                 <div className="mb-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport / Description:</h4>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Description du problème:</h4>
                   <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md line-clamp-4">
                     {renderContentWithFiles(intervention.problem_description)}
-                    {intervention.rapport && (
-                      <div className="mt-2 pt-2 border-t border-gray-200">
-                        {renderContentWithFiles(intervention.rapport)}
-                      </div>
-                    )}
                   </div>
                 </div>
+
+                {/* Symptoms */}
+                {intervention.symptoms && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Symptômes:</h4>
+                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md">
+                      {intervention.suggested_cause}
+                    </div>
+                  </div>
+                )}
+
+                {/* Suggested Details from AI */}
+                {(intervention.suggested_cause || intervention.risk_score || intervention.suggested_priority) && (
+                  <div className="mb-4 p-3 bg-violet-50 rounded-md">
+                    <h4 className="text-sm font-medium text-violet-700 mb-2">Analyse IA:</h4>
+                    <div className="grid grid-cols-3 gap-2 text-sm">
+                      {intervention.suggested_priority && (
+                        <div><span className="text-violet-600">Priorité suggérée:</span> {intervention.suggested_priority}</div>
+                      )}
+                      {intervention.risk_score && (
+                        <div><span className="text-violet-600">Score risque:</span> {intervention.risk_score}</div>
+                      )}
+                      {intervention.suggested_cause && (
+                        <div className="col-span-3"><span className="text-violet-600">Cause suggérée:</span> {intervention.suggested_cause}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Report (after completion) */}
+                {intervention.rapport && (
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Rapport d'intervention:</h4>
+                    <div className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md line-clamp-4">
+                      {renderContentWithFiles(intervention.rapport)}
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-2">
                   {(intervention.statut || 'EN_ATTENTE') === 'EN_ATTENTE' && (

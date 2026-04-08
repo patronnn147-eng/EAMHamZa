@@ -55,17 +55,17 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
 
   const filteredMachines = machines.filter((m) => {
     if (riskFilter === 'ALL') return true;
-    return m.ml.risk_level === riskFilter;
+    return m.risk_level === riskFilter;
   });
 
   const sortedMachines = [...filteredMachines].sort((a, b) => {
     switch (sortField) {
       case 'health':
-        return b.ml.health_score - a.ml.health_score;
+        return b.health_score - a.health_score;
       case 'rul':
-        return a.ml.rul_days - b.ml.rul_days;
+        return a.rul_days - b.rul_days;
       case 'risk':
-        return (riskConfig[a.ml.risk_level]?.order ?? 3) - (riskConfig[b.ml.risk_level]?.order ?? 3);
+        return (riskConfig[a.risk_level]?.order ?? 3) - (riskConfig[b.risk_level]?.order ?? 3);
       default:
         return 0;
     }
@@ -178,17 +178,17 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
       {/* Machine Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {sortedMachines.map((machine) => {
-          const rc = riskConfig[machine.ml.risk_level] || riskConfig.LOW;
+          const rc = riskConfig[machine.risk_level] || riskConfig.LOW;
           return (
             <Card
-              key={machine.id}
+              key={machine.machine_id}
               className={`cursor-pointer hover:shadow-md transition-shadow border ${rc.border} hover:border-blue-300`}
               onClick={() => setSelectedMachine(machine)}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-sm font-bold text-gray-900 truncate">{machine.nom}</CardTitle>
+                    <CardTitle className="text-sm font-bold text-gray-900 truncate">{machine.machine_name}</CardTitle>
                     <p className="text-xs text-gray-500 mt-0.5">
                       {[machine.zone, machine.sous_zone].filter(Boolean).join(' · ')}
                     </p>
@@ -203,14 +203,14 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
                 <div className="space-y-1">
                   <div className="flex justify-between items-center">
                     <span className="text-xs text-gray-500">Santé</span>
-                    <span className={`text-sm font-bold ${getHealthTextColor(machine.ml.health_score)}`}>
-                      {Math.round(machine.ml.health_score)}/100
+                    <span className={`text-sm font-bold ${getHealthTextColor(machine.health_score)}`}>
+                      {Math.round(machine.health_score)}/100
                     </span>
                   </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all ${getHealthBarColor(machine.ml.health_score)}`}
-                      style={{ width: `${Math.min(100, machine.ml.health_score)}%` }}
+                      className={`h-full rounded-full transition-all ${getHealthBarColor(machine.health_score)}`}
+                      style={{ width: `${Math.min(100, machine.health_score)}%` }}
                     />
                   </div>
                 </div>
@@ -219,23 +219,23 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="text-center p-2 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-500">RUL</p>
-                    <p className={`text-lg font-black ${machine.ml.rul_days <= 7 ? 'text-red-600' : 'text-gray-800'}`}>
-                      {Math.round(machine.ml.rul_days)}j
+                    <p className={`text-lg font-black ${machine.rul_days <= 7 ? 'text-red-600' : 'text-gray-800'}`}>
+                      {Math.round(machine.rul_days)}j
                     </p>
                   </div>
                   <div className="text-center p-2 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-500">Fiabilité</p>
                     <p className="text-lg font-black text-gray-800">
-                      {Math.round(machine.ml.reliability_score)}
+                      {Math.round(machine.reliability_score)}
                     </p>
                   </div>
                 </div>
 
                 {/* Anomaly indicator */}
-                {machine.ml.is_anomaly && (
+                {machine.is_anomaly && (
                   <div className="flex items-center gap-1.5 text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">
                     <AlertTriangle className="h-3 w-3" />
-                    <span>Anomalie détectée (score: {machine.ml.anomaly_score?.toFixed(2)})</span>
+                    <span>Anomalie détectée (score: {machine.anomaly_score?.toFixed(2)})</span>
                   </div>
                 )}
               </CardContent>

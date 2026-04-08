@@ -19,13 +19,27 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_index('idx_ordres_travail_utilisateur_id', 'ordres_travail', ['utilisateur_id'])
-    op.create_index('idx_ordres_travail_machine_id', 'ordres_travail', ['machine_id'])
-    op.create_index('idx_ordres_travail_statut', 'ordres_travail', ['statut'])
-    op.create_index('idx_interventions_machine_id', 'ordres_intervention', ['machine_id'])
-    op.create_index('idx_interventions_created_at', 'ordres_intervention', ['created_at'])
-    op.create_index('idx_notifications_utilisateur_id', 'notifications', ['utilisateur_id'])
-    op.create_index('idx_notifications_lu', 'notifications', ['lu'])
+    conn = op.get_bind()
+    
+    indexes_to_create = [
+        ('idx_ordres_travail_utilisateur_id', 'ordres_travail', ['utilisateur_id']),
+        ('idx_ordres_travail_machine_id', 'ordres_travail', ['machine_id']),
+        ('idx_ordres_travail_statut', 'ordres_travail', ['statut']),
+        ('idx_interventions_machine_id', 'ordres_intervention', ['machine_id']),
+        ('idx_interventions_created_at', 'ordres_intervention', ['created_at']),
+        ('idx_notifications_utilisateur_id', 'notifications', ['utilisateur_id']),
+        ('idx_notifications_lu', 'notifications', ['lu']),
+    ]
+    
+    for idx_name, table_name, columns in indexes_to_create:
+        result = conn.execute(
+            sa.text(
+                "SELECT 1 FROM pg_indexes WHERE schemaname = 'public' AND indexname = :idx_name"
+            ),
+            {"idx_name": idx_name},
+        )
+        if not result.first():
+            op.create_index(idx_name, table_name, columns)
 
 
 def downgrade() -> None:

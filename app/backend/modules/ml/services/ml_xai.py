@@ -29,7 +29,8 @@ class XAIService:
             
             # Initialize explainer. 
             # Note: For production with many calls, we should cache the explainer instance.
-            explainer = shap.Explainer(model, X)
+            actual_model = model['model'] if isinstance(model, dict) and 'model' in model else model
+            explainer = shap.Explainer(actual_model, X)
             shap_values = explainer(X)
 
             # Extract impacts

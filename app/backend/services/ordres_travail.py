@@ -62,20 +62,41 @@ class Ordres_travailService:
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Ordres_travail, field):
-                        query = query.where(getattr(Ordres_travail, field) == value)
-                        count_query = count_query.where(getattr(Ordres_travail, field) == value)
+                        column = getattr(Ordres_travail, field)
+                        # Convert value to appropriate type based on column type
+                        column_type = str(column.type)
+                        if 'integer' in column_type.lower() and isinstance(value, str):
+                            try:
+                                value = int(value)
+                            except ValueError:
+                                continue
+                        query = query.where(column == value)
+                        count_query = count_query.where(column == value)
             
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
-                    field_name = sort[1:]
-                    if hasattr(Ordres_travail, field_name):
-                        query = query.order_by(getattr(Ordres_travail, field_name).desc())
+                order_clauses = []
+                for field in sort.split(','):
+                    field = field.strip()
+                    if field.startswith('-'):
+                        field_name = field[1:]
+                        if hasattr(Ordres_travail, field_name):
+                            try:
+                                order_clauses.append(getattr(Ordres_travail, field_name).desc())
+                            except Exception:
+                                pass
+                    else:
+                        if hasattr(Ordres_travail, field):
+                            try:
+                                order_clauses.append(getattr(Ordres_travail, field))
+                            except Exception:
+                                pass
+                if order_clauses:
+                    query = query.order_by(*order_clauses)
                 else:
-                    if hasattr(Ordres_travail, sort):
-                        query = query.order_by(getattr(Ordres_travail, sort))
+                    query = query.order_by(Ordres_travail.id.desc())
             else:
                 query = query.order_by(Ordres_travail.id.desc())
 

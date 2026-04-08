@@ -58,7 +58,7 @@ const AdminItvApprovals: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
-        setRequests(data);
+        setRequests(data.items || data || []);
       }
     } catch (error) {
       console.error('Error fetching requests:', error);
@@ -71,7 +71,7 @@ const AdminItvApprovals: React.FC = () => {
     fetchRequests();
   }, []);
 
-  const handleValidate = async (id: number, status: 'ACCEPTED' | 'REJECTED', reason?: string) => {
+  const handleValidate = async (id: number, status: 'APPROVED' | 'REJECTED', reason?: string) => {
     try {
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
@@ -85,14 +85,28 @@ const AdminItvApprovals: React.FC = () => {
       });
 
       if (response.ok) {
+        const result = await response.json();
         toast({ 
           title: status === 'ACCEPTED' ? "Demande Approuvée" : "Demande Rejetée",
           description: status === 'ACCEPTED' ? "Un ordre de travail a été créé automatiquement." : "Le demandeur sera notifié."
         });
-        fetchRequests();
+        await fetchRequests();
+        setTimeout(() => fetchRequests(), 500);
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erreur",
+          description: error.detail || "Échec de la validation",
+          variant: 'destructive'
+        });
       }
     } catch (error) {
       console.error('Error validating request:', error);
+      toast({
+        title: "Erreur",
+        description: "Une erreur est survenue lors de la validation",
+        variant: 'destructive'
+      });
     }
   };
 
@@ -179,7 +193,7 @@ const AdminItvApprovals: React.FC = () => {
                     <div className="flex justify-end gap-2 translate-x-4 opacity-0 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-300">
                       <Button 
                         size="sm" 
-                        onClick={() => handleValidate(req.id, 'ACCEPTED')}
+                        onClick={() => handleValidate(req.id, 'APPROVED')}
                         className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-full h-10 w-10 p-0 shadow-lg shadow-emerald-500/20 active:scale-90"
                       >
                         <Check className="w-5 h-5" />

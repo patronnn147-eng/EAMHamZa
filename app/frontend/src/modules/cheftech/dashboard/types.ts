@@ -25,7 +25,6 @@ export interface Intervention {
   problem_start_time?: string;
   frequency?: string;
   operating_state?: string;
-  load_level?: number;
   temperature?: string;
   impact?: string;
   estimated_loss?: string;

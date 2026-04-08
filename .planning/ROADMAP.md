@@ -86,5 +86,23 @@
 
 ---
 
+### Phase 07: ML Pipeline End-to-End: Model Training to Frontend Integration
+
+**Goal:** Fix the full ML pipeline chain: consistent backend predictions across all endpoints, telemetry validation, accurate frontend display of all ML values, telemetry update UX, and a smart retraining workflow with admin feedback.
+
+**Requirements:** [ML-PIPE-01, ML-PIPE-02, ML-PIPE-03, ML-PIPE-04, ML-PIPE-05, ML-PIPE-06, ML-PIPE-07, ML-PIPE-08, ML-PIPE-09, ML-PIPE-10, ML-PIPE-11]
+
+**Depends on:** Phase 6
+
+**Plans:** 4 plans in 2 waves
+
+Plans:
+- [ ] 07-01-PLAN.md — Backend: telemetry null guard, failure_types in response, N+1 batch-fetch fleet endpoints, pending_records in retrain stats
+- [ ] 07-02-PLAN.md — Frontend types: fix MLPrediction and FleetMachineCard (failure_types, no_telemetry, is_new_machine, UNKNOWN risk)
+- [ ] 07-03-PLAN.md — MachineDetailPanel: remove fake history, fix failure_types rendering, add telemetry edit form
+- [ ] 07-04-PLAN.md — FleetOverview grey card, is_new_machine badge, useMLFleetData avg fix, MLDashboard inline retrain banner
+
+---
+
 *Generated: 2026-04-03*
-*Updated: 2026-04-05*
+*Updated: 2026-04-08*
