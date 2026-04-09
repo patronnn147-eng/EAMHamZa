@@ -1,0 +1,39 @@
+{
+    "title": "utilisateurs",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "nom": {
+            "type": "string",
+            "description": "User name"
+        },
+        "email": {
+            "type": "string",
+            "description": "User email"
+        },
+        "mot_de_passe": {
+            "type": "string",
+            "description": "Encrypted password"
+        },
+        "role": {
+            "type": "string",
+            "enum": [
+                "CHETOP",
+                "TECHNICIEN",
+                "CHEFTECH",
+                "ADMIN"
+            ],
+            "description": "User role"
+        }
+    },
+    "required": [
+        "id",
+        "nom",
+        "email",
+        "mot_de_passe",
+        "role"
+    ]
+}

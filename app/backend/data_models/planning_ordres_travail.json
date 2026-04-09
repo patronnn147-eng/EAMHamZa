@@ -1,0 +1,28 @@
+{
+    "title": "planning_ordres_travail",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "planning_id": {
+            "type": "integer",
+            "description": "Foreign key to plannings"
+        },
+        "ordre_travail_id": {
+            "type": "integer",
+            "description": "Foreign key to ordres_travail"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "planning_id",
+        "ordre_travail_id"
+    ]
+}

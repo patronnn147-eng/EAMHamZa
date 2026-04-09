@@ -1,0 +1,137 @@
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { AlertCircle, Calendar, Edit, Trash2, Eye, Users } from 'lucide-react';
+import type { Machine, OrdreTravail } from '@/lib/types';
+import { isOverdue, PriorityBadge, StatusBadge } from '../utils/badges';
+
+interface WorkOrdersListProps {
+  workOrders: OrdreTravail[];
+  machines: Machine[];
+  canEdit: boolean;
+  canDelete: boolean;
+  canAssign?: boolean;
+  onAssign?: (workOrder: OrdreTravail) => void;
+  onViewDetails: (workOrder: OrdreTravail) => void;
+  onEdit: (workOrder: OrdreTravail) => void;
+  onRequestDelete: (workOrder: OrdreTravail) => void;
+}
+
+export const WorkOrdersList: React.FC<WorkOrdersListProps> = ({
+  workOrders,
+  machines,
+  canEdit,
+  canDelete,
+  canAssign = false,
+  onAssign,
+  onViewDetails,
+  onEdit,
+  onRequestDelete,
+}) => {
+  const getMachineName = (machineId: number) => {
+    const machine = machines.find((m) => m.id === machineId);
+    return machine ? machine.nom : `Machine #${machineId}`;
+  };
+
+  if (workOrders.length === 0) {
+    return (
+      <Card className="bg-slate-800/80 backdrop-blur-md border border-blue-800/30 shadow-xl">
+        <CardContent className="text-center py-12">
+          <p className="text-blue-300">No work orders found</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 gap-4">
+      {workOrders.map((wo) => (
+        <Card key={wo.id} className="bg-slate-800/80 backdrop-blur-md border border-blue-800/30 hover:shadow-xl hover:border-blue-700/50 transition-all">
+          <CardHeader>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  Work Order #{wo.id}
+                  {isOverdue(wo.date_echeance, wo.statut) && (
+                    <AlertCircle className="h-5 w-5 text-red-500" />
+                  )}
+                </CardTitle>
+                <p className="text-sm text-blue-300 mt-1">{getMachineName(wo.machine_id)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <PriorityBadge priorite={wo.priorite} />
+                <StatusBadge statut={wo.statut} />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm mb-4">
+              <div>
+                <p className="text-blue-300 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  Due Date
+                </p>
+                <p
+                  className={`font-medium mt-1 ${
+                    isOverdue(wo.date_echeance, wo.statut) ? 'text-red-600' : ''
+                  }`}
+                >
+                  {new Date(wo.date_echeance).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-blue-300">Created</p>
+                <p className="font-medium mt-1">{new Date(wo.created_at).toLocaleDateString()}</p>
+              </div>
+              <div>
+                <p className="text-blue-300">Assigned To</p>
+                <p className="font-medium mt-1">
+                  {wo.utilisateur_id ? `User #${wo.utilisateur_id}` : 'Unassigned'}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => onViewDetails(wo)}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
+              </Button>
+              {canAssign && onAssign ? (
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => onAssign(wo)}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Assign
+                </Button>
+              ) : null}
+              {canEdit ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => onEdit(wo)}
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
+              ) : null}
+              {canDelete && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1 text-red-600 hover:text-red-700"
+                  onClick={() => onRequestDelete(wo)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};

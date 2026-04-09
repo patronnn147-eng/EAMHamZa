@@ -1,0 +1,60 @@
+{
+    "title": "plannings",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "identifiant_planning": {
+            "type": "string",
+            "description": "Planning identifier"
+        },
+        "date_debut": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Start date"
+        },
+        "date_fin": {
+            "type": "string",
+            "format": "date-time",
+            "description": "End date"
+        },
+        "type": {
+            "type": "string",
+            "enum": [
+                "MAINTENANCE",
+                "SHIFT"
+            ],
+            "description": "Planning type"
+        },
+        "shift_type": {
+            "type": "string",
+            "enum": [
+                "MORNING",
+                "NIGHT"
+            ],
+            "description": "Shift type (only for SHIFT planning)"
+        },
+        "chef_operation_id": {
+            "type": "integer",
+            "description": "Chef Operation user ID (CHETOP role)"
+        },
+        "chef_technique_id": {
+            "type": "integer",
+            "description": "Chef Technique user ID (CHEFTECH role)"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "identifiant_planning",
+        "date_debut",
+        "date_fin",
+        "type"
+    ]
+}

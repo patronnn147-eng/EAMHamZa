@@ -1,0 +1,7 @@
+nom,type,emplacement,zone,sous_zone,ordre,statut
+Machine-Press-01,Presse Hydraulique,Atelier Principal,Zone B,Ligne 2,1,OPERATIONNELLE
+Machine-CNC-04,Usinage CNC,Atelier A,Zone A,Ligne 1,2,OPERATIONNELLE
+Robot-Soudure-07,Robot,Atelier Soudure,Zone C,Ligne 1,1,OPERATIONNELLE
+,Emballeuse,Atelier Emballage,Zone D,Ligne 3,1,A_VERIFIER
+Machine-Press-01,Four,Atelier Traitement,Zone B,Ligne 4,3,EN_ARRET
+Machine-Laser-02,Laser,Atelier Decoupe,Zone A,Ligne 2,5,OPERATIONNELLE

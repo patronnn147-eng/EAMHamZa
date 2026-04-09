@@ -1,0 +1,48 @@
+There are multiple issues across the Admin Panel and Chef d’Op Panel:
+
+1. Admin Panel – ITV Approval Not Fully Working
+URL: http://localhost:3000/admin/itv-approvals
+When clicking the accept/approve button for an ITV:
+A success message is displayed.
+However, the expected behavior does not fully occur:
+The ITV is not transformed into a Work Order for the Chef d’Op.
+This suggests that the frontend action succeeds visually, but the backend process or state update is incomplete.
+2. Chef d’Op Panel – Error on ITV Request
+When creating (demanding) an ITV:
+
+
+The following error message appears:
+
+
+Erreur
+Une erreur est survenue
+Despite this error:
+The ITV request is actually successfully created in the system.
+3. Unwanted Field in ITV Request Form
+The field "Niveau de charge (%)" should be completely removed:
+From the ITV request form (UI).
+From any related frontend logic.
+From backend validation, DTOs, and database if applicable.
+This field is no longer needed anywhere in the project.
+🎯 Expected Behavior
+When approving an ITV:
+It should:
+Show a success message.
+Properly convert the ITV into a Work Order visible to the Chef d’Op.
+When creating an ITV:
+No error message should appear if the operation succeeds.
+The "Niveau de charge (%)" field should not exist anywhere in the application.
+⚠️ Observed Issues
+Success message shown without completing the intended backend operation.
+Error message shown even when the operation succeeds (false negative).
+Deprecated field still present in the system.
+💡 Suggested Areas to Investigate
+API response handling (frontend may misinterpret responses).
+Backend endpoint for ITV approval (ensure Work Order creation is triggered).
+Error handling logic in the Chef d’Op ITV creation flow.
+HTTP status codes vs frontend success/error conditions.
+Full removal of "Niveau de charge (%)" across:
+UI components
+API payloads
+Backend models / DTOs
+Database schema (if stored)
