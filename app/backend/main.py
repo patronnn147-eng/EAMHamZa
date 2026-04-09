@@ -163,27 +163,7 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
 
 # Setup logging before router discovery
 setup_logging()
-include_routers_from_package(app, "routers")
 include_routers_from_package(app, "modules")
-
-# Explicitly register critical routers if auto-discovery fails
-from modules.chetop.chetop import router as chetop_router
-app.include_router(chetop_router)
-
-from modules.admin.admin_itv import router as admin_itv_router
-app.include_router(admin_itv_router)
-
-from modules.admin.admin_work_orders import router as admin_work_orders_router
-app.include_router(admin_work_orders_router)
-
-from modules.cheftech.cheftech_work_orders import router as cheftech_work_orders_router
-app.include_router(cheftech_work_orders_router)
-
-from modules.technicien.technicien_work_orders import router as technicien_work_orders_router
-app.include_router(technicien_work_orders_router, prefix="/api/v1/technicien", tags=["technicien_work_orders"])
-
-from modules.technicien.technicien import router as technicien_router
-app.include_router(technicien_router)
 
 
 @app.get("/")
