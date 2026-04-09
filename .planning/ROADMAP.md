@@ -104,5 +104,24 @@ Plans:
 
 ---
 
+### Phase 08: Intelligence & Automation Features
+
+**Goal:** Add predictive alerts, automated reporting, AI chat, IoT dashboard, and audit trail to enhance asset intelligence and compliance.
+
+**Requirements:** [INTEL-01, INTEL-02, INTEL-03, INTEL-04, INTEL-05, INTEL-06, INTEL-07]
+
+**Depends on:** Phase 7
+
+**Plans:** 5 plans in 2 waves
+
+Plans:
+- [ ] 08-01-PLAN.md — Predictive Maintenance Alerts (RUL-based alerts)
+- [ ] 08-02-PLAN.md — Automated Reporting Engine (scheduled PDF/Excel emails)
+- [ ] 08-03-PLAN.md — AI Chat Interface (natural language queries)
+- [ ] 08-04-PLAN.md — IoT/Sensor Dashboard (telemetry visualization)
+- [ ] 08-05-PLAN.md — Audit Trail (immutable change history)
+
+---
+
 *Generated: 2026-04-03*
-*Updated: 2026-04-08*
+*Updated: 2026-04-09*
