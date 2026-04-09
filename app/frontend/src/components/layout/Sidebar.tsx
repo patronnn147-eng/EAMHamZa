@@ -13,7 +13,8 @@ import {
   Columns,
   Package,
   BrainCircuit,
-  LucideIcon
+  LucideIcon,
+  Bell
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
@@ -40,6 +41,8 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Machines', href: '/admin/machines', icon: Settings },
       { name: 'ML & Prédictions', href: '/admin/ml', icon: BrainCircuit },
       { name: 'Dashboard IA Flotte', href: '/ml-dashboard', icon: BrainCircuit },
+      { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
+      { name: 'Configuration Alertes', href: '/admin/alert-config', icon: Bell },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Archives', href: '/archives', icon: Archive }
     ];
@@ -64,6 +67,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Suivi des OT', href: '/cheftech/work-orders-table', icon: Wrench },
       { name: 'Interventions', href: '/cheftech/interventions', icon: Wrench },
       { name: 'Stocks / Pièces', href: '/cheftech/inventory', icon: Package },
+      { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Rapports', href: '/reports', icon: FileText }
     ];

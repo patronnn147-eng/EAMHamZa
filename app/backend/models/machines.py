@@ -1,10 +1,14 @@
 from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Float
+from sqlalchemy.orm import relationship
 
 
 class Machines(Base):
     __tablename__ = "machines"
     __table_args__ = {"extend_existing": True}
+    
+    # Relationships
+    alerts = relationship("Alert", back_populates="machine")
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
     nom = Column(String, nullable=False)

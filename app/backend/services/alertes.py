@@ -1,0 +1,313 @@
+import logging
+from typing import Optional, Dict, Any, List
+from datetime import datetime, timezone
+
+from sqlalchemy import select, func, and_
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity
+from models.machines import Machines
+from models.ordres_intervention import Ordres_intervention
+from core.notifications import broadcaster
+
+logger = logging.getLogger(__name__)
+
+
+class AlertService:
+    """Service layer for Predictive Maintenance Alerts"""
+
+    def __init__(self, db: AsyncSession):
+        self.db = db
+
+    async def create_alert(
+        self,
+        machine_id: int,
+        alert_type: AlertType,
+        severity: AlertSeverity,
+        message: str,
+        rul_days: Optional[float] = None,
+        failure_probability: Optional[float] = None,
+    ) -> Alert:
+        """Create a new predictive maintenance alert"""
+        try:
+            # Check if there's already an active alert for this machine and type
+            existing_query = select(Alert).where(
+                and_(
+                    Alert.machine_id == machine_id,
+                    Alert.alert_type == alert_type,
+                    Alert.is_active == True,
+                )
+            )
+            result = await self.db.execute(existing_query)
+            existing = result.scalar_one_or_none()
+
+            if existing:
+                logger.info(f"Active alert already exists for machine {machine_id}, type {alert_type}")
+                return existing
+
+            obj = Alert(
+                machine_id=machine_id,
+                alert_type=alert_type,
+                severity=severity,
+                message=message,
+                rul_days=rul_days,
+                failure_probability=failure_probability,
+            )
+            self.db.add(obj)
+            await self.db.commit()
+            await self.db.refresh(obj)
+            logger.info(f"Created alert with id: {obj.id} for machine {machine_id}")
+
+            # Get machine name for notification
+            machine_result = await self.db.execute(
+                select(Machines).where(Machines.id == machine_id)
+            )
+            machine = machine_result.scalar_one_or_none()
+            machine_name = machine.nom if machine else f"Machine {machine_id}"
+
+            # Send in-app notification
+            await self._send_alert_notification(obj, machine_name)
+
+            return obj
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error creating alert: {str(e)}")
+            raise
+
+    async def _send_alert_notification(self, alert: Alert, machine_name: str):
+        """Send real-time notification for alert creation"""
+        try:
+            from services.notifications import NotificationsService
+
+            notification_data = {
+                "utilisateur_id": 0,  # Would be sent to relevant users
+                "type": "ALERT_PREDICTIVE",
+                "message": f"[{alert.severity.value}] {alert.alert_type.value}: {machine_name} - {alert.message}",
+            }
+
+            # Use the notifications service
+            notif_service = NotificationsService(self.db)
+            await notif_service.create(notification_data)
+
+            # Also broadcast to WebSocket clients
+            await broadcaster.broadcast(
+                0,  # broadcast to all
+                {
+                    "type": "alert",
+                    "alert_id": alert.id,
+                    "machine_name": machine_name,
+                    "alert_type": alert.alert_type.value,
+                    "severity": alert.severity.value,
+                    "message": alert.message,
+                },
+            )
+        except Exception as e:
+            logger.error(f"Error sending alert notification: {e}")
+
+    async def get_active_alerts(
+        self,
+        machine_id: Optional[int] = None,
+        severity: Optional[AlertSeverity] = None,
+    ) -> List[Alert]:
+        """Get list of active alerts, optionally filtered"""
+        try:
+            query = select(Alert).where(Alert.is_active == True)
+
+            if machine_id is not None:
+                query = query.where(Alert.machine_id == machine_id)
+            if severity is not None:
+                query = query.where(Alert.severity == severity)
+
+            query = query.order_by(
+                # Order by severity importance, then by date
+                case(
+                    (Alert.severity == AlertSeverity.CRITICAL, 1),
+                    (Alert.severity == AlertSeverity.HIGH, 2),
+                    (Alert.severity == AlertSeverity.MEDIUM, 3),
+                    (Alert.severity == AlertSeverity.LOW, 4),
+                    else_=5,
+                ),
+                Alert.created_at.desc(),
+            )
+
+            result = await self.db.execute(query)
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"Error fetching active alerts: {str(e)}")
+            raise
+
+    async def dismiss_alert(self, alert_id: int, user_id: int) -> Optional[Alert]:
+        """Dismiss an alert"""
+        try:
+            result = await self.db.execute(
+                select(Alert).where(Alert.id == alert_id)
+            )
+            alert = result.scalar_one_or_none()
+
+            if not alert:
+                logger.warning(f"Alert {alert_id} not found")
+                return None
+
+            alert.is_active = False
+            alert.dismissed_at = datetime.now(timezone.utc)
+            alert.dismissed_by = user_id
+
+            await self.db.commit()
+            await self.db.refresh(alert)
+            logger.info(f"Dismissed alert {alert_id} by user {user_id}")
+            return alert
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error dismissing alert {alert_id}: {str(e)}")
+            raise
+
+    async def get_alert_stats(self) -> Dict[str, Any]:
+        """Get alert statistics summary"""
+        try:
+            # Total active alerts
+            total_query = select(func.count(Alert.id)).where(Alert.is_active == True)
+            total_result = await self.db.execute(total_query)
+            total_active = total_result.scalar() or 0
+
+            # By severity
+            severity_counts = {}
+            for severity in AlertSeverity:
+                query = select(func.count(Alert.id)).where(
+                    and_(Alert.is_active == True, Alert.severity == severity)
+                )
+                result = await self.db.execute(query)
+                severity_counts[severity.value] = result.scalar() or 0
+
+            # By machine count
+            machine_query = select(
+                func.count(func.distinct(Alert.machine_id))
+            ).where(Alert.is_active == True)
+            machine_result = await self.db.execute(machine_query)
+            machines_affected = machine_result.scalar() or 0
+
+            return {
+                "total_active": total_active,
+                "by_severity": severity_counts,
+                "machines_affected": machines_affected,
+            }
+        except Exception as e:
+            logger.error(f"Error fetching alert stats: {str(e)}")
+            raise
+
+    async def get_config(self) -> AlertConfig:
+        """Get alert configuration"""
+        try:
+            query = select(AlertConfig).limit(1)
+            result = await self.db.execute(query)
+            config = result.scalar_one_or_none()
+
+            if not config:
+                # Create default config
+                config = AlertConfig()
+                self.db.add(config)
+                await self.db.commit()
+                await self.db.refresh(config)
+                logger.info("Created default alert config")
+
+            return config
+        except Exception as e:
+            logger.error(f"Error fetching alert config: {str(e)}")
+            raise
+
+    async def update_config(self, config_data: Dict[str, Any]) -> AlertConfig:
+        """Update alert configuration"""
+        try:
+            config = await self.get_config()
+
+            for key, value in config_data.items():
+                if hasattr(config, key):
+                    setattr(config, key, value)
+
+            await self.db.commit()
+            await self.db.refresh(config)
+            logger.info("Updated alert config")
+            return config
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error updating alert config: {str(e)}")
+            raise
+
+    async def check_and_create_alerts(self) -> Dict[str, Any]:
+        """Run ML predictions and create alerts for machines crossing thresholds"""
+        try:
+            config = await self.get_config()
+
+            # Get all machines
+            machines_result = await self.db.execute(select(Machines))
+            machines = list(machines_result.scalars().all())
+
+            alerts_created = {
+                "rul_warnings": 0,
+                "failure_predicted": 0,
+                "anomaly_detected": 0,
+            }
+
+            for machine in machines:
+                try:
+                    # Get intervention history
+                    interventions_query = select(Ordres_intervention).where(
+                        Ordres_intervention.machine_id == machine.id
+                    )
+                    itv_result = await self.db.execute(interventions_query)
+                    interventions = list(itv_result.scalars().all())
+
+                    # Get RUL prediction
+                    from modules.ml.ml_predictive import MachineLearningService
+
+                    prediction = MachineLearningService.calculate_rul(
+                        machine, list(interventions)
+                    )
+
+                    rul_days = prediction.get("rul_days")
+                    failure_prob = prediction.get("failure_probability", 0) / 100  # Convert from percentage
+
+                    # Check RUL threshold
+                    if config.enable_rul_alerts and rul_days is not None and rul_days < config.rul_threshold_days:
+                        severity = self._get_rul_severity(rul_days)
+                        message = f"RUL prediction: {rul_days:.1f} days remaining (threshold: {config.rul_threshold_days} days)"
+
+                        await self.create_alert(
+                            machine_id=machine.id,
+                            alert_type=AlertType.RUL_WARNING,
+                            severity=severity,
+                            message=message,
+                            rul_days=rul_days,
+                        )
+                        alerts_created["rul_warnings"] += 1
+
+                    # Check failure probability threshold
+                    if config.enable_failure_alerts and failure_prob > config.failure_probability_threshold:
+                        await self.create_alert(
+                            machine_id=machine.id,
+                            alert_type=AlertType.FAILURE_PREDICTED,
+                            severity=AlertSeverity.HIGH,
+                            message=f"Failure probability: {failure_prob*100:.1f}% (threshold: {config.failure_probability_threshold*100:.1f}%)",
+                            failure_probability=failure_prob,
+                        )
+                        alerts_created["failure_predicted"] += 1
+
+                except Exception as e:
+                    logger.error(f"Error processing machine {machine.id}: {e}")
+                    continue
+
+            logger.info(f"Alert check complete: {alerts_created}")
+            return alerts_created
+        except Exception as e:
+            logger.error(f"Error in check_and_create_alerts: {str(e)}")
+            raise
+
+    def _get_rul_severity(self, rul_days: float) -> AlertSeverity:
+        """Determine severity based on RUL days"""
+        if rul_days <= 1:
+            return AlertSeverity.CRITICAL
+        elif rul_days <= 3:
+            return AlertSeverity.HIGH
+        elif rul_days <= 7:
+            return AlertSeverity.MEDIUM
+        else:
+            return AlertSeverity.LOW

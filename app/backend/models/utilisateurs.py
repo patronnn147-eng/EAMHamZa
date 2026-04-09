@@ -3,6 +3,7 @@ Utilisateurs Model - User table for authentication and user management
 """
 from sqlalchemy import Column, Integer, String, Enum as SQLEnum, DateTime
 from core.database import Base
+from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
 
@@ -38,5 +39,8 @@ class Utilisateurs(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     
+    # Relationships
+    dismissed_alerts = relationship("Alert", back_populates="user")
+
     def __repr__(self):
         return f"<Utilisateurs id={self.id} nom={self.nom}>"
