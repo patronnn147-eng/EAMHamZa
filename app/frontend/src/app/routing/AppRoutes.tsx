@@ -45,6 +45,8 @@ import AdminItvApprovals from '@/modules/admin/AdminItvApprovals';
 import ChefOpItvRequests from '@/modules/chetop/ChefOpItvRequests';
 import ChefOpWorkOrders from '@/modules/chetop/ChefOpWorkOrders';
 import ChefTechWorkOrdersTable from '@/modules/cheftech/ChefTechWorkOrdersTable';
+import AlertConfig from '@/modules/admin/AlertConfig';
+import AlertsPanel from '@/modules/shared/AlertsPanel';
 
 export function AppRoutes() {
   return (
@@ -221,6 +223,26 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
               <SystemAnalytics />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/alert-config"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <AlertConfig />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/alerts"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
+            <Layout>
+              <AlertsPanel />
             </Layout>
           </ProtectedRoute>
         }
