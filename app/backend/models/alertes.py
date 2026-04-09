@@ -23,7 +23,7 @@ class Alert(Base):
     __tablename__ = "alertes"
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
-    alert_id = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4())
+    alert_id = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
     machine_id = Column(Integer, ForeignKey("machines.id"), nullable=False)
     alert_type = Column(Enum(AlertType), nullable=False)
     severity = Column(Enum(AlertSeverity), nullable=False)
