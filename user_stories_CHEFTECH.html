@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stories - CHEFTECH (Chef Technique)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #e67e22;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .user-story {
+            background-color: white;
+            border-left: 4px solid #e67e22;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .story-id {
+            font-weight: bold;
+            color: #e67e22;
+            font-size: 0.9em;
+        }
+        .story-content {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .acceptance-criteria {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        .acceptance-criteria h4 {
+            margin: 0 0 10px 0;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .acceptance-criteria ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .priority-high {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .priority-medium {
+            background-color: #f39c12;
+            color: white;
+        }
+        .priority-low {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .category {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            background-color: #e67e22;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Stories - CHEFTECH (Chef Technique)</h1>
+    <p><strong>Role Description:</strong> Le Chef Technique supervise l'équipe des techniciens, valide les interventions techniques complexes, et assure le respect des standards techniques et de sécurité.</p>
+
+    <h2>Supervision des Interventions Techniques</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-001</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> consulter tous les rapports d'intervention soumis par mes techniciens,<br>
+            <strong>Afin de</strong> valider la qualité technique du travail effectué et assurer la conformité aux procédures.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux voir tous les rapports d'intervention de mon équipe</li>
+                <li>Les rapports en attente de validation sont clairement identifiés</li>
+                <li>Je peux filtrer les rapports par technicien, date, ou machine</li>
+                <li>Chaque rapport affiche un statut de validation (en attente, approuvé, rejeté)</li>
+                <li>Je peux accéder aux photos et documents joints</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-002</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> valider ou rejeter les rapports d'intervention avec des commentaires détaillés,<br>
+            <strong>Afin de</strong> maintenir un niveau de qualité élevé et former mes techniciens aux bonnes pratiques.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux approuver un rapport en un clic</li>
+                <li>En cas de rejet, un champ de commentaire obligatoire explique les raisons</li>
+                <li>Le technicien reçoit une notification de validation ou rejet avec mes commentaires</li>
+                <li>Un rapport rejeté peut être modifié et resoumis par le technicien</li>
+                <li>L'historique des validations est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-003</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> ajouter des annotations techniques et recommandations aux rapports d'intervention,<br>
+            <strong>Afin de</strong> enrichir la documentation et partager mon expertise avec l'équipe.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux ajouter des commentaires techniques à chaque section du rapport</li>
+                <li>Mes annotations sont visuellement distinguées de celles du technicien</li>
+                <li>Je peux suggérer des améliorations ou des actions correctives</li>
+                <li>Les annotations sont horodatées et signées</li>
+                <li>Mes commentaires sont visibles par tous les techniciens pour apprentissage</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion de l'Équipe Technique</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-004</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Équipe</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> visualiser la charge de travail de chaque technicien (nombre d'ordres assignés, en cours, terminés),<br>
+            <strong>Afin de</strong> équilibrer la répartition des tâches et identifier les techniciens surchargés ou sous-utilisés.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche la charge de travail par technicien</li>
+                <li>Les indicateurs incluent : ordres assignés, en cours, terminés, en retard</li>
+                <li>Des graphiques visuels facilitent la comparaison</li>
+                <li>Je peux filtrer par période (jour, semaine, mois)</li>
+                <li>Les techniciens avec une charge critique sont mis en évidence</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-005</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Équipe</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> réassigner un ordre de travail d'un technicien à un autre,<br>
+            <strong>Afin de</strong> optimiser l'allocation des ressources en cas d'absence, de surcharge ou de besoin de compétences spécifiques.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux sélectionner un ordre et choisir un nouveau technicien</li>
+                <li>Le système affiche les compétences et disponibilité de chaque technicien</li>
+                <li>Un commentaire justificatif peut être ajouté</li>
+                <li>Les deux techniciens (ancien et nouveau) reçoivent une notification</li>
+                <li>L'historique d'assignation est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-006</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Équipe</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> évaluer les performances individuelles de mes techniciens sur une période donnée,<br>
+            <strong>Afin de</strong> identifier les besoins en formation et reconnaître les performances exceptionnelles.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les KPI incluent : taux de complétion, qualité des rapports, respect des délais, temps moyen d'intervention</li>
+                <li>Je peux comparer les performances entre techniciens</li>
+                <li>Des graphiques de tendance montrent l'évolution dans le temps</li>
+                <li>Le système identifie les points forts et axes d'amélioration</li>
+                <li>Les rapports peuvent être exportés pour les entretiens d'évaluation</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Planification de la Maintenance</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-007</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> créer des plannings de maintenance préventive pour différentes périodes (journalier, hebdomadaire, mensuel),<br>
+            <strong>Afin de</strong> organiser proactivement les interventions et minimiser les arrêts non planifiés.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer un planning avec identifiant, dates de début/fin, et type (JOURNALIER, HEBDOMADAIRE, MENSUEL, MAINTENANCE)</li>
+                <li>Le planning peut inclure plusieurs machines et techniciens</li>
+                <li>Le système détecte automatiquement les conflits de ressources</li>
+                <li>Je peux dupliquer un planning existant pour gagner du temps</li>
+                <li>Le planning peut être partagé avec l'équipe</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-008</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> obtenir la liste des ordres de travail planifiés selon les critères définis,<br>
+            <strong>Afin de</strong> coordonner efficacement les interventions avec les contraintes de production et la disponibilité des techniciens.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux obtenir les ordres par planning, par période, ou par machine</li>
+                <li>La liste affiche : machine, technicien assigné, date prévue, durée estimée, priorité</li>
+                <li>Je peux exporter la liste au format Excel ou PDF</li>
+                <li>Les ordres en conflit ou en retard sont mis en évidence</li>
+                <li>Je peux modifier les dates directement depuis la liste</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-009</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> définir des maintenances préventives récurrentes pour les machines critiques,<br>
+            <strong>Afin de</strong> automatiser la création d'ordres de travail périodiques et garantir le respect des programmes de maintenance.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux configurer la fréquence (quotidienne, hebdomadaire, mensuelle, annuelle)</li>
+                <li>Le système génère automatiquement les ordres de travail aux dates prévues</li>
+                <li>Je peux définir les techniciens responsables et les tâches à effectuer</li>
+                <li>Des notifications de rappel sont envoyées avant chaque échéance</li>
+                <li>Je peux suspendre ou modifier temporairement un planning récurrent</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion Technique des Machines</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-010</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> analyser les tendances de défaillance par type de machine ou par équipement spécifique,<br>
+            <strong>Afin de</strong> identifier les problèmes récurrents et proposer des améliorations ou changements d'équipement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Des graphiques montrent la fréquence des pannes par machine</li>
+                <li>Le système identifie les types de défaillance les plus courants</li>
+                <li>Je peux comparer les machines similaires</li>
+                <li>Les coûts de maintenance cumulés sont affichés</li>
+                <li>Le système suggère des actions préventives basées sur l'analyse</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-011</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> consulter les dates de dernière maintenance et de prochaine maintenance planifiée pour chaque machine,<br>
+            <strong>Afin de</strong> m'assurer que le programme de maintenance préventive est respecté et à jour.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche l'état de maintenance de toutes les machines</li>
+                <li>Les machines en retard de maintenance sont mises en évidence</li>
+                <li>Je peux voir les dates passées et futures des interventions</li>
+                <li>Des alertes automatiques m'informent des maintenances à venir</li>
+                <li>Je peux filtrer par criticité de machine ou zone géographique</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Standards Techniques et Documentation</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-012</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Documentation</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> créer et maintenir des procédures techniques standardisées pour les interventions courantes,<br>
+            <strong>Afin de</strong> garantir la cohérence des pratiques et faciliter la formation des nouveaux techniciens.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer une procédure avec titre, description détaillée, étapes, et photos</li>
+                <li>Les procédures peuvent être associées à des types de machines ou d'interventions</li>
+                <li>Un système de versioning permet de suivre les modifications</li>
+                <li>Les techniciens peuvent accéder aux procédures lors des interventions</li>
+                <li>Je peux marquer certaines procédures comme obligatoires</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-013</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> organiser et gérer l'archive documentaire technique (manuels, schémas, certifications),<br>
+            <strong>Afin de</strong> assurer que toute la documentation est à jour, accessible et correctement classifiée.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux ajouter, modifier, ou supprimer des documents de l'archive</li>
+                <li>Les documents peuvent être classés par machine, type, ou catégorie</li>
+                <li>Je peux définir des niveaux d'accès (public, restreint, confidentiel)</li>
+                <li>Le système alerte sur les documents expirés ou à réviser</li>
+                <li>Un historique des modifications est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Rapports et Décisions Techniques</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-014</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Rapport</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> générer des rapports de maintenance planifiée pour présentation à la direction,<br>
+            <strong>Afin de</strong> communiquer sur les activités de maintenance, les investissements nécessaires et les performances de l'équipe.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le rapport inclut : activités réalisées, conformité au planning, temps d'arrêt évités, coûts</li>
+                <li>Des graphiques et tableaux synthétiques sont générés automatiquement</li>
+                <li>Je peux personnaliser le contenu selon l'audience</li>
+                <li>Le rapport peut inclure des recommandations techniques</li>
+                <li>Export possible en PDF professionnel avec logo et mise en page</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-015</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Rapport</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> analyser les indicateurs techniques de performance (temps d'arrêt, MTBF, MTTR, disponibilité),<br>
+            <strong>Afin de</strong> identifier les opportunités d'amélioration et justifier les investissements en équipements ou formation.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord technique affiche les KPI principaux</li>
+                <li>Les données peuvent être filtrées par machine, période, ou type d'intervention</li>
+                <li>Des tendances historiques sont visualisées graphiquement</li>
+                <li>Le système compare les performances actuelles aux objectifs définis</li>
+                <li>Je peux exporter les données pour analyse approfondie</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Situations Critiques</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-016</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Urgence</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> être notifié immédiatement des situations critiques ou urgentes signalées par les techniciens,<br>
+            <strong>Afin de</strong> intervenir rapidement pour résoudre les problèmes de sécurité ou les pannes majeures.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les notifications critiques apparaissent en priorité absolue</li>
+                <li>Je peux voir immédiatement les détails et photos du problème</li>
+                <li>Un canal de communication directe avec le technicien est disponible</li>
+                <li>Je peux escalader l'alerte au CHETOP si nécessaire</li>
+                <li>Le système enregistre tous les événements critiques pour analyse post-incident</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Collaboration et Coordination d'Équipe</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-017</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> communiquer en temps réel avec mes techniciens via une messagerie intégrée à chaque ordre de travail,<br>
+            <strong>Afin de</strong> fournir des guidances techniques, répondre aux questions et coordonner les interventions sans délai.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une icône de messagerie est accessible depuis chaque ordre de travail</li>
+                <li>Je peux initier des conversations privées ou de groupe avec mes techniciens</li>
+                <li>Les messages non lus sont comptabilisés et mis en évidence</li>
+                <li>Je peux envoyer des documents techniques, schémas ou photos</li>
+                <li>Les conversations sont archivées avec l'ordre pour traçabilité</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-018</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Assignation</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> recevoir une notification immédiate lorsqu'un technicien accepte ou refuse un ordre de travail,<br>
+            <strong>Afin de</strong> réagir rapidement en cas de refus et trouver une solution alternative (réassignation, support).
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une notification push m'informe instantanément de la décision du technicien</li>
+                <li>Le motif du refus est visible immédiatement si applicable</li>
+                <li>Je peux contacter directement le technicien depuis la notification</li>
+                <li>Je peux réassigner l'ordre à un autre technicien en un clic</li>
+                <li>Un historique des acceptations/refus est disponible pour analyse</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-019</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> voir en temps réel le statut et l'activité de chaque technicien de mon équipe,<br>
+            <strong>Afin de</strong> savoir qui est disponible, qui est en intervention, et pouvoir répartir efficacement les urgences.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche le statut en temps réel de chaque technicien</li>
+                <li>Les statuts incluent : disponible, en intervention, en pause, hors ligne</li>
+                <li>Je vois sur quelle machine chaque technicien travaille actuellement</li>
+                <li>Le temps écoulé depuis le début de l'intervention est affiché</li>
+                <li>Je peux filtrer et rechercher les techniciens par statut</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-020</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> créer des groupes de discussion thématiques avec mes techniciens (par zone, par spécialité),<br>
+            <strong>Afin de</strong> faciliter le partage de connaissances et la coordination au sein d'équipes spécialisées.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer des groupes et y ajouter les techniciens concernés</li>
+                <li>Les membres du groupe reçoivent les messages en temps réel</li>
+                <li>Je peux épingler des messages importants dans le groupe</li>
+                <li>Des fichiers et documents peuvent être partagés dans le groupe</li>
+                <li>L'historique des conversations est conservé et consultable</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-021</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Coordination</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> coordonner des interventions collaboratives multi-techniciens avec assignation de rôles,<br>
+            <strong>Afin de</strong> gérer efficacement les interventions complexes nécessitant plusieurs compétences ou une équipe.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer un ordre collaboratif et assigner plusieurs techniciens</li>
+                <li>Je peux définir un chef d'équipe responsable de la coordination</li>
+                <li>Chaque technicien voit ses tâches spécifiques au sein de l'intervention</li>
+                <li>Une discussion de groupe est automatiquement créée pour l'équipe</li>
+                <li>Je peux suivre la progression de chaque membre de l'équipe en temps réel</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-022</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> mentionner (@) des techniciens spécifiques dans mes commentaires ou validations,<br>
+            <strong>Afin de</strong> attirer leur attention sur des points importants et m'assurer qu'ils reçoivent une notification.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux taper @ suivi du nom pour mentionner un technicien</li>
+                <li>Une liste de suggestions apparaît automatiquement</li>
+                <li>Le technicien mentionné reçoit une notification instantanée</li>
+                <li>Les mentions sont visuellement distinguées dans le texte</li>
+                <li>Je peux mentionner plusieurs personnes dans un même message</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-023</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> voir les modifications apportées aux ordres de travail en temps réel par les techniciens et le CHETOP,<br>
+            <strong>Afin de</strong> rester informé des changements et réagir immédiatement si nécessaire.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les changements apparaissent automatiquement sans rechargement de page</li>
+                <li>Une notification visuelle m'alerte des modifications importantes</li>
+                <li>Je vois qui a effectué chaque modification et à quel moment</li>
+                <li>Les changements critiques sont mis en évidence visuellement</li>
+                <li>Un fil d'activité en temps réel affiche toutes les actions récentes</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-024</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> diffuser des annonces techniques ou consignes de sécurité à tous mes techniciens ou à un sous-groupe,<br>
+            <strong>Afin de</strong> communiquer rapidement des informations importantes (nouvelles procédures, alertes équipement, formations).
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer une annonce avec niveau de priorité</li>
+                <li>Je peux cibler tous les techniciens ou sélectionner un groupe spécifique</li>
+                <li>L'annonce apparaît en bannière sur l'écran de tous les destinataires</li>
+                <li>Je peux exiger une confirmation de lecture pour les annonces critiques</li>
+                <li>Je peux voir qui a lu l'annonce et relancer les non-lecteurs</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-025</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Support</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> être notifié immédiatement lorsqu'un technicien demande de l'aide ou du support technique,<br>
+            <strong>Afin de</strong> pouvoir intervenir rapidement pour débloquer la situation et assurer la continuité de l'intervention.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une notification prioritaire m'alerte des demandes d'aide</li>
+                <li>Je vois immédiatement le contexte : ordre, machine, problème rencontré</li>
+                <li>Je peux ouvrir un canal de communication directe avec le technicien</li>
+                <li>Je peux assigner un autre technicien expérimenté pour aider</li>
+                <li>La demande d'aide est tracée dans l'historique de l'ordre</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-CHEFTECH-026</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant que</strong> CHEFTECH,<br>
+            <strong>Je veux</strong> coordonner avec le CHETOP sur la planification et les priorités via le système,<br>
+            <strong>Afin de</strong> aligner nos décisions et optimiser l'allocation des ressources techniques et humaines.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux discuter directement avec le CHETOP via messagerie dédiée</li>
+                <li>Je peux proposer des modifications de planning ou de priorités</li>
+                <li>Les propositions nécessitent une validation du CHETOP avant application</li>
+                <li>Un historique des décisions partagées est conservé</li>
+                <li>Nous pouvons co-éditer certains plannings en temps réel</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>

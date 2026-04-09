@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TC001",
+    "title": "get_health_basic_check",
+    "description": "Verify GET /health returns 200 with status ok indicating basic service health."
+  },
+  {
+    "id": "TC002",
+    "title": "get_api_v1_health_check_database_connected",
+    "description": "Verify GET /api/v1/health returns 200 with status ok and database connected when DB is reachable."
+  },
+  {
+    "id": "TC003",
+    "title": "post_api_v1_auth_register_new_user",
+    "description": "Verify POST /api/v1/auth/register creates a new user with valid data and returns 201 with user info."
+  },
+  {
+    "id": "TC004",
+    "title": "post_api_v1_auth_login_valid_credentials",
+    "description": "Verify POST /api/v1/auth/login with valid credentials returns 200 with access and refresh tokens."
+  },
+  {
+    "id": "TC005",
+    "title": "get_api_v1_auth_me_authenticated_user",
+    "description": "Verify GET /api/v1/auth/me with valid token returns 200 with current user details."
+  },
+  {
+    "id": "TC006",
+    "title": "get_api_v1_ml_machines_machineid_prediction_success",
+    "description": "Verify GET /api/v1/ml/machines/{machine_id}/prediction returns 200 with full ML prediction data for valid machine."
+  },
+  {
+    "id": "TC007",
+    "title": "post_api_v1_ml_retrain_trigger",
+    "description": "Verify POST /api/v1/ml/retrain triggers model retraining and returns 200 with status and message."
+  },
+  {
+    "id": "TC008",
+    "title": "get_api_v1_chetop_dashboard_authenticated",
+    "description": "Verify GET /api/v1/chetop/dashboard with valid auth returns 200 with dashboard stats."
+  },
+  {
+    "id": "TC009",
+    "title": "post_api_v1_chetop_intervention_requests_create",
+    "description": "Verify POST /api/v1/chetop/intervention-requests with valid auth and data creates request and returns 201."
+  },
+  {
+    "id": "TC010",
+    "title": "get_api_v1_notifications_list_authenticated",
+    "description": "Verify GET /api/v1/notifications with valid auth returns 200 with list of notifications."
+  }
+]

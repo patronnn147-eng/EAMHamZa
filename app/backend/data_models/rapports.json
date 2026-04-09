@@ -1,0 +1,43 @@
+{
+    "title": "rapports",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "identifiant_rapport": {
+            "type": "string",
+            "description": "Report identifier"
+        },
+        "titre": {
+            "type": "string",
+            "description": "Report title"
+        },
+        "date_generation": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Generation date"
+        },
+        "contenu": {
+            "type": "string",
+            "description": "Report content"
+        },
+        "utilisateur_id": {
+            "type": "integer",
+            "description": "Foreign key to utilisateurs"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "identifiant_rapport",
+        "titre",
+        "date_generation",
+        "contenu"
+    ]
+}

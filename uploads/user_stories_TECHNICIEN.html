@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stories - TECHNICIEN</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #27ae60;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .user-story {
+            background-color: white;
+            border-left: 4px solid #27ae60;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .story-id {
+            font-weight: bold;
+            color: #27ae60;
+            font-size: 0.9em;
+        }
+        .story-content {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .acceptance-criteria {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        .acceptance-criteria h4 {
+            margin: 0 0 10px 0;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .acceptance-criteria ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .priority-high {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .priority-medium {
+            background-color: #f39c12;
+            color: white;
+        }
+        .priority-low {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .category {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            background-color: #27ae60;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Stories - TECHNICIEN</h1>
+    <p><strong>Role Description:</strong> Le Technicien est responsable de l'exécution des interventions de maintenance, de la documentation des travaux effectués, et de la communication de l'état des équipements.</p>
+
+    <h2>Gestion des Ordres de Travail Assignés</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-001</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> consulter la liste de tous les ordres de travail qui me sont assignés,<br>
+            <strong>Afin de</strong> connaître mes tâches quotidiennes et organiser mon travail efficacement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>La liste affiche uniquement mes ordres de travail assignés</li>
+                <li>Les ordres sont triés par priorité puis par date d'échéance</li>
+                <li>Chaque ordre affiche : identifiant, titre, machine, priorité, échéance, statut</li>
+                <li>Les ordres urgents sont mis en évidence visuellement</li>
+                <li>Je peux filtrer par statut ou date</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-002</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> consulter les détails complets d'un ordre de travail (description, machine concernée, priorité, échéance),<br>
+            <strong>Afin de</strong> comprendre exactement ce qui est attendu et préparer mon intervention correctement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Toutes les informations de l'ordre sont affichées de manière claire</li>
+                <li>Les informations de la machine associée sont facilement accessibles</li>
+                <li>L'historique des interventions précédentes sur cette machine est visible</li>
+                <li>Les documents techniques liés (manuels, schémas) sont accessibles directement</li>
+                <li>Je peux voir les commentaires du chef d'opérations ou du chef technique</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-003</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> mettre à jour le statut de mon ordre de travail (démarrer, terminer),<br>
+            <strong>Afin de</strong> informer mon équipe de l'avancement de mes interventions en temps réel.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux changer le statut de "EN_ATTENTE" à "EN_COURS" au début de l'intervention</li>
+                <li>L'heure de début est automatiquement enregistrée</li>
+                <li>Je peux marquer l'ordre comme "TERMINÉ" une fois le travail achevé</li>
+                <li>L'heure de fin est automatiquement enregistrée</li>
+                <li>Une notification est envoyée au chef d'opérations lors du changement de statut</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-004</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Ordre de Travail</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> recevoir des notifications lorsqu'un nouvel ordre de travail m'est assigné,<br>
+            <strong>Afin de</strong> réagir rapidement aux nouvelles demandes, surtout pour les interventions urgentes.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une notification apparaît immédiatement lors d'une nouvelle assignation</li>
+                <li>La notification indique le niveau de priorité</li>
+                <li>Je peux accéder directement à l'ordre depuis la notification</li>
+                <li>Les notifications urgentes sont visuellement distinctes</li>
+                <li>Je peux configurer mes préférences de notification</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Création et Gestion des Interventions</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-005</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> créer une nouvelle intervention pour un ordre de travail avec la date et un rapport détaillé,<br>
+            <strong>Afin de</strong> documenter le travail effectué et assurer la traçabilité des actions entreprises.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux sélectionner l'ordre de travail concerné</li>
+                <li>La date de l'intervention est automatiquement renseignée (modifiable si nécessaire)</li>
+                <li>Un champ de texte permet de saisir un rapport détaillé</li>
+                <li>Je peux ajouter des photos ou documents à l'intervention</li>
+                <li>L'intervention est automatiquement liée à l'ordre de travail</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-006</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> rédiger un rapport d'intervention complet incluant les actions réalisées, les pièces utilisées, et les observations,<br>
+            <strong>Afin de</strong> fournir une documentation précise pour le suivi de maintenance et l'analyse future.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le rapport inclut des sections pour : diagnostic, actions effectuées, pièces remplacées, observations</li>
+                <li>Je peux utiliser des modèles de rapport pré-formatés</li>
+                <li>Le temps passé sur l'intervention est enregistré</li>
+                <li>Je peux sauvegarder un brouillon et le compléter plus tard</li>
+                <li>Le rapport final nécessite une validation avant soumission</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-007</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> joindre des photos et vidéos à mes rapports d'intervention,<br>
+            <strong>Afin de</strong> illustrer visuellement le problème identifié, les actions effectuées, et l'état final de l'équipement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux prendre des photos directement depuis l'application mobile</li>
+                <li>Je peux téléverser des photos depuis mon appareil</li>
+                <li>Chaque photo peut être annotée avec un commentaire</li>
+                <li>Les photos sont compressées automatiquement pour optimiser le stockage</li>
+                <li>Je peux réorganiser l'ordre des photos dans le rapport</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-008</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Intervention</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> consulter mes interventions précédentes sur une machine spécifique,<br>
+            <strong>Afin de</strong> identifier les problèmes récurrents et appliquer les solutions qui ont fonctionné auparavant.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>L'historique affiche toutes mes interventions sur la machine</li>
+                <li>Les interventions sont triées par date (plus récente en premier)</li>
+                <li>Je peux ouvrir et consulter les rapports complets</li>
+                <li>Les photos et documents associés sont facilement accessibles</li>
+                <li>Je peux rechercher dans l'historique par mot-clé</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Machines</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-009</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> consulter les informations détaillées d'une machine (identifiant, nom, emplacement, type, statut),<br>
+            <strong>Afin de</strong> localiser l'équipement et comprendre ses caractéristiques avant mon intervention.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Toutes les informations techniques de la machine sont affichées</li>
+                <li>L'emplacement exact est indiqué (avec plan si disponible)</li>
+                <li>Le statut actuel de la machine est visible</li>
+                <li>Les spécifications techniques sont accessibles</li>
+                <li>Un lien vers le manuel d'utilisation est disponible</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-010</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> consulter l'historique complet de maintenance d'une machine,<br>
+            <strong>Afin de</strong> comprendre les problèmes passés et les interventions déjà effectuées avant de commencer mon travail.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>L'historique affiche toutes les interventions passées, quel que soit le technicien</li>
+                <li>Les informations incluent : date, type d'intervention, problème identifié, solution appliquée</li>
+                <li>Je peux filtrer l'historique par type d'intervention ou période</li>
+                <li>Les pièces remplacées historiquement sont listées</li>
+                <li>Je peux voir les tendances de défaillance de la machine</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-011</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> signaler un changement de statut de machine (passage en panne, remise en service),<br>
+            <strong>Afin de</strong> informer immédiatement l'équipe de production et le service de maintenance de la disponibilité de l'équipement.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux modifier le statut de la machine directement depuis mon interface</li>
+                <li>Un commentaire explicatif est requis pour justifier le changement</li>
+                <li>Le changement est horodaté et associé à mon nom</li>
+                <li>Une notification automatique est envoyée aux parties concernées</li>
+                <li>Le statut mis à jour est immédiatement visible pour tous les utilisateurs</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Documents et Archives</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-012</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> accéder aux manuels techniques, schémas et procédures archivés pour une machine spécifique,<br>
+            <strong>Afin de</strong> disposer des informations nécessaires pour effectuer mon intervention dans les règles de l'art.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les documents sont filtrés automatiquement selon la machine sélectionnée</li>
+                <li>Je peux prévisualiser les documents avant de les télécharger</li>
+                <li>Les documents sont classés par type (manuel, schéma, procédure, certification)</li>
+                <li>La version la plus récente de chaque document est clairement identifiée</li>
+                <li>Je peux télécharger les documents pour consultation hors ligne</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-013</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> rechercher des documents dans l'archive par mot-clé ou type de document,<br>
+            <strong>Afin de</strong> trouver rapidement les informations spécifiques dont j'ai besoin pendant mon intervention.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>La barre de recherche accepte les mots-clés et expressions</li>
+                <li>Je peux filtrer par type de document (PDF, image, vidéo)</li>
+                <li>Les résultats affichent un extrait pertinent du contenu</li>
+                <li>Je peux trier les résultats par pertinence ou date</li>
+                <li>L'historique de mes recherches récentes est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Communication et Collaboration</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-014</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> ajouter des commentaires ou observations à un ordre de travail,<br>
+            <strong>Afin de</strong> communiquer des informations importantes à mon chef technique ou à mes collègues.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux ajouter un commentaire textuel à tout moment</li>
+                <li>Les commentaires sont horodatés et identifiés par mon nom</li>
+                <li>Je peux joindre des photos ou fichiers à mes commentaires</li>
+                <li>Les utilisateurs concernés reçoivent une notification</li>
+                <li>Je peux voir l'historique complet des commentaires</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-015</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> signaler un problème urgent ou une situation de sécurité identifiée lors d'une intervention,<br>
+            <strong>Afin de</strong> alerter immédiatement mon chef d'opérations et prévenir tout risque pour les personnes ou les équipements.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un bouton d'alerte rapide est accessible depuis toutes les pages</li>
+                <li>Je peux catégoriser le problème (sécurité, panne critique, qualité)</li>
+                <li>Une description et des photos peuvent être ajoutées rapidement</li>
+                <li>Une notification urgente est envoyée immédiatement au CHETOP et CHEFTECH</li>
+                <li>L'alerte génère automatiquement un ordre de travail prioritaire si nécessaire</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Planification et Organisation</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-TECH-016</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Planning</span>
+        <div class="story-content">
+            <strong>En tant que</strong> TECHNICIEN,<br>
+            <strong>Je veux</strong> visualiser mon planning de maintenance préventive pour la semaine ou le mois,<br>
+            <strong>Afin de</strong> m'organiser et préparer les interventions planifiées à l'avance.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le planning affiche uniquement mes interventions planifiées</li>
+                <li>Je peux basculer entre vue journalière, hebdomadaire, et mensuelle</li>
+                <li>Chaque intervention affiche : machine, type, durée estimée, priorité</li>
+                <li>Je peux synchroniser le planning avec mon calendrier personnel</li>
+                <li>Les modifications de planning sont signalées visuellement</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>

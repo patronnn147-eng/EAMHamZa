@@ -1,0 +1,36 @@
+{
+    "title": "maintenances_planifiees",
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer",
+            "description": "Primary key, auto-increment"
+        },
+        "utilisateur_id": {
+            "type": "integer",
+            "description": "Foreign key to utilisateurs"
+        },
+        "rapport_id": {
+            "type": "integer",
+            "description": "Foreign key to rapports"
+        },
+        "date_planifiee": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Planned maintenance date"
+        },
+        "description": {
+            "type": "string",
+            "description": "Maintenance description"
+        },
+        "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Creation timestamp"
+        }
+    },
+    "required": [
+        "id",
+        "date_planifiee"
+    ]
+}

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stories - ADMIN (Administrateur Système)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #9b59b6;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .user-story {
+            background-color: white;
+            border-left: 4px solid #9b59b6;
+            padding: 15px;
+            margin: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .story-id {
+            font-weight: bold;
+            color: #9b59b6;
+            font-size: 0.9em;
+        }
+        .story-content {
+            font-size: 1.1em;
+            margin: 10px 0;
+            color: #2c3e50;
+        }
+        .acceptance-criteria {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        .acceptance-criteria h4 {
+            margin: 0 0 10px 0;
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+        .acceptance-criteria ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+        .priority {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .priority-high {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .priority-medium {
+            background-color: #f39c12;
+            color: white;
+        }
+        .priority-low {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .category {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            background-color: #9b59b6;
+            color: white;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Stories - ADMIN (Administrateur Système)</h1>
+    <p><strong>Role Description:</strong> L'Administrateur est responsable de la gestion complète du système EAM, incluant la gestion des utilisateurs, des machines, de la configuration système, et de la sécurité des données.</p>
+
+    <h2>Gestion des Utilisateurs et Rôles</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-001</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Utilisateur</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> créer de nouveaux comptes utilisateurs avec leurs informations personnelles et professionnelles,<br>
+            <strong>Afin de</strong> donner accès au système aux nouveaux employés du service de maintenance.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le formulaire de création inclut : identifiant unique, nom, prénom, email, courriel, rôle</li>
+                <li>L'identifiant doit être unique dans le système</li>
+                <li>Le format email est validé automatiquement</li>
+                <li>Un mot de passe temporaire est généré automatiquement</li>
+                <li>L'utilisateur reçoit un email avec ses identifiants et instructions de première connexion</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-002</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Utilisateur</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> assigner un rôle spécifique (CHETOP, TECHNICIEN, CHEFTECH, ADMIN) à chaque utilisateur,<br>
+            <strong>Afin de</strong> définir les permissions et l'accès aux fonctionnalités selon les responsabilités de chacun.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les quatre rôles prédéfinis sont disponibles dans une liste déroulante</li>
+                <li>Le système affiche les permissions associées à chaque rôle lors de la sélection</li>
+                <li>Un utilisateur ne peut avoir qu'un seul rôle actif à la fois</li>
+                <li>Le changement de rôle prend effet immédiatement après sauvegarde</li>
+                <li>L'historique des changements de rôle est conservé pour audit</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-003</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Utilisateur</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> modifier les informations personnelles et professionnelles des utilisateurs existants,<br>
+            <strong>Afin de</strong> maintenir les données à jour en cas de changement de poste, coordonnées, ou situation.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux rechercher un utilisateur par son identifiant, nom, ou email</li>
+                <li>Tous les champs sont modifiables sauf l'identifiant unique</li>
+                <li>Un message de confirmation s'affiche avant la sauvegarde des modifications</li>
+                <li>L'utilisateur concerné est notifié des changements importants (email, rôle)</li>
+                <li>Les modifications sont horodatées et tracées</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-004</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Utilisateur</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> activer ou désactiver des comptes utilisateurs,<br>
+            <strong>Afin de</strong> gérer les départs d'employés ou suspendre temporairement l'accès sans supprimer les données historiques.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux basculer le statut d'un compte entre "actif" et "désactivé"</li>
+                <li>Un compte désactivé ne peut plus se connecter au système</li>
+                <li>Les données historiques (interventions, rapports) restent visibles</li>
+                <li>Je peux réactiver un compte désactivé à tout moment</li>
+                <li>Une notification de désactivation peut être envoyée à l'utilisateur</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-005</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Utilisateur</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> réinitialiser les mots de passe des utilisateurs,<br>
+            <strong>Afin de</strong> aider les utilisateurs qui ont oublié leur mot de passe ou en cas de compromission de sécurité.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux déclencher une réinitialisation pour n'importe quel utilisateur</li>
+                <li>Un nouveau mot de passe temporaire est généré automatiquement</li>
+                <li>L'utilisateur reçoit un email avec le nouveau mot de passe et un lien de connexion</li>
+                <li>L'utilisateur est forcé de changer son mot de passe lors de la première connexion</li>
+                <li>L'action de réinitialisation est enregistrée dans les logs de sécurité</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Machines et Équipements</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-006</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> ajouter de nouvelles machines au système avec toutes leurs caractéristiques techniques,<br>
+            <strong>Afin de</strong> maintenir un inventaire complet et à jour du parc d'équipements de l'entreprise.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le formulaire inclut : identifiant unique, nom, emplacement, statut, type, rôle</li>
+                <li>Les champs obligatoires sont clairement indiqués</li>
+                <li>Je peux ajouter des informations techniques supplémentaires (numéro de série, année, fabricant)</li>
+                <li>Des photos de la machine peuvent être téléversées</li>
+                <li>Un identifiant unique est généré automatiquement si non fourni</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-007</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> modifier les caractéristiques d'une machine existante,<br>
+            <strong>Afin de</strong> corriger les informations erronées ou mettre à jour les données suite à des modifications physiques.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux rechercher une machine par identifiant, nom ou emplacement</li>
+                <li>Tous les champs sont modifiables sauf l'identifiant unique</li>
+                <li>Les modifications critiques (emplacement, type) nécessitent une confirmation</li>
+                <li>L'historique des modifications est conservé</li>
+                <li>Les utilisateurs ayant des ordres de travail actifs sur cette machine sont notifiés</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-008</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> supprimer une machine du système (décommissionnement),<br>
+            <strong>Afin de</strong> maintenir une base de données propre en retirant les équipements qui ne sont plus en service.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le système vérifie qu'aucun ordre de travail actif n'est associé à la machine</li>
+                <li>Une confirmation obligatoire avec justification est requise</li>
+                <li>Les données historiques sont archivées plutôt que supprimées</li>
+                <li>La machine est marquée comme "décommissionnée" avec date</li>
+                <li>Un rapport de décommissionnement peut être généré</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-009</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Machine</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> importer en masse une liste de machines depuis un fichier CSV ou Excel,<br>
+            <strong>Afin de</strong> gagner du temps lors de l'initialisation du système ou lors d'ajouts groupés d'équipements.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le système accepte les formats CSV et XLSX</li>
+                <li>Un modèle de fichier d'import est téléchargeable</li>
+                <li>Le système valide les données avant l'import (doublons, formats)</li>
+                <li>Un rapport d'import détaille les succès et erreurs</li>
+                <li>Les erreurs peuvent être corrigées et l'import relancé</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Configuration et Paramétrage du Système</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-010</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Configuration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> configurer les listes déroulantes du système (types de machines, statuts, priorités, types d'archives),<br>
+            <strong>Afin de</strong> personnaliser le système selon les besoins spécifiques de l'organisation.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux ajouter, modifier ou désactiver des valeurs pour chaque liste</li>
+                <li>Les valeurs système par défaut ne peuvent pas être supprimées</li>
+                <li>Les modifications prennent effet immédiatement dans toute l'application</li>
+                <li>Je peux réorganiser l'ordre d'affichage des valeurs</li>
+                <li>Un historique des modifications de configuration est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-011</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Configuration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> définir les règles de notification automatique du système,<br>
+            <strong>Afin de</strong> contrôler qui reçoit quelles notifications et dans quelles circonstances.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux configurer des règles par événement (création ordre, changement statut, etc.)</li>
+                <li>Je peux définir les destinataires par rôle ou par utilisateur spécifique</li>
+                <li>Les canaux de notification (email, notification in-app) sont configurables</li>
+                <li>Je peux activer/désactiver les notifications par type</li>
+                <li>Des modèles de notification sont personnalisables</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-012</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Configuration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> configurer les paramètres de sécurité (politique de mot de passe, durée de session, tentatives de connexion),<br>
+            <strong>Afin de</strong> renforcer la sécurité du système selon les politiques de l'entreprise.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux définir la longueur minimale et la complexité des mots de passe</li>
+                <li>Je peux configurer la durée d'expiration des mots de passe</li>
+                <li>Je peux définir le nombre maximum de tentatives de connexion échouées</li>
+                <li>La durée d'inactivité avant déconnexion automatique est paramétrable</li>
+                <li>Les changements de politique sont appliqués au prochain renouvellement de mot de passe</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion des Données et Archives</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-013</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Archive</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> gérer l'archive documentaire centrale (ajouter, modifier, supprimer des documents),<br>
+            <strong>Afin de</strong> maintenir une bibliothèque technique organisée et accessible à tous les utilisateurs.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux téléverser tous types de fichiers (PDF, images, vidéos, CAO)</li>
+                <li>Chaque document doit avoir un nom, type, et date d'archivage</li>
+                <li>Je peux associer des documents à une ou plusieurs machines</li>
+                <li>Des métadonnées supplémentaires peuvent être ajoutées (version, auteur, langue)</li>
+                <li>Les documents obsolètes peuvent être archivés sans être supprimés</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-014</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Sauvegarde</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> programmer et exécuter des sauvegardes automatiques de la base de données,<br>
+            <strong>Afin de</strong> protéger les données critiques contre la perte et permettre la restauration en cas d'incident.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux définir la fréquence des sauvegardes (quotidienne, hebdomadaire, mensuelle)</li>
+                <li>Je peux déclencher une sauvegarde manuelle à tout moment</li>
+                <li>Les sauvegardes sont stockées dans un emplacement sécurisé</li>
+                <li>Le système conserve un historique des X dernières sauvegardes</li>
+                <li>Je reçois une notification en cas d'échec de sauvegarde</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Monitoring et Audit</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-015</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Audit</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> consulter les logs d'activité du système (connexions, modifications, suppressions),<br>
+            <strong>Afin de</strong> auditer l'utilisation du système et identifier les actions suspectes ou non autorisées.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Les logs enregistrent : utilisateur, action, date/heure, adresse IP, résultat</li>
+                <li>Je peux filtrer les logs par utilisateur, type d'action, ou période</li>
+                <li>Je peux rechercher dans les logs par mot-clé</li>
+                <li>Les logs sont conservés selon la politique de rétention définie</li>
+                <li>Les logs peuvent être exportés pour analyse externe</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-016</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Monitoring</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> visualiser des indicateurs d'utilisation du système (utilisateurs actifs, performances, espace de stockage),<br>
+            <strong>Afin de</strong> monitorer la santé du système et anticiper les besoins en infrastructure.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche les métriques clés en temps réel</li>
+                <li>Les indicateurs incluent : utilisateurs connectés, requêtes/seconde, CPU, mémoire, stockage</li>
+                <li>Des alertes automatiques sont déclenchées si les seuils sont dépassés</li>
+                <li>Je peux consulter l'historique des performances sur plusieurs mois</li>
+                <li>Des graphiques de tendance facilitent l'analyse</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-017</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Rapport</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> générer des rapports d'utilisation globaux du système pour la direction,<br>
+            <strong>Afin de</strong> démontrer le ROI du système et justifier les investissements futurs.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Le rapport inclut : nombre d'utilisateurs actifs, ordres traités, machines gérées, documents archivés</li>
+                <li>Des statistiques d'adoption par rôle sont fournies</li>
+                <li>Des graphiques d'évolution dans le temps sont générés</li>
+                <li>Je peux personnaliser la période et le contenu du rapport</li>
+                <li>Le rapport est exportable en PDF professionnel</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2>Gestion de la Collaboration et Synchronisation</h2>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-018</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Synchronisation</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> configurer les paramètres de synchronisation en temps réel du système,<br>
+            <strong>Afin de</strong> assurer que tous les utilisateurs voient les mêmes données à jour simultanément sans délai.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux activer/désactiver la synchronisation temps réel pour différents modules</li>
+                <li>Je peux définir la fréquence de synchronisation (instantané, toutes les X secondes)</li>
+                <li>Un tableau de bord montre le statut de synchronisation de tous les utilisateurs</li>
+                <li>Je peux forcer une synchronisation manuelle si nécessaire</li>
+                <li>Les problèmes de synchronisation génèrent des alertes automatiques</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-019</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> gérer les paramètres du système de messagerie intégré (rétention, taille des fichiers, filtres),<br>
+            <strong>Afin de</strong> optimiser les performances et garantir une communication efficace entre tous les utilisateurs.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux définir la durée de conservation des messages (30 jours, 6 mois, 1 an)</li>
+                <li>Je peux limiter la taille maximale des pièces jointes</li>
+                <li>Je peux activer/désactiver certains types de notifications</li>
+                <li>Je peux modérer ou archiver des conversations si nécessaire</li>
+                <li>Des statistiques d'utilisation de la messagerie sont disponibles</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-020</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Permissions</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> définir précisément les permissions de chaque rôle (lecture, écriture, modification, suppression) par module,<br>
+            <strong>Afin de</strong> contrôler finement qui peut faire quoi dans le système tout en facilitant la collaboration.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Une matrice de permissions affiche tous les rôles et modules du système</li>
+                <li>Je peux activer/désactiver chaque permission pour chaque rôle</li>
+                <li>Des profils de permissions prédéfinis sont disponibles</li>
+                <li>Les modifications prennent effet immédiatement pour tous les utilisateurs</li>
+                <li>Un historique des modifications de permissions est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-021</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> voir en temps réel tous les utilisateurs connectés et leur activité actuelle,<br>
+            <strong>Afin de</strong> monitorer l'utilisation du système et identifier d'éventuels problèmes de performance ou d'usage.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche tous les utilisateurs actuellement connectés</li>
+                <li>Je vois pour chaque utilisateur : dernière activité, module consulté, actions en cours</li>
+                <li>Je peux voir l'historique des connexions sur une période donnée</li>
+                <li>Des statistiques d'utilisation par rôle sont disponibles</li>
+                <li>Je peux filtrer par rôle, activité ou période</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-022</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Communication</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> diffuser des annonces système importantes à tous les utilisateurs ou à des rôles spécifiques,<br>
+            <strong>Afin de</strong> communiquer les maintenances programmées, nouvelles fonctionnalités ou consignes importantes.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux créer une annonce avec titre, contenu et niveau de priorité</li>
+                <li>Je peux cibler tous les utilisateurs ou filtrer par rôle</li>
+                <li>L'annonce apparaît en bannière sur l'écran de tous les utilisateurs ciblés</li>
+                <li>Je peux programmer la date et l'heure de diffusion</li>
+                <li>Je peux voir qui a lu l'annonce et envoyer des rappels</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-023</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Conflit</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> gérer les conflits de modification lorsque plusieurs utilisateurs modifient simultanément les mêmes données,<br>
+            <strong>Afin de</strong> garantir l'intégrité des données et éviter la perte d'informations dans un environnement multi-utilisateurs.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux configurer la stratégie de résolution des conflits (dernier gagne, verrouillage, fusion)</li>
+                <li>Les utilisateurs sont avertis quand quelqu'un d'autre modifie un enregistrement qu'ils consultent</li>
+                <li>Un système de verrouillage empêche les modifications simultanées sur les données critiques</li>
+                <li>Un historique des conflits détecés est conservé</li>
+                <li>Je reçois une alerte en cas de conflit nécessitant mon intervention</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-024</span>
+        <span class="priority priority-low">BASSE</span>
+        <span class="category">Collaboration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> configurer des workflows d'approbation pour certaines actions critiques (suppression de machines, changements de configuration),<br>
+            <strong>Afin de</strong> implémenter un contrôle supplémentaire et éviter les erreurs ou actions non autorisées.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux définir quelles actions nécessitent une approbation</li>
+                <li>Je peux désigner qui doit approuver chaque type d'action</li>
+                <li>Les demandes d'approbation sont notifiées aux approbateurs</li>
+                <li>Les approbateurs peuvent accepter, refuser ou demander des modifications</li>
+                <li>Un historique complet des approbations est conservé</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-025</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Synchronisation</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> surveiller les performances de synchronisation entre les utilisateurs et identifier les goulots d'étranglement,<br>
+            <strong>Afin de</strong> optimiser l'expérience utilisateur et garantir une collaboration fluide en temps réel.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Un tableau de bord affiche les métriques de synchronisation (latence, taux de réussite)</li>
+                <li>Je peux voir les utilisateurs ayant des problèmes de connexion ou de synchronisation</li>
+                <li>Des graphiques montrent l'évolution des performances dans le temps</li>
+                <li>Des alertes automatiques signalent les dégradations de performance</li>
+                <li>Je peux exporter les données pour analyse technique approfondie</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-026</span>
+        <span class="priority priority-high">HAUTE</span>
+        <span class="category">Intégration</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> configurer l'intégration avec d'autres systèmes de l'entreprise (ERP, CMMS, Active Directory),<br>
+            <strong>Afin de</strong> faciliter la synchronisation des données et l'authentification unique (SSO) pour une expérience utilisateur unifiée.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Je peux configurer les connexions aux systèmes externes via API</li>
+                <li>Je peux mapper les champs de données entre les systèmes</li>
+                <li>Je peux définir la fréquence de synchronisation des données</li>
+                <li>Je peux tester les connexions et voir les logs d'intégration</li>
+                <li>Des alertes m'informent en cas d'échec de synchronisation</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="user-story">
+        <span class="story-id">US-ADMIN-027</span>
+        <span class="priority priority-medium">MOYENNE</span>
+        <span class="category">Audit</span>
+        <div class="story-content">
+            <strong>En tant qu'</strong> ADMIN,<br>
+            <strong>Je veux</strong> auditer toutes les communications et assignations entre utilisateurs,<br>
+            <strong>Afin de</strong> assurer la conformité aux politiques de l'entreprise et résoudre d'éventuels conflits ou litiges.
+        </div>
+        <div class="acceptance-criteria">
+            <h4>Critères d'acceptation:</h4>
+            <ul>
+                <li>Toutes les messages et assignations sont enregistrés avec horodatage</li>
+                <li>Je peux rechercher dans les logs de communication par utilisateur, date ou mot-clé</li>
+                <li>Les pièces jointes et fichiers partagés sont également tracés</li>
+                <li>Je peux exporter les logs pour analyse externe ou conformité</li>
+                <li>Les données sensibles peuvent être anonymisées dans les exports</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,58 @@
+[
+  {
+    "projectId": "85937e4d-166b-473c-9bb2-215af46416e6",
+    "testId": "af1e33b1-0207-4267-9973-c6adf76811af",
+    "userId": "44c8b4f8-7071-70d2-236f-b010e523fbb3",
+    "title": "TC001-get_health_basic_check",
+    "description": "Verify GET /health returns 200 with status ok indicating basic service health.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:8000\"\nTIMEOUT = 30\n\ndef test_get_health_basic_check():\n    url = f\"{BASE_URL}/health\"\n    try:\n        response = requests.get(url, timeout=TIMEOUT)\n        response.raise_for_status()\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n\n    assert response.status_code == 200, f\"Expected status code 200, got {response.status_code}\"\n    json_data = response.json()\n    assert isinstance(json_data, dict), \"Response is not a JSON object\"\n    assert \"status\" in json_data, \"Response JSON missing 'status' key\"\n    assert json_data[\"status\"] == \"ok\", f\"Expected status 'ok', got '{json_data['status']}'\"\n\ntest_get_health_basic_check()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-04-05T18:17:04.999Z",
+    "modified": "2026-04-05T18:17:09.722Z"
+  },
+  {
+    "projectId": "85937e4d-166b-473c-9bb2-215af46416e6",
+    "testId": "448bbedb-b2a0-4428-b984-27575f3bd7a2",
+    "userId": "44c8b4f8-7071-70d2-236f-b010e523fbb3",
+    "title": "TC002-get_api_v1_health_check_database_connected",
+    "description": "Verify GET /api/v1/health returns 200 with status ok and database connected when DB is reachable.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:8000\"\nTIMEOUT = 30\n\ndef test_get_api_v1_health_check_database_connected():\n    url = f\"{BASE_URL}/api/v1/health\"\n    try:\n        response = requests.get(url, timeout=TIMEOUT)\n        response.raise_for_status()\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n\n    # Validate status code\n    assert response.status_code == 200, f\"Expected status code 200 but got {response.status_code}\"\n\n    # Validate JSON response content\n    try:\n        data = response.json()\n    except ValueError:\n        assert False, \"Response is not valid JSON\"\n\n    assert \"status\" in data, \"Response JSON missing 'status' key\"\n    assert data[\"status\"] == \"ok\", f\"Expected 'status' to be 'ok' but got '{data['status']}'\"\n\n    assert \"database\" in data, \"Response JSON missing 'database' key\"\n    assert data[\"database\"] == \"connected\", f\"Expected 'database' to be 'connected' but got '{data['database']}'\"\n\ntest_get_api_v1_health_check_database_connected()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-04-05T18:17:05.005Z",
+    "modified": "2026-04-05T18:17:11.041Z"
+  },
+  {
+    "projectId": "85937e4d-166b-473c-9bb2-215af46416e6",
+    "testId": "4720ae38-70fb-42d2-89e7-417ebce1d686",
+    "userId": "44c8b4f8-7071-70d2-236f-b010e523fbb3",
+    "title": "TC006-get_api_v1_ml_machines_machineid_prediction_success",
+    "description": "Verify GET /api/v1/ml/machines/{machine_id}/prediction returns 200 with full ML prediction data for valid machine.",
+    "code": "import requests\n\nBASE_URL = \"http://localhost:8000\"\nTIMEOUT = 30\n\ndef test_get_api_v1_ml_machines_machineid_prediction_success():\n    # First, we need a valid machine_id.\n    # Since no direct creation endpoint for machine is specified, \n    # we will try to find one machine ID from an endpoint if possible.\n    # However, no public machine listing endpoint without auth is specified for direct machine_id access.\n    # We try to use a known valid id=1 as a common assumption for test environment.\n    machine_id = 1\n    \n    url = f\"{BASE_URL}/api/v1/ml/machines/{machine_id}/prediction\"\n    try:\n        response = requests.get(url, timeout=TIMEOUT)\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n    \n    assert response.status_code == 200, f\"Expected status 200, got {response.status_code}\"\n    try:\n        data = response.json()\n    except ValueError:\n        assert False, \"Response is not valid JSON\"\n    \n    # Validate required response fields and types\n    expected_fields = {\n        \"machine_id\": int,\n        \"machine_name\": str,\n        \"rul_days\": (int, float),\n        \"risk_level\": str,\n        \"failure_probability\": (int, float),\n        \"health_score\": (int, float),\n        \"reliability_score\": (int, float),\n        \"is_anomaly\": bool,\n        \"explanations\": list,\n    }\n    \n    for field, field_type in expected_fields.items():\n        assert field in data, f\"Missing field '{field}' in response\"\n        assert isinstance(data[field], field_type), f\"Field '{field}' is not of type {field_type}, got {type(data[field])}\"\n    \n    # Additional plausibility checks:\n    assert data[\"machine_id\"] == machine_id, f\"Returned machine_id does not match requested id {machine_id}\"\n\ntest_get_api_v1_ml_machines_machineid_prediction_success()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-04-05T18:17:05.011Z",
+    "modified": "2026-04-05T18:17:10.387Z"
+  },
+  {
+    "projectId": "85937e4d-166b-473c-9bb2-215af46416e6",
+    "testId": "913cb3db-6396-4153-a63b-1f0face82d98",
+    "userId": "44c8b4f8-7071-70d2-236f-b010e523fbb3",
+    "title": "TC007-post_api_v1_ml_retrain_trigger",
+    "description": "Verify POST /api/v1/ml/retrain triggers model retraining and returns 200 with status and message.",
+    "code": "import requests\n\ndef test_post_api_v1_ml_retrain_trigger():\n    base_url = \"http://localhost:8000\"\n    url = f\"{base_url}/api/v1/ml/retrain\"\n    headers = {\"Content-Type\": \"application/json\"}\n\n    try:\n        response = requests.post(url, headers=headers, timeout=30)\n    except requests.RequestException as e:\n        assert False, f\"Request failed: {e}\"\n\n    assert response.status_code == 200, f\"Expected status code 200 but got {response.status_code}\"\n    try:\n        data = response.json()\n    except ValueError:\n        assert False, \"Response is not valid JSON\"\n\n    assert \"status\" in data and isinstance(data[\"status\"], str), \"Response JSON missing 'status' or not a string\"\n    assert \"message\" in data and isinstance(data[\"message\"], str), \"Response JSON missing 'message' or not a string\"\n\ntest_post_api_v1_ml_retrain_trigger()",
+    "testStatus": "PASSED",
+    "testError": "",
+    "testType": "BACKEND",
+    "createFrom": "mcp",
+    "created": "2026-04-05T18:17:05.016Z",
+    "modified": "2026-04-05T18:17:11.721Z"
+  }
+]

@@ -1,0 +1,376 @@
+version: "2"
+type: backend
+tech_stack:
+  - Python 3.11
+  - FastAPI
+  - SQLAlchemy 2.0 (async)
+  - PostgreSQL
+  - XGBoost
+  - scikit-learn
+  - Alembic
+  - Pydantic
+  - JWT Auth
+  - RabbitMQ
+  - Celery
+features:
+  - name: Health Check
+    description: System health and database connectivity checks
+    files:
+      - app/backend/main.py
+      - app/backend/modules/shared/health.py
+    endpoints:
+      - method: GET
+        path: /health
+        description: Basic health check
+        auth_required: false
+        response_schema:
+          "200":
+            status: string
+      - method: GET
+        path: /api/v1/health
+        description: API health check
+        auth_required: false
+        response_schema:
+          "200":
+            status: string
+            database: string
+
+  - name: Authentication
+    description: User registration, login, and JWT token management
+    files:
+      - app/backend/modules/auth/auth.py
+      - app/backend/core/auth.py
+      - app/backend/dependencies/auth.py
+    endpoints:
+      - method: POST
+        path: /api/v1/auth/register
+        description: Register new user (pending admin approval)
+        auth_required: false
+        request_schema:
+          body:
+            nom: string
+            email: string
+            mot_de_passe: string
+            role: string
+        response_schema:
+          "201":
+            message: string
+            user: object
+          "400": Validation error
+          "409": Email already exists
+      - method: POST
+        path: /api/v1/auth/login
+        description: Login with email/password, returns JWT
+        auth_required: false
+        request_schema:
+          body:
+            email: string
+            mot_de_passe: string
+        response_schema:
+          "200":
+            access_token: string
+            refresh_token: string
+            token_type: string
+          "401": Invalid credentials
+      - method: GET
+        path: /api/v1/auth/me
+        description: Get current user info
+        auth_required: true
+        response_schema:
+          "200":
+            id: integer
+            nom: string
+            email: string
+            role: string
+
+  - name: Machine Learning Predictions
+    description: ML-based predictive maintenance with 6 models (P1-P6)
+    files:
+      - app/backend/modules/ml/router.py
+      - app/backend/modules/ml/ml_predictive.py
+      - app/backend/modules/ml/services/ml_retraining.py
+      - app/backend/modules/ml/services/ml_xai.py
+    endpoints:
+      - method: GET
+        path: /api/v1/ml/machines/{machine_id}/prediction
+        description: Full ML prediction with RUL, risk, health, SHAP explanations
+        auth_required: false
+        response_schema:
+          "200":
+            machine_id: integer
+            machine_name: string
+            rul_days: number
+            risk_level: string
+            failure_probability: number
+            health_score: number
+            reliability_score: number
+            is_anomaly: boolean
+            explanations: array
+      - method: GET
+        path: /api/v1/ml/machines/{machine_id}/failure-probability
+        description: Failure probability using P1 model
+        auth_required: false
+        response_schema:
+          "200":
+            failure_probability: number
+            risk_level: string
+      - method: GET
+        path: /api/v1/ml/machines/{machine_id}/failure-type
+        description: Predict failure types (TWF, HDF, PWF, OSF, RNF)
+        auth_required: false
+        response_schema:
+          "200":
+            TWF: object
+            HDF: object
+            PWF: object
+            OSF: object
+            RNF: object
+      - method: GET
+        path: /api/v1/ml/fleet/critical
+        description: Fleet-wide critical/high risk machines
+        auth_required: false
+        response_schema:
+          "200":
+            machines: array
+      - method: GET
+        path: /api/v1/ml/fleet/dashboard
+        description: Full fleet dashboard with all ML scores
+        auth_required: false
+        response_schema:
+          "200":
+            total_machines: integer
+            critical_count: integer
+            high_count: integer
+            machines: array
+      - method: POST
+        path: /api/v1/ml/retrain
+        description: Trigger model retraining pipeline
+        auth_required: false
+        response_schema:
+          "200":
+            status: string
+            message: string
+      - method: PATCH
+        path: /api/v1/ml/machines/{machine_id}/telemetry
+        description: Update machine telemetry values (simulation)
+        auth_required: false
+        request_schema:
+          body:
+            air_temperature: number
+            process_temperature: number
+            rotational_speed: number
+            torque: number
+            tool_wear: number
+
+  - name: CHETOP Operations
+    description: Chef Operations intervention requests and work orders
+    files:
+      - app/backend/modules/chetop/chetop.py
+    endpoints:
+      - method: GET
+        path: /api/v1/chetop/dashboard
+        description: Dashboard stats
+        auth_required: true
+        response_schema:
+          "200":
+            total_requests: integer
+            pending_requests: integer
+            total_machines: integer
+      - method: POST
+        path: /api/v1/chetop/intervention-requests
+        description: Create intervention request
+        auth_required: true
+        request_schema:
+          body:
+            machine_id: integer
+            problem_description: string
+            priority: string
+        response_schema:
+          "201": object
+      - method: GET
+        path: /api/v1/chetop/machines
+        description: List machines with filters
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+
+  - name: CHEFTECH Operations
+    description: Chef Technique dashboard, interventions, and work order management
+    files:
+      - app/backend/modules/cheftech/cheftech.py
+    endpoints:
+      - method: GET
+        path: /api/v1/cheftech/dashboard
+        description: Dashboard stats
+        auth_required: true
+        response_schema:
+          "200":
+            total_work_orders: integer
+            pending_interventions: integer
+            total_techniciens: integer
+            total_machines: integer
+      - method: GET
+        path: /api/v1/cheftech/interventions
+        description: List all interventions
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: POST
+        path: /api/v1/cheftech/interventions/{intervention_id}/approve
+        description: Approve an intervention
+        auth_required: true
+        response_schema:
+          "200": object
+      - method: POST
+        path: /api/v1/cheftech/ordres-travail/{ordre_id}/assign
+        description: Assign WO to technicians
+        auth_required: true
+        response_schema:
+          "200": object
+
+  - name: TECHNICIEN Operations
+    description: Technician interventions and work orders
+    files:
+      - app/backend/modules/technicien/technicien.py
+      - app/backend/modules/technicien/technicien_work_orders.py
+    endpoints:
+      - method: GET
+        path: /api/v1/technicien/interventions
+        description: List own interventions
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: GET
+        path: /api/v1/technicien/work-orders
+        description: List assigned work orders
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: PATCH
+        path: /api/v1/technicien/work-orders/{order_id}/start
+        description: Start a work order
+        auth_required: true
+        response_schema:
+          "200": object
+      - method: PATCH
+        path: /api/v1/technicien/work-orders/{order_id}/complete
+        description: Complete a work order with PDCA data
+        auth_required: true
+        response_schema:
+          "200": object
+
+  - name: Plannings
+    description: Maintenance planning management
+    files:
+      - app/backend/routers/plannings.py
+    endpoints:
+      - method: GET
+        path: /api/v1/plannings
+        description: List plannings (role-filtered)
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: POST
+        path: /api/v1/plannings
+        description: Create a new planning
+        auth_required: true
+        request_schema:
+          body:
+            identifiant_planning: string
+            date_debut: string
+            date_fin: string
+            type: string
+            user_ids: array
+            machine_ids: array
+        response_schema:
+          "201": object
+
+  - name: Inventory Management
+    description: Spare parts and stock management
+    files:
+      - app/backend/modules/inventory/stock.py
+      - app/backend/modules/inventory/pieces.py
+    endpoints:
+      - method: GET
+        path: /api/v1/inventory/stock
+        description: List stock levels
+        auth_required: false
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: POST
+        path: /api/v1/inventory/stock
+        description: Add stock
+        auth_required: false
+        request_schema:
+          body:
+            piece_id: integer
+            quantity: integer
+        response_schema:
+          "201": object
+      - method: GET
+        path: /api/v1/inventory/pieces
+        description: List spare parts
+        auth_required: false
+        response_schema:
+          "200":
+            items: array
+            total: integer
+
+  - name: Notifications
+    description: Real-time notifications via SSE
+    files:
+      - app/backend/routers/notifications.py
+    endpoints:
+      - method: GET
+        path: /api/v1/notifications
+        description: List user notifications
+        auth_required: true
+        response_schema:
+          "200":
+            items: array
+            total: integer
+      - method: GET
+        path: /api/v1/notifications/unread-count
+        description: Count unread notifications
+        auth_required: true
+        response_schema:
+          "200":
+            count: integer
+      - method: POST
+        path: /api/v1/notifications/mark-as-read
+        description: Mark notification as read
+        auth_required: true
+        response_schema:
+          "200": object
+
+known_limitations:
+  - issue: ML endpoints have no authentication
+    location: app/backend/modules/ml/router.py
+    impact: Anyone can trigger predictions and retraining
+  - issue: Inventory endpoints have no authentication
+    location: app/backend/modules/inventory/
+    impact: Anyone can manipulate stock levels
+  - issue: CORS allows all origins
+    location: app/backend/main.py
+    impact: Security risk in production
+  - issue: /api/v1/auth/refresh is a stub
+    location: app/backend/modules/auth/auth.py
+    impact: Token refresh always returns 401
+  - issue: RabbitMQ and Celery failures are silently ignored
+    location: app/backend/core/rabbitmq.py
+    impact: Lost notifications without error reporting
+  - issue: No FK constraints in database
+    location: app/backend/core/database.py
+    impact: Referential integrity not enforced at DB level

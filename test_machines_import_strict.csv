@@ -1,0 +1,5 @@
+nom,type,emplacement,zone,sous_zone,ordre,statut
+,CMS,Atelier 1,ZONE CMS1 - COMPONENT SURFACE MOUNTING,"CMS LINE 1 (e.g., BBS - Broadband Products)",1,OPERATIONNELLE
+,Test Invalid Zone,Atelier 1,Zone A,"CMS LINE 1 (e.g., BBS - Broadband Products)",1,OPERATIONNELLE
+,Test Invalid Order,Atelier 1,ZONE CMS1 - COMPONENT SURFACE MOUNTING,"CMS LINE 1 (e.g., BBS - Broadband Products)",99,OPERATIONNELLE
+,Test CMS2,Atelier 1,ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles),TEST IN-SITU (Test des Composants),2,OPERATIONNELLE
