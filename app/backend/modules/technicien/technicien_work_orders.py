@@ -15,6 +15,7 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from models.ordres_intervention import Ordres_intervention
+from models.machine_telemetry import MachineTelemetry
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -47,6 +48,14 @@ class WorkOrderCompletePayload(BaseModel):
     check_verification_method: Optional[str] = None
     act_preventive_actions: Optional[str] = None
     act_recommendations: Optional[str] = None
+    
+    # Machine Telemetry fields (all optional)
+    telemetry_temperature: Optional[float] = None
+    telemetry_vibration: Optional[float] = None
+    telemetry_rpm: Optional[int] = None
+    telemetry_torque: Optional[float] = None
+    telemetry_power: Optional[float] = None
+    telemetry_notes: Optional[str] = None
 
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
@@ -236,6 +245,28 @@ async def complete_work_order(
             intervention.check_verification_method = payload.check_verification_method
             intervention.act_preventive_actions = payload.act_preventive_actions
             intervention.act_recommendations = payload.act_recommendations
+        
+        # Save telemetry if any telemetry field is provided
+        if any([
+            payload.telemetry_temperature,
+            payload.telemetry_vibration,
+            payload.telemetry_rpm,
+            payload.telemetry_torque,
+            payload.telemetry_power,
+        ]):
+            telemetry = MachineTelemetry(
+                machine_id=wo.machine_id,
+                work_order_id=wo.id,
+                technician_id=current_user.id,
+                temperature=payload.telemetry_temperature or 0,
+                vibration=payload.telemetry_vibration or 0,
+                rpm=payload.telemetry_rpm or 0,
+                torque=payload.telemetry_torque or 0,
+                power=payload.telemetry_power or 0,
+                recorded_at=now,
+                notes=payload.telemetry_notes,
+            )
+            db.add(telemetry)
         
         await db.commit()
         
