@@ -25,6 +25,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from '@/contexts/AuthContext';
+import { MachineMetricsForm, TelemetryFormData } from '@/components/technicien/MachineMetricsForm';
 
 interface CompleteWorkOrderModalProps {
   open: boolean;
@@ -54,6 +55,9 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+  
+  // Machine telemetry data
+  const [telemetryData, setTelemetryData] = useState<TelemetryFormData>({});
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -99,7 +103,14 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
-          ...formData
+          ...formData,
+          // Include telemetry data
+          telemetry_temperature: telemetryData.temperature,
+          telemetry_vibration: telemetryData.vibration,
+          telemetry_rpm: telemetryData.rpm,
+          telemetry_torque: telemetryData.torque,
+          telemetry_power: telemetryData.power,
+          telemetry_notes: telemetryData.notes,
         }),
       });
 
@@ -170,6 +181,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
         act_recommendations: '',
       });
       setAttachments([]);
+      setTelemetryData({});
     } catch (error: unknown) {
       toast({
         title: 'Erreur',
@@ -357,6 +369,8 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
               </div>
             </div>
 
+            <Separator />
+
             {/* --- Section: ACT (Prévention) --- */}
             <div className="space-y-4 bg-purple-50/30 p-4 rounded-lg border border-purple-100">
               <h3 className="text-sm font-bold uppercase tracking-wider text-purple-700 flex items-center gap-2">
@@ -383,6 +397,9 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
                 />
               </div>
             </div>
+
+            {/* --- Section: Machine Telemetry --- */}
+            <MachineMetricsForm formData={telemetryData} onChange={setTelemetryData} />
 
             <Separator />
 
