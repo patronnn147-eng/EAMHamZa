@@ -2,14 +2,17 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
+from models.machine_telemetry import MachineTelemetry
 from core.security import verify_technicien
 from ..schemas import MachineResponse
+from ..schemas_telemetry import MachineTelemetryResponse, MachineTelemetryLatest
+from schemas.pagination import PaginatedResponse
 
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 logger = logging.getLogger(__name__)
@@ -41,3 +44,86 @@ async def get_machines_list(
     except Exception as e:
         logger.error(f"Error getting machines for technicien: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/machines/{machine_id}/telemetry", response_model=PaginatedResponse[MachineTelemetryResponse])
+async def get_machine_telemetry(
+    machine_id: int,
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: Utilisateurs = Depends(verify_technicien),
+    db: AsyncSession = Depends(get_db),
+):
+    """TECHNICIEN: Get telemetry logs for a specific machine"""
+    machine_result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    if not machine_result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Machine not found")
+    
+    count_result = await db.execute(
+        select(func.count(MachineTelemetry.id)).where(MachineTelemetry.machine_id == machine_id)
+    )
+    total = count_result.scalar() or 0
+    
+    skip = (page - 1) * size
+    query = select(MachineTelemetry)\
+        .where(MachineTelemetry.machine_id == machine_id)\
+        .order_by(desc(MachineTelemetry.recorded_at))\
+        .offset(skip).limit(size)
+    
+    result = await db.execute(query)
+    records = result.scalars().all()
+    
+    items = [
+        MachineTelemetryResponse(
+            id=r.id,
+            machine_id=r.machine_id,
+            work_order_id=r.work_order_id,
+            technician_id=r.technician_id,
+            temperature=r.temperature,
+            vibration=r.vibration,
+            rpm=r.rpm,
+            torque=r.torque,
+            power=r.power,
+            recorded_at=r.recorded_at,
+            notes=r.notes,
+            created_at=r.created_at,
+        ) for r in records
+    ]
+    
+    return PaginatedResponse.create(items=items, total=total, page=page, size=size)
+
+
+@router.get("/machines/{machine_id}/telemetry/latest", response_model=MachineTelemetryLatest)
+async def get_machine_latest_telemetry(
+    machine_id: int,
+    current_user: Utilisateurs = Depends(verify_technicien),
+    db: AsyncSession = Depends(get_db),
+):
+    """TECHNICIEN: Get latest telemetry reading for a machine"""
+    machine_result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    machine = machine_result.scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+    
+    query = select(MachineTelemetry)\
+        .where(MachineTelemetry.machine_id == machine_id)\
+        .order_by(desc(MachineTelemetry.recorded_at))\
+        .limit(1)
+    
+    result = await db.execute(query)
+    telemetry = result.scalar_one_or_none()
+    
+    if not telemetry:
+        raise HTTPException(status_code=404, detail="No telemetry data found for this machine")
+    
+    return MachineTelemetryLatest(
+        machine_id=machine_id,
+        machine_nom=machine.nom,
+        temperature=telemetry.temperature,
+        vibration=telemetry.vibration,
+        rpm=telemetry.rpm,
+        torque=telemetry.torque,
+        power=telemetry.power,
+        recorded_at=telemetry.recorded_at,
+        work_order_id=telemetry.work_order_id,
+    )
