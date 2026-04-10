@@ -20,3 +20,5 @@ from . import pieces
 from . import piece_machine
 from . import stock
 from . import mouvement_stock
+from . import machine_telemetry
+from .machine_telemetry import MachineTelemetry
