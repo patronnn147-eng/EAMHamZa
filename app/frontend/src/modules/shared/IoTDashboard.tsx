@@ -45,35 +45,6 @@ interface IoTStats {
   critical: number;
 }
 
-const generateMockMachines = (): MachineTelemetry[] => {
-  const zones = ['Zone A', 'Zone B', 'Zone C', 'Zone D'];
-  const statuses = ['OPERATIONAL', 'MAINTENANCE', 'PANNE'];
-  const machines: MachineTelemetry[] = [];
-  
-  for (let i = 1; i <= 12; i++) {
-    const temp = 40 + Math.random() * 35;
-    const vibration = Math.random() * 8;
-    const health = temp > 80 || vibration > 7 ? 'warning' : 'normal';
-    const criticalHealth = temp > 95 || vibration > 10 ? 'critical' : health;
-    
-    machines.push({
-      id: i,
-      name: `Machine ${i}`,
-      zone: zones[i % 4],
-      status: statuses[i % 3],
-      temperature: temp,
-      vibration: vibration,
-      rpm: 2500 + Math.random() * 1500,
-      torque: 30 + Math.random() * 40,
-      power: 5 + Math.random() * 15,
-      online: Math.random() > 0.1,
-      lastUpdate: new Date().toISOString()
-    });
-  }
-  
-  return machines;
-};
-
 export const IoTDashboard: React.FC = () => {
   const [machines, setMachines] = useState<MachineTelemetry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,11 +105,12 @@ export const IoTDashboard: React.FC = () => {
         
         setMachines(machinesWithTelemetry);
       } else {
-        setMachines(generateMockMachines());
+        // API returned error, show empty
+        setMachines([]);
       }
     } catch (err) {
       console.error('Failed to load machines', err);
-      setMachines(generateMockMachines());
+      setMachines([]);
     } finally {
       setLoading(false);
     }
