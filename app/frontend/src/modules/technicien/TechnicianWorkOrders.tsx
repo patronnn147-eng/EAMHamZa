@@ -10,9 +10,11 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  StopCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
+import { WorkOrderCompleteDialog, WorkOrderCompletePayload } from '@/modules/technicien/components/WorkOrderCompleteDialog';
 
 interface WorkOrder {
   id: number;
@@ -33,6 +35,8 @@ const TechnicianWorkOrders: React.FC = () => {
   const [startingId, setStartingId] = useState<number | null>(null); // Kept for types if needed elsewhere, but focus is on new flow
   const [requestOpen, setRequestOpen] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState<number | null>(null);
+  const [completeModalOpen, setCompleteModalOpen] = useState(false);
+  const [completingWoId, setCompletingWoId] = useState<number | null>(null);
 
   const fetchWorkOrders = async () => {
     try {
@@ -205,6 +209,19 @@ const TechnicianWorkOrders: React.FC = () => {
                           Commencer
                         </Button>
                       )}
+                      {wo.statut === 'EN_COURS' && (
+                        <Button
+                          size="sm"
+                          className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all border-none"
+                          onClick={() => {
+                            setCompletingWoId(wo.id);
+                            setCompleteModalOpen(true);
+                          }}
+                        >
+                          <StopCircle className="w-4 h-4 mr-1" />
+                          Terminer
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
@@ -223,6 +240,41 @@ const TechnicianWorkOrders: React.FC = () => {
           toast({ title: 'Demande envoyée', description: 'Votre demande a été enregistrée avec succès.' });
         }}
       />
+
+      {completingWoId && (
+        <WorkOrderCompleteDialog
+          open={completeModalOpen}
+          onOpenChange={setCompleteModalOpen}
+          workOrderId={completingWoId}
+          workOrderTitle={workOrders.find(w => w.id === completingWoId)?.titre || ''}
+          machineName={workOrders.find(w => w.id === completingWoId)?.machine_nom}
+          onConfirm={async (data: WorkOrderCompletePayload) => {
+            try {
+              const token = localStorage.getItem('access_token');
+              const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+              const response = await fetch(`${apiBase}/api/v1/technicien/work-orders/${completingWoId}/complete`, {
+                method: 'PATCH',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+              });
+              if (response.ok) {
+                toast({ title: 'Succès', description: 'Ordre de travail terminé avec succès!' });
+                setCompleteModalOpen(false);
+                setCompletingWoId(null);
+                fetchWorkOrders();
+              } else {
+                const err = await response.json();
+                toast({ title: 'Erreur', description: err.detail || 'Impossible de terminer', variant: 'destructive' });
+              }
+            } catch {
+              toast({ title: 'Erreur réseau', description: 'Veuillez réessayer', variant: 'destructive' });
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

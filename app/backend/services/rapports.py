@@ -1,10 +1,14 @@
 import logging
+import json
 from typing import Optional, Dict, Any, List
+from datetime import datetime, timedelta
 
-from sqlalchemy import select, func
+from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.rapports import Rapports
+from models.rapports import Rapports, ReportType
+from models.machines import Machines
+from models.alertes import Alert
 
 logger = logging.getLogger(__name__)
 
@@ -151,4 +155,106 @@ class RapportsService:
             return result.scalars().all()
         except Exception as e:
             logger.error(f"Error fetching rapportss by {field_name}: {str(e)}")
+            raise
+
+    async def get_scheduled_reports(self, active_only: bool = True) -> List[Rapports]:
+        """Get all scheduled reports"""
+        try:
+            query = select(Rapports).where(Rapports.report_type.isnot(None))
+            if active_only:
+                query = query.where(Rapports.is_active == True)
+            result = await self.db.execute(query.order_by(Rapports.id.desc()))
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"Error fetching scheduled reports: {str(e)}")
+            raise
+
+    async def create_scheduled_report(
+        self,
+        report_type: str,
+        title: str,
+        schedule_config: Dict[str, Any],
+        recipients: List[int],
+    ) -> Rapports:
+        """Create a new scheduled report"""
+        try:
+            obj = Rapports(
+                identifiant_rapport=f"SCHED_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+                titre=title,
+                date_generation=datetime.now(),
+                contenu=json.dumps({"type": report_type, "recipients": recipients}),
+                report_type=report_type,
+                schedule_config=schedule_config,
+                is_active=True,
+            )
+            self.db.add(obj)
+            await self.db.commit()
+            await self.db.refresh(obj)
+            logger.info(f"Created scheduled report with id: {obj.id}")
+            return obj
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error creating scheduled report: {str(e)}")
+            raise
+
+    async def generate_asset_health_report(self) -> Dict[str, Any]:
+        """Generate asset health report data"""
+        try:
+            # Get machine counts
+            machines_result = await self.db.execute(select(func.count(Machines.id)))
+            total_machines = machines_result.scalar() or 0
+
+            # Get active alerts
+            alerts_result = await self.db.execute(
+                select(func.count(Alert.id)).where(Alert.is_active == True)
+            )
+            active_alerts = alerts_result.scalar() or 0
+
+            # Get critical alerts
+            critical_result = await self.db.execute(
+                select(func.count(Alert.id)).where(
+                    and_(Alert.is_active == True, Alert.severity == 'CRITICAL')
+                )
+            )
+            critical_alerts = critical_result.scalar() or 0
+
+            return {
+                "generated_at": datetime.now().isoformat(),
+                "summary": {
+                    "total_machines": total_machines,
+                    "active_alerts": active_alerts,
+                    "critical_alerts": critical_alerts,
+                },
+                "report_type": "ASSET_HEALTH",
+            }
+        except Exception as e:
+            logger.error(f"Error generating asset health report: {str(e)}")
+            raise
+
+    async def generate_weekly_digest(self) -> Dict[str, Any]:
+        """Generate weekly digest report data"""
+        try:
+            week_ago = datetime.now() - timedelta(days=7)
+
+            # Get machines
+            machines_result = await self.db.execute(select(func.count(Machines.id)))
+            total_machines = machines_result.scalar() or 0
+
+            # Get alerts this week
+            alerts_result = await self.db.execute(
+                select(func.count(Alert.id)).where(Alert.created_at >= week_ago)
+            )
+            alerts_this_week = alerts_result.scalar() or 0
+
+            return {
+                "generated_at": datetime.now().isoformat(),
+                "period": f"Last 7 days (from {week_ago.strftime('%Y-%m-%d')})",
+                "summary": {
+                    "total_machines": total_machines,
+                    "alerts_generated": alerts_this_week,
+                },
+                "report_type": "WEEKLY_DIGEST",
+            }
+        except Exception as e:
+            logger.error(f"Error generating weekly digest: {str(e)}")
             raise

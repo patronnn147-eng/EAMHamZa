@@ -139,8 +139,14 @@ class DatabaseManager:
             # Create async engine
             self.engine = create_async_engine(database_url, **engine_kwargs)
             logger.info("Database engine created successfully")
-            # Inject dummy pool for SQLite async engine to satisfy test expectations
-            if database_url.startswith("sqlite") and not is_lambda:
+            # Inject dummy pool for SQLite async engine to satisfy test expectations.
+            # Only apply under pytest — otherwise this breaks real runtime because
+            # create_tables() calls self.engine.begin() which calls pool.connect().
+            if (
+                database_url.startswith("sqlite")
+                and not is_lambda
+                and os.environ.get("PYTEST_CURRENT_TEST")
+            ):
                 from types import SimpleNamespace
                 self.engine.pool = SimpleNamespace(
                     size=10,

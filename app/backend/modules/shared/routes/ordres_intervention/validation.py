@@ -31,25 +31,28 @@ async def validate_ordres_intervention(
         
     update_dict = {}
     if data.action == "APPROVE":
-        update_dict["statut"] = "ACCEPTED"
+        update_dict["statut"] = "APPROVED"
         update_dict["approved_by"] = current_user.id
         update_dict["approved_at"] = datetime.now()
-        
+
         try:
             from services.ordres_travail import Ordres_travailService
-            
+
             wo_service = Ordres_travailService(db)
-            
+
             if not intervention.machine_id:
                 raise HTTPException(status_code=400, detail="Cannot create Work Order: Intervention must be associated with a machine.")
-            
+
             new_wo = await wo_service.create({
                 "titre": f"[Intervention Acceptée] Demande #{id}",
                 "description": intervention.problem_description or "Demande d'intervention validée par le ChefTech",
                 "priorite": intervention.priority or "MOYENNE",
-                "statut": "EN_ATTENTE",
+                "statut": "ASSIGNÉ",
                 "machine_id": intervention.machine_id,
+                "utilisateur_id": intervention.technicien_id,
                 "created_by": intervention.technicien_id,
+                "validated_by": current_user.id,
+                "date_validation": datetime.now(),
             })
             
             update_dict["ordre_travail_id"] = new_wo.id
@@ -59,7 +62,7 @@ async def validate_ordres_intervention(
             raise HTTPException(status_code=500, detail="Failed to create linked Work Order.")
 
     elif data.action == "REJECT":
-        update_dict["statut"] = "REJETE"
+        update_dict["statut"] = "DECLINED"
         update_dict["approved_by"] = current_user.id
         update_dict["approved_at"] = datetime.now()
         update_dict["rejection_reason"] = data.rejection_reason

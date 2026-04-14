@@ -18,7 +18,7 @@ from models.ordres_intervention import Ordres_intervention
 from models.machine_telemetry import MachineTelemetry
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 
 class WorkOrderResponse(BaseModel):
     id: int

@@ -155,7 +155,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
       if (!noGrouping) {
         list = list.filter((i) => {
           const s = i.statut || 'EN_ATTENTE';
-          return s === 'EN_ATTENTE';  // ChefTech only sees their own interventions, not ChefOp's pending requests
+          return s === 'EN_ATTENTE' || s === 'PENDING_APPROVAL';
         });
       }
       return list.sort((a, b) => new Date(b.date_intervention).getTime() - new Date(a.date_intervention).getTime());

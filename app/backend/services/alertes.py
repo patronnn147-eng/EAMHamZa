@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
+from models.ordres_travail import Ordres_travail
 from core.notifications import broadcaster
 
 logger = logging.getLogger(__name__)
@@ -311,3 +312,166 @@ class AlertService:
             return AlertSeverity.MEDIUM
         else:
             return AlertSeverity.LOW
+
+    async def create_work_order_from_alert(
+        self,
+        alert_id: int,
+        wo_data: Dict[str, Any],
+    ) -> Optional[Ordres_travail]:
+        """Create a work order linked to an alert"""
+        try:
+            alert_result = await self.db.execute(
+                select(Alert).where(Alert.id == alert_id)
+            )
+            alert = alert_result.scalar_one_or_none()
+            
+            if not alert:
+                logger.warning(f"Alert {alert_id} not found")
+                return None
+            
+            if alert.is_linked_to_wo and alert.work_order_id:
+                logger.info(f"Alert {alert_id} already linked to work order {alert.work_order_id}")
+                existing_wo = await self.db.execute(
+                    select(Ordres_travail).where(Ordres_travail.id == alert.work_order_id)
+                )
+                return existing_wo.scalar_one_or_none()
+            
+            priority_map = {
+                "LOW": "BASSE",
+                "MEDIUM": "MOYENNE", 
+                "HIGH": "ÉLEVÉE",
+                "CRITICAL": "URGENTE"
+            }
+            
+            wo = Ordres_travail(
+                titre=wo_data.get("title", f"Maintenance - {alert.machine.name if alert.machine else 'Machine #'+str(alert.machine_id)}"),
+                description=wo_data.get("description", alert.message),
+                priorite=priority_map.get(alert.severity.value, "MOYENNE"),
+                machine_id=alert.machine_id,
+                utilisateur_id=wo_data.get("assigned_to"),
+                date_echeance=wo_data.get("due_date"),
+                created_by=wo_data.get("created_by"),
+                statut="EN_ATTENTE"
+            )
+            
+            self.db.add(wo)
+            await self.db.commit()
+            await self.db.refresh(wo)
+            
+            alert.is_linked_to_wo = True
+            alert.work_order_id = wo.id
+            alert.priority = wo_data.get("priority", alert.severity.value)
+            await self.db.commit()
+            
+            logger.info(f"Created work order {wo.id} from alert {alert_id}")
+            
+            from services.notifications import NotificationsService
+            notif_service = NotificationsService(self.db)
+            await notif_service.send_workflow_notification(
+                "WORK_ORDER_CREATED",
+                {"title": wo.titre}
+            )
+            
+            return wo
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error creating work order from alert {alert_id}: {str(e)}")
+            raise
+
+    async def link_existing_work_order(self, alert_id: int, work_order_id: int) -> Optional[Alert]:
+        """Link an existing work order to an alert"""
+        try:
+            alert_result = await self.db.execute(
+                select(Alert).where(Alert.id == alert_id)
+            )
+            alert = alert_result.scalar_one_or_none()
+            
+            if not alert:
+                return None
+            
+            wo_result = await self.db.execute(
+                select(Ordres_travail).where(Ordres_travail.id == work_order_id)
+            )
+            wo = wo_result.scalar_one_or_none()
+            
+            if not wo:
+                return None
+            
+            alert.is_linked_to_wo = True
+            alert.work_order_id = work_order_id
+            
+            await self.db.commit()
+            await self.db.refresh(alert)
+            
+            logger.info(f"Linked alert {alert_id} to work order {work_order_id}")
+            return alert
+        except Exception as e:
+            await self.db.rollback()
+            logger.error(f"Error linking work order: {str(e)}")
+            raise
+
+    async def send_alert_email(self, alert: Alert, config: AlertConfig) -> bool:
+        """Send email notification for critical alerts"""
+        if not config.notification_email:
+            return False
+        
+        if alert.severity not in [AlertSeverity.CRITICAL, AlertSeverity.HIGH]:
+            if config.frequency in ["daily", "weekly"]:
+                return False
+        
+        try:
+            from core.email import EmailService
+            
+            machine_name = alert.machine.name if alert.machine else f"Machine {alert.machine_id}"
+            
+            subject = f"[{alert.severity.value}] Predictive Alert - {machine_name}"
+            html_content = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif;">
+                    <h2 style="color: #d32f2f;">Predictive Maintenance Alert</h2>
+                    <table style="border-collapse: collapse; width: 100%;">
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Machine</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">{machine_name}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Alert Type</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">{alert.alert_type.value}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Severity</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: {'red' if alert.severity == AlertSeverity.CRITICAL else 'orange'};">{alert.severity.value}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 8px; border: 1px solid #ddd;"><strong>Message</strong></td>
+                            <td style="padding: 8px; border: 1px solid #ddd;">{alert.message}</td>
+                        </tr>
+                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>RUL Days</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.rul_days}</td></tr>' if alert.rul_days else ''}
+                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Failure Probability</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.failure_probability*100:.1f}%</td></tr>' if alert.failure_probability else ''}
+                    </table>
+                    <p style="margin-top: 20px;">
+                        <a href="/alerts" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View All Alerts</a>
+                    </p>
+                </body>
+            </html>
+            """
+            
+            email_service = EmailService()
+            from models.utilisateurs import Utilisateurs, UserRole
+            
+            result = await self.db.execute(
+                select(Utilisateurs.email).where(
+                    Utilisateurs.role.in_([UserRole.ADMIN, UserRole.CHEFTECH]),
+                    Utilisateurs.status == "ACTIVE"
+                )
+            )
+            emails = [row[0] for row in result.all() if row[0]]
+            
+            for email in emails:
+                email_service.send_email(email, subject, html_content, None)
+            
+            logger.info(f"Sent alert email for alert {alert.id} to {len(emails)} recipients")
+            return True
+        except Exception as e:
+            logger.error(f"Error sending alert email: {str(e)}")
+            return False

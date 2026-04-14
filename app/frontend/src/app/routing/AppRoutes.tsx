@@ -47,6 +47,12 @@ import ChefOpWorkOrders from '@/modules/chetop/ChefOpWorkOrders';
 import ChefTechWorkOrdersTable from '@/modules/cheftech/ChefTechWorkOrdersTable';
 import AlertConfig from '@/modules/admin/AlertConfig';
 import AlertsPanel from '@/modules/shared/AlertsPanel';
+import ReportScheduler from '@/modules/admin/ReportScheduler';
+import ReportsDownload from '@/modules/shared/ReportsDownload';
+import { ChatWidget, ChatPage } from '@/modules/shared/ChatInterface';
+import IoTDashboard from '@/modules/shared/IoTDashboard';
+import TelemetryPanel from '@/modules/shared/TelemetryPanel';
+import AuditLogViewer from '@/modules/shared/AuditLogViewer';
 
 export function AppRoutes() {
   return (
@@ -136,7 +142,18 @@ export function AppRoutes() {
       <Route
         path="/cheftech/machines"
         element={
-          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+          <ProtectedRoute allowedRoles={['CHEFTECH', 'TECHNICIEN']}>
+            <Layout>
+              <ChefTechMachines />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Technician Machines Route - shares ChefTechMachines */}
+      <Route
+        path="/technician/machines"
+        element={
+          <ProtectedRoute allowedRoles={['TECHNICIEN']}>
             <Layout>
               <ChefTechMachines />
             </Layout>
@@ -147,7 +164,7 @@ export function AppRoutes() {
       <Route
         path="/machines/:id"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH', 'TECHNICIEN']}>
             <Layout>
               <MachineDetailPage />
             </Layout>
@@ -243,6 +260,66 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
             <Layout>
               <AlertsPanel />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
+            <Layout>
+              <ChatPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/iot-dashboard"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP']}>
+            <Layout>
+              <IoTDashboard />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/machines/:machineId/telemetry"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
+            <Layout>
+              <TelemetryPanel />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/report-scheduler"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <ReportScheduler />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/reports-download"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHETOP', 'CHEFTECH']}>
+            <Layout>
+              <ReportsDownload />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/audit-log"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH']}>
+            <Layout>
+              <AuditLogViewer />
             </Layout>
           </ProtectedRoute>
         }
@@ -572,8 +649,7 @@ export function AppRoutes() {
         <Route path="work-orders" element={<TechnicianWorkOrders />} />
         <Route path="work-orders/:id" element={<WorkOrderDetailPage />} />
         <Route path="interventions" element={<TechnicianInterventions />} />
-        <Route path="machines" element={<TechnicianMachines />} />
-        <Route path="machines/:id" element={<MachineDetailPage />} />
+        <Route path="machines" element={<ChefTechMachines />} />
         <Route path="planning" element={<TechnicianPlanning />} />
         <Route path="planning/:id" element={<PlanningDetailPage />} />
         <Route path="planning/:id/calendar" element={<PlanningCalendarView />} />

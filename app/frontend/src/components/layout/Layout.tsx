@@ -1,18 +1,27 @@
 import { ReactNode } from 'react';
 import Header from './Header';
 import Sidebar from './Sidebar';
+import { useSidebar } from '@/hooks/useSidebar';
+import { cn } from '@/lib/utils';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export default function Layout({ children }: LayoutProps) {
+  const { collapsed } = useSidebar();
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950">
       <div className="fixed inset-0 mesh-gradient opacity-30 -z-10" />
       <Header />
       <Sidebar />
-      <div className="md:pl-64 flex flex-col flex-1">
+      <div
+        className={cn(
+          'flex flex-col flex-1 transition-[padding] duration-300 ease-in-out',
+          collapsed ? 'md:pl-0' : 'md:pl-64'
+        )}
+      >
         <main className="flex-1 pt-16">
           <div className="py-6">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

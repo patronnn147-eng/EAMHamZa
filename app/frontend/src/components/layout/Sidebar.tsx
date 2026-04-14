@@ -14,11 +14,16 @@ import {
   Package,
   BrainCircuit,
   LucideIcon,
-  Bell
+  Bell,
+  MessageSquare,
+  Activity,
+  History,
+  ChevronLeft,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSidebar } from '@/hooks/useSidebar';
 
 interface NavigationItem {
   name: string;
@@ -41,8 +46,13 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Machines', href: '/admin/machines', icon: Settings },
       { name: 'ML & Prédictions', href: '/admin/ml', icon: BrainCircuit },
       { name: 'Dashboard IA Flotte', href: '/ml-dashboard', icon: BrainCircuit },
+      { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
+      { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
+      { name: 'Historique (Audit)', href: '/audit-log', icon: History },
       { name: 'Configuration Alertes', href: '/admin/alert-config', icon: Bell },
+      { name: 'Rapports Planifiés', href: '/admin/report-scheduler', icon: FileText },
+      { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Archives', href: '/archives', icon: Archive }
     ];
@@ -67,7 +77,11 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Suivi des OT', href: '/cheftech/work-orders-table', icon: Wrench },
       { name: 'Interventions', href: '/cheftech/interventions', icon: Wrench },
       { name: 'Stocks / Pièces', href: '/cheftech/inventory', icon: Package },
+      { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
+      { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
+      { name: 'Historique (Audit)', href: '/audit-log', icon: History },
+      { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
       { name: 'Rapports', href: '/reports', icon: FileText }
     ];
@@ -75,12 +89,13 @@ const getNavigationItems = (role: string): NavigationItem[] => {
 
   if (role === 'TECHNICIEN') {
     return [
-      { name: 'Mes Tâches', href: '/technicien/dashboard', icon: LayoutDashboard },
-      { name: 'Mes Ordres de Travail', href: '/technicien/work-orders', icon: ClipboardList },
-      { name: 'Interventions', href: '/technicien/interventions', icon: Wrench },
-      { name: 'Planning', href: '/technicien/planning', icon: Calendar },
-      { name: 'Docs Techniques', href: '/technicien/documents', icon: FileText },
-      { name: 'Stocks', href: '/technicien/inventory', icon: Package }
+      { name: 'Mes Tâches', href: '/technician/dashboard', icon: LayoutDashboard },
+      { name: 'Mes Ordres de Travail', href: '/technician/work-orders', icon: ClipboardList },
+      { name: 'Interventions', href: '/technician/interventions', icon: Wrench },
+      { name: 'Planning', href: '/technician/planning', icon: Calendar },
+      { name: 'Machines', href: '/technician/machines', icon: Settings },
+      { name: 'Docs Techniques', href: '/technician/documents', icon: FileText },
+      { name: 'Stocks', href: '/technician/inventory', icon: Package }
     ];
   }
 
@@ -93,6 +108,7 @@ export default function Sidebar() {
   const location = useLocation();
   const [navigation, setNavigation] = useState<NavigationItem[]>([]);
   const { user } = useAuth();
+  const { collapsed, toggle } = useSidebar();
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -124,13 +140,28 @@ export default function Sidebar() {
   }, [location.pathname, user?.role]);
 
   return (
-    <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 pt-16 z-40">
+    <div
+      className={cn(
+        'hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 pt-16 z-40 transition-transform duration-300 ease-in-out',
+        collapsed ? '-translate-x-full' : 'translate-x-0'
+      )}
+      aria-hidden={collapsed}
+    >
       <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-slate-900/95 to-blue-950/95 m-3 rounded-2xl shadow-2xl border border-blue-800/30 overflow-hidden transition-all duration-500 backdrop-blur-md">
         <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto font-sans">
-          <div className="px-6 mb-6">
+          <div className="px-6 mb-6 flex items-center justify-between">
             <h2 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-[0.2em] opacity-80">
               Navigation Principal
             </h2>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label="Masquer la barre latérale"
+              title="Masquer la barre latérale"
+              className="p-1 rounded-md text-blue-300/70 hover:text-blue-100 hover:bg-blue-800/40 transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
           </div>
           <nav className="flex-1 px-3 space-y-2">
             {navigation.map((item) => {

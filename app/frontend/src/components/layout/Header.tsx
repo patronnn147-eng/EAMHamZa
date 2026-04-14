@@ -12,7 +12,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bell, LogOut, User } from 'lucide-react';
+import { Bell, LogOut, User, Menu, PanelLeftClose } from 'lucide-react';
+import { useSidebar } from '@/hooks/useSidebar';
 
 interface UserData {
   id: string;
@@ -32,6 +33,7 @@ export default function Header() {
   const [userRole, setUserRole] = useState<string>('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const { collapsed, toggle } = useSidebar();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -167,6 +169,16 @@ export default function Header() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggle}
+              aria-label={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
+              title={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
+              className="text-blue-100 hover:text-white hover:bg-blue-800/40"
+            >
+              {collapsed ? <Menu className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+            </Button>
             <img
               src="https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/44d01b7c-ac50-4b6d-9ccb-0a74219d8673.png"
               alt="Logo"
