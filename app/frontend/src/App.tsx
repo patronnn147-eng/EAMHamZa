@@ -7,6 +7,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { DataSyncProvider } from './contexts/DataSyncContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { AppRoutes } from './app/routing';
+import { ChatWidget } from './modules/shared/ChatInterface';
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ function App() {
             <ToasterUI />
             <BrowserRouter>
               <AppRoutes />
+              <ChatWidget />
             </BrowserRouter>
           </TooltipProvider>
         </DataSyncProvider>

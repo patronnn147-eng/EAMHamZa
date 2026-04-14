@@ -48,3 +48,9 @@ class Ordres_travail(Base):
         lazy="noload",
         viewonly=True,
     )
+    linked_alerts = relationship(
+        "Alert",
+        primaryjoin="Ordres_travail.id == foreign(Alert.work_order_id)",
+        lazy="noload",
+        viewonly=True,
+    )

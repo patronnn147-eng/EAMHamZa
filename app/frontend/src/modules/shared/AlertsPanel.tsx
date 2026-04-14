@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +23,9 @@ interface Alert {
   is_active: boolean;
   created_at: string;
   dismissed_at?: string;
+  is_linked_to_wo?: boolean;
+  work_order_id?: number;
+  priority?: string;
 }
 
 interface AlertStats {
@@ -43,6 +46,7 @@ export const AlertsPanel: React.FC = () => {
   const [stats, setStats] = useState<AlertStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [creatingWo, setCreatingWo] = useState<number | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -106,6 +110,49 @@ export const AlertsPanel: React.FC = () => {
 
   const handleMachineClick = (machineId: number) => {
     navigate(`/machines/${machineId}`);
+  };
+
+  const handleCreateWorkOrder = async (alertId: number) => {
+    setCreatingWo(alertId);
+    try {
+      const res = await fetch(`${API}/api/v1/alerts/${alertId}/create-work-order`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (res.ok) {
+        const wo = await res.json();
+        setAlerts(alerts.map(a => 
+          a.id === alertId ? { ...a, is_linked_to_wo: true, work_order_id: wo.id } : a
+        ));
+        toast({
+          title: 'Work Order Created',
+          description: `Work Order #${wo.id} has been created from this alert.`,
+          variant: 'default',
+        });
+      } else {
+        const err = await res.json();
+        toast({
+          title: 'Error',
+          description: err.detail || 'Failed to create work order.',
+          variant: 'destructive',
+        });
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create work order.',
+        variant: 'destructive',
+      });
+    } finally {
+      setCreatingWo(null);
+    }
+  };
+
+  const handleViewWorkOrder = (workOrderId: number) => {
+    navigate(`/work-orders/${workOrderId}`);
   };
 
   if (loading && !alerts.length) {
@@ -227,16 +274,45 @@ export const AlertsPanel: React.FC = () => {
                             Failure Prob: {(alert.failure_probability * 100).toFixed(1)}%
                           </span>
                         )}
+                        {alert.priority && (
+                          <Badge variant="outline" className="text-xs">Priority: {alert.priority}</Badge>
+                        )}
                       </div>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDismiss(alert.id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {alert.is_linked_to_wo && alert.work_order_id ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewWorkOrder(alert.work_order_id!)}
+                      >
+                        <ExternalLink className="mr-1 h-3 w-3" />
+                        View WO #{alert.work_order_id}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => handleCreateWorkOrder(alert.id)}
+                        disabled={creatingWo === alert.id}
+                      >
+                        {creatingWo === alert.id ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Wrench className="mr-1 h-3 w-3" />
+                        )}
+                        Create WO
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleDismiss(alert.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );

@@ -174,3 +174,54 @@
     pointer-events: none;
   }
 }
+
+/* ==========================================================================
+   Overlay-style scrollbars (iOS-like)
+   - Completely invisible by default
+   - Thin thumb appears ONLY while the user is actively scrolling
+   - A global JS listener (src/lib/scrollIndicator.ts) toggles .is-scrolling
+     on whichever element is being scrolled, then removes it ~900ms after
+     the last scroll event.
+   - No layout shift: scrollbar track is always 6px, only the thumb fades.
+   ========================================================================== */
+
+/* Firefox — hidden by default, thin indicator while scrolling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.is-scrolling,
+html.is-scrolling,
+body.is-scrolling {
+  scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+}
+
+/* WebKit / Chromium / Edge / Safari */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+  background: transparent;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+  transition: background-color 0.4s ease;
+}
+
+.is-scrolling::-webkit-scrollbar-thumb {
+  background-color: rgba(148, 163, 184, 0.6);
+}
+
+.is-scrolling::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(148, 163, 184, 0.85);
+}
+
+/* .no-scrollbar is intentionally a no-op — the global overlay scrollbar
+   behavior above applies everywhere. */

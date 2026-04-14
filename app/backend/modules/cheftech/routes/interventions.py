@@ -31,13 +31,14 @@ async def get_interventions(
     try:
         skip = (page - 1) * size
         
-        # Count total - only show interventions where current user is involved
+        # Count total - show interventions where current user is involved OR pending approval
         count_query = select(func.count(Ordres_intervention.id))\
             .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
             .where(
                 or_(
                     Ordres_intervention.technicien_id == current_user.id,
-                    Ordres_travail.created_by == current_user.id
+                    Ordres_travail.created_by == current_user.id,
+                    Ordres_intervention.statut == "PENDING_APPROVAL",
                 )
             )
         if statut:
@@ -50,7 +51,8 @@ async def get_interventions(
             .where(
                 or_(
                     Ordres_intervention.technicien_id == current_user.id,
-                    Ordres_travail.created_by == current_user.id
+                    Ordres_travail.created_by == current_user.id,
+                    Ordres_intervention.statut == "PENDING_APPROVAL",
                 )
             )
         if statut:

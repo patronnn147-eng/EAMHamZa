@@ -243,6 +243,7 @@ async def request_intervention(
             date_intervention=now,
             ordre_travail_id=payload.ordre_travail_id,
             technicien_id=current_user.id,
+            requested_by=current_user.id,
             statut="PENDING_APPROVAL",
             requested_at=now,
             machine_id=payload.machine_id,

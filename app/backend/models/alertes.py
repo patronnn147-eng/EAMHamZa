@@ -31,6 +31,9 @@ class Alert(Base):
     rul_days = Column(Float, nullable=True)
     failure_probability = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_linked_to_wo = Column(Boolean, default=False, nullable=False)
+    work_order_id = Column(Integer, ForeignKey("ordres_travail.id", ondelete="SET NULL"), nullable=True)
+    priority = Column(String(20), nullable=True, default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
     dismissed_at = Column(DateTime(timezone=True), nullable=True)
     dismissed_by = Column(Integer, ForeignKey("utilisateurs.id"), nullable=True)
@@ -38,6 +41,7 @@ class Alert(Base):
     # Relationships
     machine = relationship("Machines", back_populates="alerts")
     user = relationship("Utilisateurs", back_populates="dismissed_alerts")
+    work_order = relationship("Ordres_travail", back_populates="linked_alerts")
 
 
 class AlertConfig(Base):

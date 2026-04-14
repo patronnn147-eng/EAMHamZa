@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
-from schemas_telemetry import (
+from .schemas_telemetry import (
     MachineTelemetryCreate,
     MachineTelemetryResponse,
     MachineTelemetryLatest,

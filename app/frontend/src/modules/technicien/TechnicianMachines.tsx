@@ -5,23 +5,31 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, MapPin, Wrench } from 'lucide-react';
+import { Search, MapPin, Wrench, Eye, AlertTriangle, Calendar, Gauge } from 'lucide-react';
 import type { Machine } from '@/lib/types';
-import { AppPagination } from '@/components/shared/AppPagination';
+import MachineHealthBar from '@/modules/shared/machines/components/MachineHealthBar';
+import { computeHealthScore } from '@/modules/shared/machines/utils/healthScore';
+
+function getMachineStatusConfig(statut = '') {
+  const map: Record<string, { label: string; dot: string }> = {
+    OPERATIONNELLE: { label: 'Opérationnelle', dot: 'bg-emerald-500' },
+    EN_MAINTENANCE: { label: 'En Maintenance', dot: 'bg-amber-500' },
+    EN_PANNE: { label: 'En Panne', dot: 'bg-red-500 animate-pulse' },
+    HORS_SERVICE: { label: 'Hors Service', dot: 'bg-gray-400' },
+  };
+  return map[statut] ?? { label: statut || 'Inconnu', dot: 'bg-gray-300' };
+}
 
 export default function TechnicianMachines() {
   const [machines, setMachines] = useState<Machine[]>([]);
   const [filteredMachines, setFilteredMachines] = useState<Machine[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [pageSize] = useState(1200);
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
-  }, [page]);
+  }, []);
 
   useEffect(() => {
     if (searchTerm) {
@@ -30,7 +38,8 @@ export default function TechnicianMachines() {
           m.nom.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.emplacement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
           (m.zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase())
+          (m.sous_zone || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (m.type || '').toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredMachines(filtered);
     } else {
@@ -49,27 +58,10 @@ export default function TechnicianMachines() {
       const machinesList = await response.json();
       setMachines(machinesList);
       setFilteredMachines(machinesList);
-      setTotalPages(1);
     } catch (error) {
       console.error('Error fetching machines:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const getStatusColor = (statut: string) => {
-    const base = "rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest border transition-all duration-300 ";
-    switch (statut) {
-      case 'OPERATIONNELLE':
-        return base + 'text-green-700 bg-green-50/50 border-green-200/50 shadow-[0_0_10px_rgba(34,197,94,0.2)]';
-      case 'EN_MAINTENANCE':
-        return base + 'text-yellow-700 bg-yellow-50/50 border-yellow-200/50';
-      case 'EN_PANNE':
-        return base + 'text-red-700 bg-red-50/50 border-red-200/50';
-      case 'HORS_SERVICE':
-        return base + 'text-blue-200 bg-slate-800/50 border-blue-700/50';
-      default:
-        return base + 'text-blue-200 bg-slate-800/50 border-blue-700/50';
     }
   };
 
@@ -83,80 +75,133 @@ export default function TechnicianMachines() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-4xl font-bold text-white">Machines</h2>
-        <p className="mt-1 text-sm text-blue-300">Consultez les informations des équipements</p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h2 className="text-4xl font-bold text-white">Machines</h2>
+          <p className="mt-1 text-sm text-blue-300">Consultez les informations des équipements</p>
+        </div>
+
+        <div className="relative w-full md:w-80">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400" />
+          <Input
+            type="text"
+            placeholder="Rechercher par nom, emplacement, zone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10 bg-slate-800/80 border-blue-800/30 text-white placeholder:text-blue-400/50"
+          />
+        </div>
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400" />
-        <Input
-          type="text"
-          placeholder="Rechercher par nom ou emplacement..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {filteredMachines.length === 0 ? (
-          <Card className="col-span-full bg-slate-800/80 backdrop-blur-md border border-blue-800/30 shadow-xl">
-            <CardContent className="text-center py-12">
-              <p className="text-blue-300">Aucune machine trouvée</p>
-            </CardContent>
-          </Card>
+          <div className="col-span-full text-center py-12">
+            <p className="text-blue-300">Aucune machine trouvée</p>
+          </div>
         ) : (
-          filteredMachines.map((machine) => (
-            <Card key={machine.id} className="bg-slate-800/80 backdrop-blur-md border border-blue-800/30 hover:shadow-xl hover:border-blue-700/50 transition-all">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <CardTitle className="text-lg">{machine.nom}</CardTitle>
-                    <p className="text-sm text-blue-300 mt-1">#{machine.id}</p>
-                  </div>
-                  <Badge className={getStatusColor(machine.statut)}>{machine.statut}</Badge>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-blue-200">
-                    <MapPin className="h-4 w-4" />
-                    <span>{machine.emplacement}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-blue-200">
-                    <Wrench className="h-4 w-4" />
-                    <span>{machine.type}</span>
-                  </div>
-                  {(machine.zone || machine.sous_zone) && (
-                    <div className="flex items-center gap-2 text-sm text-blue-200">
-                      <span className="font-medium">Zone:</span>
-                      <span>
-                        {[machine.zone, machine.sous_zone].filter(Boolean).join(' / ')}
-                      </span>
+          filteredMachines.map((machine) => {
+            const statusConfig = getMachineStatusConfig(machine.statut);
+            const health = computeHealthScore(machine);
+            const isCritical = health.score < 60;
+
+            return (
+              <Card
+                key={machine.id}
+                className={`bg-gradient-to-br from-slate-800 to-blue-900 border-blue-700/50 hover:shadow-xl hover:shadow-blue-500/20 hover:border-blue-600 transition-all duration-300 overflow-hidden group ${isCritical ? 'ring-1 ring-red-500/50' : ''}`}
+              >
+                <div className={`h-1 w-full bg-gradient-to-r ${health.colorClass}`} />
+
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <CardTitle className="text-base truncate text-white group-hover:text-blue-200 transition-colors">
+                        {machine.nom}
+                      </CardTitle>
+                      {machine.ordre && (
+                        <p className="text-xs text-blue-400 mt-0.5">Ordre: {machine.ordre}</p>
+                      )}
                     </div>
-                  )}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <span className={`inline-block w-2 h-2 rounded-full ${statusConfig.dot}`} />
+                      <span className="text-xs text-blue-300">{statusConfig.label}</span>
+                      {isCritical && <AlertTriangle className="h-3.5 w-3.5 text-red-500 animate-pulse" />}
+                    </div>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <div className="relative overflow-hidden rounded-lg">
+                    <img
+                      src={
+                        machine.image_url ||
+                        'https://mgx-backend-cdn.metadl.com/generate/images/934400/2026-01-27/e1cfe394-7674-4c68-a85b-56fb0119fd9d.png'
+                      }
+                      alt={machine.nom}
+                      className="w-full h-36 object-cover transform group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 to-transparent" />
+                  </div>
+
+                  <div className="space-y-2.5 text-sm">
+                    {machine.type && (
+                      <div className="flex items-center gap-2">
+                        <Wrench className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-300">Type:</span>
+                        <span className="font-medium text-white truncate">{machine.type}</span>
+                      </div>
+                    )}
+                    
+                    {machine.emplacement && (
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-300">Emplacement:</span>
+                        <span className="font-medium text-white truncate">{machine.emplacement}</span>
+                      </div>
+                    )}
+
+                    {(machine.zone || machine.sous_zone) && (
+                      <div className="flex items-center gap-2">
+                        <Gauge className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-300">Zone:</span>
+                        <span className="font-medium text-blue-100">
+                          {[machine.zone, machine.sous_zone].filter(Boolean).join(' / ')}
+                        </span>
+                      </div>
+                    )}
+
+                    {machine.date_prochaine_maintenance && (
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-blue-400" />
+                        <span className="text-blue-300">Prochaine maint.:</span>
+                        <span className={`font-medium ${
+                          new Date(machine.date_prochaine_maintenance) < new Date() 
+                            ? 'text-red-400' 
+                            : 'text-amber-400'
+                        }`}>
+                          {new Date(machine.date_prochaine_maintenance).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-blue-700/30">
+                    <MachineHealthBar health={health} compact />
+                  </div>
+
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
-                    className="w-full"
-                    onClick={() => navigate(`/technician/machines/${machine.id}`)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white group-hover:bg-blue-500"
+                    onClick={() => navigate(`/machines/${machine.id}`)}
                   >
+                    <Eye className="mr-1.5 h-4 w-4" />
                     Voir Détails
                   </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
+                </CardContent>
+              </Card>
+            );
+          })
         )}
-      </div>
-
-      <div className="flex justify-end mt-4">
-        <AppPagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
       </div>
     </div>
   );
