@@ -106,12 +106,18 @@ export default function MachineDetailPage() {
             const m: Machine = machineResponse.data;
             setMachine(m);
 
-            // Fetch ML Prediction for the header badge
+            // Fetch unified health (DST-fused); fall back to /prediction if unavailable
             try {
-                const mlRes = await fetch(`/api/v1/ml/machines/${id}/prediction`);
-                if (mlRes.ok) {
-                    const predictionData = await mlRes.json();
+                const unifiedRes = await fetch(`/api/v1/ml/machines/${id}/unified-health`);
+                if (unifiedRes.ok) {
+                    const predictionData = await unifiedRes.json();
                     setMlPrediction(predictionData);
+                } else {
+                    // Fallback: legacy prediction endpoint
+                    const mlRes = await fetch(`/api/v1/ml/machines/${id}/prediction`);
+                    if (mlRes.ok) {
+                        setMlPrediction(await mlRes.json());
+                    }
                 }
             } catch (err) {
                 console.error('Failed to fetch ML Prediction for header:', err);
