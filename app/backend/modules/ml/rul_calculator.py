@@ -35,10 +35,18 @@ class RULCalculator:
         torque       = getattr(machine, 'torque',              40.0)  or 40.0
         tool_wear    = getattr(machine, 'tool_wear',           0)     or 0
         temp_delta   = float(process_temp) - float(air_temp)
+        rpm_torque   = (float(rpm) * float(torque)) / 1000.0  # Normalized feature
 
-        # Feature vectors: P1/P3/P4/P6 expect 5 features; P2 expects 6 (with temp_delta)
+        # Feature vectors for different models:
+        # P1 (failure): 7 features [air, process, rpm, torque, wear, temp_delta, rpm_torque]
+        # P2 (failure type): 6 features [air, process, rpm, torque, wear, temp_delta]
+        # P3 (RUL): 5 features [air, process, rpm, torque, wear]
+        # P4 (anomaly): 5 features [air, process, rpm, torque, wear]
+        # P5 (priority): 6 features [air, process, rpm, torque, wear, temp_delta]
+        # P6 (schedule): 6 features [air, process, rpm, torque, wear, temp_delta]
         features_5 = [float(air_temp), float(process_temp), float(rpm), float(torque), float(tool_wear)]
         features_6 = [float(air_temp), float(process_temp), float(rpm), float(torque), float(tool_wear), temp_delta]
+        features_7 = [float(air_temp), float(process_temp), float(rpm), float(torque), float(tool_wear), temp_delta, rpm_torque]
 
         # --- Step 2: RUL Prediction (P3 - 5 features) ---
         hist_mtbf_days = MachineLearningService._get_historical_mtbf(interventions)
@@ -49,11 +57,11 @@ class RULCalculator:
         else:
             rul_days = hist_mtbf_days
 
-        # --- Step 3: Failure Probability (P1 - 5 features) ---
+        # --- Step 3: Failure Probability (P1 - 7 features) ---
         ml_probability: float = 0.0
         model_p1 = get_model()
         if model_p1 is not None:
-            ml_probability = MachineLearningService.predict_failure_probability(features_5)
+            ml_probability = MachineLearningService.predict_failure_probability(features_7)
 
         # --- Step 4: Anomaly Detection (P4 - 5 features) ---
         is_anomaly = False
@@ -132,7 +140,7 @@ class RULCalculator:
         elif ml_probability >= 30 or rul_days < 30: risk_level = "MEDIUM"
         else: risk_level = "LOW"
 
-        predicted_priority = MachineLearningService.predict_priority(features_5) if _ml_model_p5 else risk_level.title()
+        predicted_priority = MachineLearningService.predict_priority(features_6) if _ml_model_p5 else risk_level.title()
 
         # SHAP Explanations (P1 - 5 features)
         explanations = []
@@ -144,40 +152,40 @@ class RULCalculator:
         response = {
             "machine_id": machine.id,
             "machine_name": machine.nom,
-            "rul_days": round(max(0, rul_days), 1),
+            "rul_days": round(float(max(0, rul_days)), 1),
             "risk_level": risk_level,
-            "failure_probability": ml_probability,
+            "failure_probability": float(ml_probability) if ml_probability is not None else 0.0,
             "predicted_failure_date": (now + timedelta(days=max(0, rul_days))).isoformat(),
             "data_points": len(interventions),
             "ml_model_used": model_p1 is not None,
             "predicted_priority": predicted_priority,
-            "is_anomaly": is_anomaly,
+            "is_anomaly": bool(is_anomaly),
             "anomaly_score": round(float(anomaly_score), 4),
             "explanations": explanations,
             
-            "health_score": round(ml_health_score, 1) if ml_health_score is not None else None,
+            "health_score": round(float(ml_health_score), 1) if ml_health_score is not None else None,
             "health_breakdown": {
-                "predictive_risk": round(ml_probability, 1),
-                "anomaly_penalty": round(min(40, abs(anomaly_score) * 150), 1) if is_anomaly else 0,
-                "maintenance_deduction": round(maint_deduction, 1),
-                "overdue_deduction": round(overdue_deduction, 1),
-                "status_deduction": round(status_deduction, 1),
-                "work_order_deduction": round(wo_deduction, 1),
-                "intervention_deduction": round(ri_deduction, 1),
+                "predictive_risk": round(float(ml_probability), 1),
+                "anomaly_penalty": round(float(min(40, abs(anomaly_score) * 150)), 1) if is_anomaly else 0,
+                "maintenance_deduction": round(float(maint_deduction), 1),
+                "overdue_deduction": round(float(overdue_deduction), 1),
+                "status_deduction": round(float(status_deduction), 1),
+                "work_order_deduction": round(float(wo_deduction), 1),
+                "intervention_deduction": round(float(ri_deduction), 1),
                 "days_since_maintenance": days_since_maint,
                 "open_work_orders": open_work_orders,
                 "recent_interventions": recent_interventions
             },
-            "reliability_score": round(ml_reliability_score, 1) if ml_reliability_score is not None else 0.0,
-            "mtbf_pred": round(ml_mtbf_hours, 1) if ml_mtbf_hours is not None else 0.0,
-            "mttr_pred": round(ml_mttr_hours, 1) if ml_mttr_hours is not None else 0.0,
-            "availability_pred": round(ml_availability_pct, 1) if ml_availability_pct is not None else 0.0,
+            "reliability_score": round(float(ml_reliability_score), 1) if ml_reliability_score is not None else 0.0,
+            "mtbf_pred": round(float(ml_mtbf_hours), 1) if ml_mtbf_hours is not None else 0.0,
+            "mttr_pred": round(float(ml_mttr_hours), 1) if ml_mttr_hours is not None else 0.0,
+            "availability_pred": round(float(ml_availability_pct), 1) if ml_availability_pct is not None else 0.0,
             
-            "air_temperature": air_temp,
-            "process_temperature": process_temp,
-            "rotational_speed": rpm,
-            "torque": torque,
-            "tool_wear": tool_wear
+            "air_temperature": float(air_temp),
+            "process_temperature": float(process_temp),
+            "rotational_speed": int(rpm),
+            "torque": float(torque),
+            "tool_wear": int(tool_wear)
         }
 
         if model_p1 is None:

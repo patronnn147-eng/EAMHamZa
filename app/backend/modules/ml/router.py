@@ -6,15 +6,26 @@ from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.ml_prediction_log import MlPredictionLog
-from .ml_predictive import MachineLearningService
+from .predictions import MachineLearningService
+from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
+from core.ml_client import ml_client, is_ml_service_available
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 from schemas.pagination import PaginatedResponse
 from sqlalchemy import func
+from datetime import datetime, timedelta
+import asyncio
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
+
+# Simple in-memory cache for fleet dashboard
+_fleet_cache = {
+    "data": None,
+    "timestamp": None,
+    "ttl_seconds": 300  # 5 minutes cache
+}
 
 
 class TelemetryUpdate(BaseModel):
@@ -75,7 +86,7 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
 
     # 5. Calculate prediction with unified health
     try:
-        prediction = MachineLearningService.calculate_rul(
+        prediction = RULCalculator.calculate_rul(
             machine, 
             interventions,
             open_work_orders=open_wo_count,
@@ -183,39 +194,70 @@ async def get_fleet_critical_predictions(db: AsyncSession = Depends(get_db)):
         execute_result = await db.execute(interventions_query)
         interventions = execute_result.scalars().all()
 
-        pred = MachineLearningService.calculate_rul(machine, list(interventions))
+        pred = RULCalculator.calculate_rul(machine, list(interventions))
         if pred["risk_level"] in ["CRITICAL", "HIGH"]:
             predictions.append(pred)
 
     return {"machines": sorted(predictions, key=lambda x: x["rul_days"])}
 
 
+async def _process_single_machine(machine: Machines, db: AsyncSession) -> Dict:
+    """Helper to process single machine prediction."""
+    interventions_query = select(Ordres_intervention).where(
+        Ordres_intervention.machine_id == machine.id
+    )
+    execute_result = await db.execute(interventions_query)
+    interventions = execute_result.scalars().all()
+    
+    pred = RULCalculator.calculate_rul(machine, list(interventions))
+    pred["zone"] = machine.zone
+    pred["sous_zone"] = machine.sous_zone
+    pred["statut"] = machine.statut
+    return pred
+
+
 @router.get("/fleet/dashboard")
 async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     """
     PDCA Fleet Dashboard: Full overview of ALL machines with ML predictions.
-    Returns all machines with their P1-P6 scores for the ChefOp morning review.
+    Cached for 5 minutes + parallel processing for speed.
     """
+    now = datetime.utcnow()
+    
+    # Check cache
+    if (_fleet_cache["data"] is not None and 
+        _fleet_cache["timestamp"] is not None and
+        (now - _fleet_cache["timestamp"]).total_seconds() < _fleet_cache["ttl_seconds"]):
+        return _fleet_cache["data"]
+    
+    # Build dashboard fresh - parallel processing
     result = await db.execute(select(Machines))
     machines = result.scalars().all()
-    dashboard = []
 
-    for machine in machines:
-        interventions_query = select(Ordres_intervention).where(
-            Ordres_intervention.machine_id == machine.id
-        )
-        execute_result = await db.execute(interventions_query)
-        interventions = execute_result.scalars().all()
-
-        pred = MachineLearningService.calculate_rul(machine, list(interventions))
-        pred["zone"] = machine.zone
-        pred["sous_zone"] = machine.sous_zone
-        pred["statut"] = machine.statut
-        dashboard.append(pred)
+    # Process all machines in parallel
+    tasks = [_process_single_machine(m, db) for m in machines]
+    dashboard = await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Filter out errors
+    dashboard = [d for d in dashboard if isinstance(d, dict)]
 
     # Sort: CRITICAL first, then HIGH, then MEDIUM, then LOW
     risk_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-    return sorted(dashboard, key=lambda x: (risk_order.get(x["risk_level"], 4), x["rul_days"]))
+    sorted_dashboard = sorted(dashboard, key=lambda x: (risk_order.get(x["risk_level"], 4), x["rul_days"]))
+    
+    # Cache result
+    _fleet_cache["data"] = sorted_dashboard
+    _fleet_cache["timestamp"] = now
+    
+    return sorted_dashboard
+
+
+@router.post("/fleet/dashboard/refresh")
+async def refresh_fleet_dashboard():
+    """Force refresh the fleet dashboard cache."""
+    _fleet_cache["data"] = None
+    _fleet_cache["timestamp"] = None
+    return {"status": "cache_cleared", "message": "Dashboard cache cleared. Next request will rebuild."}
 
 
 @router.get("/shadow-logs")
@@ -332,3 +374,17 @@ async def trigger_retraining(db: AsyncSession = Depends(get_db)):
         return {"status": "success", "message": "Retraining pipeline completed."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status")
+async def ml_service_status():
+    """
+    Check ML container status.
+    Returns whether the ML microservice is available.
+    """
+    available = await is_ml_service_available()
+    return {
+        "ml_service_available": available,
+        "ml_service_url": "http://ml-service:8000",
+        "fallback": "Local calculation" if not available else "ML Container"
+    }

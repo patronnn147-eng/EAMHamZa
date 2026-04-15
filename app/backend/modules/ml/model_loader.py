@@ -8,10 +8,16 @@ _MODEL = None
 _MODEL_PATH = os.path.join(MODELS_DIR, 'basic_machine_model.pkl')
 
 def get_model():
+    """Get P1 failure prediction model."""
     global _MODEL
     if _MODEL is None:
         if os.path.exists(_MODEL_PATH):
-            _MODEL = joblib.load(_MODEL_PATH)
+            model_data = joblib.load(_MODEL_PATH)
+            # Model is stored as dict with 'model' key
+            if isinstance(model_data, dict):
+                _MODEL = model_data.get('model')
+            else:
+                _MODEL = model_data
     return _MODEL
 
 # P2: Failure Type Model
