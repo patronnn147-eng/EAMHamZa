@@ -264,17 +264,27 @@ class MachineLearningService:
                     model_a_out = pinn.predict(time_series)
 
             # --- Kalman state update ---
+            # Default health scores when advanced models aren't fitted
+            DEFAULT_HI = 75.0  # Assume healthy baseline
             rule_score = max(0.0, 100.0 - failure_prob)  # invert P1 as rule signal
             kalman_obs = {
                 "rule_score":   rule_score,
                 "ml_score":     rule_score,
-                "survival_hi":  model_b_out["health_index"] if model_b_out else float("nan"),
-                "mahal_hi":     model_c_out["health_index"] if model_c_out else float("nan"),
+                "survival_hi":  model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
+                "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
             }
             kalman_state = get_kalman_estimator().update(kalman_obs)
 
             # --- DST Fusion ---
-            model_outputs = [out for out in [model_a_out, model_b_out, model_c_out, model_e_out] if out is not None]
+            # Filter out None and NaN model outputs
+            valid_outputs = []
+            for out in [model_a_out, model_b_out, model_c_out, model_e_out]:
+                if out is not None:
+                    # Check for valid health_index (not NaN)
+                    hi = out.get("health_index")
+                    if hi is not None and not np.isnan(hi):
+                        valid_outputs.append(out)
+            model_outputs = valid_outputs
             fusion_result = get_dst_fusion().fuse(model_outputs, kalman_state)
 
             base_result.update({
