@@ -68,24 +68,46 @@ class MachineLearningService:
     def predict_failure_type(features: List[float]) -> Dict:
         """
         Predict specific failure types using P2 model.
-        Features: [air, process, rpm, torque, wear, temp_delta]
+        Features: [air, process, rpm, torque, wear, temp_delta] or 7-feature vector.
         Returns: {TWF: {detected, probability}, HDF: {...}, etc.}
         """
         if _ml_model_p2 is None:
             return {}
 
-        input_data = [features]
-        predictions = _ml_model_p2.predict(input_data)[0]
-        probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
+        try:
+            input_data = [features]
+            predictions = _ml_model_p2.predict(input_data)[0]
+            probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
 
-        result = {}
-        for i, label in enumerate(_p2_labels):
-            result[label] = {
-                "detected": bool(predictions[i]),
-                "probability": round(float(probabilities[i]) * 100, 1)
-            }
-
-        return result
+            result = {}
+            for i, label in enumerate(_p2_labels):
+                result[label] = {
+                    "detected": bool(predictions[i]),
+                    "probability": round(float(probabilities[i]) * 100, 1)
+                }
+            return result
+        except ValueError:
+            # Feature shape mismatch — try with 7-feature vector (rpm_torque added)
+            try:
+                if len(features) == 6:
+                    air, process, rpm, torque, wear, temp_delta = features
+                    rpm_torque = (float(rpm) * float(torque)) / 1000.0
+                    features_7 = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
+                    input_data = [features_7]
+                    predictions = _ml_model_p2.predict(input_data)[0]
+                    probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
+                    result = {}
+                    for i, label in enumerate(_p2_labels):
+                        result[label] = {
+                            "detected": bool(predictions[i]),
+                            "probability": round(float(probabilities[i]) * 100, 1)
+                        }
+                    return result
+            except Exception:
+                pass
+            return {}
+        except Exception:
+            return {}
 
     # ==================== P3: RUL Estimation ====================
     @staticmethod
