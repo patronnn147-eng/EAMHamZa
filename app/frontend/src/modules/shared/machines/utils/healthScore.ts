@@ -25,6 +25,10 @@ export interface HealthScoreResult {
     iconColor: string;
     factors: HealthScoreFactors;
     deductions: HealthScoreDeductions;
+    // DST fusion metadata (present when score_source === "dst_fusion")
+    dst_verdict?: "Healthy" | "Degrading" | "Critical" | "Unknown";
+    conflict_k?: number;
+    score_source?: "dst_fusion" | "fallback_additive";
 }
 
 /**
@@ -81,6 +85,7 @@ export function computeHealthScore(
 
 /**
  * Specialized ML Mapper for Detail Pages.
+ * Prefers unified_health_score (DST fusion) over legacy health_score when available.
  */
 export function computeHealthScoreFromML(
     machine: Machine,
@@ -88,9 +93,21 @@ export function computeHealthScoreFromML(
 ): HealthScoreResult {
     if (!mlHealthData) return getNeutralHealth();
 
-    const { health_score, health_breakdown } = mlHealthData;
-    const score = Math.max(0, Math.min(100, Math.round(health_score)));
+    const { health_breakdown } = mlHealthData;
+
+    // Prefer DST-fused score; fall back to legacy health_score
+    const rawScore =
+        mlHealthData.unified_health_score ??
+        mlHealthData.health_score ??
+        0;
+    const score = Math.max(0, Math.min(100, Math.round(rawScore)));
     const breakdown = health_breakdown || {};
+
+    // DST fusion metadata
+    const scoreSource: "dst_fusion" | "fallback_additive" =
+        breakdown.score_source ?? (mlHealthData.unified_health_score != null ? "dst_fusion" : "fallback_additive");
+    const dstVerdict = breakdown.dst_verdict ?? mlHealthData.dst_verdict;
+    const conflictK = breakdown.conflict_factor_K ?? mlHealthData.conflict_factor_K;
 
     const baseResult = {
         score,
@@ -106,8 +123,12 @@ export function computeHealthScoreFromML(
             workOrders: breakdown.work_order_deduction ?? 0,
             interventions: breakdown.intervention_deduction ?? 0,
             status: breakdown.status_deduction ?? 0,
-            predictive: (breakdown.predictive_risk ?? 0) + (breakdown.anomaly_penalty ?? 0),
-        }
+            // anomaly_penalty removed — DST fusion handles anomaly signal correctly
+            predictive: breakdown.predictive_risk ?? 0,
+        },
+        score_source: scoreSource,
+        dst_verdict: dstVerdict,
+        conflict_k: conflictK,
     };
 
     return finalizeResult(baseResult, true);
