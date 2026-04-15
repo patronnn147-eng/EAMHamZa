@@ -140,5 +140,18 @@ Plans:
 
 ---
 
+### Phase 10: ML Service Bugfix
+
+**Goal:** Fix ML microservice /predict-all 500 error and NaN health/reliability metrics. Root cause: DST fusion layer crashes when advanced models (Mahalanobis, Survival, PINN) aren't fitted yet. Following senior-ml-engineer skill for graceful degradation.
+
+**Requirements:** [ML-NEW-06]
+
+**Plans:** 1 plan in 1 wave
+
+Plans:
+- [ ] 10-01-PLAN.md — Graceful fusion fallback, psutil fix, prediction health check
+
+---
+
 *Generated: 2026-04-03*
-*Updated: 2026-04-14*
+*Updated: 2026-04-15*
