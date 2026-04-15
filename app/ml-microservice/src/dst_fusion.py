@@ -1,0 +1,319 @@
+"""
+Model D: Dempster-Shafer Evidence Theory Fusion Layer
+Fuses outputs from Models A-C, E into a single unified health score.
+
+Frame of discernment: Θ = {Healthy, Degrading, Critical, Unknown}
+
+Each model output is converted to a Basic Probability Assignment (BPA) over Θ.
+Dempster's combination rule is used when conflict K ≤ 0.8;
+Yager's rule (conservative) is used when K > 0.8 to preserve Unknown mass.
+"""
+import logging
+import numpy as np
+from typing import Dict, List, Optional
+
+logger = logging.getLogger(__name__)
+
+# Frame labels
+HEALTHY   = "Healthy"
+DEGRADING = "Degrading"
+CRITICAL  = "Critical"
+UNKNOWN   = "Unknown"
+
+FRAME = [HEALTHY, DEGRADING, CRITICAL, UNKNOWN]
+
+# Conflict threshold: above this Yager's rule applies
+CONFLICT_THRESHOLD = 0.8
+
+
+def _model_output_to_bpa(output: Optional[Dict]) -> Dict[str, float]:
+    """
+    Convert a ModelOutput dict to a Basic Probability Assignment over Θ.
+
+    If output is None, all mass goes to Unknown (vacuous BPA — contributes nothing).
+
+    BPA mapping (from plan):
+        HI ≥ 80  → m(Healthy)  = confidence * (HI/100)
+        50 ≤ HI < 80 → m(Degrading) = confidence * (1 - HI/100)
+        HI < 50  → m(Critical) = critical_prob * confidence
+        remainder → m(Unknown) = 1 - assigned_mass
+
+    The BPA must sum to 1.0.
+    """
+    if output is None:
+        return {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 1.0}
+
+    hi         = float(output.get("health_index",  50.0))
+    crit_prob  = float(output.get("critical_prob",  0.5))
+    confidence = float(output.get("confidence",     0.5))
+    confidence = max(0.0, min(1.0, confidence))
+
+    bpa = {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 0.0}
+
+    if hi >= 80.0:
+        bpa[HEALTHY]  = confidence * (hi / 100.0)
+    elif hi >= 50.0:
+        bpa[DEGRADING] = confidence * (1.0 - hi / 100.0)
+    else:
+        bpa[CRITICAL] = crit_prob * confidence
+
+    assigned = bpa[HEALTHY] + bpa[DEGRADING] + bpa[CRITICAL]
+    bpa[UNKNOWN] = max(0.0, 1.0 - assigned)
+
+    # Normalise to exactly 1.0 (guard against float drift)
+    total = sum(bpa.values())
+    if total > 0:
+        for k in FRAME:
+            bpa[k] /= total
+
+    return bpa
+
+
+def _dempster_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
+    """
+    Combine two BPAs using Dempster's orthogonal sum.
+
+    Returns (combined_bpa, K) where K = conflict factor in [0, 1].
+    If K ≥ 1.0 (total conflict), falls back to vacuous BPA.
+    """
+    # Conflict K = sum of products where focal elements are disjoint
+    # Our frame is singletons, so two elements are disjoint iff they differ.
+    conflict_mass = 0.0
+    for label1 in FRAME:
+        for label2 in FRAME:
+            if label1 != label2 and label1 != UNKNOWN and label2 != UNKNOWN:
+                conflict_mass += m1[label1] * m2[label2]
+
+    # Also: Unknown × non-Unknown contributes to that non-Unknown (not conflict)
+    # Standard formulation: K = Σ_{A∩B=∅} m1(A)·m2(B) over all focal sets
+    # Since we use singletons + Unknown (= Θ = full frame = no conflict with anything)
+    K = conflict_mass  # Unknown ∩ X = X ≠ ∅ for all X ⊆ Θ, so no conflict there
+
+    if K >= 1.0:
+        logger.warning("Total conflict (K=1) in DST combination — returning vacuous BPA")
+        return {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 1.0}, float(K)
+
+    denom = 1.0 - K
+    combined = {}
+    for target in FRAME:
+        mass = 0.0
+        for label1 in FRAME:
+            for label2 in FRAME:
+                # Intersection of singletons: A ∩ B = A if A==B (both singletons)
+                # Unknown ∩ X = X (Unknown represents full frame Θ)
+                intersection_is_target = False
+                if label1 == UNKNOWN and label2 == target:
+                    intersection_is_target = True
+                elif label2 == UNKNOWN and label1 == target:
+                    intersection_is_target = True
+                elif label1 == label2 == target:
+                    intersection_is_target = True
+                if intersection_is_target:
+                    mass += m1[label1] * m2[label2]
+        combined[target] = mass / denom if denom > 0 else 0.0
+
+    # Normalise
+    total = sum(combined.values())
+    if total > 0:
+        for k in FRAME:
+            combined[k] /= total
+
+    return combined, float(K)
+
+
+def _yager_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
+    """
+    Yager's combination rule: conflict mass flows to Unknown (conservative).
+    Used when K > CONFLICT_THRESHOLD.
+
+    Returns (combined_bpa, K).
+    """
+    # Compute pairwise products
+    combined = {label: 0.0 for label in FRAME}
+    K = 0.0
+
+    for label1 in FRAME:
+        for label2 in FRAME:
+            # Determine intersection label
+            if label1 == UNKNOWN:
+                intersect = label2
+            elif label2 == UNKNOWN:
+                intersect = label1
+            elif label1 == label2:
+                intersect = label1
+            else:
+                intersect = None  # disjoint → conflict mass
+
+            product = m1[label1] * m2[label2]
+            if intersect is None:
+                K += product  # conflict accumulates
+            else:
+                combined[intersect] += product
+
+    # In Yager's rule: conflict mass goes to Unknown (Θ)
+    combined[UNKNOWN] += K
+
+    # Normalise
+    total = sum(combined.values())
+    if total > 0:
+        for k in FRAME:
+            combined[k] /= total
+
+    return combined, float(K)
+
+
+def _combine_bpa_pair(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
+    """Choose combination rule based on conflict level."""
+    # First estimate K to decide rule
+    conflict_mass = 0.0
+    for label1 in FRAME:
+        for label2 in FRAME:
+            if label1 != label2 and label1 != UNKNOWN and label2 != UNKNOWN:
+                conflict_mass += m1[label1] * m2[label2]
+
+    if conflict_mass > CONFLICT_THRESHOLD:
+        logger.warning(f"High conflict K={conflict_mass:.3f} > {CONFLICT_THRESHOLD} — using Yager's rule")
+        return _yager_combine(m1, m2)
+    else:
+        return _dempster_combine(m1, m2)
+
+
+def _combine_all_bpas(bpas: List[Dict[str, float]]) -> tuple:
+    """
+    Sequentially combine a list of BPAs, returning (combined_bpa, max_K).
+    Returns vacuous BPA if list is empty.
+    """
+    if not bpas:
+        return {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 1.0}, 0.0
+
+    combined = bpas[0]
+    max_k = 0.0
+
+    for m2 in bpas[1:]:
+        combined, k = _combine_bpa_pair(combined, m2)
+        max_k = max(max_k, k)
+
+    return combined, max_k
+
+
+def _bpa_to_score(bpa: Dict[str, float]) -> float:
+    """
+    Compute scalar health score from BPA.
+    dst_score = Healthy*100 + Degrading*60 + Critical*10 + Unknown*50
+    """
+    return (
+        bpa.get(HEALTHY,   0.0) * 100.0
+        + bpa.get(DEGRADING, 0.0) * 60.0
+        + bpa.get(CRITICAL,  0.0) * 10.0
+        + bpa.get(UNKNOWN,   0.0) * 50.0
+    )
+
+
+def _bpa_to_verdict(bpa: Dict[str, float]) -> str:
+    """Return the hypothesis with the highest mass (excluding Unknown unless dominant)."""
+    # Find dominant hypothesis (highest mass)
+    best = max(FRAME, key=lambda k: bpa.get(k, 0.0))
+    return best
+
+
+class DSTFusion:
+    """
+    Dempster-Shafer Evidence Theory fusion of multi-model health predictions.
+
+    Usage:
+        fusion = DSTFusion()
+        result = fusion.fuse(model_outputs, kalman_state)
+    """
+
+    def fuse(
+        self,
+        model_outputs: List[Optional[Dict]],
+        kalman_state: Optional[Dict] = None,
+    ) -> Dict:
+        """
+        Fuse model outputs into a unified health score.
+
+        Args:
+            model_outputs: List of ModelOutput dicts (or None for vacuous).
+                           Each has: model_id, health_index, critical_prob,
+                           rul_estimate, uncertainty, confidence
+            kalman_state:  Output of KalmanStateEstimator.update():
+                           hi_kalman, rul_kalman, sensor_fault_flag, ...
+
+        Returns:
+            Dict with:
+                unified_health_score  (float, [0, 100])
+                dst_verdict           (str: Healthy|Degrading|Critical|Unknown)
+                conflict_factor_K     (float, [0, 1])
+                dst_score             (float, [0, 100])
+                kalman_hi             (float, [0, 100])
+                kalman_rul            (float, days)
+                sensor_fault_flag     (bool)
+                bpa_healthy           (float)
+                bpa_degrading         (float)
+                bpa_critical          (float)
+                bpa_unknown           (float)
+                model_disagreement_alert (bool)  — True if K > 0.8
+        """
+        # 1. Convert each model output to a BPA
+        bpas = [_model_output_to_bpa(out) for out in model_outputs]
+
+        # 2. Combine all BPAs
+        combined_bpa, max_k = _combine_all_bpas(bpas)
+
+        # 3. Compute DST score
+        dst_score = _bpa_to_score(combined_bpa)
+
+        # 4. Get Kalman smoothed HI
+        kalman_hi  = 80.0  # default if no Kalman state
+        kalman_rul = 30.0
+        sensor_fault = False
+        if kalman_state is not None:
+            kalman_hi    = float(kalman_state.get("hi_kalman",  80.0))
+            kalman_rul   = float(kalman_state.get("rul_kalman", 30.0))
+            sensor_fault = bool(kalman_state.get("sensor_fault_flag", False))
+
+        # 5. Blend DST + Kalman (70/30)
+        unified = round(0.7 * dst_score + 0.3 * kalman_hi, 1)
+        unified = float(max(0.0, min(100.0, unified)))
+
+        # 6. DST verdict
+        verdict = _bpa_to_verdict(combined_bpa)
+
+        # 7. Log disagreement alert
+        disagreement_alert = max_k > CONFLICT_THRESHOLD
+        if disagreement_alert:
+            logger.warning(
+                f"model_disagreement_alert: conflict_factor_K={max_k:.3f} "
+                f"— models disagree significantly"
+            )
+
+        return {
+            "unified_health_score":   unified,
+            "dst_verdict":            verdict,
+            "conflict_factor_K":      round(float(max_k), 4),
+            "dst_score":              round(float(dst_score), 1),
+            "kalman_hi":              round(float(kalman_hi), 1),
+            "kalman_rul":             round(float(kalman_rul), 1),
+            "sensor_fault_flag":      sensor_fault,
+            "bpa_healthy":            round(float(combined_bpa.get(HEALTHY,   0.0)), 4),
+            "bpa_degrading":          round(float(combined_bpa.get(DEGRADING, 0.0)), 4),
+            "bpa_critical":           round(float(combined_bpa.get(CRITICAL,  0.0)), 4),
+            "bpa_unknown":            round(float(combined_bpa.get(UNKNOWN,   0.0)), 4),
+            "model_disagreement_alert": disagreement_alert,
+        }
+
+
+# -----------------------------------------------------------------------
+# Module-level singleton
+# -----------------------------------------------------------------------
+
+_dst_fusion: Optional[DSTFusion] = None
+
+
+def get_dst_fusion() -> DSTFusion:
+    """Return (or create) the module-level DST fusion singleton."""
+    global _dst_fusion
+    if _dst_fusion is None:
+        _dst_fusion = DSTFusion()
+    return _dst_fusion
