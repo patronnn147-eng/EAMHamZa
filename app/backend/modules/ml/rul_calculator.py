@@ -10,13 +10,14 @@ from .predictions import MachineLearningService
 
 
 class RULCalculator:
-    
+
     @staticmethod
     def calculate_rul(
-        machine: Machines, 
+        machine: Machines,
         interventions: List[Ordres_intervention],
         open_work_orders: int = 0,
-        recent_interventions: int = 0
+        recent_interventions: int = 0,
+        fusion_result: Optional[Dict] = None,
     ) -> Dict:
         """
         Calculate Remaining Useful Life (RUL) and ML-informed KPIs.
@@ -101,14 +102,22 @@ class RULCalculator:
         ri_deduction = min(recent_interventions * 10, 30)
 
         # --- Step 6: ML-Informed Health Score (0-100) ---
-        predictive_health = 100 - ml_probability
-        anomaly_penalty = 0.0
-        if is_anomaly:
-            anomaly_penalty = min(40, abs(anomaly_score) * 150)
-            predictive_health -= anomaly_penalty
-        
-        ml_health_score = predictive_health - (maint_deduction + overdue_deduction + status_deduction + wo_deduction + ri_deduction)
-        ml_health_score = max(0, min(100, ml_health_score))
+        # NOTE: anomaly_penalty removed — P1 already captures the sensor anomaly state,
+        # so adding a separate P4 penalty was double-counting the same signal.
+        # The unified_health_score from the DST fusion layer (Wave 2) is the authoritative
+        # score when the ML microservice is available; the formula below is the fallback.
+        if fusion_result and "unified_health_score" in fusion_result:
+            ml_health_score = float(fusion_result["unified_health_score"])
+            score_source = "dst_fusion"
+            dst_verdict = fusion_result.get("dst_verdict", "Unknown")
+            conflict_k = float(fusion_result.get("conflict_factor_K", 0.0))
+        else:
+            predictive_health = 100.0 - ml_probability
+            ml_health_score = predictive_health - (maint_deduction + overdue_deduction + status_deduction + wo_deduction + ri_deduction)
+            ml_health_score = max(0.0, min(100.0, ml_health_score))
+            score_source = "fallback_additive"
+            dst_verdict = None
+            conflict_k = None
 
         # --- Step 7: ML-Informed Reliability Score (0-100) ---
         reliability_base = min(100, (rul_days / 60) * 100) if rul_days < 60 else 100
@@ -166,7 +175,9 @@ class RULCalculator:
             "health_score": round(float(ml_health_score), 1) if ml_health_score is not None else None,
             "health_breakdown": {
                 "predictive_risk": round(float(ml_probability), 1),
-                "anomaly_penalty": round(float(min(40, abs(anomaly_score) * 150)), 1) if is_anomaly else 0,
+                "score_source": score_source,
+                "dst_verdict": dst_verdict,
+                "conflict_factor_K": round(float(conflict_k), 4) if conflict_k is not None else None,
                 "maintenance_deduction": round(float(maint_deduction), 1),
                 "overdue_deduction": round(float(overdue_deduction), 1),
                 "status_deduction": round(float(status_deduction), 1),

@@ -37,6 +37,106 @@ class TelemetryUpdate(BaseModel):
 
 
 
+@router.get("/machines/{machine_id}/unified-health")
+async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
+    """
+    Get the DST-fused unified health score for a machine.
+
+    This endpoint resolves the dual-score contradiction (rule-based 92/100 vs
+    ML-based 0/100) by fusing all model signals through Dempster-Shafer Evidence
+    Theory + Kalman smoothing into a single authoritative health verdict.
+
+    Response:
+        unified_health_score: float [0-100] — the single authoritative score
+        score_source: "dst_fusion" | "fallback_additive"
+        dst_verdict: "Healthy" | "Degrading" | "Critical" | "Unknown"
+        conflict_factor_K: float [0-1] — model agreement (< 0.8 = good)
+        kalman_hi: float — Kalman-smoothed health index
+        kalman_rul: float — Kalman-smoothed RUL estimate (days)
+        model_outputs: per-model health indices
+        rul_days, failure_probability, risk_level — standard prediction fields
+    """
+    result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    machine = result.scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine non trouvée")
+
+    interventions_query = select(Ordres_intervention).where(
+        Ordres_intervention.machine_id == machine_id
+    )
+    execute_result = await db.execute(interventions_query)
+    interventions = list(execute_result.scalars().all())
+
+    from sqlalchemy import func as sa_func
+    wo_query = select(sa_func.count(Ordres_travail.id)).where(
+        Ordres_travail.machine_id == machine_id,
+        ~Ordres_travail.statut.in_(["TERMINÉ", "ANNULÉ"])
+    )
+    wo_result = await db.execute(wo_query)
+    open_wo_count = wo_result.scalar() or 0
+
+    from datetime import datetime, timedelta, timezone
+    now_dt = datetime.now(timezone.utc)
+    thirty_days_ago = now_dt - timedelta(days=30)
+    recent_count = len([
+        i for i in interventions
+        if i.date_intervention and (
+            i.date_intervention.replace(tzinfo=timezone.utc)
+            if i.date_intervention.tzinfo is None else i.date_intervention
+        ) > thirty_days_ago
+    ])
+
+    # Try ML microservice for DST fusion
+    fusion_result: Optional[Dict] = None
+    try:
+        if await is_ml_service_available():
+            fusion_result = await ml_client.predict_all(
+                air_temperature=float(getattr(machine, "air_temperature", 300) or 300),
+                process_temperature=float(getattr(machine, "process_temperature", 310) or 310),
+                rotational_speed=int(getattr(machine, "rotational_speed", 1500) or 1500),
+                torque=float(getattr(machine, "torque", 40) or 40),
+                tool_wear=int(getattr(machine, "tool_wear", 0) or 0),
+            )
+    except Exception:
+        pass
+
+    prediction = RULCalculator.calculate_rul(
+        machine,
+        interventions,
+        open_work_orders=open_wo_count,
+        recent_interventions=recent_count,
+        fusion_result=fusion_result,
+    )
+
+    # Build unified-health response shape (superset of /prediction)
+    response = {
+        "machine_id": machine_id,
+        "machine_name": machine.nom,
+        "unified_health_score": prediction.get(
+            "health_score",
+            prediction.get("unified_health_score", 0.0)
+        ),
+        "score_source": prediction.get("health_breakdown", {}).get("score_source", "fallback_additive"),
+        "dst_verdict": prediction.get("health_breakdown", {}).get("dst_verdict"),
+        "conflict_factor_K": prediction.get("health_breakdown", {}).get("conflict_factor_K"),
+        "kalman_hi": fusion_result.get("kalman_hi") if fusion_result else None,
+        "kalman_rul": fusion_result.get("kalman_rul") if fusion_result else None,
+        "sensor_fault_flag": fusion_result.get("sensor_fault_flag", False) if fusion_result else False,
+        "model_outputs": fusion_result.get("model_outputs") if fusion_result else None,
+        "rul_days": prediction.get("rul_days"),
+        "failure_probability": prediction.get("failure_probability"),
+        "risk_level": prediction.get("risk_level"),
+        "health_score": prediction.get("health_score"),
+        "health_breakdown": prediction.get("health_breakdown"),
+        "reliability_score": prediction.get("reliability_score"),
+        "explanations": prediction.get("explanations", []),
+        "is_anomaly": prediction.get("is_anomaly", False),
+        "predicted_priority": prediction.get("predicted_priority"),
+    }
+
+    return response
+
+
 @router.get("/machines/{machine_id}/prediction")
 async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
     """
@@ -84,13 +184,28 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
         ) > thirty_days_ago
     ])
 
-    # 5. Calculate prediction with unified health
+    # 5. Optionally fetch DST fusion from ML microservice (best-effort, non-blocking)
+    fusion_result: Optional[Dict] = None
+    try:
+        if await is_ml_service_available():
+            fusion_result = await ml_client.predict_all(
+                air_temperature=float(getattr(machine, "air_temperature", 300) or 300),
+                process_temperature=float(getattr(machine, "process_temperature", 310) or 310),
+                rotational_speed=int(getattr(machine, "rotational_speed", 1500) or 1500),
+                torque=float(getattr(machine, "torque", 40) or 40),
+                tool_wear=int(getattr(machine, "tool_wear", 0) or 0),
+            )
+    except Exception:
+        pass  # ML microservice unavailable — rul_calculator uses fallback formula
+
+    # 6. Calculate prediction with unified health
     try:
         prediction = RULCalculator.calculate_rul(
-            machine, 
+            machine,
             interventions,
             open_work_orders=open_wo_count,
-            recent_interventions=recent_interventions_count
+            recent_interventions=recent_interventions_count,
+            fusion_result=fusion_result,
         )
 
         # 4. Shadow Log (PDCA Phase 1): persist prediction without showing to user
