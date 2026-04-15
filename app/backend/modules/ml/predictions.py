@@ -12,13 +12,26 @@ class MachineLearningService:
     def predict_failure_probability(features: List[float]) -> float:
         """
         Predict failure probability using P1 model.
-        Args: [air_temp, process_temp, rpm, torque, tool_wear]  (5 features)
+        Args: [air_temp, process_temp, rpm, torque, tool_wear]  (5 base features)
+        Returns: probability of failure (0-100)
         """
         model_p1 = get_model()
         if model_p1 is None:
             return 0.0
         try:
-            prob = model_p1.predict_proba([features])[0, 1]
+            # P1 model expects 7 features: [air, process, rpm, torque, wear, temp_delta, rpm_torque]
+            air = float(features[0]) if len(features) > 0 else 300.0
+            process = float(features[1]) if len(features) > 1 else 310.0
+            rpm = float(features[2]) if len(features) > 2 else 1500.0
+            torque = float(features[3]) if len(features) > 3 else 40.0
+            wear = float(features[4]) if len(features) > 4 else 0.0
+            
+            # Add derived features
+            temp_delta = process - air
+            rpm_torque = (rpm * torque) / 1000.0  # Normalized
+            
+            features_7 = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
+            prob = model_p1.predict_proba([features_7])[0, 1]
             return round(prob * 100, 1)
         except Exception:
             return 0.0
@@ -34,18 +47,23 @@ class MachineLearningService:
         if _ml_model_p2 is None:
             return {}
         
-        input_data = [features]
-        predictions = _ml_model_p2.predict(input_data)[0]
-        probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
-        
-        result = {}
-        for i, label in enumerate(_p2_labels):
-            result[label] = {
-                "detected": bool(predictions[i]),
-                "probability": round(float(probabilities[i]) * 100, 1)
-            }
-        
-        return result
+        try:
+            # Ensure we have 6 features for P2
+            features_6 = features[:6] if len(features) >= 6 else features + [0.0] * (6 - len(features))
+            input_data = [features_6]
+            predictions = _ml_model_p2.predict(input_data)[0]
+            probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
+            
+            result = {}
+            for i, label in enumerate(_p2_labels):
+                result[label] = {
+                    "detected": bool(predictions[i]),
+                    "probability": round(float(probabilities[i]) * 100, 1)
+                }
+            
+            return result
+        except Exception:
+            return {}
 
     @staticmethod
     def predict_priority(features: List[float]) -> str:
@@ -57,7 +75,9 @@ class MachineLearningService:
             return "Medium"
         
         try:
-            pred_idx = _ml_model_p5.predict([features])[0]
+            # Ensure we have 6 features for P5
+            features_6 = features[:6] if len(features) >= 6 else features + [0.0] * (6 - len(features))
+            pred_idx = _ml_model_p5.predict([features_6])[0]
             return _p5_labels[pred_idx]
         except Exception:
             return "Medium"
@@ -73,8 +93,10 @@ class MachineLearningService:
         if _ml_model_p4 is None:
             return False, 0.0
         try:
-            pred = _ml_model_p4.predict([features])[0]
-            score = _ml_model_p4.decision_function([features])[0]
+            # Ensure we have exactly 5 features
+            features_5 = features[:5] if len(features) >= 5 else features + [0.0] * (5 - len(features))
+            pred = _ml_model_p4.predict([features_5])[0]
+            score = _ml_model_p4.decision_function([features_5])[0]
             return bool(pred == -1), float(score)
         except Exception:
             return False, 0.0
@@ -91,7 +113,9 @@ class MachineLearningService:
             return 7.0
 
         try:
-            days = _ml_model_p6.predict([features])[0]
+            # Ensure we have 6 features for P6
+            features_6 = features[:6] if len(features) >= 6 else features + [0.0] * (6 - len(features))
+            days = _ml_model_p6.predict([features_6])[0]
             return max(0.0, float(days))
         except Exception:
             return 7.0
@@ -122,7 +146,9 @@ class MachineLearningService:
         if _ml_model_p3 is None:
             return None
         try:
-            pred_rul = _ml_model_p3.predict(np.array([features]))[0]
+            # Ensure we have exactly 5 features
+            features_5 = features[:5] if len(features) >= 5 else features + [0.0] * (5 - len(features))
+            pred_rul = _ml_model_p3.predict(np.array([features_5]))[0]
             return float(pred_rul)
         except Exception:
             return None

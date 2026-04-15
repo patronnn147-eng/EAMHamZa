@@ -136,6 +136,7 @@ services:
       OSS_SECRET_KEY: ${OSS_SECRET_KEY:-minioadmin}
       OSS_PUBLIC_URL: http://localhost:9000/
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      ML_SERVICE_URL: http://ml-service:8000
     ports:
       - "8000:8000"
     depends_on:
@@ -213,6 +214,26 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+    networks:
+      - asset_management_network
+
+  # ML Prediction Microservice
+  ml-service:
+    build:
+      context: ./app/ml-microservice
+      dockerfile: Dockerfile
+    container_name: asset_management_ml_service
+    restart: always
+    environment:
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     networks:
       - asset_management_network
 

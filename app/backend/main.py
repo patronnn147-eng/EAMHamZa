@@ -165,6 +165,10 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
 setup_logging()
 include_routers_from_package(app, "modules")
 
+# Include ML router (not auto-discovered due to different path)
+from modules.ml.router import router as ml_router
+app.include_router(ml_router)
+
 
 @app.get("/")
 def root():

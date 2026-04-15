@@ -56,3 +56,6 @@ pandas>=2.0.0
 shap>=0.44.0
 xgboost==2.0.3
 openpyxl>=3.1.0
+
+# Process management (fixes joblib warnings)
+psutil>=5.9.0
