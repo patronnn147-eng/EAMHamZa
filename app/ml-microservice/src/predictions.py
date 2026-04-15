@@ -1,6 +1,6 @@
 """
 ML Predictions Service
-Provides P1-P6 prediction methods
+Provides P1-P6 prediction methods + DST unified health fusion (Wave 2).
 """
 import numpy as np
 from typing import List, Dict, Optional
@@ -15,6 +15,20 @@ from .model_loader import (
     _p2_labels,
     _p5_labels,
 )
+from .feature_store import FeatureStore
+from .health_index import MahalanobisHealthIndex, get_health_index_model
+from .survival_model import SurvivalModel, get_survival_model
+from .anomaly_cusum import AnomalyEnsemble, get_anomaly_ensemble
+from .kalman_estimator import KalmanStateEstimator, get_kalman_estimator
+from .dst_fusion import DSTFusion, get_dst_fusion
+
+# Try to import PINN — optional (requires torch)
+try:
+    from .pinn_rul import PINNRULEstimator, get_pinn_estimator
+    _PINN_AVAILABLE = True
+except ImportError:
+    _PINN_AVAILABLE = False
+    get_pinn_estimator = None  # type: ignore
 
 
 class MachineLearningService:
@@ -191,7 +205,7 @@ class MachineLearningService:
         else:
             risk_level = "LOW"
 
-        return {
+        base_result = {
             "p1_failure_probability": failure_prob,
             "p1_risk_level": risk_level,
             "p2_failure_types": failure_types,
@@ -201,3 +215,97 @@ class MachineLearningService:
             "p5_predicted_priority": priority,
             "p6_schedule_days": round(schedule_days, 1),
         }
+
+        # ==================== Wave 2: DST Fusion Pipeline ====================
+        try:
+            machine_id = int(telemetry.get("machine_id", -1))
+            logs       = telemetry.get("_logs", [])  # injected by caller when available
+
+            # Snapshot for context-aware models
+            snapshot = FeatureStore.extract_full_snapshot(
+                telemetry,
+                context={
+                    "machine_id":           machine_id,
+                    "days_since_maint":     int(telemetry.get("days_since_maint", -1)),
+                    "open_work_orders":     int(telemetry.get("open_work_orders", 0)),
+                    "recent_interventions": int(telemetry.get("recent_interventions", 0)),
+                    "machine_status":       str(telemetry.get("machine_status", "OPERATIONNELLE")),
+                }
+            )
+
+            # Time series from logs (for PINN)
+            time_series = FeatureStore.build_time_series_from_logs(machine_id, logs) if logs else []
+
+            # --- Model C: Mahalanobis Health Index ---
+            model_c_out: Optional[Dict] = None
+            hi_model = get_health_index_model()
+            if hi_model is not None and hi_model._fitted:
+                model_c_out = hi_model.score(np.array(features_5))
+
+            # --- Model E: Anomaly Ensemble ---
+            model_e_out: Optional[Dict] = None
+            anomaly_model = get_anomaly_ensemble()
+            feature_names = ["air_temperature", "process_temperature",
+                             "rotational_speed", "torque", "tool_wear"]
+            if anomaly_model is not None and anomaly_model._fitted:
+                model_e_out = anomaly_model.predict(np.array(features_5), feature_names)
+
+            # --- Model B: Survival Analysis ---
+            model_b_out: Optional[Dict] = None
+            surv_model = get_survival_model()
+            if surv_model is not None and surv_model._fitted:
+                model_b_out = surv_model.predict(snapshot)
+
+            # --- Model A: PINN RUL ---
+            model_a_out: Optional[Dict] = None
+            if _PINN_AVAILABLE and len(time_series) >= 3:
+                pinn = get_pinn_estimator()
+                if pinn is not None and pinn._fitted:
+                    model_a_out = pinn.predict(time_series)
+
+            # --- Kalman state update ---
+            rule_score = max(0.0, 100.0 - failure_prob)  # invert P1 as rule signal
+            kalman_obs = {
+                "rule_score":   rule_score,
+                "ml_score":     rule_score,
+                "survival_hi":  model_b_out["health_index"] if model_b_out else float("nan"),
+                "mahal_hi":     model_c_out["health_index"] if model_c_out else float("nan"),
+            }
+            kalman_state = get_kalman_estimator().update(kalman_obs)
+
+            # --- DST Fusion ---
+            model_outputs = [out for out in [model_a_out, model_b_out, model_c_out, model_e_out] if out is not None]
+            fusion_result = get_dst_fusion().fuse(model_outputs, kalman_state)
+
+            base_result.update({
+                "unified_health_score":      fusion_result["unified_health_score"],
+                "dst_verdict":               fusion_result["dst_verdict"],
+                "conflict_factor_K":         fusion_result["conflict_factor_K"],
+                "dst_score":                 fusion_result["dst_score"],
+                "kalman_hi":                 fusion_result["kalman_hi"],
+                "kalman_rul":                fusion_result["kalman_rul"],
+                "sensor_fault_flag":         fusion_result["sensor_fault_flag"],
+                "model_disagreement_alert":  fusion_result["model_disagreement_alert"],
+                "bpa": {
+                    "healthy":   fusion_result["bpa_healthy"],
+                    "degrading": fusion_result["bpa_degrading"],
+                    "critical":  fusion_result["bpa_critical"],
+                    "unknown":   fusion_result["bpa_unknown"],
+                },
+                "model_outputs": {
+                    "pinn_rul":  model_a_out,
+                    "survival":  model_b_out,
+                    "mahal_hi":  model_c_out,
+                    "anomaly":   model_e_out,
+                },
+            })
+        except Exception as _fusion_exc:
+            import logging as _log
+            _log.getLogger(__name__).warning(f"DST fusion failed: {_fusion_exc}", exc_info=True)
+            # Graceful fallback: unified_health_score mirrors P1 inversion
+            base_result["unified_health_score"] = max(0.0, round(100.0 - failure_prob, 1))
+            base_result["dst_verdict"] = risk_level.title()
+            base_result["conflict_factor_K"] = 0.0
+            base_result["score_source"] = "fallback_additive"
+
+        return base_result
