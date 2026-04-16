@@ -236,6 +236,41 @@ class AnomalyEnsemble:
             "cusum_alarms":  cusum_alarms,
         }
 
+    def replay_history(
+        self,
+        history: List[np.ndarray],
+        feature_names: List[str] = None,
+    ) -> None:
+        """
+        Warm-start CUSUM state by replaying historical observations (excluding latest).
+
+        Resets CUSUM statistics to zero first, then sequentially updates each
+        detector with all entries except the last (the latest will be scored
+        via predict()). This initialises cumulative sums to reflect real
+        accumulated drift rather than cold-starting at zero.
+
+        Args:
+            history: List of 1-D arrays, each of shape (n_features,), oldest first.
+                     Should be all entries EXCEPT the last one.
+            feature_names: Column names matching the order of each array.
+                           Defaults to self._baselines keys in insertion order.
+        """
+        if not self._fitted or len(history) == 0:
+            return
+
+        names = feature_names or list(self._baselines.keys())
+        # Reset CUSUM stats before replay
+        for det in self._cusums.values():
+            det.reset()
+
+        for obs in history:
+            obs_arr = np.asarray(obs, dtype=float)
+            for i, name in enumerate(names):
+                if name not in self._cusums or i >= len(obs_arr):
+                    continue
+                mu, _ = self._baselines[name]
+                self._cusums[name].update(float(obs_arr[i]), mu)
+
     def reset_cusum(self, feature_name: Optional[str] = None) -> None:
         """Reset CUSUM detector(s) after alarm investigation."""
         if feature_name:
