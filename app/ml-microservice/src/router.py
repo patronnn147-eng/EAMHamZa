@@ -16,11 +16,16 @@ router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 # ==================== Request Models ====================
 class TelemetryInput(BaseModel):
     """Input telemetry data for predictions."""
-    air_temperature: float
+    air_temperature:    float
     process_temperature: float
-    rotational_speed: int
-    torque: float
-    tool_wear: int
+    rotational_speed:   int
+    torque:             float
+    tool_wear:          int
+    machine_id:         Optional[int] = -1
+    _logs:              Optional[List[Dict]] = None
+
+    class Config:
+        populate_by_name = True
 
 
 class RULInput(BaseModel):
