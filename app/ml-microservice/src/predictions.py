@@ -270,6 +270,19 @@ class MachineLearningService:
             feature_names = ["air_temperature", "process_temperature",
                              "rotational_speed", "torque", "tool_wear"]
             if anomaly_model is not None and anomaly_model._fitted:
+                # Warm-start CUSUM with history (all entries except latest)
+                if len(logs) > 1:
+                    history_arrays = [
+                        np.array([
+                            float(lg.get("air_temperature", 298)),
+                            float(lg.get("process_temperature", 308)),
+                            float(lg.get("rotational_speed", 1500)),
+                            float(lg.get("torque", 40)),
+                            float(lg.get("tool_wear", 0)),
+                        ])
+                        for lg in logs[:-1]  # exclude latest — that's what predict() scores
+                    ]
+                    anomaly_model.replay_history(history_arrays, feature_names)
                 model_e_out = anomaly_model.predict(np.array(features_5), feature_names)
 
             # --- Model B: Survival Analysis ---
