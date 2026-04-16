@@ -261,8 +261,21 @@ class MachineLearningService:
             # --- Model C: Mahalanobis Health Index ---
             model_c_out: Optional[Dict] = None
             hi_model = get_health_index_model()
-            if hi_model is not None and hi_model._fitted:
-                model_c_out = hi_model.score(np.array(features_5))
+            if hi_model is not None:
+                if len(logs) >= 2:
+                    history_matrix = np.array([
+                        [
+                            float(lg.get("air_temperature", 298)),
+                            float(lg.get("process_temperature", 308)),
+                            float(lg.get("rotational_speed", 1500)),
+                            float(lg.get("torque", 40)),
+                            float(lg.get("tool_wear", 0)),
+                        ]
+                        for lg in logs
+                    ])
+                    model_c_out = hi_model.fit_and_score_history(history_matrix)
+                elif hi_model._fitted:
+                    model_c_out = hi_model.score(np.array(features_5))
 
             # --- Model E: Anomaly Ensemble ---
             model_e_out: Optional[Dict] = None

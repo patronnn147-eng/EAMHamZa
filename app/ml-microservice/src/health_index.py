@@ -159,6 +159,72 @@ class MahalanobisHealthIndex:
             "percentile_rank": float(pct_rank),
         }
 
+    def fit_and_score_history(self, history: np.ndarray) -> Dict:
+        """
+        Fit a machine-specific GMM baseline on all historical readings except
+        the last, then score the last entry against that baseline.
+
+        Falls back to the global model's score if history is too small (<10).
+
+        Args:
+            history: np.ndarray of shape (n_entries, 5), oldest first.
+                     Columns: [air_temperature, process_temperature,
+                               rotational_speed, torque, tool_wear]
+
+        Returns:
+            Same dict as score(): health_index, dm2, is_anomaly, etc.
+            Extra key: score_source ("machine_baseline" | "global_baseline" | "no_model")
+        """
+        history = np.asarray(history, dtype=float)
+        if len(history) < 10:
+            if self._fitted:
+                result = self.score(history[-1])
+                result["score_source"] = "global_baseline"
+                return result
+            return {
+                "model_id":      "model_c_mahal_hi",
+                "health_index":  100.0,
+                "critical_prob": 0.0,
+                "rul_estimate":  None,
+                "uncertainty":   0.0,
+                "confidence":    0.0,
+                "is_anomaly":    False,
+                "dm2":           0.0,
+                "percentile_rank": 0.0,
+                "score_source":  "no_model",
+            }
+
+        latest = history[-1]
+        train  = history[:-1]  # all but latest are the baseline
+
+        tmp = MahalanobisHealthIndex(
+            n_components=min(self.n_components, max(1, len(train) // 5)),
+            reg_covar=self.reg_covar,
+        )
+        try:
+            tmp.fit(train)
+            result = tmp.score(latest)
+            result["score_source"] = "machine_baseline"
+            return result
+        except Exception as e:
+            logger.warning(f"Machine-specific Mahal fit failed: {e} — using global")
+            if self._fitted:
+                result = self.score(latest)
+                result["score_source"] = "global_baseline"
+                return result
+            return {
+                "model_id":      "model_c_mahal_hi",
+                "health_index":  100.0,
+                "critical_prob": 0.0,
+                "rul_estimate":  None,
+                "uncertainty":   0.0,
+                "confidence":    0.0,
+                "is_anomaly":    False,
+                "dm2":           0.0,
+                "percentile_rank": 0.0,
+                "score_source":  "fallback",
+            }
+
     def score_batch(self, X: np.ndarray) -> List[Dict]:
         """Score multiple observations."""
         return [self.score(row) for row in X]
