@@ -301,8 +301,16 @@ class MachineLearningService:
             # --- Model B: Survival Analysis ---
             model_b_out: Optional[Dict] = None
             surv_model = get_survival_model()
-            if surv_model is not None and surv_model._fitted:
-                model_b_out = surv_model.predict(snapshot)
+            if surv_model is not None:
+                if len(logs) >= 10:
+                    # Enough history to fit a machine-specific survival model
+                    try:
+                        surv_model.fit_from_logs(logs)
+                    except Exception as _e:
+                        import logging as _log
+                        _log.getLogger(__name__).warning(f"Survival fit_from_logs failed: {_e}")
+                if surv_model._fitted:
+                    model_b_out = surv_model.predict(snapshot)
 
             # --- Model A: PINN RUL ---
             model_a_out: Optional[Dict] = None
