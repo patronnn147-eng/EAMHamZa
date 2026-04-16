@@ -147,13 +147,15 @@ async def predict_all(data: TelemetryInput) -> AllPredictionsResponse:
     - P6: Maintenance schedule
     """
     telemetry = {
-        "air_temperature": data.air_temperature,
+        "air_temperature":    data.air_temperature,
         "process_temperature": data.process_temperature,
-        "rotational_speed": data.rotational_speed,
-        "torque": data.torque,
-        "tool_wear": data.tool_wear
+        "rotational_speed":   data.rotational_speed,
+        "torque":             data.torque,
+        "tool_wear":          data.tool_wear,
+        "machine_id":         data.machine_id if data.machine_id is not None else -1,
+        "_logs":              data._logs or [],
     }
-    
+
     try:
         predictions = MachineLearningService.predict_all(telemetry)
         
