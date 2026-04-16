@@ -161,6 +161,39 @@ class KalmanStateEstimator:
             "state_covariance_trace": float(np.trace(self.P)),
         }
 
+    def smooth_from_scores(
+        self,
+        score_history: List[Dict],
+        initial_hi: float = 80.0,
+        initial_rul: float = 30.0,
+    ) -> Dict:
+        """
+        Reset filter and run through a sequence of historical health observations.
+
+        Each entry in score_history is an obs dict with zero or more of:
+            rule_score, ml_score, survival_hi, mahal_hi
+
+        Returns the smoothed state after the final observation — same format
+        as update().
+
+        Args:
+            score_history: List of obs dicts, oldest first.
+            initial_hi: Initial health index assumption (default 80).
+            initial_rul: Initial RUL assumption in days (default 30).
+        """
+        self.reset(initial_hi=initial_hi, initial_rul=initial_rul)
+        result = {
+            "hi_kalman":              initial_hi,
+            "rul_kalman":             initial_rul,
+            "degradation_rate":       0.5,
+            "sensor_fault_flag":      False,
+            "innovation_norm":        0.0,
+            "state_covariance_trace": float(np.trace(self.P)),
+        }
+        for obs in score_history:
+            result = self.update(obs)
+        return result
+
     def smooth(self, obs_sequence: List[Dict]) -> List[Dict]:
         """
         Run Kalman filter over a full sequence of observations.
