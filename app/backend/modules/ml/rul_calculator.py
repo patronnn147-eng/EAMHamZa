@@ -15,13 +15,14 @@ class RULCalculator:
     def calculate_rul(
         machine: Machines,
         interventions: List[Ordres_intervention],
+        telemetry_entries=None,          # List[MachineTelemetry] — optional
         open_work_orders: int = 0,
         recent_interventions: int = 0,
         fusion_result: Optional[Dict] = None,
     ) -> Dict:
         """
         Calculate Remaining Useful Life (RUL) and ML-informed KPIs.
-        
+
         Strategy:
           - RUL (P3): predictive remaining life.
           - Health Score: ML-derived condition index.
@@ -30,13 +31,41 @@ class RULCalculator:
         now = datetime.now(timezone.utc)
 
         # --- Step 1: Telemetry Data Extraction ---
-        air_temp     = getattr(machine, 'air_temperature',     300.0) or 300.0
-        process_temp = getattr(machine, 'process_temperature', 310.0) or 310.0
-        rpm          = getattr(machine, 'rotational_speed',    1500)  or 1500
-        torque       = getattr(machine, 'torque',              40.0)  or 40.0
-        tool_wear    = getattr(machine, 'tool_wear',           0)     or 0
-        temp_delta   = float(process_temp) - float(air_temp)
-        rpm_torque   = (float(rpm) * float(torque)) / 1000.0  # Normalized feature
+        # Use latest entry from history; fall back to hardcoded defaults for new machines
+        entries = list(telemetry_entries) if telemetry_entries else []
+
+        if entries:
+            latest = entries[-1]
+            air_temp     = float(latest.air_temperature)
+            process_temp = float(latest.process_temperature)
+            rpm          = int(latest.rotational_speed)
+            torque       = float(latest.torque)
+            tool_wear    = float(latest.tool_wear)
+        else:
+            air_temp, process_temp, rpm, torque, tool_wear = 300.0, 310.0, 1500, 40.0, 0.0
+
+        temp_delta = float(process_temp) - float(air_temp)
+        rpm_torque = (float(rpm) * float(torque)) / 1000.0  # Normalized feature
+
+        # --- Step 1b: Degradation Rate ---
+        # (latest - first) / (n - 1) per sensor; 0.0 if single or no entry
+        def _deg_rate(attr: str) -> float:
+            if len(entries) < 2:
+                return 0.0
+            first = float(getattr(entries[0], attr))
+            last  = float(getattr(entries[-1], attr))
+            return (last - first) / (len(entries) - 1)
+
+        deg_air    = _deg_rate("air_temperature")
+        deg_proc   = _deg_rate("process_temperature")
+        deg_wear   = _deg_rate("tool_wear")
+
+        # Composite degradation magnitude (0 = stable, higher = faster degradation)
+        deg_magnitude = (
+            abs(deg_air)  / 10.0 +
+            abs(deg_proc) / 10.0 +
+            abs(deg_wear) / 5.0
+        )
 
         # Feature vectors for different models:
         # P1 (failure): 7 features [air, process, rpm, torque, wear, temp_delta, rpm_torque]
@@ -57,6 +86,11 @@ class RULCalculator:
             rul_days = (model_rul * 0.7) + (hist_mtbf_days * 0.3)
         else:
             rul_days = hist_mtbf_days
+
+        # Apply degradation rate: proportionally shorten RUL (cap at 50% reduction)
+        if deg_magnitude > 0:
+            degradation_factor = max(0.5, 1.0 - min(0.5, deg_magnitude * 0.1))
+            rul_days = rul_days * degradation_factor
 
         # --- Step 3: Failure Probability (P1 - 7 features) ---
         ml_probability: float = 0.0
@@ -185,18 +219,22 @@ class RULCalculator:
                 "intervention_deduction": round(float(ri_deduction), 1),
                 "days_since_maintenance": days_since_maint,
                 "open_work_orders": open_work_orders,
-                "recent_interventions": recent_interventions
+                "recent_interventions": recent_interventions,
+                "degradation_rate_air":  round(float(deg_air),       4),
+                "degradation_rate_wear": round(float(deg_wear),      4),
+                "degradation_magnitude": round(float(deg_magnitude), 4),
             },
             "reliability_score": round(float(ml_reliability_score), 1) if ml_reliability_score is not None else 0.0,
             "mtbf_pred": round(float(ml_mtbf_hours), 1) if ml_mtbf_hours is not None else 0.0,
             "mttr_pred": round(float(ml_mttr_hours), 1) if ml_mttr_hours is not None else 0.0,
             "availability_pred": round(float(ml_availability_pct), 1) if ml_availability_pct is not None else 0.0,
-            
-            "air_temperature": float(air_temp),
-            "process_temperature": float(process_temp),
-            "rotational_speed": int(rpm),
-            "torque": float(torque),
-            "tool_wear": int(tool_wear)
+
+            "air_temperature":     round(float(air_temp), 2),
+            "process_temperature": round(float(process_temp), 2),
+            "rotational_speed":    int(rpm),
+            "torque":              round(float(torque), 2),
+            "tool_wear":           round(float(tool_wear), 2),
+            "telemetry_data_points": len(entries),
         }
 
         if model_p1 is None:
