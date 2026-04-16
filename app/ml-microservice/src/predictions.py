@@ -323,13 +323,31 @@ class MachineLearningService:
             # Default health scores when advanced models aren't fitted
             DEFAULT_HI = 75.0  # Assume healthy baseline
             rule_score = max(0.0, 100.0 - failure_prob)  # invert P1 as rule signal
-            kalman_obs = {
-                "rule_score":   rule_score,
-                "ml_score":     rule_score,
-                "survival_hi":  model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
-                "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
-            }
-            kalman_state = get_kalman_estimator().update(kalman_obs)
+
+            if len(logs) >= 2:
+                # Build simplified observation sequence from history
+                # Each historical entry contributes a cheap rule-based health estimate
+                kalman_history = []
+                for lg in logs[:-1]:
+                    air_h = float(lg.get("air_temperature", 298))
+                    hi_est = max(0.0, min(100.0, 100.0 - (air_h - 298) * 2.0))
+                    kalman_history.append({"rule_score": hi_est})
+                # Final observation uses all available model scores
+                kalman_history.append({
+                    "rule_score":  rule_score,
+                    "ml_score":    rule_score,
+                    "survival_hi": model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
+                    "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
+                })
+                kalman_state = get_kalman_estimator().smooth_from_scores(kalman_history)
+            else:
+                kalman_obs = {
+                    "rule_score":  rule_score,
+                    "ml_score":    rule_score,
+                    "survival_hi": model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
+                    "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
+                }
+                kalman_state = get_kalman_estimator().update(kalman_obs)
 
             # --- DST Fusion ---
             # Filter out None and NaN model outputs
