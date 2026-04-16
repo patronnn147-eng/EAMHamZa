@@ -14,6 +14,7 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import Ordres_travail
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
+from models.machine_telemetry import MachineTelemetry
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
@@ -165,6 +166,33 @@ async def complete_work_order(
         intervention.check_verification_method = payload.check_verification_method
         intervention.act_preventive_actions = payload.act_preventive_actions
         intervention.act_recommendations = payload.act_recommendations
+        
+        # =============================================
+        # Task 4+5: Save telemetry to logs AND update machine current state
+        # =============================================
+        has_telemetry = any([
+            payload.air_temperature is not None,
+            payload.process_temperature is not None,
+            payload.rotational_speed is not None,
+            payload.torque is not None,
+            payload.tool_wear is not None,
+        ])
+        
+        if has_telemetry:
+            # Save to machine_telemetry_logs table (historical record)
+            telemetry_log = MachineTelemetry(
+                machine_id=wo.machine_id,
+                work_order_id=order_id,
+                technician_id=current_user.id,
+                air_temperature=payload.air_temperature or 0,
+                process_temperature=payload.process_temperature or 0,
+                rotational_speed=payload.rotational_speed or 0,
+                torque=payload.torque or 0,
+                tool_wear=payload.tool_wear or 0,
+                recorded_at=now,
+                notes=f"Work order #{order_id} completion"
+            )
+            db.add(telemetry_log)
         
         await db.commit()
         
