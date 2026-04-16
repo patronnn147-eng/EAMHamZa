@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, asc
 from core.database import get_db
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.ml_prediction_log import MlPredictionLog
+from models.machine_telemetry import MachineTelemetry
 from .predictions import MachineLearningService
 from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
@@ -35,6 +36,34 @@ class TelemetryUpdate(BaseModel):
     torque: Optional[float] = None
     tool_wear: Optional[int] = None
 
+
+
+async def _get_telemetry_history(machine_id: int, db: AsyncSession):
+    """
+    Query all telemetry entries for a machine ordered oldest-first.
+    Returns (entries, log_dicts) where log_dicts is compatible with
+    FeatureStore.build_time_series_from_logs.
+    """
+    result = await db.execute(
+        select(MachineTelemetry)
+        .where(MachineTelemetry.machine_id == machine_id)
+        .order_by(asc(MachineTelemetry.recorded_at))
+    )
+    entries = result.scalars().all()
+    log_dicts = [
+        {
+            "machine_id":           machine_id,
+            "air_temperature":      e.air_temperature,
+            "process_temperature":  e.process_temperature,
+            "rotational_speed":     e.rotational_speed,
+            "torque":               e.torque,
+            "tool_wear":            e.tool_wear,
+            "created_at":           e.recorded_at.isoformat() if e.recorded_at else "",
+            "risk_level":           "LOW",
+        }
+        for e in entries
+    ]
+    return entries, log_dicts
 
 
 @router.get("/machines/{machine_id}/unified-health")
@@ -86,16 +115,31 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         ) > thirty_days_ago
     ])
 
+    # Query telemetry history; derive scalars from latest entry or use defaults
+    telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
+
+    if telemetry_entries:
+        latest = telemetry_entries[-1]
+        _air   = float(latest.air_temperature)
+        _proc  = float(latest.process_temperature)
+        _rpm   = int(latest.rotational_speed)
+        _torq  = float(latest.torque)
+        _wear  = float(latest.tool_wear)
+    else:
+        _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
+
     # Try ML microservice for DST fusion
     fusion_result: Optional[Dict] = None
     try:
         if await is_ml_service_available():
             fusion_result = await ml_client.predict_all(
-                air_temperature=float(getattr(machine, "air_temperature", 300) or 300),
-                process_temperature=float(getattr(machine, "process_temperature", 310) or 310),
-                rotational_speed=int(getattr(machine, "rotational_speed", 1500) or 1500),
-                torque=float(getattr(machine, "torque", 40) or 40),
-                tool_wear=int(getattr(machine, "tool_wear", 0) or 0),
+                air_temperature=_air,
+                process_temperature=_proc,
+                rotational_speed=_rpm,
+                torque=_torq,
+                tool_wear=int(_wear),
+                machine_id=machine_id,
+                telemetry_logs=telemetry_logs,
             )
     except Exception:
         pass
@@ -103,6 +147,7 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     prediction = RULCalculator.calculate_rul(
         machine,
         interventions,
+        telemetry_entries=telemetry_entries,
         open_work_orders=open_wo_count,
         recent_interventions=recent_count,
         fusion_result=fusion_result,
@@ -184,25 +229,41 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
         ) > thirty_days_ago
     ])
 
-    # 5. Optionally fetch DST fusion from ML microservice (best-effort, non-blocking)
+    # 5. Query telemetry history; derive scalars from latest entry or use defaults
+    telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
+
+    if telemetry_entries:
+        latest = telemetry_entries[-1]
+        _air   = float(latest.air_temperature)
+        _proc  = float(latest.process_temperature)
+        _rpm   = int(latest.rotational_speed)
+        _torq  = float(latest.torque)
+        _wear  = float(latest.tool_wear)
+    else:
+        _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
+
+    # 6. Optionally fetch DST fusion from ML microservice (best-effort, non-blocking)
     fusion_result: Optional[Dict] = None
     try:
         if await is_ml_service_available():
             fusion_result = await ml_client.predict_all(
-                air_temperature=float(getattr(machine, "air_temperature", 300) or 300),
-                process_temperature=float(getattr(machine, "process_temperature", 310) or 310),
-                rotational_speed=int(getattr(machine, "rotational_speed", 1500) or 1500),
-                torque=float(getattr(machine, "torque", 40) or 40),
-                tool_wear=int(getattr(machine, "tool_wear", 0) or 0),
+                air_temperature=_air,
+                process_temperature=_proc,
+                rotational_speed=_rpm,
+                torque=_torq,
+                tool_wear=int(_wear),
+                machine_id=machine_id,
+                telemetry_logs=telemetry_logs,
             )
     except Exception:
         pass  # ML microservice unavailable — rul_calculator uses fallback formula
 
-    # 6. Calculate prediction with unified health
+    # 7. Calculate prediction with unified health
     try:
         prediction = RULCalculator.calculate_rul(
             machine,
             interventions,
+            telemetry_entries=telemetry_entries,
             open_work_orders=open_wo_count,
             recent_interventions=recent_interventions_count,
             fusion_result=fusion_result,
@@ -435,37 +496,39 @@ async def update_machine_telemetry(
     db: AsyncSession = Depends(get_db),
 ) -> Dict:
     """
-    Update machine telemetry sensor values (Simulation).
-    Used to test ML predictions by manually setting data.
+    Insert a manual telemetry entry for a machine (simulation / testing).
+    Writes to machine_telemetry_logs so the ML pipeline picks it up.
     """
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
     if not machine:
         raise HTTPException(status_code=404, detail="Machine non trouvée")
 
-    if data.air_temperature is not None:
-        machine.air_temperature = data.air_temperature
-    if data.process_temperature is not None:
-        machine.process_temperature = data.process_temperature
-    if data.rotational_speed is not None:
-        machine.rotational_speed = data.rotational_speed
-    if data.torque is not None:
-        machine.torque = data.torque
-    if data.tool_wear is not None:
-        machine.tool_wear = data.tool_wear
-
+    entry = MachineTelemetry(
+        machine_id=machine_id,
+        work_order_id=None,
+        technician_id=0,  # system/simulation entry
+        air_temperature=data.air_temperature or 300.0,
+        process_temperature=data.process_temperature or 310.0,
+        rotational_speed=data.rotational_speed or 1500,
+        torque=data.torque or 40.0,
+        tool_wear=data.tool_wear or 0.0,
+        recorded_at=datetime.utcnow(),
+        notes="Manual simulation entry",
+    )
+    db.add(entry)
     await db.commit()
-    await db.refresh(machine)
+    await db.refresh(entry)
 
     return {
-        "message": "Telemetry updated successfully",
+        "message": "Telemetry entry recorded",
         "machine_id": machine_id,
         "telemetry": {
-            "air_temperature": machine.air_temperature,
-            "process_temperature": machine.process_temperature,
-            "rotational_speed": machine.rotational_speed,
-            "torque": machine.torque,
-            "tool_wear": machine.tool_wear,
+            "air_temperature": entry.air_temperature,
+            "process_temperature": entry.process_temperature,
+            "rotational_speed": entry.rotational_speed,
+            "torque": entry.torque,
+            "tool_wear": entry.tool_wear,
         },
     }
 
