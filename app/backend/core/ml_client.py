@@ -73,20 +73,23 @@ class MLClient:
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
+        machine_id: int = -1,
+        telemetry_logs: list = None,
     ) -> Dict:
-        """Get all P1-P6 predictions."""
+        """Get all P1-P6 predictions plus DST fusion."""
         client = await self.get_client()
-        response = await client.post(
-            "/api/v1/ml/predict-all",
-            json={
-                "air_temperature": air_temperature,
-                "process_temperature": process_temperature,
-                "rotational_speed": rotational_speed,
-                "torque": torque,
-                "tool_wear": tool_wear
-            }
-        )
+        payload = {
+            "air_temperature":    air_temperature,
+            "process_temperature": process_temperature,
+            "rotational_speed":   rotational_speed,
+            "torque":             torque,
+            "tool_wear":          tool_wear,
+            "machine_id":         machine_id,
+        }
+        if telemetry_logs:
+            payload["_logs"] = telemetry_logs
+        response = await client.post("/api/v1/ml/predict-all", json=payload)
         return response.json()
     
     async def predict_failure_type(
