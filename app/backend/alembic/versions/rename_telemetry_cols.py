@@ -36,8 +36,14 @@ def upgrade() -> None:
         ("power",       "tool_wear"),
     ]
     for old, new in renames:
-        if _col_exists("machine_telemetry_logs", old):
+        old_exists = _col_exists("machine_telemetry_logs", old)
+        new_exists = _col_exists("machine_telemetry_logs", new)
+        if old_exists and not new_exists:
             op.alter_column("machine_telemetry_logs", old, new_column_name=new)
+        elif old_exists and new_exists:
+            # Both columns exist (partial migration state) — drop the legacy one
+            op.drop_column("machine_telemetry_logs", old)
+        # if only new_exists or neither: already done, skip
 
     # --- machines: drop static telemetry columns ---
     for col in ["air_temperature", "process_temperature",

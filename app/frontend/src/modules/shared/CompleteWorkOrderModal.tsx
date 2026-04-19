@@ -102,14 +102,14 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, onSucc
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           ...formData,
           // Include telemetry data
-          telemetry_temperature: telemetryData.temperature,
-          telemetry_vibration: telemetryData.vibration,
-          telemetry_rpm: telemetryData.rpm,
-          telemetry_torque: telemetryData.torque,
-          telemetry_power: telemetryData.power,
+          air_temperature: telemetryData.air_temperature,
+          process_temperature: telemetryData.process_temperature,
+          rotational_speed: telemetryData.rotational_speed,
+          torque: telemetryData.torque,
+          tool_wear: telemetryData.tool_wear,
           telemetry_notes: telemetryData.notes,
         }),
       });

@@ -30,6 +30,18 @@ except ImportError:
     _PINN_AVAILABLE = False
     get_pinn_estimator = None  # type: ignore
 
+# Try to import MOMENT — optional (requires momentfm + torch)
+try:
+    from .moment_estimator import (
+        get_moment_anomaly_detector,
+        get_moment_rul_estimator,
+        MOMENT_AVAILABLE as _MOMENT_AVAILABLE,
+    )
+except ImportError:
+    _MOMENT_AVAILABLE = False
+    get_moment_anomaly_detector = None  # type: ignore
+    get_moment_rul_estimator    = None  # type: ignore
+
 
 class MachineLearningService:
     """Unified ML prediction service for all P1-P6 models."""
@@ -241,7 +253,7 @@ class MachineLearningService:
         # ==================== Wave 2: DST Fusion Pipeline ====================
         try:
             machine_id = int(telemetry.get("machine_id", -1))
-            logs       = telemetry.get("_logs", [])  # injected by caller when available
+            logs       = telemetry.get("telemetry_logs", [])  # injected by caller when available
 
             # Snapshot for context-aware models
             snapshot = FeatureStore.extract_full_snapshot(
@@ -319,6 +331,25 @@ class MachineLearningService:
                 if pinn is not None and pinn._fitted:
                     model_a_out = pinn.predict(time_series)
 
+            # --- Model M: MOMENT Foundation Model ---
+            model_m_anomaly_out: Optional[Dict] = None
+            model_m_rul_out:     Optional[Dict] = None
+            if _MOMENT_AVAILABLE and len(logs) >= 8:
+                try:
+                    detector = get_moment_anomaly_detector()
+                    if detector is not None:
+                        model_m_anomaly_out = detector.predict(logs)
+                except Exception as _me:
+                    import logging as _log
+                    _log.getLogger(__name__).warning(f"MOMENT anomaly failed: {_me}")
+                try:
+                    rul_est = get_moment_rul_estimator()
+                    if rul_est is not None:
+                        model_m_rul_out = rul_est.predict(logs)
+                except Exception as _me:
+                    import logging as _log
+                    _log.getLogger(__name__).warning(f"MOMENT RUL failed: {_me}")
+
             # --- Kalman state update ---
             # Default health scores when advanced models aren't fitted
             DEFAULT_HI = 75.0  # Assume healthy baseline
@@ -352,7 +383,8 @@ class MachineLearningService:
             # --- DST Fusion ---
             # Filter out None and NaN model outputs
             valid_outputs = []
-            for out in [model_a_out, model_b_out, model_c_out, model_e_out]:
+            for out in [model_a_out, model_b_out, model_c_out, model_e_out,
+                        model_m_anomaly_out, model_m_rul_out]:
                 if out is not None:
                     # Check for valid health_index (not NaN)
                     hi = out.get("health_index")
@@ -377,10 +409,12 @@ class MachineLearningService:
                     "unknown":   fusion_result["bpa_unknown"],
                 },
                 "model_outputs": {
-                    "pinn_rul":  model_a_out,
-                    "survival":  model_b_out,
-                    "mahal_hi":  model_c_out,
-                    "anomaly":   model_e_out,
+                    "pinn_rul":      model_a_out,
+                    "survival":      model_b_out,
+                    "mahal_hi":      model_c_out,
+                    "anomaly":       model_e_out,
+                    "moment_anomaly": model_m_anomaly_out,
+                    "moment_rul":    model_m_rul_out,
                 },
             })
         except Exception as _fusion_exc:

@@ -44,11 +44,11 @@ export interface WorkOrderCompletePayload {
     check_verification_method?: string;
     act_preventive_actions?: string;
     act_recommendations?: string;
-    telemetry_temperature?: number;
-    telemetry_vibration?: number;
-    telemetry_rpm?: number;
-    telemetry_torque?: number;
-    telemetry_power?: number;
+    air_temperature?: number;
+    process_temperature?: number;
+    rotational_speed?: number;
+    torque?: number;
+    tool_wear?: number;
     telemetry_notes?: string;
 }
 
@@ -105,11 +105,11 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
     const [actPreventiveActions, setActPreventiveActions] = useState('');
     const [actRecommendations, setActRecommendations] = useState('');
 
-    const [telemetryTemp, setTelemetryTemp] = useState('');
-    const [telemetryVibration, setTelemetryVibration] = useState('');
-    const [telemetryRpm, setTelemetryRpm] = useState('');
-    const [telemetryTorque, setTelemetryTorque] = useState('');
-    const [telemetryPower, setTelemetryPower] = useState('');
+    const [airTemperature, setAirTemperature] = useState('');
+    const [processTemperature, setProcessTemperature] = useState('');
+    const [rotationalSpeed, setRotationalSpeed] = useState('');
+    const [torqueVal, setTorqueVal] = useState('');
+    const [toolWear, setToolWear] = useState('');
     const [telemetryNotes, setTelemetryNotes] = useState('');
 
     const resetForm = () => {
@@ -126,11 +126,11 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
         setCheckVerificationMethod('');
         setActPreventiveActions('');
         setActRecommendations('');
-        setTelemetryTemp('');
-        setTelemetryVibration('');
-        setTelemetryRpm('');
-        setTelemetryTorque('');
-        setTelemetryPower('');
+        setAirTemperature('');
+        setProcessTemperature('');
+        setRotationalSpeed('');
+        setTorqueVal('');
+        setToolWear('');
         setTelemetryNotes('');
     };
 
@@ -157,11 +157,11 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                 check_verification_method: checkVerificationMethod.trim() || undefined,
                 act_preventive_actions: actPreventiveActions.trim() || undefined,
                 act_recommendations: actRecommendations.trim() || undefined,
-                telemetry_temperature: telemetryTemp ? parseFloat(telemetryTemp) : undefined,
-                telemetry_vibration: telemetryVibration ? parseFloat(telemetryVibration) : undefined,
-                telemetry_rpm: telemetryRpm ? parseInt(telemetryRpm) : undefined,
-                telemetry_torque: telemetryTorque ? parseFloat(telemetryTorque) : undefined,
-                telemetry_power: telemetryPower ? parseFloat(telemetryPower) : undefined,
+                air_temperature: airTemperature ? parseFloat(airTemperature) : undefined,
+                process_temperature: processTemperature ? parseFloat(processTemperature) : undefined,
+                rotational_speed: rotationalSpeed ? parseInt(rotationalSpeed) : undefined,
+                torque: torqueVal ? parseFloat(torqueVal) : undefined,
+                tool_wear: toolWear ? parseInt(toolWear) : undefined,
                 telemetry_notes: telemetryNotes.trim() || undefined,
             };
             onConfirm(payload);
@@ -303,52 +303,61 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                         </p>
                         <div className="grid grid-cols-5 gap-3">
                             <div className="grid gap-1">
-                                <Label className="text-xs">Température (°C)</Label>
+                                <Label className="text-xs">Temp. Air (K)</Label>
                                 <Input
                                     type="number"
                                     step="0.1"
-                                    placeholder="0.0"
-                                    value={telemetryTemp}
-                                    onChange={(e) => setTelemetryTemp(e.target.value)}
+                                    min="250"
+                                    max="400"
+                                    placeholder="298.0"
+                                    value={airTemperature}
+                                    onChange={(e) => setAirTemperature(e.target.value)}
                                 />
                             </div>
                             <div className="grid gap-1">
-                                <Label className="text-xs">Vibration (mm/s)</Label>
+                                <Label className="text-xs">Temp. Process (K)</Label>
                                 <Input
                                     type="number"
                                     step="0.1"
-                                    placeholder="0.0"
-                                    value={telemetryVibration}
-                                    onChange={(e) => setTelemetryVibration(e.target.value)}
+                                    min="250"
+                                    max="450"
+                                    placeholder="308.0"
+                                    value={processTemperature}
+                                    onChange={(e) => setProcessTemperature(e.target.value)}
                                 />
                             </div>
                             <div className="grid gap-1">
-                                <Label className="text-xs">RPM</Label>
+                                <Label className="text-xs">Vitesse (RPM)</Label>
                                 <Input
                                     type="number"
+                                    min="0"
+                                    max="10000"
+                                    placeholder="1500"
+                                    value={rotationalSpeed}
+                                    onChange={(e) => setRotationalSpeed(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label className="text-xs">Couple (Nm)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.1"
+                                    min="0"
+                                    max="1000"
+                                    placeholder="40.0"
+                                    value={torqueVal}
+                                    onChange={(e) => setTorqueVal(e.target.value)}
+                                />
+                            </div>
+                            <div className="grid gap-1">
+                                <Label className="text-xs">Usure outil (min)</Label>
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    max="500"
                                     placeholder="0"
-                                    value={telemetryRpm}
-                                    onChange={(e) => setTelemetryRpm(e.target.value)}
-                                />
-                            </div>
-                            <div className="grid gap-1">
-                                <Label className="text-xs">Torque (Nm)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    placeholder="0.0"
-                                    value={telemetryTorque}
-                                    onChange={(e) => setTelemetryTorque(e.target.value)}
-                                />
-                            </div>
-                            <div className="grid gap-1">
-                                <Label className="text-xs">Puissance (kW)</Label>
-                                <Input
-                                    type="number"
-                                    step="0.1"
-                                    placeholder="0.0"
-                                    value={telemetryPower}
-                                    onChange={(e) => setTelemetryPower(e.target.value)}
+                                    value={toolWear}
+                                    onChange={(e) => setToolWear(e.target.value)}
                                 />
                             </div>
                         </div>

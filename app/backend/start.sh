@@ -42,45 +42,13 @@ PY
 echo "✅ Database is ready!"
 
 # Run Alembic migrations
-echo "🔧 Running database migrations (Alembic)..."
-
-# If alembic_version table doesn't exist yet, stamp the current head
-python - <<'PY'
-import os
-import sys
-import asyncio
-import asyncpg
-
-async def main():
-    url = os.getenv("DATABASE_URL")
-    if not url:
-        print("DATABASE_URL is not set", file=sys.stderr)
-        sys.exit(1)
-    pg_url = url.replace("postgresql+asyncpg://", "postgresql://")
-    try:
-        conn = await asyncpg.connect(pg_url)
-        try:
-            row = await conn.fetchrow("SELECT to_regclass('public.alembic_version')")
-            if row[0] is None:
-                sys.exit(2)
-            sys.exit(0)
-        finally:
-            await conn.close()
-    except Exception as e:
-        print(f"Error checking alembic version: {e}", file=sys.stderr)
-        sys.exit(1)
-
-if __name__ == "__main__":
-    asyncio.run(main())
-PY
-
-STATUS=$?
-if [ "$STATUS" -eq 2 ]; then
-  echo "🧷 alembic_version missing: stamping head..."
-  alembic stamp head
-fi
-
+echo "🔄 Running database migrations..."
+# DB was initialised without Alembic tracking (migrations were skipped).
+# Stamp at the last migration whose DDL already exists in the DB so that
+# only the new rename_telemetry_cols + merge_and_fix_telemetry migrations run.
+alembic stamp add_requested_by
 alembic upgrade head
+echo "✅ Migrations applied!"
 
 echo "🎉 Starting FastAPI application..."
 exec uvicorn main:app --host 0.0.0.0 --port 8000 --reload
