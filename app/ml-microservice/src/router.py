@@ -22,7 +22,7 @@ class TelemetryInput(BaseModel):
     torque:             float
     tool_wear:          int
     machine_id:         Optional[int] = -1
-    _logs:              Optional[List[Dict]] = None
+    telemetry_logs:     Optional[List[Dict]] = None
 
     class Config:
         populate_by_name = True
@@ -153,7 +153,7 @@ async def predict_all(data: TelemetryInput) -> AllPredictionsResponse:
         "torque":             data.torque,
         "tool_wear":          data.tool_wear,
         "machine_id":         data.machine_id if data.machine_id is not None else -1,
-        "_logs":              data._logs or [],
+        "telemetry_logs":     data.telemetry_logs or [],
     }
 
     try:

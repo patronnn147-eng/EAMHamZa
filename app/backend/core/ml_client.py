@@ -88,7 +88,7 @@ class MLClient:
             "machine_id":         machine_id,
         }
         if telemetry_logs:
-            payload["_logs"] = telemetry_logs
+            payload["telemetry_logs"] = telemetry_logs
         response = await client.post("/api/v1/ml/predict-all", json=payload)
         return response.json()
     

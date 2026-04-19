@@ -15,8 +15,8 @@ class FeatureStore:
     RANGES = {
         'air_temperature': (250, 350),       # Kelvin
         'process_temperature': (250, 400),   # Kelvin
-        'rotational_speed': (0, 3000),      # RPM
-        'torque': (0, 100),                 # Nm
+        'rotational_speed': (0, 10000),     # RPM
+        'torque': (0, 1000),               # Nm
         'tool_wear': (0, 300),             # minutes
     }
     

@@ -50,11 +50,11 @@ class WorkOrderCompletePayload(BaseModel):
     act_recommendations: Optional[str] = None
     
     # Machine Telemetry fields (all optional)
-    telemetry_temperature: Optional[float] = None
-    telemetry_vibration: Optional[float] = None
-    telemetry_rpm: Optional[int] = None
-    telemetry_torque: Optional[float] = None
-    telemetry_power: Optional[float] = None
+    air_temperature: Optional[float] = None
+    process_temperature: Optional[float] = None
+    rotational_speed: Optional[int] = None
+    torque: Optional[float] = None
+    tool_wear: Optional[int] = None
     telemetry_notes: Optional[str] = None
 
 
@@ -248,21 +248,21 @@ async def complete_work_order(
         
         # Save telemetry if any telemetry field is provided
         if any([
-            payload.telemetry_temperature,
-            payload.telemetry_vibration,
-            payload.telemetry_rpm,
-            payload.telemetry_torque,
-            payload.telemetry_power,
+            payload.air_temperature,
+            payload.process_temperature,
+            payload.rotational_speed,
+            payload.torque,
+            payload.tool_wear,
         ]):
             telemetry = MachineTelemetry(
                 machine_id=wo.machine_id,
                 work_order_id=wo.id,
                 technician_id=current_user.id,
-                air_temperature=payload.telemetry_temperature or 0,
-                process_temperature=payload.telemetry_vibration or 0,
-                rotational_speed=payload.telemetry_rpm or 0,
-                torque=payload.telemetry_torque or 0,
-                tool_wear=payload.telemetry_power or 0,
+                air_temperature=payload.air_temperature or 0,
+                process_temperature=payload.process_temperature or 0,
+                rotational_speed=payload.rotational_speed or 0,
+                torque=payload.torque or 0,
+                tool_wear=payload.tool_wear or 0,
                 recorded_at=now,
                 notes=payload.telemetry_notes,
             )

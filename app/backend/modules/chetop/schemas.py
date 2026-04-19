@@ -103,3 +103,11 @@ class WorkOrderCompletePayload(BaseModel):
     check_verification_method: Optional[str] = None
     act_preventive_actions: Optional[str] = None
     act_recommendations: Optional[str] = None
+    
+    # Telemetry for ML - Required after work order completion
+    # Technician inputs these post-work order completion
+    air_temperature: Optional[float] = None  # Kelvin (e.g., 295.5)
+    process_temperature: Optional[float] = None  # Kelvin (e.g., 310.5)
+    rotational_speed: Optional[int] = None  # RPM (e.g., 1450)
+    torque: Optional[float] = None  # Newton-meters (e.g., 42.5)
+    tool_wear: Optional[int] = None  # minutes (e.g., 15)

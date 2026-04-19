@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ML Capability — EAM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:     #0d0d0d;
+    --paper:   #f5f1eb;
+    --amber:   #e8650a;
+    --amber-lt:#fde8d6;
+    --rule:    rgba(13,13,13,.12);
+    --mono:    'DM Mono', monospace;
+    --serif:   'DM Serif Display', serif;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--mono);
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+  }
+
+  /* ── CARD ─────────────────────────────────────────── */
+  .card {
+    max-width: 780px;
+    width: 100%;
+    border: 1.5px solid var(--ink);
+    position: relative;
+    overflow: hidden;
+    animation: reveal .7s cubic-bezier(.22,1,.36,1) both;
+  }
+
+  @keyframes reveal {
+    from { opacity:0; transform: translateY(24px); }
+    to   { opacity:1; transform: translateY(0); }
+  }
+
+  /* diagonal grain overlay */
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(
+        -45deg,
+        transparent,
+        transparent 3px,
+        rgba(13,13,13,.018) 3px,
+        rgba(13,13,13,.018) 4px
+      );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── HEADER ───────────────────────────────────────── */
+  .card-header {
+    background: var(--ink);
+    color: var(--paper);
+    padding: 1.4rem 2rem 1.2rem;
+    display: flex;
+    align-items: baseline;
+    gap: 1.2rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .badge {
+    font-size: .6rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    background: var(--amber);
+    color: #fff;
+    padding: .25rem .6rem;
+    font-weight: 500;
+    flex-shrink: 0;
+    align-self: center;
+  }
+
+  .card-title {
+    font-family: var(--serif);
+    font-size: 1.55rem;
+    line-height: 1.1;
+    font-weight: 400;
+  }
+
+  /* ── SENSORS STRIP ────────────────────────────────── */
+  .sensors {
+    display: flex;
+    border-bottom: 1.5px solid var(--ink);
+    position: relative;
+    z-index: 1;
+  }
+
+  .sensor {
+    flex: 1;
+    padding: .7rem .9rem;
+    border-right: 1px solid var(--rule);
+    display: flex;
+    flex-direction: column;
+    gap: .2rem;
+    animation: reveal .7s cubic-bezier(.22,1,.36,1) both;
+  }
+  .sensor:last-child { border-right: none; }
+  .sensor:nth-child(1) { animation-delay: .08s }
+  .sensor:nth-child(2) { animation-delay: .14s }
+  .sensor:nth-child(3) { animation-delay: .20s }
+  .sensor:nth-child(4) { animation-delay: .26s }
+  .sensor:nth-child(5) { animation-delay: .32s }
+
+  .sensor-num {
+    font-size: .58rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 500;
+  }
+
+  .sensor-name {
+    font-size: .68rem;
+    line-height: 1.3;
+    font-weight: 400;
+    color: var(--ink);
+    opacity: .75;
+  }
+
+  /* ── PARAGRAPH ────────────────────────────────────── */
+  .card-body {
+    padding: 2rem 2rem 1.6rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  .drop-cap::first-letter {
+    font-family: var(--serif);
+    font-size: 3.8rem;
+    line-height: .78;
+    float: left;
+    margin-right: .12em;
+    color: var(--amber);
+  }
+
+  .card-body p {
+    font-size: .88rem;
+    line-height: 1.85;
+    font-weight: 300;
+    color: var(--ink);
+  }
+
+  /* ── CAPABILITIES GRID ────────────────────────────── */
+  .capabilities {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    border-top: 1.5px solid var(--ink);
+    position: relative;
+    z-index: 1;
+  }
+
+  .cap {
+    padding: 1.1rem 1.2rem;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    animation: reveal .7s cubic-bezier(.22,1,.36,1) both;
+  }
+  .cap:nth-child(3n) { border-right: none; }
+  .cap:nth-child(n+4) { border-bottom: none; }
+  .cap:nth-child(1) { animation-delay: .10s }
+  .cap:nth-child(2) { animation-delay: .16s }
+  .cap:nth-child(3) { animation-delay: .22s }
+  .cap:nth-child(4) { animation-delay: .28s }
+  .cap:nth-child(5) { animation-delay: .34s }
+  .cap:nth-child(6) { animation-delay: .40s }
+
+  .cap-label {
+    font-size: .58rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber);
+    font-weight: 500;
+    margin-bottom: .4rem;
+  }
+
+  .cap-value {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    line-height: 1.25;
+    font-weight: 400;
+  }
+
+  .cap-sub {
+    font-size: .65rem;
+    color: var(--ink);
+    opacity: .5;
+    margin-top: .3rem;
+    line-height: 1.4;
+    font-weight: 300;
+  }
+
+  /* ── SCORE BAR ────────────────────────────────────── */
+  .score-section {
+    border-top: 1.5px solid var(--ink);
+    padding: 1.4rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    position: relative;
+    z-index: 1;
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .score-label {
+    font-size: .58rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    opacity: .5;
+    white-space: nowrap;
+  }
+
+  .score-track {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,.12);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .score-fill {
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 72%;
+    background: var(--amber);
+    animation: grow 1.2s cubic-bezier(.22,1,.36,1) .5s both;
+    transform-origin: left;
+  }
+  @keyframes grow {
+    from { width: 0; }
+    to   { width: 72%; }
+  }
+
+  .score-value {
+    font-family: var(--serif);
+    font-size: 1.9rem;
+    line-height: 1;
+    color: var(--amber);
+  }
+
+  .score-desc {
+    font-size: .62rem;
+    font-weight: 300;
+    opacity: .55;
+    white-space: nowrap;
+  }
+
+  /* ── RESPONSIVE ───────────────────────────────────── */
+  @media (max-width: 600px) {
+    .sensors { flex-wrap: wrap; }
+    .sensor  { flex: 1 1 33%; }
+    .capabilities { grid-template-columns: 1fr 1fr; }
+    .cap:nth-child(2n) { border-right: none; }
+    .cap:nth-child(n+5) { border-bottom: none; }
+    .score-section { flex-wrap: wrap; gap: .8rem; }
+  }
+</style>
+</head>
+<body>
+
+<article class="card">
+
+  <!-- HEADER -->
+  <header class="card-header">
+    <span class="badge">AI System</span>
+    <h1 class="card-title">What the machine knows</h1>
+  </header>
+
+  <!-- 5 SENSORS -->
+  <div class="sensors">
+    <div class="sensor">
+      <span class="sensor-num">01</span>
+      <span class="sensor-name">Air Temperature</span>
+    </div>
+    <div class="sensor">
+      <span class="sensor-num">02</span>
+      <span class="sensor-name">Process Temperature</span>
+    </div>
+    <div class="sensor">
+      <span class="sensor-num">03</span>
+      <span class="sensor-name">Rotation Speed</span>
+    </div>
+    <div class="sensor">
+      <span class="sensor-num">04</span>
+      <span class="sensor-name">Torque</span>
+    </div>
+    <div class="sensor">
+      <span class="sensor-num">05</span>
+      <span class="sensor-name">Tool Wear</span>
+    </div>
+  </div>
+
+  <!-- PARAGRAPH -->
+  <div class="card-body">
+    <p class="drop-cap">
+      Our AI reads five sensors on each machine and from those five numbers alone it can tell you
+      whether a failure is coming, what type it is, how many days are left, whether the machine
+      is behaving abnormally right now, and when to schedule maintenance. With enough history it
+      also tracks how health has evolved over time, filters out sensor noise, and blends every
+      signal into one unified score — <em>0 to 100</em>. The higher it is, the healthier the machine.
+      The lower it drops, the faster you need to act.
+    </p>
+  </div>
+
+  <!-- CAPABILITY GRID -->
+  <div class="capabilities">
+    <div class="cap">
+      <div class="cap-label">Failure Risk</div>
+      <div class="cap-value">Probability</div>
+      <div class="cap-sub">0 – 100% chance of failure in the near term</div>
+    </div>
+    <div class="cap">
+      <div class="cap-label">Failure Type</div>
+      <div class="cap-value">5 Failure Modes</div>
+      <div class="cap-sub">TWF · HDF · PWF · OSF · RNF — each scored</div>
+    </div>
+    <div class="cap">
+      <div class="cap-label">Time Left</div>
+      <div class="cap-value">Days to Failure</div>
+      <div class="cap-sub">Estimated remaining useful life in days</div>
+    </div>
+    <div class="cap">
+      <div class="cap-label">Anomaly</div>
+      <div class="cap-value">Normal / Abnormal</div>
+      <div class="cap-sub">Flags readings that deviate from baseline</div>
+    </div>
+    <div class="cap">
+      <div class="cap-label">Priority</div>
+      <div class="cap-value">Work Order Level</div>
+      <div class="cap-sub">Low · Medium · High · Critical</div>
+    </div>
+    <div class="cap">
+      <div class="cap-label">Scheduling</div>
+      <div class="cap-value">Next Maintenance</div>
+      <div class="cap-sub">Optimal window in days to book the next job</div>
+    </div>
+  </div>
+
+  <!-- HEALTH SCORE -->
+  <div class="score-section">
+    <span class="score-label">Unified<br>Health Score</span>
+    <div class="score-track"><div class="score-fill"></div></div>
+    <span class="score-value">72</span>
+    <span class="score-desc">out of 100 —<br>Good condition</span>
+  </div>
+
+</article>
+
+</body>
+</html>
