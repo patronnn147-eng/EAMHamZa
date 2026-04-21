@@ -25,26 +25,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     ArrowLeft,
     MapPin,
-    Wrench,
     History,
     FileText,
     AlertCircle,
     Activity,
-    Calendar,
     User,
-    BarChart2,
     Beaker,
+    Brain,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Machine, Intervention } from '@/lib/types';
 
-import MachineHealthPanel from './machines/components/MachineHealthPanel';
-import { ReliabilityTab } from './machines/components/ReliabilityTab';
-import { computeHealthScoreFromML } from './machines/utils/healthScore';
-import { computeReliabilityMetrics } from './machines/utils/reliabilityMetrics';
-import MachineQRCode from '@/modules/shared/MachineQRCode';
-import { PredictivePanel } from './machines/components/PredictivePanel';
+import { MLIntelligenceTab } from './machines/components/MLIntelligenceTab';
 import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
 
 interface MLPrediction {
@@ -222,26 +215,6 @@ export default function MachineDetailPage() {
         return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     }).length;
 
-    // Unified ML-Informed Health (Single Source of Truth)
-    const health = computeHealthScoreFromML(machine, mlPrediction);
-    
-    // Reliability metrics (Calculated from history or ML if available)
-    const reliability = computeReliabilityMetrics(interventions, 90);
-    
-    if (mlPrediction && mlPrediction.reliability_score !== undefined) {
-        (reliability as any).reliabilityScore = (mlPrediction as any).reliability_score ?? 100;
-        (reliability as any).mtbf = (mlPrediction as any).mtbf_pred;
-        (reliability as any).mttr = (mlPrediction as any).mttr_pred;
-        (reliability as any).uptimePct = (mlPrediction as any).availability_pred ?? 100;
-        
-        // Update classification if needed for new machines (score 100)
-        if (reliability.reliabilityScore >= 95) {
-            (reliability as any).classification = 'Excellent';
-            (reliability as any).colorClass = 'from-emerald-400 to-emerald-600';
-        }
-    }
-
-
     const getMlRiskBadge = (prediction: MLPrediction | null) => {
         if (!prediction) return null;
         const config: Record<string, { label: string; className: string }> = {
@@ -298,174 +271,79 @@ export default function MachineDetailPage() {
                 </div>
             </div>
 
-            {/* ── Main Layout: Content (2/3) + Sidebar (1/3) ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ── Full-width Tabs ── */}
+            <Tabs defaultValue="ml" className="w-full">
+                <TabsList className="grid grid-cols-2 w-full max-w-sm">
+                    <TabsTrigger value="ml" className="flex items-center gap-1.5 text-sm">
+                        <Brain className="h-3.5 w-3.5" /> ML Intelligence
+                    </TabsTrigger>
+                    <TabsTrigger value="history" className="flex items-center gap-1.5 text-sm">
+                        <History className="h-3.5 w-3.5" /> Historique
+                    </TabsTrigger>
+                </TabsList>
 
-                {/* LEFT COLUMN: Tabs */}
-                <div className="lg:col-span-2">
-                    <Tabs defaultValue="overview" className="w-full">
-                        <TabsList className="grid grid-cols-3 w-full max-w-lg">
-                            <TabsTrigger value="overview" className="flex items-center gap-1.5 text-sm">
-                                <Activity className="h-3.5 w-3.5" /> Aperçu
-                            </TabsTrigger>
-                            <TabsTrigger value="reliability" className="flex items-center gap-1.5 text-sm">
-                                <BarChart2 className="h-3.5 w-3.5" /> Fiabilité
-                            </TabsTrigger>
-                            <TabsTrigger value="history" className="flex items-center gap-1.5 text-sm">
-                                <History className="h-3.5 w-3.5" /> Historique
-                            </TabsTrigger>
-                        </TabsList>
+                {/* ML Intelligence Tab — full width */}
+                <TabsContent value="ml" className="mt-4">
+                    <MLIntelligenceTab
+                        machine={machine}
+                        mlPrediction={mlPrediction as any}
+                        interventions={interventions}
+                    />
+                </TabsContent>
 
-                        {/* Overview Tab */}
-                        <TabsContent value="overview" className="mt-4 space-y-4">
-                            {machine.image_url && (
-                                <div className="rounded-xl overflow-hidden shadow-sm border border-blue-800/50 h-52">
-                                    <img src={machine.image_url} alt={machine.nom} className="w-full h-full object-cover" />
+                {/* History Tab */}
+                <TabsContent value="history" className="mt-4">
+                    {[machine.emplacement, machine.zone, machine.sous_zone].some(Boolean) && (
+                        <div className="flex items-center gap-2 mb-4 text-sm text-blue-300">
+                            <MapPin className="h-4 w-4 text-blue-400 shrink-0" />
+                            {[machine.emplacement, machine.zone, machine.sous_zone].filter(Boolean).join(' · ')}
+                        </div>
+                    )}
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2 font-bold text-blue-50">
+                                <History className="h-4 w-4 text-blue-300" />
+                                Historique des Interventions
+                                <Badge variant="secondary" className="ml-auto">{interventions.length}</Badge>
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            {interventions.length === 0 ? (
+                                <div className="text-center py-12 text-blue-400">
+                                    <History className="h-10 w-10 mx-auto mb-3 opacity-40" />
+                                    <p>Aucune intervention enregistrée</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-3">
+                                    {interventions.map((intervention) => (
+                                        <div key={intervention.id} className="p-4 border border-blue-800/50 rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-colors">
+                                            <div className="flex items-start justify-between mb-2">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-blue-600 shrink-0" />
+                                                    <p className="font-semibold text-sm text-blue-50">Intervention #{intervention.id}</p>
+                                                </div>
+                                                <p className="text-xs text-blue-400 shrink-0">
+                                                    {new Date(intervention.date_intervention).toLocaleDateString('fr-FR')}
+                                                </p>
+                                            </div>
+                                            {intervention.technicien_id && (
+                                                <p className="text-xs text-blue-300 flex items-center gap-1 mb-1.5">
+                                                    <User className="h-3 w-3" /> Technicien ID: {intervention.technicien_id}
+                                                </p>
+                                            )}
+                                            {intervention.rapport && (
+                                                <p className="text-sm text-blue-200 line-clamp-3 whitespace-pre-wrap leading-relaxed">
+                                                    {intervention.rapport}
+                                                </p>
+                                            )}
+                                        </div>
+                                    ))}
                                 </div>
                             )}
-
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-base flex items-center gap-2 font-bold">
-                                        <Wrench className="h-4 w-4 text-blue-300" />
-                                        Informations Techniques
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
-                                        {[
-                                            { label: 'Type', value: machine.type },
-                                            { label: 'Emplacement', value: machine.emplacement },
-                                            { label: 'Zone', value: machine.zone },
-                                            { label: 'Sous-zone', value: machine.sous_zone },
-                                            { label: 'Ordre', value: machine.ordre },
-                                        ].filter(f => f.value).map((field) => (
-                                            <div key={field.label}>
-                                                <dt className="font-medium text-blue-300">{field.label}</dt>
-                                                <dd className="mt-0.5 text-white">{field.value}</dd>
-                                            </div>
-                                        ))}
-                                        {machine.date_derniere_maintenance && (
-                                            <div>
-                                                <dt className="font-medium text-blue-300 flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" /> Dernière maintenance
-                                                </dt>
-                                                <dd className="mt-0.5 text-white">
-                                                    {new Date(machine.date_derniere_maintenance).toLocaleDateString('fr-FR')}
-                                                </dd>
-                                            </div>
-                                        )}
-                                        {machine.date_prochaine_maintenance && (
-                                            <div>
-                                                <dt className="font-medium text-blue-300 flex items-center gap-1">
-                                                    <Calendar className="h-3 w-3" /> Prochaine maintenance
-                                                </dt>
-                                                <dd className={`mt-0.5 font-semibold ${new Date(machine.date_prochaine_maintenance) < new Date() ? 'text-red-600' : 'text-amber-600'}`}>
-                                                    {new Date(machine.date_prochaine_maintenance).toLocaleDateString('fr-FR')}
-                                                </dd>
-                                            </div>
-                                        )}
-                                    </dl>
-                                </CardContent>
-                            </Card>
-
-                            {/* Stats row */}
-                            <div className="grid grid-cols-3 gap-4">
-                                {[
-                                    { label: 'Interventions (30j)', value: recentInterventionsCount, color: 'text-blue-600' },
-                                    { label: 'OT Ouverts', value: openWorkOrdersCount, color: openWorkOrdersCount > 0 ? 'text-red-600' : 'text-blue-200' },
-                                    { label: 'Total historique', value: interventions.length, color: 'text-blue-200' },
-                                ].map((stat) => (
-                                    <Card key={stat.label} className="text-center p-4">
-                                        <div className={`text-3xl font-black ${stat.color}`}>{stat.value}</div>
-                                        <div className="text-xs text-blue-300 mt-1">{stat.label}</div>
-                                    </Card>
-                                ))}
-                            </div>
-                        </TabsContent>
-
-                        {/* Reliability Tab */}
-                        <TabsContent value="reliability" className="space-y-6 mt-4">
-                            <PredictivePanel machineId={Number(id)} />
-                            <ReliabilityTab metrics={reliability} machineName={machine.nom} />
-                        </TabsContent>
-
-                        {/* History Tab */}
-                        <TabsContent value="history" className="mt-4">
-                            <Card>
-                                <CardHeader className="pb-2">
-                                    <CardTitle className="text-base flex items-center gap-2 font-bold text-blue-50">
-                                        <History className="h-4 w-4 text-blue-300" />
-                                        Historique des Interventions
-                                        <Badge variant="secondary" className="ml-auto">{interventions.length}</Badge>
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    {interventions.length === 0 ? (
-                                        <div className="text-center py-12 text-blue-400">
-                                            <History className="h-10 w-10 mx-auto mb-3 opacity-40" />
-                                            <p>Aucune intervention enregistrée</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-3">
-                                            {interventions.map((intervention) => (
-                                                <div key={intervention.id} className="p-4 border border-blue-800/50 rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-colors">
-                                                    <div className="flex items-start justify-between mb-2">
-                                                        <div className="flex items-center gap-2">
-                                                            <FileText className="h-4 w-4 text-blue-600 shrink-0" />
-                                                            <p className="font-semibold text-sm text-blue-50">Intervention #{intervention.id}</p>
-                                                        </div>
-                                                        <p className="text-xs text-blue-400 shrink-0">
-                                                            {new Date(intervention.date_intervention).toLocaleDateString('fr-FR')}
-                                                        </p>
-                                                    </div>
-                                                    {intervention.technicien_id && (
-                                                        <p className="text-xs text-blue-300 flex items-center gap-1 mb-1.5">
-                                                            <User className="h-3 w-3" /> Technicien ID: {intervention.technicien_id}
-                                                        </p>
-                                                    )}
-                                                    {intervention.rapport && (
-                                                        <p className="text-sm text-blue-200 line-clamp-3 whitespace-pre-wrap leading-relaxed">
-                                                            {intervention.rapport}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        </TabsContent>
-                    </Tabs>
-                </div>
-
-                {/* RIGHT COLUMN: Health & Actions */}
-                <div className="lg:col-span-1 space-y-6">
-                    <div className="sticky top-6 space-y-4">
-                        <MachineHealthPanel health={health} />
-
-                        {/* Location card */}
-                        <Card className="border-0 shadow-sm">
-                            <CardContent className="pt-4">
-                                <div className="flex items-start gap-3">
-                                    <MapPin className="h-4 w-4 text-blue-400 mt-0.5 shrink-0" />
-                                    <div className="text-sm">
-                                        <p className="font-medium text-blue-100">Localisation</p>
-                                        <p className="text-blue-300 mt-0.5">
-                                            {[machine.emplacement, machine.zone, machine.sous_zone].filter(Boolean).join(', ')}
-                                        </p>
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {/* QR Code */}
-                        <div>
-                            <MachineQRCode machine={machine} />
-                        </div>
-                    </div>
-                </div>
-            </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+            </Tabs>
 
             {/* Technician Status Update Dialog */}
             <Dialog open={statusDialogOpen} onOpenChange={setStatusDialogOpen}>

@@ -273,6 +273,13 @@ class MachineLearningService:
             # --- Model C: Mahalanobis Health Index ---
             model_c_out: Optional[Dict] = None
             hi_model = get_health_index_model()
+            # Global singleton is None until explicitly fitted externally.
+            # When it's absent, spin up a fresh local instance so that
+            # fit_and_score_history() can train on history[:-1] and score
+            # history[-1] on-the-fly.  Requires 11+ logs for a real result
+            # (10 training points → fit succeeds; < 11 returns dm2=0.0).
+            if hi_model is None and len(logs) >= 2:
+                hi_model = MahalanobisHealthIndex()
             if hi_model is not None:
                 if len(logs) >= 2:
                     history_matrix = np.array([
@@ -334,7 +341,7 @@ class MachineLearningService:
             # --- Model M: MOMENT Foundation Model ---
             model_m_anomaly_out: Optional[Dict] = None
             model_m_rul_out:     Optional[Dict] = None
-            if _MOMENT_AVAILABLE and len(logs) >= 8:
+            if _MOMENT_AVAILABLE and len(logs) >= 3:
                 try:
                     detector = get_moment_anomaly_detector()
                     if detector is not None:
@@ -381,11 +388,17 @@ class MachineLearningService:
                 kalman_state = get_kalman_estimator().update(kalman_obs)
 
             # --- DST Fusion ---
-            # Filter out None and NaN model outputs
+            # Filter out None, NaN health_index, and Mahal placeholder outputs
+            # (score_source "no_model"/"fallback" means <11 logs — the returned
+            # health_index=100 is a stub, not a real measurement; including it
+            # would bias the fused score toward perfect health).
             valid_outputs = []
             for out in [model_a_out, model_b_out, model_c_out, model_e_out,
                         model_m_anomaly_out, model_m_rul_out]:
                 if out is not None:
+                    # Skip placeholder Mahal results
+                    if out.get("score_source") in ("no_model", "fallback"):
+                        continue
                     # Check for valid health_index (not NaN)
                     hi = out.get("health_index")
                     if hi is not None and not np.isnan(hi):

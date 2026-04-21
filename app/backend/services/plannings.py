@@ -35,7 +35,10 @@ class PlanningsService:
     async def get_by_id(self, obj_id: int) -> Optional[Plannings]:
         """Get plannings by ID"""
         try:
-            query = select(Plannings).where(Plannings.id == obj_id)
+            query = select(Plannings).options(
+            selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
+            selectinload(Plannings.planning_machines)
+        ).where(Plannings.id == obj_id)
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:

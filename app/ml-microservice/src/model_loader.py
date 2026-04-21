@@ -5,6 +5,11 @@ Loads trained .pkl models at startup
 import os
 import joblib
 import logging
+import warnings
+
+# Suppress sklearn minor-version mismatch warnings (models may have been
+# trained with a slightly different sklearn patch; they still work fine).
+warnings.filterwarnings("ignore", category=UserWarning, module="sklearn")
 
 logger = logging.getLogger(__name__)
 

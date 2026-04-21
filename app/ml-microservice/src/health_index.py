@@ -176,7 +176,9 @@ class MahalanobisHealthIndex:
             Extra key: score_source ("machine_baseline" | "global_baseline" | "no_model")
         """
         history = np.asarray(history, dtype=float)
-        if len(history) < 10:
+        # fit() needs ≥10 training samples; train = history[:-1], so we need
+        # len(history) ≥ 11.  Below that, fall back to global model or return stub.
+        if len(history) < 11:
             if self._fitted:
                 result = self.score(history[-1])
                 result["score_source"] = "global_baseline"
