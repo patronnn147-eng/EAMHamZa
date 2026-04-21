@@ -15,7 +15,7 @@ from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
 from tasks.planning_emails import send_planning_assignment_emails
 from .schemas import PlanningResponse, PlanningCreateData
-from .helpers import verify_admin, send_planning_notifications, _serialize_planning_for_email
+from .helpers import verify_admin, send_planning_notifications, _serialize_planning_for_email, get_planning_with_users
 
 router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
 logger = logging.getLogger(__name__)
@@ -133,7 +133,11 @@ async def create_planning(
             if recipients:
                 send_planning_assignment_emails.delay(recipients, _serialize_planning_for_email(planning_response_data))
         
-        # Return simple dict to avoid greenlet_spawn issues
+        # Fetch assigned users and machines using helper function for accurate response
+        fresh_planning = await PlanningsService(db).get_by_id(planning_id)
+        planning_response_data = await get_planning_with_users(db, fresh_planning)
+        
+        # Return properly hydrated response
         return planning_response_data
         
     except HTTPException:
