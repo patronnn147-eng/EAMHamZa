@@ -196,25 +196,40 @@ export default function PlanningManagement() {
 
     if (planning) {
       setEditingPlanning(planning);
+
+      // Fetch fresh detail to guarantee assigned_users is fully populated
+      let freshPlanning = planning;
+      try {
+        const detailResp = await client.apiCall.invoke({
+          url: `/api/v1/plannings/${planning.id}`,
+          method: 'GET',
+        });
+        const raw = (detailResp as any)?.data ?? detailResp;
+        const candidate: Planning = (raw?.identifiant_planning ? raw : raw?.data ?? raw) as Planning;
+        if (candidate?.id) freshPlanning = candidate;
+      } catch {
+        // silently fall back to list data
+      }
+
       setFormData({
-        identifiant_planning: planning.identifiant_planning,
-        date_debut: toDateTimeLocalInputValue(planning.date_debut),
-        date_fin: toDateTimeLocalInputValue(planning.date_fin),
-        type: planning.type as 'MAINTENANCE' | 'SHIFT',
-        shift_type: planning.shift_type as 'MORNING' | 'NIGHT' | undefined,
-        chef_operation_id: planning.chef_operation_id,
-        chef_technique_id: planning.chef_technique_id,
-        zone_travail: planning.zone_travail || '',
-        sous_zone: (planning as any).sous_zone || '',
-        ordre: (planning as any).ordre || '',
+        identifiant_planning: freshPlanning.identifiant_planning,
+        date_debut: toDateTimeLocalInputValue(freshPlanning.date_debut),
+        date_fin: toDateTimeLocalInputValue(freshPlanning.date_fin),
+        type: freshPlanning.type as 'MAINTENANCE' | 'SHIFT',
+        shift_type: freshPlanning.shift_type as 'MORNING' | 'NIGHT' | undefined,
+        chef_operation_id: freshPlanning.chef_operation_id,
+        chef_technique_id: freshPlanning.chef_technique_id,
+        zone_travail: freshPlanning.zone_travail || '',
+        sous_zone: (freshPlanning as any).sous_zone || '',
+        ordre: (freshPlanning as any).ordre || '',
         technicien_ids: Array.from(
           new Set(
-            planning.assigned_users
+            (freshPlanning.assigned_users || [])
               .filter(u => u.role === 'TECHNICIEN')
               .map(u => u.id)
           )
         ),
-        machine_ids: Array.from(new Set(planning.machine_ids || [])),
+        machine_ids: Array.from(new Set(freshPlanning.machine_ids || [])),
       });
     } else {
       setEditingPlanning(null);
@@ -357,6 +372,7 @@ export default function PlanningManagement() {
         technicien_ids: Array.from(new Set(formData.technicien_ids)),
         machine_ids: Array.from(new Set(formData.machine_ids)),
       };
+      console.log('[PlanningManagement] submitting payload:', JSON.stringify(payload, null, 2));
 
       if (editingPlanning) {
         await client.apiCall.invoke({

@@ -188,6 +188,28 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
                 "shift_type": shift_val,
             })
 
+    # If planning_utilisateurs had no rows, recover chef users from the plannings table itself
+    # (handles plannings whose bridge rows were wiped by a past bug)
+    if not assigned_users:
+        chef_ids = list(filter(None, [planning.chef_operation_id, planning.chef_technique_id]))
+        if chef_ids:
+            chefs_result = await db.execute(
+                select(Utilisateurs).where(Utilisateurs.id.in_(chef_ids))
+            )
+            for chef in chefs_result.scalars().all():
+                if chef.id in seen_user_ids:
+                    continue
+                seen_user_ids.add(chef.id)
+                role_val = chef.role.value if hasattr(chef.role, "value") else str(chef.role)
+                shift_val = chef.shift_type.value if getattr(chef, "shift_type", None) and hasattr(chef.shift_type, "value") else (str(chef.shift_type) if getattr(chef, "shift_type", None) else None)
+                assigned_users.append({
+                    "id": chef.id,
+                    "nom": chef.nom,
+                    "email": chef.email,
+                    "role": role_val,
+                    "shift_type": shift_val,
+                })
+
     if pm_loaded:
         machine_ids = [pm.machine_id for pm in planning.planning_machines]
     else:

@@ -177,6 +177,12 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "explanations": prediction.get("explanations", []),
         "is_anomaly": prediction.get("is_anomaly", False),
         "predicted_priority": prediction.get("predicted_priority"),
+        # Latest telemetry readings
+        "air_temperature": _air,
+        "process_temperature": _proc,
+        "rotational_speed": _rpm,
+        "torque": _torq,
+        "tool_wear": int(_wear),
     }
 
     return response

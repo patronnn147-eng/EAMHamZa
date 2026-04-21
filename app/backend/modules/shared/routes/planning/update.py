@@ -61,7 +61,8 @@ async def update_planning(
 ):
     """Update a planning (admin only)"""
     await verify_admin(current_user)
-    
+    logger.info(f"UPDATE planning {planning_id} — technicien_ids received: {data.technicien_ids}")
+
     try:
         service = PlanningsService(db)
         planning = await service.get_by_id(planning_id)
@@ -121,7 +122,14 @@ async def update_planning(
             "machine_ids": [],
         }
 
-        if data.machine_ids is not None:
+        # Fetch existing machine assignments before any modification
+        existing_machines_result = await db.execute(
+            select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning_id)
+        )
+        existing_machine_ids = [row[0] for row in existing_machines_result.fetchall()]
+
+        if data.machine_ids is not None and len(data.machine_ids) > 0:
+            # Explicit non-empty list — replace with new set
             await db.execute(
                 delete(Planning_machines).where(Planning_machines.planning_id == planning_id)
             )
@@ -137,25 +145,37 @@ async def update_planning(
             await db.commit()
             planning_response_data["machine_ids"] = sorted(set(data.machine_ids))
         else:
-            machines_result = await db.execute(
-                select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning_id)
-            )
-            planning_response_data["machine_ids"] = [row[0] for row in machines_result.fetchall()]
+            # Empty or None — preserve existing machines
+            planning_response_data["machine_ids"] = existing_machine_ids
 
         all_assigned_users: List[int] = []
-        
-        if (
-            data.chef_operation_id is not None
-            or data.chef_technique_id is not None
-            or data.technicien_ids is not None
-        ):
+
+        if True:  # always rebuild planning_utilisateurs to repair any missing rows
+            # Fetch existing assignments so we can preserve technicians when not explicitly changed
+            existing_result = await db.execute(
+                select(Planning_utilisateurs.utilisateur_id).where(
+                    Planning_utilisateurs.planning_id == planning_id
+                )
+            )
+            existing_assigned_ids = {row[0] for row in existing_result.fetchall()}
+            old_chef_ids = set(filter(None, [original_chef_operation_id, original_chef_technique_id]))
+            existing_tech_ids = existing_assigned_ids - old_chef_ids
+
             user_ids_set = set()
-            if data.chef_operation_id:
-                user_ids_set.add(data.chef_operation_id)
-            if data.chef_technique_id:
-                user_ids_set.add(data.chef_technique_id)
+
+            # Use new chef IDs if provided, otherwise keep originals
+            effective_chef_op = data.chef_operation_id if data.chef_operation_id is not None else original_chef_operation_id
+            effective_chef_tech = data.chef_technique_id if data.chef_technique_id is not None else original_chef_technique_id
+            if effective_chef_op:
+                user_ids_set.add(effective_chef_op)
+            if effective_chef_tech:
+                user_ids_set.add(effective_chef_tech)
+
+            # Use new technician list if non-empty, otherwise preserve existing technicians
             if data.technicien_ids:
                 user_ids_set.update(data.technicien_ids)
+            else:
+                user_ids_set.update(existing_tech_ids)
 
             all_assigned_users = list(user_ids_set)
 

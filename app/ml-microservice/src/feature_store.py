@@ -11,13 +11,15 @@ logger = logging.getLogger(__name__)
 class FeatureStore:
     """Extract and manage features for ML models."""
     
-    # Feature ranges for validation
+    # Feature ranges for validation.
+    # Wide enough to accept both Kelvin-scale data (250-400 K) and legacy
+    # Celsius-scale data already stored in the DB (0-500°C industrial range).
     RANGES = {
-        'air_temperature': (250, 350),       # Kelvin
-        'process_temperature': (250, 400),   # Kelvin
-        'rotational_speed': (0, 10000),     # RPM
-        'torque': (0, 1000),               # Nm
-        'tool_wear': (0, 300),             # minutes
+        'air_temperature': (0, 2000),        # K or °C — accept full industrial range
+        'process_temperature': (0, 5000),    # K or °C — high-temp processes allowed
+        'rotational_speed': (0, 10000),      # RPM
+        'torque': (0, 1000),                 # Nm
+        'tool_wear': (0, 300),               # minutes
     }
     
     # Default values
