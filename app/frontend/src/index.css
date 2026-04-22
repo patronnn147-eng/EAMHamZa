@@ -225,3 +225,63 @@ body.is-scrolling {
 
 /* .no-scrollbar is intentionally a no-op — the global overlay scrollbar
    behavior above applies everywhere. */
+
+/* Glass Panel Base */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Glass Panel Hover */
+.glass-panel-hover {
+  transition: all 0.3s ease;
+}
+.glass-panel-hover:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(0, 255, 242, 0.25);
+  box-shadow: 0 0 20px rgba(0, 255, 242, 0.1);
+}
+
+/* Cyan Glow Text */
+.text-cyan-glow {
+  color: #00fff2;
+  text-shadow: 0 0 10px rgba(0, 255, 242, 0.5);
+}
+
+/* Cyan Accent Border */
+.border-cyan-accent {
+  border-color: #00fff2;
+}
+
+/* Input Glass */
+.input-glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: white;
+  transition: all 0.2s ease;
+}
+.input-glass:focus {
+  outline: none;
+  border-color: #00fff2;
+  box-shadow: 0 0 0 2px rgba(0, 255, 242, 0.15);
+}
+.input-glass::placeholder {
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* Button Cyan */
+.btn-cyan {
+  background: #00fff2;
+  color: #0a0a0f;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+.btn-cyan:hover {
+  background: #33fff6;
+  box-shadow: 0 0 20px rgba(0, 255, 242, 0.4);
+}
