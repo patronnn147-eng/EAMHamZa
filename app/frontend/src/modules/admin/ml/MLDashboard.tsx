@@ -19,6 +19,12 @@ interface MLStats {
     new_data_points: number;
 }
 
+interface ModelMetrics {
+    roc_auc?: number;
+    pr_auc?: number;
+    f1_failure?: number;
+}
+
 interface RetrainResult {
     status: string;
     message: string;
@@ -27,6 +33,7 @@ interface RetrainResult {
 
 export default function MLDashboard() {
     const [stats, setStats] = useState<MLStats | null>(null);
+    const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
     const [loading, setLoading] = useState(true);
     const [retraining, setRetraining] = useState(false);
     const { toast } = useToast();
@@ -46,8 +53,23 @@ export default function MLDashboard() {
         }
     };
 
+    const fetchMetrics = async () => {
+        try {
+            const response = await fetch('/api/v1/ml/model/metrics');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.metrics) {
+                    setMetrics(data.metrics);
+                }
+            }
+        } catch (error) {
+            console.error('Failed to fetch model metrics:', error);
+        }
+    };
+
     useEffect(() => {
         fetchStats();
+        fetchMetrics();
     }, []);
 
     const handleRetrain = async () => {
@@ -127,7 +149,7 @@ export default function MLDashboard() {
                     </CardContent>
                 </Card>
 
-                {/* Model Precision (Mock for demo) */}
+                {/* Model Precision - Real metrics from backend */}
                 <Card className="border-green-100 shadow-sm">
                     <CardHeader className="pb-2">
                         <div className="flex items-center gap-2">
@@ -137,9 +159,28 @@ export default function MLDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-1">
-                            <span className="text-2xl font-bold">94.2%</span>
-                            <span className="text-xs text-blue-300">Global AUC-ROC Score</span>
-                            <Progress value={94} className="h-1.5 mt-2 bg-green-50 [&>div]:bg-green-500" />
+                            {metrics ? (
+                                <>
+                                    <span className="text-2xl font-bold">{(metrics.roc_auc || 0) * 100}%</span>
+                                    <span className="text-xs text-blue-300">ROC-AUC Score</span>
+                                    <Progress value={(metrics.roc_auc || 0) * 100} className="h-1.5 mt-2 bg-green-50 [&>div]:bg-green-500" />
+                                    <div className="mt-2 pt-2 border-t border-green-100 grid grid-cols-2 gap-2">
+                                        <div>
+                                            <span className="text-xs text-gray-500">PR-AUC</span>
+                                            <p className="text-sm font-semibold">{(metrics.pr_auc || 0).toFixed(3)}</p>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs text-gray-500">F1 (Failure)</span>
+                                            <p className="text-sm font-semibold">{(metrics.f1_failure || 0).toFixed(3)}</p>
+                                        </div>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="text-2xl font-bold">--</span>
+                                    <span className="text-xs text-blue-300">Chargement...</span>
+                                </>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

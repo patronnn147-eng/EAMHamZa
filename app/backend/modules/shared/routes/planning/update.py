@@ -10,6 +10,7 @@ from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
+from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
 from tasks.planning_emails import send_planning_assignment_emails
 from .schemas import PlanningResponse, PlanningUpdateData, UserOption
@@ -210,8 +211,23 @@ async def update_planning(
         fresh_planning = await PlanningsService(db).get_by_id(planning_id)
         updated_planning_data = await get_planning_with_users(db, fresh_planning)
         
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.PLANNING,
+                entity_id=planning_id,
+                old_values={"identifiant_planning": original_identifiant_planning,
+                            "date_debut": str(original_date_debut), "date_fin": str(original_date_fin),
+                            "type": original_type, "shift_type": original_shift_type},
+                new_values={k: str(v) if hasattr(v, "isoformat") else v for k, v in update_dict.items()},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=identifiant_planning,
+            )
+        except Exception:
+            logger.warning("Audit log failed for update planning %s", planning_id)
+
         return PlanningResponse(**updated_planning_data)
-        
+
     except HTTPException:
         raise
     except Exception as e:

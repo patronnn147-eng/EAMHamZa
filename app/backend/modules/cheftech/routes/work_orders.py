@@ -17,6 +17,7 @@ from models.utilisateurs import Utilisateurs
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.machines import Machines
+from services.audit import AuditService, AuditEntityType
 from services.notifications import NotificationsService
 from tasks.work_order_events import notify_work_order_assigned
 from ..schemas import WorkOrderResponse, WorkOrderAssignRequest
@@ -180,6 +181,19 @@ async def assign_work_order(
         assigned_order_ids.append(target_ordre.id)
 
     await db.commit()
+
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.WORK_ORDER,
+            entity_id=ordre_id,
+            old_values={"statut": "EN_ATTENTE"},
+            new_values={"statut": "ASSIGNÉ", "technicien_ids": data.technicien_ids, "machine_ids": machine_ids},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+            entity_name=ordre.titre,
+        )
+    except Exception:
+        logger.warning("Audit log failed for assign work order %s", ordre_id)
 
     notif_service = NotificationsService(db)
     notif_now = datetime.now(timezone.utc)

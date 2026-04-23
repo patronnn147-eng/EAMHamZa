@@ -11,6 +11,7 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings, PlanningType
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
+from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
 from tasks.planning_emails import send_planning_assignment_emails
@@ -137,9 +138,21 @@ async def create_planning(
         fresh_planning = await PlanningsService(db).get_by_id(planning_id)
         planning_response_data = await get_planning_with_users(db, fresh_planning)
         
-        # Return properly hydrated response
+        try:
+            await AuditService(db).log_create(
+                entity_type=AuditEntityType.PLANNING,
+                entity_id=planning_id,
+                new_values={"identifiant_planning": data.identifiant_planning, "type": data.type,
+                            "date_debut": str(data.date_debut), "date_fin": str(data.date_fin)},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=data.identifiant_planning,
+            )
+        except Exception:
+            logger.warning("Audit log failed for create planning %s", planning_id)
+
         return planning_response_data
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -226,8 +239,18 @@ async def delete_planning(
                 detail="Planning not found"
             )
         
+        try:
+            await AuditService(db).log_delete(
+                entity_type=AuditEntityType.PLANNING,
+                entity_id=planning_id,
+                user_id=current_user.id,
+                user_name=current_user.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for delete planning %s", planning_id)
+
         return {"message": "Planning deleted successfully", "id": planning_id}
-        
+
     except HTTPException:
         raise
     except Exception as e:

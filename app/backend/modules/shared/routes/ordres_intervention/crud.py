@@ -1,11 +1,15 @@
 import json
 import logging
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from core.auth import get_current_user
 from core.database import get_db
+from models.utilisateurs import Utilisateurs
+from services.audit import AuditService, AuditEntityType
 from services.ordres_intervention import Ordres_interventionService
 from ..ordres_intervention.schemas import (
     Ordres_interventionData,
@@ -31,7 +35,7 @@ async def query_ordres_interventions(
     db: AsyncSession = Depends(get_db),
 ):
     logger.debug(f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+
     service = Ordres_interventionService(db)
     try:
         query_dict = None
@@ -40,9 +44,9 @@ async def query_ordres_interventions(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -98,14 +102,14 @@ async def get_ordres_intervention(
     db: AsyncSession = Depends(get_db),
 ):
     logger.debug(f"Fetching ordres_intervention with id: {id}, fields={fields}")
-    
+
     service = Ordres_interventionService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Ordres_intervention with id {id} not found")
             raise HTTPException(status_code=404, detail="Ordres_intervention not found")
-        
+
         return result
     except HTTPException:
         raise
@@ -118,19 +122,33 @@ async def get_ordres_intervention(
 async def create_ordres_intervention(
     data: Ordres_interventionData,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Creating new ordres_intervention with data: {data}")
-    
+
     data.statut = "EN_ATTENTE"
     data.requested_at = datetime.now()
-    
+
     service = Ordres_interventionService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create ordres_intervention")
-        
+
         logger.info(f"Ordres_intervention created successfully with id: {result.id}")
+
+        try:
+            await AuditService(db).log_create(
+                entity_type=AuditEntityType.INTERVENTION,
+                entity_id=result.id,
+                new_values=data.model_dump(),
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=getattr(result, "titre", None),
+            )
+        except Exception:
+            logger.warning("Audit log failed for create intervention %s", result.id)
+
         return result
     except ValueError as e:
         logger.error(f"Validation error creating ordres_intervention: {str(e)}")
@@ -144,18 +162,30 @@ async def create_ordres_intervention(
 async def create_ordres_interventions_batch(
     request: Ordres_interventionBatchCreateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Batch creating {len(request.items)} ordres_interventions")
-    
+
     service = Ordres_interventionService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-        
+                try:
+                    await AuditService(db).log_create(
+                        entity_type=AuditEntityType.INTERVENTION,
+                        entity_id=result.id,
+                        new_values=item_data.model_dump(),
+                        user_id=current_user.id,
+                        user_name=current_user.nom,
+                        entity_name=getattr(result, "titre", None),
+                    )
+                except Exception:
+                    logger.warning("Audit log failed for batch create intervention %s", result.id)
+
         logger.info(f"Batch created {len(results)} ordres_interventions successfully")
         return results
     except Exception as e:
@@ -168,19 +198,32 @@ async def create_ordres_interventions_batch(
 async def update_ordres_interventions_batch(
     request: Ordres_interventionBatchUpdateRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Batch updating {len(request.items)} ordres_interventions")
-    
+
     service = Ordres_interventionService(db)
     results = []
-    
+
     try:
         for item in request.items:
             update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
-        
+                try:
+                    await AuditService(db).log_update(
+                        entity_type=AuditEntityType.INTERVENTION,
+                        entity_id=item.id,
+                        old_values={},
+                        new_values=update_dict,
+                        user_id=current_user.id,
+                        user_name=current_user.nom,
+                        entity_name=getattr(result, "titre", None),
+                    )
+                except Exception:
+                    logger.warning("Audit log failed for batch update intervention %s", item.id)
+
         logger.info(f"Batch updated {len(results)} ordres_interventions successfully")
         return results
     except Exception as e:
@@ -194,18 +237,38 @@ async def update_ordres_intervention(
     id: int,
     data: Ordres_interventionUpdateData,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Updating ordres_intervention {id} with data: {data}")
 
     service = Ordres_interventionService(db)
     try:
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
+
+        old_entity = await service.get_by_id(id)
+        old_values = {k: getattr(old_entity, k, None) for k in update_dict} if old_entity else {}
+
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Ordres_intervention with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Ordres_intervention not found")
-        
+
         logger.info(f"Ordres_intervention {id} updated successfully")
+
+        try:
+            new_values = {k: getattr(result, k, None) for k in update_dict}
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.INTERVENTION,
+                entity_id=id,
+                old_values=old_values,
+                new_values=new_values,
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=getattr(result, "titre", None),
+            )
+        except Exception:
+            logger.warning("Audit log failed for update intervention %s", id)
+
         return result
     except HTTPException:
         raise
@@ -221,18 +284,28 @@ async def update_ordres_intervention(
 async def delete_ordres_interventions_batch(
     request: Ordres_interventionBatchDeleteRequest,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Batch deleting {len(request.ids)} ordres_interventions")
-    
+
     service = Ordres_interventionService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id)
             if success:
                 deleted_count += 1
-        
+                try:
+                    await AuditService(db).log_delete(
+                        entity_type=AuditEntityType.INTERVENTION,
+                        entity_id=item_id,
+                        user_id=current_user.id,
+                        user_name=current_user.nom,
+                    )
+                except Exception:
+                    logger.warning("Audit log failed for batch delete intervention %s", item_id)
+
         logger.info(f"Batch deleted {deleted_count} ordres_interventions successfully")
         return {"message": f"Successfully deleted {deleted_count} ordres_interventions", "deleted_count": deleted_count}
     except Exception as e:
@@ -245,17 +318,29 @@ async def delete_ordres_interventions_batch(
 async def delete_ordres_intervention(
     id: int,
     db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
 ):
     logger.debug(f"Deleting ordres_intervention with id: {id}")
-    
+
     service = Ordres_interventionService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(f"Ordres_intervention with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Ordres_intervention not found")
-        
+
         logger.info(f"Ordres_intervention {id} deleted successfully")
+
+        try:
+            await AuditService(db).log_delete(
+                entity_type=AuditEntityType.INTERVENTION,
+                entity_id=id,
+                user_id=current_user.id,
+                user_name=current_user.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for delete intervention %s", id)
+
         return {"message": "Ordres_intervention deleted successfully", "id": id}
     except HTTPException:
         raise

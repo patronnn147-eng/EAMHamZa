@@ -101,8 +101,8 @@ grid = GridSearchCV(
 grid.fit(X_res, y_res)
 
 best_model = grid.best_estimator_
-print(f"\n⏱ GridSearchCV took: {time.time() - start_time:.1f}s")
-print("\n✅ Best hyper-parameters:")
+print(f"\nGridSearchCV took: {time.time() - start_time:.1f}s")
+print("\nBest hyper-parameters:")
 for k, v in grid.best_params_.items():
     print(f"  {k}: {v}")
 
@@ -142,10 +142,10 @@ model_data = {
     'features': features,  # Original names for display
     'xgb_features': xgb_features,  # Sanitized names for XGBoost
     'best_params': grid.best_params_,
-    'metrics': {
+'metrics': {
         'roc_auc': round(roc_auc, 4),
         'pr_auc': round(pr_auc, 4),
-        'f1_failure': round(float(classification_report(y_test, y_pred, output_dict=True).get('Failure', {}).get('f1-score', 0)), 4),
+        'f1_failure': round(float(classification_report(y_test, y_pred, output_dict=True).get('1', {}).get('f1-score', 0)), 4),
     }
 }
 
@@ -169,4 +169,4 @@ print(f"Input: {sample_input[0]}")
 print(f"Prediction: {'FAILURE' if prediction[0] == 1 else 'HEALTHY'}")
 print(f"Probability: Healthy={probability[0]:.4f}, Failure={probability[1]:.4f}")
 
-print(f"\n⏱ Total training time: {time.time() - start_time:.1f}s")
+print(f"\nTotal training time: {time.time() - start_time:.1f}s")

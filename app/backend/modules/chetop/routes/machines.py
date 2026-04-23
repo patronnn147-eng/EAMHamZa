@@ -9,6 +9,7 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
+from services.audit import AuditService, AuditEntityType
 from ..schemas import MachineResponse, MachineStatusUpdate
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
@@ -56,25 +57,37 @@ async def get_machines(
 async def update_machine_status(
     machine_id: int,
     data: MachineStatusUpdate,
-    _current_user: Utilisateurs = Depends(get_current_user),
+    current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """US-CHETOP-007: Update machine status"""
     try:
-        # Get machine
         machine_result = await db.execute(
             select(Machines).where(Machines.id == machine_id)
         )
         machine = machine_result.scalar_one_or_none()
         if not machine:
             raise HTTPException(status_code=404, detail="Machine not found")
-        
-        # Update status
+
+        old_statut = machine.statut
         machine.statut = data.statut
-        
+
         await db.commit()
         await db.refresh(machine)
-        
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.MACHINE,
+                entity_id=machine_id,
+                old_values={"statut": old_statut},
+                new_values={"statut": data.statut},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=machine.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for machine status update %s", machine_id)
+
         return MachineResponse(
             id=machine.id,
             nom=machine.nom,

@@ -15,6 +15,7 @@ from models.ordres_travail import Ordres_travail
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.machine_telemetry import MachineTelemetry
+from services.audit import AuditService, AuditEntityType
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
@@ -100,7 +101,19 @@ async def start_work_order(
         wo.statut = "EN_COURS"
         wo.date_debut = datetime.utcnow()
         await db.commit()
-        
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.WORK_ORDER,
+                entity_id=order_id,
+                old_values={"statut": "ASSIGNÉ"},
+                new_values={"statut": "EN_COURS"},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for start work order %s", order_id)
+
         return {"message": "Work order started", "statut": "EN_COURS"}
     except HTTPException:
         raise
@@ -195,7 +208,19 @@ async def complete_work_order(
             db.add(telemetry_log)
         
         await db.commit()
-        
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.WORK_ORDER,
+                entity_id=order_id,
+                old_values={"statut": "EN_COURS"},
+                new_values={"statut": "TERMINÉ", "rapport": payload.rapport},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for complete work order %s", order_id)
+
         return {"message": "Work order completed", "statut": "TERMINÉ"}
     except HTTPException:
         raise

@@ -1,24 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { debounce } from '@/lib/utils';
 import { 
   History, 
   Download, 
-  Filter, 
-  User, 
+  User,
   Calendar,
-  ChevronRight,
-  ArrowRightLeft,
   PlusCircle,
   Trash2,
   Eye,
-  RefreshCw,
-  Clock
+  ArrowRightLeft,
+  Clock,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  AlertTriangle
 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
@@ -39,11 +35,11 @@ interface AuditEntry {
   created_at: string;
 }
 
-const actionIcons: Record<string, React.ReactNode> = {
-  CREATE: <PlusCircle className="h-4 w-4 text-green-500" />,
-  UPDATE: <ArrowRightLeft className="h-4 w-4 text-blue-500" />,
-  DELETE: <Trash2 className="h-4 w-4 text-red-500" />,
-  VIEW: <Eye className="h-4 w-4 text-gray-500" />
+const actionConfig: Record<string, { icon: React.ReactNode; color: string }> = {
+  CREATE: { icon: <PlusCircle className="h-4 w-4" />, color: 'text-green-400' },
+  UPDATE: { icon: <ArrowRightLeft className="h-4 w-4" />, color: 'text-blue-400' },
+  DELETE: { icon: <Trash2 className="h-4 w-4" />, color: 'text-red-400' },
+  VIEW: { icon: <Eye className="h-4 w-4" />, color: 'text-gray-400' }
 };
 
 const entityLabels: Record<string, string> = {
@@ -57,29 +53,56 @@ const entityLabels: Record<string, string> = {
   report: "Report"
 };
 
+// Date formatting: "Jan 15, 2024 14:32"
+const formatDate = (dateStr: string): string => {
+  const date = new Date(dateStr);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const day = date.getDate();
+  const year = date.getFullYear();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${month} ${day}, ${year} ${hours}:${minutes}`;
+};
+
 export const AuditLogViewer: React.FC = () => {
   const [entries, setEntries] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
   const [selectedEntry, setSelectedEntry] = useState<AuditEntry | null>(null);
-  
-  const [entityTypeFilter, setEntityTypeFilter] = useState<string>('all');
-  const [actionTypeFilter, setActionTypeFilter] = useState<string>('all');
-  const [userFilter, setUserFilter] = useState<string>('');
+  const [hasError, setHasError] = useState(false);
 
+  // Error boundary: catch unexpected errors
   useEffect(() => {
-    fetchAuditLog();
-  }, [page, entityTypeFilter, actionTypeFilter]);
+    const handleError = () => setHasError(true);
+    window.addEventListener('error', handleError);
+    return () => window.removeEventListener('error', handleError);
+  }, []);
+  
+  // Filter states
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [userSearch, setUserSearch] = useState<string>('');
+  
+  const limit = 20;
+  const totalPages = Math.ceil(total / limit);
 
-  const fetchAuditLog = async () => {
+  // Memoized fetch function
+  const fetchAuditLog = useCallback(async () => {
     setLoading(true);
+    setError(null);
+    
     try {
       const params = new URLSearchParams();
-      params.append('skip', String(page * 50));
-      params.append('limit', '50');
-      if (entityTypeFilter !== 'all') params.append('entity_type', entityTypeFilter);
-      if (actionTypeFilter !== 'all') params.append('action_type', actionTypeFilter);
+      params.append('skip', String(page * limit));
+      params.append('limit', String(limit));
+      
+      // Add filters
+      if (startDate) params.append('from_date', startDate);
+      if (endDate) params.append('to_date', endDate);
+      if (userSearch.trim()) params.append('user_search', userSearch.trim());
       
       const res = await fetch(`${API}/api/v1/audit/log?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
@@ -90,52 +113,76 @@ export const AuditLogViewer: React.FC = () => {
         setEntries(data.items || []);
         setTotal(data.total || 0);
       } else {
-        setEntries(generateMockAuditLog());
-        setTotal(25);
+        const errMsg = res.status === 401 
+          ? "Authentication required. Please log in."
+          : res.status === 403 
+            ? "Access denied. You don't have permission to view audit logs."
+            : `Server error (${res.status})`;
+        setError(errMsg);
+        setEntries([]);
+        setTotal(0);
       }
     } catch (err) {
-      console.error('Failed to load audit log', err);
-      setEntries(generateMockAuditLog());
-      setTotal(25);
+      const errMessage = err instanceof Error ? err.message : "Failed to load audit logs";
+      setError(errMessage);
+      setEntries([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
+  }, [page, startDate, endDate, userSearch]);
+
+  // Debounced search for user search input
+  const debouncedSearch = useMemo(
+    () => debounce((value: string) => {
+      setPage(0);
+      // Force refetch with new search value
+      fetchAuditLog();
+    }, 400),
+    [fetchAuditLog]
+  );
+
+  // Handle user search change
+  const handleUserSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUserSearch(value);
+    debouncedSearch(value);
   };
 
-  const generateMockAuditLog = (): AuditEntry[] => {
-    const actions = ['CREATE', 'UPDATE', 'DELETE', 'VIEW'];
-    const entities = ['machine', 'work_order', 'intervention', 'planning', 'user'];
-    const users = ['Admin User', 'Chef Tech', 'Technician 1', 'Chef Op'];
-    const logs: AuditEntry[] = [];
-    
-    for (let i = 0; i < 25; i++) {
-      const action = actions[Math.floor(Math.random() * actions.length)];
-      const entity = entities[Math.floor(Math.random() * entities.length)];
-      const user = users[Math.floor(Math.random() * users.length)];
-      const entityId = Math.floor(Math.random() * 20) + 1;
-      
-      logs.push({
-        id: i + 1,
-        action_type: action,
-        entity_type: entity,
-        entity_id: entityId,
-        entity_name: `${entityLabels[entity]} ${entityId}`,
-        user_name: user,
-        changes: action === 'UPDATE' ? {
-          statut: { old: 'OPERATIONAL', new: 'MAINTENANCE' },
-          zone: { old: 'Zone A', new: 'Zone B' }
-        } : undefined,
-        description: `${action} ${entity} ${entityId}`,
-        created_at: new Date(Date.now() - i * 3600000).toISOString()
-      });
-    }
-    
-    return logs;
+  // Clear user search
+  const clearUserSearch = () => {
+    setUserSearch('');
+    setPage(0);
+    fetchAuditLog();
   };
 
-  const exportCSV = async () => {
+  // Cleanup debounce on unmount to prevent memory leak
+  useEffect(() => {
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
+
+  // Date filter changes trigger refetch
+  useEffect(() => {
+    setPage(0);
+    fetchAuditLog();
+  }, [startDate, endDate]);
+
+  // Page change triggers refetch
+  useEffect(() => {
+    fetchAuditLog();
+  }, [page]);
+
+  // Export CSV
+  const exportCSV = useCallback(async () => {
     try {
-      const res = await fetch(`${API}/api/v1/audit/export`, {
+      const params = new URLSearchParams();
+      if (startDate) params.append('from_date', startDate);
+      if (endDate) params.append('to_date', endDate);
+      if (userSearch.trim()) params.append('user_search', userSearch.trim());
+      
+      const res = await fetch(`${API}/api/v1/audit/export?${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
@@ -151,273 +198,271 @@ export const AuditLogViewer: React.FC = () => {
     } catch (err) {
       console.error('Export failed', err);
     }
+  }, [startDate, endDate, userSearch]);
+
+  // Go to previous page
+  const goToPrevPage = () => {
+    if (page > 0) setPage(p => p - 1);
   };
 
-  const totalPages = Math.ceil(total / 50);
+  // Go to next page
+  const goToNextPage = () => {
+    if (page < totalPages - 1) setPage(p => p + 1);
+  };
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <History className="h-6 w-6" />
+          <h1 className="text-2xl font-bold flex items-center gap-3 font-heading">
+            <History className="h-6 w-6 text-cyan-400" />
             Audit Log
           </h1>
-          <p className="text-muted-foreground">
-            Complete history of all system changes
+          <p className="text-sm text-orchestrated-glass mt-1 font-body">
+            Real-time activity across your organization
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchAuditLog}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Button variant="outline" size="sm" onClick={exportCSV}>
-            <Download className="mr-2 h-4 w-4" />
-            Export CSV
-          </Button>
+        <button 
+          onClick={exportCSV}
+          className="btn-cyan px-4 py-2 rounded-lg flex items-center gap-2 font-medium transition-all hover:shadow-[0_0_20px_rgba(0,255,242,0.3)]"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </button>
+      </div>
+
+      {/* Filters Bar */}
+      <div className="glass-panel p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Date Range Start */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="audit-start-date" className="text-xs text-orchestrated-glass font-body">From Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orchestrated-glass" />
+              <input
+                id="audit-start-date"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="input-glass w-full pl-10 pr-3 py-2 font-body"
+              />
+            </div>
+          </div>
+
+          {/* Date Range End */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="audit-end-date" className="text-xs text-orchestrated-glass font-body">To Date</label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orchestrated-glass" />
+              <input
+                id="audit-end-date"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="input-glass w-full pl-10 pr-3 py-2 font-body"
+              />
+            </div>
+          </div>
+
+          {/* User Search */}
+          <div className="flex flex-col gap-1">
+            <label htmlFor="audit-user-search" className="text-xs text-orchestrated-glass font-body">Search Users</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orchestrated-glass" />
+              <input
+                id="audit-user-search"
+                type="text"
+                placeholder="Search users..."
+                value={userSearch}
+                onChange={handleUserSearchChange}
+                className="input-glass w-full pl-10 pr-10 py-2 font-body"
+              />
+              {userSearch && (
+                <button
+                  onClick={clearUserSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orchestrated-glass hover:text-white transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Select value={entityTypeFilter} onValueChange={setEntityTypeFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="All Entities" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Entities</SelectItem>
-            <SelectItem value="machine">Machines</SelectItem>
-            <SelectItem value="work_order">Work Orders</SelectItem>
-            <SelectItem value="intervention">Interventions</SelectItem>
-            <SelectItem value="planning">Planning</SelectItem>
-            <SelectItem value="user">Users</SelectItem>
-          </SelectContent>
-        </Select>
+      {/* Results Table */}
+      <div className="glass-panel overflow-hidden">
+        {/* Table Header */}
+        <div className="grid grid-cols-4 gap-4 p-4 border-b border-white/10 text-sm font-medium text-orchestrated-glass font-heading">
+          <div>User</div>
+          <div>Action</div>
+          <div>Entity</div>
+          <div>Timestamp</div>
+        </div>
 
-        <Select value={actionTypeFilter} onValueChange={setActionTypeFilter}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder="All Actions" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Actions</SelectItem>
-            <SelectItem value="CREATE">Create</SelectItem>
-            <SelectItem value="UPDATE">Update</SelectItem>
-            <SelectItem value="DELETE">Delete</SelectItem>
-            <SelectItem value="VIEW">View</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Table Body */}
+        <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
+            </div>
+          ) : hasError ? (
+            <div className="flex flex-col items-center justify-center py-16 text-red-400">
+              <AlertTriangle className="h-12 w-12 mb-4" />
+              <p className="font-medium">Something went wrong</p>
+              <p className="text-sm text-orchestrated-glass mt-1">Please refresh the page</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-16 text-red-400">
+              <AlertTriangle className="h-12 w-12 mb-4" />
+              <p className="font-medium">{error}</p>
+              <button 
+                onClick={fetchAuditLog}
+                className="mt-4 text-sm text-cyan-400 hover:underline"
+              >
+                Retry
+              </button>
+            </div>
+          ) : entries.length === 0 ? (
+            <div className="flex items-center justify-center py-16 text-orchestrated-glass font-body">
+              No audit entries found
+            </div>
+          ) : (
+            entries.map((entry, index) => {
+              const actionObj = actionConfig[entry.action_type] || { icon: <Eye className="h-4 w-4" />, color: 'text-gray-400' };
+              const isSelected = selectedEntry?.id === entry.id;
+              
+              return (
+                <div
+                  key={entry.id}
+                  onClick={() => setSelectedEntry(isSelected ? null : entry)}
+                  className={`grid grid-cols-4 gap-4 p-4 cursor-pointer transition-all ${
+                    index % 2 === 0 ? 'bg-white/[0.02]' : 'bg-white/[0.01]'
+                  } hover:bg-white/[0.06] ${
+                    isSelected ? 'bg-white/[0.08] border-l-2 border-cyan-400' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-body text-sm">
+                    <User className="h-4 w-4 text-orchestrated-glass flex-shrink-0" />
+                    <span className="truncate">{entry.user_name || 'System'}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={actionObj.color}>{actionObj.icon}</span>
+                    <span className={`text-sm font-medium ${actionObj.color}`}>
+                      {entry.action_type}
+                    </span>
+                  </div>
+                  <div className="font-body text-sm">
+                    {entry.entity_name || `${entityLabels[entry.entity_type] || entry.entity_type} #${entry.entity_id}`}
+                  </div>
+                  <div className="flex items-center gap-2 font-body text-sm text-orchestrated-glass">
+                    <Clock className="h-4 w-4" />
+                    {formatDate(entry.created_at)}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
 
-        <Input
-          placeholder="Filter by user..."
-          value={userFilter}
-          onChange={(e) => setUserFilter(e.target.value)}
-          className="w-[200px]"
-        />
+        {/* Pagination */}
+        <div className="flex items-center justify-between p-4 border-t border-white/10">
+          <p className="text-sm text-orchestrated-glass font-body">
+            Showing {entries.length > 0 ? page * limit + 1 : 0} - {Math.min((page + 1) * limit, total)} of {total} entries
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={goToPrevPage}
+              disabled={page === 0}
+              className="p-2 rounded-lg border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-body px-3">
+              Page {total > 0 ? page + 1 : 0} of {totalPages || 1}
+            </span>
+            <button
+              onClick={goToNextPage}
+              disabled={page >= totalPages - 1 || totalPages === 0}
+              className="p-2 rounded-lg border border-white/10 hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardContent className="p-0">
-            <ScrollArea className="h-[600px]">
-              <div className="p-4 space-y-2">
-                {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-                  </div>
-                ) : entries.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    No audit entries found
-                  </div>
-                ) : (
-                  entries.map((entry) => (
-                    <div
-                      key={entry.id}
-                      className={`p-3 rounded-lg border cursor-pointer hover:bg-accent transition-colors ${
-                        selectedEntry?.id === entry.id ? 'border-primary bg-accent' : ''
-                      }`}
-                      onClick={() => setSelectedEntry(entry)}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          {actionIcons[entry.action_type]}
-                          <div>
-                            <p className="font-medium text-sm">{entry.description}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                              <User className="h-3 w-3" />
-                              {entry.user_name}
-                              <Clock className="h-3 w-3 ml-2" />
-                              {new Date(entry.created_at).toLocaleString()}
-                            </div>
-                          </div>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </ScrollArea>
-            
-            <div className="p-4 border-t flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing {entries.length} of {total} entries
-              </p>
+      {/* Entry Details Panel - appears below table when entry selected */}
+      {selectedEntry && (
+        <div className="glass-panel-hover p-6 space-y-4">
+          <h3 className="text-lg font-heading font-semibold">Entry Details</h3>
+          
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-xs text-orchestrated-glass font-body mb-1">Action</p>
               <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
-                >
-                  Previous
-                </Button>
-                <span className="text-sm">Page {page + 1} of {totalPages || 1}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= totalPages - 1}
-                >
-                  Next
-                </Button>
+                <span className={actionConfig[selectedEntry.action_type]?.color || 'text-gray-400'}>
+                  {actionConfig[selectedEntry.action_type]?.icon || <Eye className="h-4 w-4" />}
+                </span>
+                <span className={`font-medium ${actionConfig[selectedEntry.action_type]?.color || 'text-gray-400'}`}>
+                  {selectedEntry.action_type}
+                </span>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Entry Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedEntry ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Action</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    {actionIcons[selectedEntry.action_type]}
-                    <Badge variant="outline">{selectedEntry.action_type}</Badge>
-                  </div>
-                </div>
-                
-                <div>
-                  <p className="text-xs text-muted-foreground">Entity</p>
-                  <p className="font-medium">{selectedEntry.entity_name}</p>
-                </div>
-                
-                <div>
-                  <p className="text-xs text-muted-foreground">User</p>
-                  <p className="font-medium">{selectedEntry.user_name || 'System'}</p>
-                </div>
-                
-                <div>
-                  <p className="text-xs text-muted-foreground">Timestamp</p>
-                  <p className="font-medium">
-                    {new Date(selectedEntry.created_at).toLocaleString()}
-                  </p>
-                </div>
-
-                {selectedEntry.changes && Object.keys(selectedEntry.changes).length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-2">Changes</p>
-                    <div className="space-y-2">
-                      {Object.entries(selectedEntry.changes).map(([key, change]) => (
-                        <div key={key} className="text-xs p-2 rounded bg-muted">
-                          <p className="font-medium">{key}</p>
-                          <p className="text-red-500 line-through">{String(change.old || '')}</p>
-                          <p className="text-green-500">{String(change.new || '')}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                Select an entry to view details
+            
+            <div>
+              <p className="text-xs text-orchestrated-glass font-body mb-1">Entity</p>
+              <p className="font-medium font-body">
+                {selectedEntry.entity_name || `${entityLabels[selectedEntry.entity_type] || selectedEntry.entity_type} #${selectedEntry.entity_id}`}
               </p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+            </div>
+            
+            <div>
+              <p className="text-xs text-orchestrated-glass font-body mb-1">User</p>
+              <p className="font-medium font-body">{selectedEntry.user_name || 'System'}</p>
+            </div>
+            
+            <div>
+              <p className="text-xs text-orchestrated-glass font-body mb-1">Timestamp</p>
+              <p className="font-medium font-body">
+                {formatDate(selectedEntry.created_at)}
+              </p>
+            </div>
+          </div>
+
+          {selectedEntry.changes && Object.keys(selectedEntry.changes).length > 0 && (
+            <div>
+              <p className="text-xs text-orchestrated-glass font-body mb-2">Changes</p>
+              <div className="space-y-2">
+                {Object.entries(selectedEntry.changes).map(([key, change]) => (
+                  <div key={key} className="p-3 rounded-lg bg-white/5 font-mono text-sm">
+                    <p className="font-medium text-cyan-400 mb-1">{key}</p>
+                    <p className="text-red-400 line-through">{String(change.old || '')}</p>
+                    <p className="text-green-400">{String(change.new || '')}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
 
+// MachineHistoryPanel - kept for machine-specific audit history
 export const MachineHistoryPanel: React.FC = () => {
-  const { machineId } = useParams<{ machineId: string }>();
-  const [history, setHistory] = useState<AuditEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (machineId) {
-      fetchMachineHistory();
-    }
-  }, [machineId]);
-
-  const fetchMachineHistory = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API}/api/v1/audit/log/machine/${machineId}`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      
-      if (res.ok) {
-        setHistory(await res.json());
-      } else {
-        setHistory(generateMockAuditLog().slice(0, 10));
-      }
-    } catch (err) {
-      console.error('Failed to load machine history', err);
-      setHistory(generateMockAuditLog().slice(0, 10));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const generateMockAuditLog = (): AuditEntry[] => {
-    return [
-      { id: 1, action_type: 'UPDATE', entity_type: 'machine', entity_id: Number(machineId), user_name: 'Admin User', changes: { statut: { old: 'OPERATIONAL', new: 'MAINTENANCE' } }, created_at: new Date().toISOString() },
-      { id: 2, action_type: 'UPDATE', entity_type: 'machine', entity_id: Number(machineId), user_name: 'Chef Tech', changes: { zone: { old: 'Zone A', new: 'Zone B' } }, created_at: new Date(Date.now() - 86400000).toISOString() },
-      { id: 3, action_type: 'CREATE', entity_type: 'machine', entity_id: Number(machineId), user_name: 'Admin User', new_values: { nom: 'New Machine' }, created_at: new Date(Date.now() - 172800000).toISOString() },
-    ];
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
+  // For now, redirect to main AuditLogViewer with filter
+  // This could be enhanced later with machine-specific endpoint
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <History className="h-5 w-5" />
-        <h3 className="font-semibold">Machine History</h3>
-      </div>
-      
-      {history.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No history available</p>
-      ) : (
-        <div className="space-y-2">
-          {history.map((entry) => (
-            <div key={entry.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted">
-              <div className="mt-1">{actionIcons[entry.action_type]}</div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{entry.description || `${entry.action_type} operation`}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                  <User className="h-3 w-3" />
-                  {entry.user_name}
-                  <Calendar className="h-3 w-3 ml-2" />
-                  {new Date(entry.created_at).toLocaleString()}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+    <div className="glass-panel p-6">
+      <p className="text-orchestrated-glass font-body">
+        Machine-specific history is now integrated into the main Audit Log view.
+      </p>
+      <p className="text-sm text-orchestrated-glass mt-2 font-body">
+        Use the entity filter to view history for specific machines.
+      </p>
     </div>
   );
 };

@@ -48,6 +48,7 @@ async def get_audit_log(
     entity_id: Optional[int] = Query(None, description="Filter by entity ID"),
     user_id: Optional[int] = Query(None, description="Filter by user ID"),
     action_type: Optional[str] = Query(None, description="Filter by action type"),
+    user_search: Optional[str] = Query(None, description="Search by user name"),
     from_date: Optional[datetime] = Query(None, description="From date"),
     to_date: Optional[datetime] = Query(None, description="To date"),
     skip: int = Query(0, ge=0),
@@ -65,6 +66,8 @@ async def get_audit_log(
         entity_id=entity_id,
         user_id=user_id,
         action_type=action_type,
+        user_role=current_user.role,
+        user_search=user_search,
         from_date=from_date,
         to_date=to_date,
         skip=skip,
@@ -154,12 +157,13 @@ async def export_audit_log(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
     """Export audit log to CSV"""
-    if current_user.role != UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="Only admin can export audit logs")
+    if current_user.role not in (UserRole.ADMIN, UserRole.CHEFTECH):
+        raise HTTPException(status_code=403, detail="Only admin or cheftech can export audit logs")
     
     service = AuditService(db)
     result = await service.get_audit_log(
         entity_type=entity_type,
+        user_role=current_user.role,
         from_date=from_date,
         to_date=to_date,
         skip=0,

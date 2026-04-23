@@ -22,3 +22,4 @@ from . import stock
 from . import mouvement_stock
 from . import machine_telemetry
 from .machine_telemetry import MachineTelemetry
+from services.audit import AuditLog  # ensure audit_logs table is created by Base.metadata
