@@ -282,6 +282,36 @@ body.is-scrolling {
   transition: all 0.2s ease;
 }
 .btn-cyan:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 242, 0.3);
+}
+
+/* Font Families for Orchestrated Void */
+.font-heading {
+  font-family: 'Manrope', sans-serif;
+}
+
+.font-body {
+  font-family: 'Inter', sans-serif;
+}
+
+.font-accent {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+/* Orchestrated Void Colors */
+.text-orchestrated-glass {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.text-orchestrated-cyan {
+  color: #00fff2;
+}
+
+.bg-orchestrated-void {
+  background: #0a0a0f;
+}
+
+.btn-cyan:hover {
   background: #33fff6;
   box-shadow: 0 0 20px rgba(0, 255, 242, 0.4);
 }

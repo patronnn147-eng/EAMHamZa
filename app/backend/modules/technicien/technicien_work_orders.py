@@ -16,6 +16,7 @@ from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from models.ordres_intervention import Ordres_intervention
 from models.machine_telemetry import MachineTelemetry
+from services.audit import AuditService, AuditEntityType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
@@ -150,7 +151,8 @@ async def start_work_order(
         
         if wo.statut not in ["EN_ATTENTE", "ASSIGNÉ"]:
             raise HTTPException(status_code=400, detail="Only pending/assigned orders can be started")
-            
+
+        previous_statut = wo.statut
         now = datetime.utcnow()
         wo.statut = "EN_COURS"
         if not wo.date_debut:
@@ -169,7 +171,20 @@ async def start_work_order(
                 intervention.date_debut = now
             
         await db.commit()
-        
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.WORK_ORDER,
+                entity_id=order_id,
+                old_values={"statut": previous_statut},
+                new_values={"statut": "EN_COURS"},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=wo.titre,
+            )
+        except Exception:
+            logger.warning("Audit log failed for technician start work order %s", order_id)
+
         return {"message": "Work order started", "statut": "EN_COURS"}
     except HTTPException:
         raise
@@ -269,7 +284,20 @@ async def complete_work_order(
             db.add(telemetry)
         
         await db.commit()
-        
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.WORK_ORDER,
+                entity_id=order_id,
+                old_values={"statut": "EN_COURS"},
+                new_values={"statut": "TERMINÉ", "rapport": payload.rapport},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=wo.titre,
+            )
+        except Exception:
+            logger.warning("Audit log failed for technician complete work order %s", order_id)
+
         return {"message": "Work order completed via PDCA form", "statut": "TERMINÉ"}
     except HTTPException:
         raise

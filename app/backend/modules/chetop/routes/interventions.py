@@ -11,6 +11,7 @@ from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
+from services.audit import AuditService, AuditEntityType
 from ..schemas import InterventionRequestCreate, InterventionRequestResponse
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
@@ -60,7 +61,20 @@ async def create_intervention_request(
         db.add(new_request)
         await db.commit()
         await db.refresh(new_request)
-        
+
+        try:
+            await AuditService(db).log_create(
+                entity_type=AuditEntityType.INTERVENTION,
+                entity_id=new_request.id,
+                new_values={"machine_id": data.machine_id, "priority": data.priorite,
+                            "description": data.description, "statut": "PENDING_APPROVAL"},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+                entity_name=machine.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for create intervention request %s", new_request.id)
+
         return InterventionRequestResponse(
             id=new_request.id,
             machine_id=new_request.machine_id,

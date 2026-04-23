@@ -10,7 +10,7 @@ from models.machine_telemetry import MachineTelemetry
 from .predictions import MachineLearningService
 from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
-from core.ml_client import ml_client, is_ml_service_available
+from core.ml_client import ml_client, is_ml_service_available, get_model_metrics
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
@@ -571,4 +571,23 @@ async def ml_service_status():
         "ml_service_available": available,
         "ml_service_url": "http://ml-service:8000",
         "fallback": "Local calculation" if not available else "ML Container"
+    }
+
+
+@router.get("/model/metrics")
+async def get_ml_model_metrics():
+    """
+    Get trained model metrics (ROC-AUC, PR-AUC, F1).
+    Returns the performance metrics of the P1 failure prediction model.
+    """
+    metrics = await get_model_metrics()
+    if metrics.get("success"):
+        return {
+            "success": True,
+            "model": "p1_failure",
+            "metrics": metrics.get("metrics", {})
+        }
+    return {
+        "success": False,
+        "error": "Could not retrieve model metrics"
     }

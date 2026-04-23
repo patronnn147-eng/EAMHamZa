@@ -197,6 +197,19 @@ class AuditService:
             ip_address=ip_address,
         )
 
+    def _apply_cheftech_scope(self, query, count_query):
+        """Restrict queries to CHEFTECH-visible rows: only actions performed BY TECHNICIEN users.
+        ChefTech supervises technicians, so the audit panel must show only technician activity —
+        not ChefTech's own actions (e.g. assign) which also touch work_order entities."""
+        from sqlalchemy import select
+        from models.utilisateurs import Utilisateurs, UserRole
+
+        technician_ids_subq = select(Utilisateurs.id).where(
+            Utilisateurs.role == UserRole.TECHNICIEN
+        )
+        scope_clause = AuditLog.user_id.in_(technician_ids_subq)
+        return query.where(scope_clause), count_query.where(scope_clause)
+
     async def get_audit_log(
         self,
         entity_type: Optional[str] = None,
@@ -205,46 +218,58 @@ class AuditService:
         action_type: Optional[str] = None,
         from_date: Optional[datetime] = None,
         to_date: Optional[datetime] = None,
+        user_search: Optional[str] = None,
+        user_role: Optional[Any] = None,
         skip: int = 0,
         limit: int = 50,
     ) -> Dict[str, Any]:
         """Get paginated audit log entries"""
         from sqlalchemy import select, func
-        
+        from models.utilisateurs import UserRole
+
         query = select(AuditLog)
         count_query = select(func.count(AuditLog.id))
-        
+
         if entity_type:
             query = query.where(AuditLog.entity_type == entity_type)
             count_query = count_query.where(AuditLog.entity_type == entity_type)
-        
+
         if entity_id:
             query = query.where(AuditLog.entity_id == entity_id)
             count_query = count_query.where(AuditLog.entity_id == entity_id)
-        
+
         if user_id:
             query = query.where(AuditLog.user_id == user_id)
             count_query = count_query.where(AuditLog.user_id == user_id)
-        
+
         if action_type:
             query = query.where(AuditLog.action_type == action_type)
             count_query = count_query.where(AuditLog.action_type == action_type)
-        
+
         if from_date:
             query = query.where(AuditLog.created_at >= from_date)
             count_query = count_query.where(AuditLog.created_at >= from_date)
-        
+
         if to_date:
             query = query.where(AuditLog.created_at <= to_date)
             count_query = count_query.where(AuditLog.created_at <= to_date)
-        
+
+        if user_search:
+            # SQLite-compatible case-insensitive substring match
+            pattern = f"%{user_search.lower()}%"
+            query = query.where(func.lower(AuditLog.user_name).like(pattern))
+            count_query = count_query.where(func.lower(AuditLog.user_name).like(pattern))
+
+        if user_role == UserRole.CHEFTECH:
+            query, count_query = self._apply_cheftech_scope(query, count_query)
+
         count_result = await self.db.execute(count_query)
         total = count_result.scalar()
-        
+
         query = query.order_by(AuditLog.created_at.desc()).offset(skip).limit(limit)
         result = await self.db.execute(query)
         items = result.scalars().all()
-        
+
         return {
             "items": items,
             "total": total,

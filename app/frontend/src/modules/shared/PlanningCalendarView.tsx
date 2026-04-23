@@ -34,6 +34,7 @@ interface Planning {
     shift_type?: string;
     zone_travail?: string;
     assigned_users: User[];
+    machine_ids: number[];
 }
 
 const COLORS = {
@@ -646,6 +647,72 @@ export default function PlanningCalendarView() {
                                                     style={{ color: COLORS.primary, fontFamily: 'Space Grotesk, sans-serif' }}
                                                 >
                                                     {user.role}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span style={{ color: COLORS.outlineVariant }}>›</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Machines */}
+                        <div
+                            className="rounded-2xl p-6"
+                            style={glassPanelStyle}
+                        >
+                            <h3
+                                className="font-bold text-lg mb-5"
+                                style={{ fontFamily: 'Manrope, sans-serif', color: COLORS.onSurface }}
+                            >
+                                Machines
+                            </h3>
+                            <div className="flex flex-col gap-3">
+                                {planning.machine_ids?.length === 0 && (
+                                    <p
+                                        className="text-sm py-4 text-center"
+                                        style={{ color: COLORS.onSurfaceVariant }}
+                                    >
+                                        No machines assigned
+                                    </p>
+                                )}
+                                {planning.machine_ids?.map((machineId: number) => (
+                                    <div
+                                        key={machineId}
+                                        className="flex items-center justify-between p-3 rounded-xl transition-all"
+                                        style={{
+                                            background: `${COLORS.surfaceHigh}55`,
+                                            border: `1px solid ${COLORS.outlineVariant}20`,
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div
+                                                className="w-9 h-9 rounded-full flex items-center justify-center"
+                                                style={{
+                                                    background: `${COLORS.cyan400}20`,
+                                                    color: COLORS.cyan400,
+                                                    border: `1.5px solid ${COLORS.cyan400}35`,
+                                                }}
+                                            >
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <rect x="2" y="6" width="20" height="12" rx="2" />
+                                                    <path d="M12 12h.01" />
+                                                    <path d="M17 12h.01" />
+                                                    <path d="M7 12h.01" />
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <p
+                                                    className="font-bold text-sm leading-tight"
+                                                    style={{ color: COLORS.onSurface }}
+                                                >
+                                                    Machine #{machineId}
+                                                </p>
+                                                <p
+                                                    className="text-xs uppercase tracking-wide"
+                                                    style={{ color: COLORS.cyan400, fontFamily: 'Space Grotesk, sans-serif' }}
+                                                >
+                                                    ID: {machineId}
                                                 </p>
                                             </div>
                                         </div>

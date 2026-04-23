@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs
+from services.audit import AuditService, AuditEntityType
 from services.ordres_intervention import Ordres_interventionService
 from ..ordres_intervention.schemas import Ordres_interventionValidationData, Ordres_interventionResponse
 
@@ -69,5 +70,19 @@ async def validate_ordres_intervention(
     else:
         raise HTTPException(status_code=400, detail="Invalid action")
         
+    old_statut = intervention.statut
     result = await service.update(id, update_dict)
+
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.INTERVENTION,
+            entity_id=id,
+            old_values={"statut": old_statut},
+            new_values={"statut": update_dict.get("statut"), "action": data.action},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+        )
+    except Exception:
+        logger.warning("Audit log failed for validate intervention %s", id)
+
     return result

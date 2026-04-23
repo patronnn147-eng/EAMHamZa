@@ -59,23 +59,21 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        orchestrated: {
+          void: "#0a0a0f",
+          "void-light": "#12121a",
+          glass: "rgba(255, 255, 255, 0.03)",
+          "glass-border": "rgba(255, 255, 255, 0.08)",
+          cyan: "#00fff2",
+          "cyan-dim": "rgba(0, 255, 242, 0.15)",
+          "cyan-glow": "rgba(0, 255, 242, 0.4)",
+        },
       },
       fontFamily: {
         'sans': ['Inter', 'ui-sans-serif', 'system-ui'],
         'display': ['Space Grotesk', 'sans-serif'],
         'heading': ['Manrope', 'sans-serif'],
         'body': ['Inter', 'sans-serif'],
-      },
-      colors: {
-        orchestrated: {
-          'void': '#0a0a0f',
-          'void-light': '#12121a',
-          'glass': 'rgba(255, 255, 255, 0.03)',
-          'glass-border': 'rgba(255, 255, 255, 0.08)',
-          'cyan': '#00fff2',
-          'cyan-dim': 'rgba(0, 255, 242, 0.15)',
-          'cyan-glow': 'rgba(0, 255, 242, 0.4)',
-        },
       },
       borderRadius: {
         lg: "var(--radius)",

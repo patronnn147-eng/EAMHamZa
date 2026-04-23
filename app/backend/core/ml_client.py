@@ -306,3 +306,16 @@ async def is_ml_service_available() -> bool:
         return health.get("status") == "healthy"
     except Exception:
         return False
+
+
+async def get_model_metrics() -> Dict:
+    """Get trained model metrics from ML service."""
+    try:
+        client = await ml_client.get_client()
+        response = await client.get("/model/metrics")
+        if response.status_code == 200:
+            return response.json()
+        return {"success": False, "error": "Failed to get metrics"}
+    except Exception as e:
+        logger.warning(f"Could not get model metrics: {e}")
+        return {"success": False, "error": str(e)}

@@ -93,6 +93,36 @@ async def models_status():
     )
 
 
+@router.get("/model/metrics")
+async def get_model_metrics():
+    """Get trained metrics for P1 failure prediction model."""
+    import joblib
+    import os
+    
+    model_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'basic_machine_model.pkl')
+    
+    try:
+        if os.path.exists(model_path):
+            model_data = joblib.load(model_path)
+            if isinstance(model_data, dict):
+                metrics = model_data.get('metrics', {})
+                return {
+                    "success": True,
+                    "model": "p1_failure",
+                    "metrics": metrics
+                }
+        
+        return {
+            "success": False,
+            "error": "Model not found"
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
 @router.post("/predict")
 async def predict(data: TelemetryInput) -> PredictionResponse:
     """
