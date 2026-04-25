@@ -7,6 +7,8 @@ from typing import List, Dict, Any, Optional
 
 from groq import Groq
 
+from core.config import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -14,7 +16,7 @@ class GroqClient:
     """Wrapper for Groq API calls."""
     
     def __init__(self):
-        api_key = getattr(__import__("core.config", fromlist=["settings"]).settings, "GROQ_API_KEY", None)
+        api_key = getattr(settings, "groq_api_key", None) or getattr(settings, "GROQ_API_KEY", None)
         if not api_key:
             raise ValueError("GROQ_API_KEY not configured")
         self.client = Groq(api_key=api_key)
