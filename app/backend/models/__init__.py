@@ -21,5 +21,7 @@ from . import piece_machine
 from . import stock
 from . import mouvement_stock
 from . import machine_telemetry
+from . import ai_memories
+from .ai_memories import AIMemories
 from .machine_telemetry import MachineTelemetry
 from services.audit import AuditLog  # ensure audit_logs table is created by Base.metadata

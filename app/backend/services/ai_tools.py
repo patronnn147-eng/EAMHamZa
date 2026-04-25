@@ -5,11 +5,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session  # used for type hint compatibility
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.backend.models.machines import Machines
-from app.backend.models.ordres_travail import Ordres_travail
-from app.backend.models.ordres_intervention import Ordres_intervention
-from app.backend.models.plannings import Plannings
-from app.backend.models.alertes import Alert
+from models.machines import Machines
+from models.ordres_travail import Ordres_travail
+from models.ordres_intervention import Ordres_intervention
+from models.plannings import Plannings
+from models.alertes import Alert
 
 
 def get_tool_definitions() -> List[Dict[str, Any]]:
@@ -98,7 +98,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
     ]
 
 
-def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
+async def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
     """
     Execute a tool call and return results.
     
@@ -118,7 +118,7 @@ def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
             query = query.where(Machines.statut == arguments["status"])
         if arguments.get("machine_type"):
             query = query.where(Machines.type == arguments["machine_type"])
-        result = db.execute(query)
+        result = await db.execute(query)
         return [{"id": m.id, "nom": m.nom, "zone": m.zone, "statut": m.statut, "type": m.type} for m in result.scalars().all()]
     
     elif name == "get_work_orders":
@@ -129,7 +129,7 @@ def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
             query = query.where(Ordres_travail.utilisateur_id == arguments["utilisateur_id"])
         if arguments.get("machine_id"):
             query = query.where(Ordres_travail.machine_id == arguments["machine_id"])
-        result = db.execute(query.limit(50))
+        result = await db.execute(query.limit(50))
         return [{"id": o.id, "titre": o.titre, "statut": o.statut, "priorite": o.priorite, "machine_id": o.machine_id} for o in result.scalars().all()]
     
     elif name == "get_interventions":
@@ -138,12 +138,12 @@ def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
             query = query.where(Ordres_intervention.machine_id == arguments["machine_id"])
         if arguments.get("statut"):
             query = query.where(Ordres_intervention.statut == arguments["statut"])
-        result = db.execute(query.limit(50))
+        result = await db.execute(query.limit(50))
         return [{"id": i.id, "machine_id": i.machine_id, "statut": i.statut, "problem_description": i.problem_description} for i in result.scalars().all()]
     
     elif name == "get_plannings":
         query = select(Plannings)
-        result = db.execute(query.limit(50))
+        result = await db.execute(query.limit(50))
         return [{"id": p.id, "identifiant_planning": p.identifiant_planning, "date_debut": str(p.date_debut), "date_fin": str(p.date_fin), "type": str(p.type)} for p in result.scalars().all()]
     
     elif name == "get_alerts":
@@ -152,7 +152,7 @@ def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
             query = query.where(Alert.priority == arguments["priorite"])
         if arguments.get("machine_id"):
             query = query.where(Alert.machine_id == arguments["machine_id"])
-        result = db.execute(query.limit(20))
+        result = await db.execute(query.limit(20))
         return [{"id": a.id, "machine_id": a.machine_id, "message": a.message, "priority": a.priority, "severity": str(a.severity)} for a in result.scalars().all()]
     
     return {"error": f"Unknown tool: {name}"}

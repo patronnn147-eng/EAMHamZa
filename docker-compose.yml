@@ -110,7 +110,9 @@ services:
 
   # Backend API
   backend:
-    image: eams-phase2:latest
+    build:
+      context: ./app/backend
+      dockerfile: Dockerfile
     container_name: asset_management_backend
     restart: always
     environment:
@@ -225,6 +227,7 @@ services:
     restart: always
     environment:
       PYTHONUNBUFFERED: 1
+      PYTHONPATH: /app
     ports:
       - "8001:8000"
     healthcheck:

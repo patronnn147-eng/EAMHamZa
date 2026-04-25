@@ -188,8 +188,10 @@ async def ai_chat(
         for tool_call in tool_calls:
             func_name = tool_call["function"]["name"]
             func_args = tool_call["function"]["arguments"]
-            
-            result = execute_tool(func_name, func_args, db)
+
+            import json
+            func_args_parsed = json.loads(func_args) if isinstance(func_args, str) else func_args
+            result = await execute_tool(func_name, func_args_parsed, db)
             sources.append({
                 "tool": func_name,
                 "result": result
@@ -219,6 +221,6 @@ async def ai_chat(
     
     return ChatResponse(
         message=content or "J'ai traite votre requete.",
-        tool_calls=[{"id": tc["id"], "name": tc["function"]["name"], "arguments": tc["function"]["arguments"]} for tc in tool_calls] if tool_calls else None,
+        tool_calls=[{"id": tc["id"], "name": tc["function"]["name"], "arguments": json.loads(tc["function"]["arguments"])} for tc in tool_calls] if tool_calls else None,
         sources=sources
     )
