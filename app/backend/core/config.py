@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     oss_secret_key: str = ""
     oss_public_url: str = ""
 
+    # Groq AI
+    groq_api_key: str = ""
+
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""
