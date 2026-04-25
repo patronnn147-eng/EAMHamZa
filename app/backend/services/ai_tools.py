@@ -2,7 +2,8 @@
 from typing import Dict, List, Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session  # used for type hint compatibility
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.backend.models.machines import Machines
 from app.backend.models.ordres_travail import Ordres_travail
@@ -97,7 +98,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
     ]
 
 
-def execute_tool(name: str, arguments: dict, db: Session) -> Any:
+def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
     """
     Execute a tool call and return results.
     
