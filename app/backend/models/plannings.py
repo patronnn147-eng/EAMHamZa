@@ -13,6 +13,14 @@ class PlanningType(str, enum.Enum):
     JOURNALIER = "JOURNALIER"
 
 
+class PlanningStatut(str, enum.Enum):
+    """Planning workflow status"""
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 class ShiftType(str, enum.Enum):
     """Shift types for SHIFT planning"""
     MORNING = "MORNING"
@@ -29,6 +37,7 @@ class Plannings(Base):
     date_fin = Column(DateTime(timezone=True), nullable=False)
     type = Column(SQLEnum(PlanningType), nullable=False)
     shift_type = Column(SQLEnum(ShiftType), nullable=True)  # Only for SHIFT type
+    planning_statut = Column(SQLEnum(PlanningStatut), nullable=False, default=PlanningStatut.DRAFT)  # DRAFT → SUBMITTED → APPROVED → REJECTED
     chef_operation_id = Column(Integer, nullable=True)  # CHETOP user
     chef_technique_id = Column(Integer, nullable=True)  # CHEFTECH user
     zone_travail = Column(String(100), nullable=True)  # Zone where team will work

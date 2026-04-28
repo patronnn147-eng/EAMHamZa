@@ -1,7 +1,22 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String, Text
+from sqlalchemy import Column, DateTime, Integer, String, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+import enum
+
+
+class OrdreStatut(str, enum.Enum):
+    """Work Order status including full workflow"""
+    DRAFT = "DRAFT"
+    SUBMITTED = "SUBMITTED"
+    APPROVED = "APPROVED"
+    ASSIGNED = "ASSIGNED"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    VALIDATED = "VALIDATED"
+    CLOSED = "CLOSED"
+    REJECTED = "REJECTED"
+    ANNULÉ = "ANNULÉ"
 
 
 class Ordres_travail(Base):
@@ -15,7 +30,7 @@ class Ordres_travail(Base):
     machine_id = Column(Integer, nullable=False)  # US-CHETOP-003: Associated machine
     utilisateur_id = Column(Integer, nullable=True)  # US-CHETOP-005: Assigned user
     date_echeance = Column(DateTime(timezone=True), nullable=True)  # US-CHETOP-001: Due date
-    statut = Column(String(20), nullable=False, default="EN_ATTENTE")  # US-CHETOP-004: EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ
+    statut = Column(SQLEnum(OrdreStatut), nullable=False, default=OrdreStatut.DRAFT)  # Full workflow: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
     created_by = Column(Integer, nullable=True)
     validated_by = Column(Integer, nullable=True)
     date_validation = Column(DateTime(timezone=True), nullable=True)

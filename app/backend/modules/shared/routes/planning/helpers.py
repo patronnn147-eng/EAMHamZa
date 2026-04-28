@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from models.utilisateurs import Utilisateurs, UserRole
-from models.plannings import Plannings, PlanningType, ShiftType
+from models.plannings import Plannings, PlanningType, PlanningStatut, ShiftType
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
 from services.notifications import NotificationsService
@@ -223,6 +223,9 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
     planning_shift_val = None
     if planning.shift_type:
         planning_shift_val = planning.shift_type.value if hasattr(planning.shift_type, "value") else str(planning.shift_type)
+    planning_statut_val = None
+    if planning.planning_statut:
+        planning_statut_val = planning.planning_statut.value if hasattr(planning.planning_statut, "value") else str(planning.planning_statut)
 
     return {
         "id": planning.id,
@@ -231,6 +234,7 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
         "date_fin": planning.date_fin,
         "type": type_val,
         "shift_type": planning_shift_val,
+        "planning_statut": planning_statut_val,
         "chef_operation_id": planning.chef_operation_id,
         "chef_technique_id": planning.chef_technique_id,
         "zone_travail": planning.zone_travail,

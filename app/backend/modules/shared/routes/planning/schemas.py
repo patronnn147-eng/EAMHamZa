@@ -13,6 +13,7 @@ class PlanningCreateData(BaseModel):
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
+    planning_statut: Optional[str] = None
     technicien_ids: List[int] = Field(default_factory=list, description="List of technician IDs")
     machine_ids: List[int] = Field(default_factory=list, description="List of machine IDs")
 
@@ -27,6 +28,7 @@ class PlanningUpdateData(BaseModel):
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
+    planning_statut: Optional[str] = None
     technicien_ids: Optional[List[int]] = None
     machine_ids: Optional[List[int]] = None
 
@@ -39,6 +41,7 @@ class PlanningResponse(BaseModel):
     date_fin: datetime
     type: str
     shift_type: Optional[str] = None
+    planning_statut: Optional[str] = None
     chef_operation_id: Optional[int] = None
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
