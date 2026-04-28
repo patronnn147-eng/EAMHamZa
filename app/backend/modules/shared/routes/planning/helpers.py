@@ -37,8 +37,41 @@ async def verify_admin(current_user: Utilisateurs):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only administrators can perform this action"
+            detail="Vous n'avez pas la permission pour cette action"
         )
+
+
+async def verify_cheftech(current_user: Utilisateurs):
+    """Verify that the current user is a CHEFTECH"""
+    if current_user.role != UserRole.CHEFTECH:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas la permission pour cette action"
+        )
+
+
+async def verify_chetop_or_cheftech(current_user: Utilisateurs):
+    """Verify that the current user is CHETOP or CHEFTECH"""
+    if current_user.role not in [UserRole.CHETOP, UserRole.CHEFTECH]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas la permission pour cette action"
+        )
+
+
+async def verify_cheftech_or_tech(current_user: Utilisateurs):
+    """Verify that the current user is CHEFTECH or TECHNICIEN"""
+    if current_user.role not in [UserRole.CHEFTECH, UserRole.TECHNICIEN]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Vous n'avez pas la permission pour cette action"
+        )
+
+
+async def verify_any_role(current_user: Utilisateurs):
+    """Verify that the user has any of the defined roles"""
+    # All users have some role, this always passes
+    pass
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[Utilisateurs]:

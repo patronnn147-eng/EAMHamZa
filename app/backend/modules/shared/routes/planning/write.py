@@ -8,7 +8,7 @@ from sqlalchemy import select, delete
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.plannings import Plannings, PlanningType
+from models.plannings import Plannings, PlanningType, PlanningStatut
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
 from services.audit import AuditService, AuditEntityType
@@ -16,7 +16,10 @@ from services.plannings import PlanningsService
 from services.planning_utilisateurs import Planning_utilisateursService
 from tasks.planning_emails import send_planning_assignment_emails
 from .schemas import PlanningResponse, PlanningCreateData
-from .helpers import verify_admin, send_planning_notifications, _serialize_planning_for_email, get_planning_with_users
+from .helpers import (
+    verify_admin, verify_cheftech, send_planning_notifications, 
+    _serialize_planning_for_email, get_planning_with_users
+)
 
 router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
 logger = logging.getLogger(__name__)
@@ -34,6 +37,14 @@ async def create_planning(
 
     try:
         # Create planning directly without service to avoid greenlet_spawn
+        planning_statut_value = PlanningStatut.DRAFT
+        if data.planning_statut:
+            # Validate the provided status if any
+            try:
+                planning_statut_value = PlanningStatut(data.planning_statut)
+            except ValueError:
+                planning_statut_value = PlanningStatut.DRAFT
+        
         planning_data = {
             "identifiant_planning": data.identifiant_planning,
             "date_debut": data.date_debut,
@@ -43,6 +54,7 @@ async def create_planning(
             "chef_operation_id": data.chef_operation_id,
             "chef_technique_id": data.chef_technique_id,
             "zone_travail": data.zone_travail,
+            "planning_statut": planning_statut_value,
             "created_at": datetime.now()
         }
         
@@ -68,6 +80,7 @@ async def create_planning(
             "date_fin": data.date_fin,
             "type": data.type,
             "shift_type": data.shift_type,
+            "planning_statut": planning_statut_value.value if hasattr(planning_statut_value, 'value') else str(planning_statut_value),
             "chef_operation_id": data.chef_operation_id,
             "chef_technique_id": data.chef_technique_id,
             "zone_travail": data.zone_travail,
@@ -260,3 +273,101 @@ async def delete_planning(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete planning: {str(e)}"
         )
+
+
+# Planning workflow endpoints: Submit (CHEFTECH) and Approve/Reject (ADMIN)
+
+@router.post("/{planning_id}/submit")
+async def submit_planning(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Submit a planning for approval (CHEFTECH only)"""
+    await verify_cheftech(current_user)
+    service = PlanningsService(db)
+    planning = await service.get_by_id(planning_id)
+    if not planning:
+        raise HTTPException(status_code=404, detail="Planning not found")
+    
+    # Update status to SUBMITTED
+    await service.update(planning_id, {"planning_statut": PlanningStatut.SUBMITTED})
+    
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.PLANNING,
+            entity_id=planning_id,
+            old_values={"planning_statut": planning.planning_statut.value if planning.planning_statut else "DRAFT"},
+            new_values={"planning_statut": "SUBMITTED"},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+            entity_name=planning.identifiant_planning,
+        )
+    except Exception:
+        logger.warning("Audit log failed for submit planning %s", planning_id)
+    
+    return {"message": "Planning submitted for approval", "id": planning_id, "planning_statut": "SUBMITTED"}
+
+
+@router.post("/{planning_id}/approve")
+async def approve_planning(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Approve a planning (ADMIN only)"""
+    await verify_admin(current_user)
+    service = PlanningsService(db)
+    planning = await service.get_by_id(planning_id)
+    if not planning:
+        raise HTTPException(status_code=404, detail="Planning not found")
+    
+    # Update status to APPROVED
+    await service.update(planning_id, {"planning_statut": PlanningStatut.APPROVED})
+    
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.PLANNING,
+            entity_id=planning_id,
+            old_values={"planning_statut": planning.planning_statut.value if planning.planning_statut else "SUBMITTED"},
+            new_values={"planning_statut": "APPROVED"},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+            entity_name=planning.identifiant_planning,
+        )
+    except Exception:
+        logger.warning("Audit log failed for approve planning %s", planning_id)
+    
+    return {"message": "Planning approved", "id": planning_id, "planning_statut": "APPROVED"}
+
+
+@router.post("/{planning_id}/reject")
+async def reject_planning(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Reject a planning (ADMIN only)"""
+    await verify_admin(current_user)
+    service = PlanningsService(db)
+    planning = await service.get_by_id(planning_id)
+    if not planning:
+        raise HTTPException(status_code=404, detail="Planning not found")
+    
+    # Update status to REJECTED
+    await service.update(planning_id, {"planning_statut": PlanningStatut.REJECTED})
+    
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.PLANNING,
+            entity_id=planning_id,
+            old_values={"planning_statut": planning.planning_statut.value if planning.planning_statut else "SUBMITTED"},
+            new_values={"planning_statut": "REJECTED"},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+            entity_name=planning.identifiant_planning,
+        )
+    except Exception:
+        logger.warning("Audit log failed for reject planning %s", planning_id)
+    
+    return {"message": "Planning rejected", "id": planning_id, "planning_statut": "REJECTED"}
