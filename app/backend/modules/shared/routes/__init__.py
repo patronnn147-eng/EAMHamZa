@@ -3,7 +3,7 @@ from .intervention_workflow import router
 from . import (
     planning,
     planning_ordres_travail,
-   ordres_travail,
-   ordres_intervention,
+    ordres_travail,
+    ordres_intervention,
     machines,
 )
