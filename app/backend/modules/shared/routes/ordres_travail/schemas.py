@@ -8,11 +8,13 @@ class Ordres_travailData(BaseModel):
     titre: Optional[str] = None
     description: Optional[str] = None
     priorite: str = "MOYENNE"
-    machine_id: int
+    machine_id: int = None
     utilisateur_id: int = None
     date_echeance: Optional[datetime] = None
     statut: str = "DRAFT"  # Full workflow: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
     created_at: Optional[datetime] = None
+    # Phase 2: Link to intervention
+    intervention_id: Optional[int] = None  # Source intervention for work order generation
 
 
 class Ordres_travailUpdateData(BaseModel):

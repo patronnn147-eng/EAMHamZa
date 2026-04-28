@@ -12,7 +12,8 @@ class Ordres_intervention(Base):
     date_intervention = Column(DateTime(timezone=True), nullable=False)
     rapport = Column(String, nullable=True)
     ordre_travail_id = Column(Integer, nullable=True)
-    technicien_id = Column(Integer, nullable=True)
+    technician_id = Column(Integer, nullable=True)
+    planning_id = Column(Integer, nullable=True)  # Links intervention to a planning
     statut = Column(String(20), nullable=False, default="EN_ATTENTE")
     problem_description = Column(Text, nullable=True)
     priority = Column(String(20), nullable=True)
@@ -73,9 +74,9 @@ class Ordres_intervention(Base):
         lazy="noload",
         viewonly=True,
     )
-    technicien = relationship(
+    technician = relationship(
         "Utilisateurs",
-        primaryjoin="foreign(Ordres_intervention.technicien_id) == Utilisateurs.id",
+        primaryjoin="foreign(Ordres_intervention.technician_id) == Utilisateurs.id",
         lazy="noload",
         viewonly=True,
     )
