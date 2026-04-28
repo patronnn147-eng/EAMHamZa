@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from dependencies.auth import require_role
-from models.utilisateurs import Utilisateurs
+from models.utilisateurs import Utilisateurs, UserRole
+from models.ordres_travail import OrdreStatut
 from services.audit import AuditService, AuditEntityType
 from services.ordres_intervention import Ordres_interventionService
 from ..ordres_intervention.schemas import Ordres_interventionValidationData, Ordres_interventionResponse
@@ -48,7 +49,7 @@ async def validate_ordres_intervention(
                 "titre": f"[Intervention Acceptée] Demande #{id}",
                 "description": intervention.problem_description or "Demande d'intervention validée par le ChefTech",
                 "priorite": intervention.priority or "MOYENNE",
-                "statut": "ASSIGNÉ",
+                "statut": OrdreStatut.ASSIGNED,  # Use new enum
                 "machine_id": intervention.machine_id,
                 "utilisateur_id": intervention.technicien_id,
                 "created_by": intervention.technicien_id,
