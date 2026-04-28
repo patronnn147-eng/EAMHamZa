@@ -73,18 +73,18 @@ export default function PlanningManagement() {
   const [techniciens, setTechniciens] = useState<User[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
 
-  const [formData, setFormData] = useState({
+const [formData, setFormData] = useState({
     identifiant_planning: '',
     date_debut: '',
     date_fin: '',
-    type: 'MAINTENANCE' as 'MAINTENANCE' | 'SHIFT',
+    type: 'MAINTENANCE' as 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER',
     shift_type: undefined as 'MORNING' | 'NIGHT' | undefined,
     chef_operation_id: undefined as number | undefined,
     chef_technique_id: undefined as number | undefined,
     zone_travail: '',
     sous_zone: '',
     ordre: '',
-    technicien_ids: [] as number[],
+    techniciens_ids: [] as number[],
     machine_ids: [] as number[],
   });
 
@@ -253,7 +253,7 @@ export default function PlanningManagement() {
     setDialogOpen(true);
   };
 
-  const handleTypeChange = (type: 'MAINTENANCE' | 'SHIFT') => {
+  const handleTypeChange = (type: 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER') => {
     setFormData({
       ...formData,
       type,
@@ -590,7 +590,7 @@ export default function PlanningManagement() {
                       </div>
                     </div>
                   )}
-                  {planning.assigned_users.length > 0 && (
+                  {planning.assigned_users?.length > 0 && (
                     <div className="flex items-start gap-2 text-sm">
                       <Users className="h-4 w-4 text-blue-400 mt-1" />
                       <div className="flex-1">
@@ -689,19 +689,28 @@ export default function PlanningManagement() {
 
             <div className="grid gap-2">
               <Label htmlFor="type">Planning Type *</Label>
-              <Select value={formData.type} onValueChange={(value) => handleTypeChange(value as 'MAINTENANCE' | 'SHIFT')}>
+              <Select value={formData.type} onValueChange={(value) => handleTypeChange(value as 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
                   <SelectItem value="SHIFT">Shift (Day/Night Operations)</SelectItem>
+                  <SelectItem value="HEBDOMADAIRE">Weekly (Hebdomadaire)</SelectItem>
+                  <SelectItem value="MENSUEL">Monthly (Mensuel)</SelectItem>
+                  <SelectItem value="JOURNALIER">Daily (Journalier)</SelectItem>
                 </SelectContent>
               </Select>
               <p className="text-xs text-blue-300">
                 {formData.type === 'MAINTENANCE'
                   ? 'Maintenance planning for equipment servicing and repairs'
-                  : 'Shift planning for day/night team operations'}
+                  : formData.type === 'SHIFT'
+                  ? 'Shift planning for day/night team operations'
+                  : formData.type === 'HEBDOMADAIRE'
+                  ? 'Weekly planning for recurring tasks'
+                  : formData.type === 'MENSUEL'
+                  ? 'Monthly planning overview'
+                  : 'Daily operational planning'}
               </p>
             </div>
 
@@ -772,7 +781,7 @@ export default function PlanningManagement() {
                     <SelectValue placeholder="Sélectionner une sous-zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail].map((subZone) => (
+                    {SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail]?.map((subZone) => (
                       <SelectItem key={subZone} value={subZone}>
                         {subZone}
                       </SelectItem>
@@ -794,7 +803,7 @@ export default function PlanningManagement() {
                     <SelectValue placeholder="Sélectionner un ordre/position" />
                   </SelectTrigger>
                   <SelectContent>
-                    {ORDRE_TEMPLATES[formData.zone_travail][formData.sous_zone].map((template) => (
+                    {ORDRE_TEMPLATES[formData.zone_travail]?.[formData.sous_zone]?.map((template) => (
                       <SelectItem key={template.ordre} value={String(template.ordre)}>
                         {template.ordre} - {template.nom}
                       </SelectItem>
@@ -807,7 +816,7 @@ export default function PlanningManagement() {
             <div className="space-y-2">
               <Label>Machines</Label>
               <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-800/50">
-                {filteredMachines.length === 0 ? (
+                {filteredMachines?.length === 0 ? (
                   <p className="text-sm text-blue-300">
                     {formData.zone_travail
                       ? 'Aucune machine disponible dans cette zone'
@@ -831,7 +840,7 @@ export default function PlanningManagement() {
                   ))
                 )}
               </div>
-              <p className="text-xs text-blue-300">Selected: {formData.machine_ids.length} machine(s)</p>
+              <p className="text-xs text-blue-300">Selected: {formData.machine_ids?.length ?? 0} machine(s)</p>
             </div>
 
             <div className="grid gap-2">
@@ -931,7 +940,7 @@ export default function PlanningManagement() {
                     ))
                   )}
                 </div>
-                <p className="text-xs text-blue-300">Selected: {formData.technicien_ids.length} technician(s)</p>
+                <p className="text-xs text-blue-300">Selected: {formData.technicien_ids?.length ?? 0} technician(s)</p>
               </div>
             </div>
           </div>

@@ -286,7 +286,7 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
                       ))
                     )}
                   </div>
-                  <p className="text-xs text-blue-300">Selected: {formData.technicien_ids.length} technician(s)</p>
+                  <p className="text-xs text-blue-300">Selected: {formData.technicien_ids?.length ?? 0} technician(s)</p>
                 </div>
               </div>
             </div>
