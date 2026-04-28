@@ -26,6 +26,7 @@ export const PERMISSIONS = {
   // Work order permissions
   'workorder:create': ['CHEFTECH', 'CHETOP', 'TECHNICIEN'],
   'workorder:validate': ['ADMIN', 'CHEFTECH', 'TECHNICIEN'],
+  'workorder:validate-by-admin': ['ADMIN'], // CHETOP work requires admin validation
   'workorder:close': ['ADMIN'],
   'workorder:start': ['TECHNICIEN'],
   'workorder:complete': ['TECHNICIEN'],
@@ -82,6 +83,7 @@ export const PERMISSION_MESSAGES = {
   'planning:delete': "Seul l'administrateur peut supprimer un planning",
   'workorder:create': "Vous n'avez pas la permission de créer un ordre de travail",
   'workorder:validate': "Vous n'avez pas la permission de valider un ordre de travail",
+  'workorder:validate-by-admin': "Seul l'administrateur peut valider les ordres de travail créés par CHETOP",
   'workorder:close': "Seul l'administrateur peut clore un ordre de travail",
   'workorder:start': "Vous ne pouvez pas démarrer cet ordre de travail",
   'workorder:complete': "Vous ne pouvez pas compléter cet ordre de travail",

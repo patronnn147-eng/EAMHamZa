@@ -4,6 +4,8 @@ import { Badge } from '@/components/ui/badge';
 export const StatusBadge: React.FC<{ statut: string }> = ({ statut }) => {
   const statusConfig = {
     EN_ATTENTE: { label: 'Pending', variant: 'secondary' as const },
+    EN_ATTENTE_VALIDATION: { label: 'En attente validation', variant: 'warning' as const },
+    PENDING_ADMIN_VALIDATION: { label: 'En attente ADMIN', variant: 'info' as const },
     EN_COURS: { label: 'In Progress', variant: 'default' as const },
     TERMINE: { label: 'Completed', variant: 'outline' as const },
     ANNULE: { label: 'Cancelled', variant: 'destructive' as const },

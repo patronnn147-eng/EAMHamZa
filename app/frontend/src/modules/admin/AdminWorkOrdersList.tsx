@@ -9,6 +9,7 @@ import { PriorityBadge, StatusBadge } from '@/modules/shared/work-orders/utils/b
 
 import type { Machine, OrdreTravail } from '@/lib/types';
 import { useNavigate } from 'react-router-dom';
+import ChetopValidationQueue from './ChetopValidationQueue';
 
 export default function AdminWorkOrdersList() {
   const navigate = useNavigate();
@@ -61,6 +62,9 @@ export default function AdminWorkOrdersList() {
 
   return (
     <div className="space-y-6">
+      {/* CHETOP Admin Validation Queue - Phase 3 */}
+      <ChetopValidationQueue />
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-white">Administration des Ordres de Travail</h1>
@@ -88,6 +92,7 @@ export default function AdminWorkOrdersList() {
             <SelectContent>
               <SelectItem value="ALL">Tous les statuts</SelectItem>
               <SelectItem value="EN_ATTENTE">En attente</SelectItem>
+              <SelectItem value="PENDING_ADMIN_VALIDATION">En attente validation ADMIN</SelectItem>
               <SelectItem value="ASSIGNE">Assigné</SelectItem>
               <SelectItem value="EN_COURS">En cours</SelectItem>
               <SelectItem value="TERMINE">Terminé</SelectItem>
@@ -153,7 +158,11 @@ export default function AdminWorkOrdersList() {
                       <User className="h-4 w-4" /> Source
                     </p>
                     <p className="font-medium mt-1">
-                      {wo.utilisateur_id ? `ChefTech (Validation)` : 'Généré Automatiquement'}
+                      {wo.created_by_role === 'CHETOP' 
+                        ? 'CHETOP (En attente ADMIN)' 
+                        : wo.utilisateur_id 
+                          ? `ChefTech (Validation)` 
+                          : 'Généré Automatiquement'}
                     </p>
                   </div>
                 </div>

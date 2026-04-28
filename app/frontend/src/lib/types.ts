@@ -43,6 +43,8 @@ export interface OrdreTravail {
   date_fin?: string;
   rapport?: string;
   failure_type?: string;
+  // CHETOP Admin Validation - Phase 3
+  created_by_role?: 'ADMIN' | 'CHEFTECH' | 'CHETOP' | 'TECHNICIEN';
 }
 
 export interface Intervention {
