@@ -169,6 +169,8 @@ include_routers_from_package(app, "modules")
 from modules.ml.router import router as ml_router
 app.include_router(ml_router)
 
+# Note: planning_taches routers are auto-included via include_routers_from_package
+
 
 @app.get("/")
 def root():

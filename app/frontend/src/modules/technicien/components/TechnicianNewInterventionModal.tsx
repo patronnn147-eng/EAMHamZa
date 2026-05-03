@@ -33,13 +33,15 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  initialOrdreTravailId?: number | null; // Keep this prop in case it's still passed from some work orders view, though unused in the form
+  initialOrdreTravailId?: number | null;
+  initialMachineId?: number | null;
 }
 
 export const TechnicianNewInterventionModal: React.FC<Props> = ({
   open,
   onOpenChange,
   onSuccess,
+  initialMachineId = null,
 }) => {
   const { toast } = useToast();
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -88,7 +90,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
     if (open) {
       fetchMachines();
       setFormData({
-        machine_id: '',
+        machine_id: initialMachineId != null ? initialMachineId.toString() : '',
         description: '',
         priority: 'MOYENNE',
         estimated_duration_minutes: '',

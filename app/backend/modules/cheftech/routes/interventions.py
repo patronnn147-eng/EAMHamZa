@@ -36,7 +36,7 @@ async def get_interventions(
             .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
             .where(
                 or_(
-                    Ordres_intervention.technicien_id == current_user.id,
+                    Ordres_intervention.technician_id == current_user.id,
                     Ordres_travail.created_by == current_user.id,
                     Ordres_intervention.statut == "PENDING_APPROVAL",
                 )
@@ -50,7 +50,7 @@ async def get_interventions(
             .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
             .where(
                 or_(
-                    Ordres_intervention.technicien_id == current_user.id,
+                    Ordres_intervention.technician_id == current_user.id,
                     Ordres_travail.created_by == current_user.id,
                     Ordres_intervention.statut == "PENDING_APPROVAL",
                 )
@@ -59,7 +59,7 @@ async def get_interventions(
             query = query.where(Ordres_intervention.statut == statut)
         query = query.options(
             selectinload(Ordres_intervention.machine),
-            selectinload(Ordres_intervention.technicien),
+            selectinload(Ordres_intervention.technician),
             selectinload(Ordres_intervention.ordre_travail),
         )
         query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(size)

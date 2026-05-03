@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
+import enum
 
 
 class PlanningCreateData(BaseModel):
@@ -80,3 +81,54 @@ class PlanningMachineResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class TaskType(str, enum.Enum):
+    DIAGNOSTIC = "DIAGNOSTIC"
+    CORRECTION = "CORRECTION"
+
+
+class PlanningTacheCreate(BaseModel):
+    titre: str = Field(..., max_length=255)
+    description: str
+    technician_id: int
+    machine_id: int
+    task_type: TaskType
+    date_debut: datetime
+    date_fin: datetime
+
+
+class PlanningTacheUpdate(BaseModel):
+    titre: str | None = Field(None, max_length=255)
+    description: str | None = None
+    technician_id: int | None = None
+    machine_id: int | None = None
+    task_type: TaskType | None = None
+    date_debut: datetime | None = None
+    date_fin: datetime | None = None
+
+
+class PlanningTacheResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+
+    id: int
+    planning_id: int
+    titre: str
+    description: str
+    technician_id: int = Field(validation_alias="technicien_id")
+    machine_id: int
+    task_type: TaskType
+    date_debut: datetime
+    date_fin: datetime
+    created_by: int | None
+    created_at: datetime
+
+
+class PlanningTacheListResponse(BaseModel):
+    items: list[PlanningTacheResponse]
+    total: int
+
+
+class PlanningTachesSubmitRequest(BaseModel):
+    tasks: list[PlanningTacheCreate]
+    submit: bool = False

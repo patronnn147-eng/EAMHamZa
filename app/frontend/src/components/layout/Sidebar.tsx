@@ -19,6 +19,7 @@ import {
   Activity,
   History,
   ChevronLeft,
+  ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
@@ -73,7 +74,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
     return [
       { name: 'Validation Hub', href: '/cheftech/dashboard', icon: LayoutDashboard },
       { name: 'Planning & Equipes', href: '/cheftech/planning', icon: Calendar },
-      { name: 'Ordres Travail', href: '/cheftech/work-orders', icon: ClipboardList },
+      { name: 'Tâches de Planning', href: '/cheftech/plannings-taches', icon: Calendar },
       { name: 'Suivi des OT', href: '/cheftech/work-orders-table', icon: Wrench },
       { name: 'Interventions', href: '/cheftech/interventions', icon: Wrench },
       { name: 'Stocks / Pièces', href: '/cheftech/inventory', icon: Package },
@@ -93,6 +94,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Mes Ordres de Travail', href: '/technician/work-orders', icon: ClipboardList },
       { name: 'Interventions', href: '/technician/interventions', icon: Wrench },
       { name: 'Planning', href: '/technician/planning', icon: Calendar },
+      { name: 'Tâches de Planning', href: '/technician/planning-taches', icon: ListChecks },
       { name: 'Machines', href: '/technician/machines', icon: Settings },
       { name: 'Docs Techniques', href: '/technician/documents', icon: FileText },
       { name: 'Stocks', href: '/technician/inventory', icon: Package }

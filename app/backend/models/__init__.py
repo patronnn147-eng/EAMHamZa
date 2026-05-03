@@ -13,6 +13,7 @@ from . import ordres_travail
 from . import planning_ordres_travail
 from . import planning_machines
 from . import planning_utilisateurs
+from . import planning_taches
 from . import plannings
 from . import rapports
 from . import ml_prediction_log

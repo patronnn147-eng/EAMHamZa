@@ -1,0 +1,43 @@
+<h2>When the technician clicks "View Details" on a task card…</h2>
+<p class="subtitle">How should the task details be shown?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Side drawer / slide-over panel</h3>
+      <p>A panel slides in from the right, showing task details without leaving the list page. The technician can close it and go back to the card list instantly.</p>
+      <ul style="margin-top:8px;padding-left:18px;font-size:13px;color:#94a3b8">
+        <li>Fast to open/close</li>
+        <li>List stays visible behind the panel</li>
+        <li>Good for quick reference</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Dedicated detail page</h3>
+      <p>Navigates to <code>/technician/planning-tasks/:taskId</code> — a full page showing all task information with a Back button to return to the list.</p>
+      <ul style="margin-top:8px;padding-left:18px;font-size:13px;color:#94a3b8">
+        <li>More space for information</li>
+        <li>"Demander une intervention" button lives here too</li>
+        <li>Shareable URL</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Modal dialog</h3>
+      <p>A centered overlay dialog opens on top of the list. Both the details and the "Demander une intervention" button are inside the modal.</p>
+      <ul style="margin-top:8px;padding-left:18px;font-size:13px;color:#94a3b8">
+        <li>No navigation needed</li>
+        <li>Same pattern as other dialogs in the app</li>
+        <li>Less space than a full page</li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -57,7 +57,7 @@ async def list_cheftech_work_orders(
         ).outerjoin(
             Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
         ).outerjoin(
-            Utilisateurs, Ordres_intervention.technicien_id == Utilisateurs.id
+            Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
         ).order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
 
         result = await db.execute(query)
@@ -82,7 +82,7 @@ async def list_cheftech_work_orders(
                 "id": wo.id,
                 "titre": wo.titre,
                 "machine_nom": m_nom or "N/A",
-                "technicien_id": itv.technicien_id if itv else None,
+                "technicien_id": itv.technician_id if itv else None,
                 "technicien_nom": u_nom or "N/A",
                 "technicien_email": u_email or "N/A",
                 "intervention_id": itv.id if itv else None,
@@ -142,7 +142,7 @@ async def export_cheftech_work_order_report(
         ).outerjoin(
             Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
         ).outerjoin(
-            Utilisateurs, Ordres_intervention.technicien_id == Utilisateurs.id
+            Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
         ).where(Ordres_travail.id == order_id)
 
         result = await db.execute(query)

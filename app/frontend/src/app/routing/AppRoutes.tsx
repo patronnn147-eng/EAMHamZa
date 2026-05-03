@@ -8,10 +8,12 @@ import AdminMachines from '@/modules/admin/AdminMachines';
 import ChefTechMachines from '@/modules/cheftech/ChefTechMachines';
 import MachineDetailPage from '@/modules/shared/MachineDetailPage';
 import ChetopMachines from '@/modules/chetop/ChetopMachines';
-import WorkOrders from '@/modules/shared/WorkOrders';
 import Interventions from '@/modules/shared/Interventions';
 import CheftechInterventionsPage from '@/modules/cheftech/CheftechInterventionsPage';
 import PlanningPage from '@/modules/shared/PlanningPage';
+import CheftechPlanning from '@/modules/cheftech/CheftechPlanning';
+import PlanningTaskForm from '@/modules/cheftech/PlanningTaskForm';
+import PlanningTachesList from '@/modules/cheftech/PlanningTachesList';
 import PlanningDetailPage from '@/modules/shared/PlanningDetailPage';
 import WorkOrderDetailPage from '@/modules/shared/WorkOrderDetailPage';
 import PlanningCalendarView from '@/modules/shared/PlanningCalendarView';
@@ -31,6 +33,7 @@ import TechnicianInterventions from '@/modules/technicien/TechnicianIntervention
 import TechnicianMachines from '@/modules/technicien/TechnicianMachines';
 import TechnicianPlanning from '@/modules/technicien/TechnicianPlanning';
 import TechnicianDocuments from '@/modules/technicien/TechnicianDocuments';
+import TechnicianPlanningTaches from '@/modules/technicien/TechnicianPlanningTaches';
 import ChefTechUrgentAlert from '@/modules/cheftech/ChefTechUrgentAlert';
 import NotFound from '@/modules/shared/NotFound';
 import { ProtectedRoute } from './ProtectedRoute';
@@ -335,16 +338,6 @@ export function AppRoutes() {
         }
       />
       <Route
-        path="/cheftech/work-orders"
-        element={
-          <ProtectedRoute allowedRoles={['CHEFTECH']}>
-            <Layout>
-              <WorkOrders />
-            </Layout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/chetop/itv-requests"
         element={
           <ProtectedRoute allowedRoles={['CHETOP']}>
@@ -420,7 +413,7 @@ export function AppRoutes() {
       <Route
         path="/admin/planning/:id"
         element={
-          <ProtectedRoute allowedRoles={['ADMIN']}>
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP']}>
             <Layout>
               <PlanningDetailPage />
             </Layout>
@@ -488,7 +481,7 @@ export function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
-              <PlanningPage />
+              <CheftechPlanning />
             </Layout>
           </ProtectedRoute>
         }
@@ -509,6 +502,28 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
               <PlanningCalendarView />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Task Planning Form */}
+      <Route
+        path="/cheftech/planning/:planningId/tasks"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <PlanningTaskForm />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Task Plannings List */}
+      <Route
+        path="/cheftech/plannings-taches"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <PlanningTachesList />
             </Layout>
           </ProtectedRoute>
         }
@@ -655,6 +670,7 @@ export function AppRoutes() {
         <Route path="planning/:id/calendar" element={<PlanningCalendarView />} />
         <Route path="inventory" element={<InventoryPage />} />
         <Route path="documents" element={<TechnicianDocuments />} />
+        <Route path="planning-taches" element={<TechnicianPlanningTaches />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

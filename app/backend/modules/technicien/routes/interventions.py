@@ -40,13 +40,13 @@ async def list_my_interventions(
     skip = (page - 1) * size
     
     # Count total
-    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technicien_id == _current_user.id)
+    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technician_id == _current_user.id)
     if statut:
         count_query = count_query.where(Ordres_intervention.statut == statut)
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    query = select(Ordres_intervention).where(Ordres_intervention.technicien_id == _current_user.id)
+    query = select(Ordres_intervention).where(Ordres_intervention.technician_id == _current_user.id)
     if statut:
         query = query.where(Ordres_intervention.statut == statut)
 
@@ -102,7 +102,7 @@ async def update_intervention_status(
         select(Ordres_intervention).where(
             and_(
                 Ordres_intervention.id == intervention_id,
-                Ordres_intervention.technicien_id == current_user.id,
+                Ordres_intervention.technician_id == current_user.id,
             )
         )
     )
@@ -233,7 +233,7 @@ async def request_intervention(
             select(Ordres_intervention).where(
                 and_(
                     Ordres_intervention.ordre_travail_id == payload.ordre_travail_id,
-                    Ordres_intervention.technicien_id == current_user.id,
+                    Ordres_intervention.technician_id == current_user.id,
                 )
             )
         )
@@ -242,7 +242,7 @@ async def request_intervention(
         intervention = Ordres_intervention(
             date_intervention=now,
             ordre_travail_id=payload.ordre_travail_id,
-            technicien_id=current_user.id,
+            technician_id=current_user.id,
             requested_by=current_user.id,
             statut="PENDING_APPROVAL",
             requested_at=now,

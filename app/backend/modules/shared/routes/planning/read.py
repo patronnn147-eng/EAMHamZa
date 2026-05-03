@@ -9,9 +9,10 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.plannings import Plannings
+from models.plannings import Plannings, PlanningStatut
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
+from models.planning_taches import Planning_taches
 from models.machines import Machines
 from services.plannings import PlanningsService
 from .schemas import PlanningResponse, PlanningMachineResponse, UserOption
@@ -113,6 +114,55 @@ async def list_plannings(
         )
     except Exception as e:
         logger.error(f"Error listing plannings: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list plannings: {str(e)}"
+        )
+
+
+@router.get("/all-with-taches", response_model=list[dict])
+async def list_plannings_with_tasks(
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """List all plannings with their task counts"""
+    try:
+        tasks_subquery = (
+            select(
+                Planning_taches.planning_id,
+                func.count(Planning_taches.id).label('task_count')
+            )
+            .group_by(Planning_taches.planning_id)
+            .subquery()
+        )
+        
+        result = await db.execute(
+            select(
+                Plannings.id,
+                Plannings.identifiant_planning,
+                Plannings.date_debut,
+                Plannings.date_fin,
+                Plannings.planning_statut,
+                func.coalesce(tasks_subquery.c.task_count, 0).label('task_count')
+            )
+            .outerjoin(tasks_subquery, Plannings.id == tasks_subquery.c.planning_id)
+            .order_by(Plannings.date_debut.desc())
+        )
+        rows = result.all()
+        
+        return [
+            {
+                "id": row[0],
+                "identifiant_planning": row[1],
+                "date_debut": row[2],
+                "date_fin": row[3],
+                "planning_statut": row[4],
+                "task_count": row[5],
+            }
+            for row in rows
+        ]
+    except Exception as e:
+        logger.error(f"Error listing plannings with tasks: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list plannings: {str(e)}"
@@ -228,4 +278,37 @@ async def get_planning_machines(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch planning machines: {str(e)}",
+        )
+
+
+@router.get("/{planning_id}/users", response_model=List[UserOption])
+async def get_planning_users(
+    planning_id: int,
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get users assigned to a planning"""
+    try:
+        result = await db.execute(
+            select(Utilisateurs)
+            .join(Planning_utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
+            .where(Planning_utilisateurs.planning_id == planning_id)
+        )
+        users = result.scalars().all()
+        
+        return [
+            UserOption(
+                id=user.id,
+                nom=user.nom,
+                email=user.email,
+                role=user.role.value,
+                shift_type=user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type),
+            )
+            for user in users
+        ]
+    except Exception as e:
+        logger.error(f"Error fetching planning users for {planning_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch planning users: {str(e)}",
         )

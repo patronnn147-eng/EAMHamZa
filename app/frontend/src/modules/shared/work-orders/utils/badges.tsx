@@ -1,33 +1,27 @@
-import React from 'react';
 import { Badge } from '@/components/ui/badge';
 
-export const StatusBadge: React.FC<{ statut: string }> = ({ statut }) => {
-  const statusConfig = {
-    EN_ATTENTE: { label: 'Pending', variant: 'secondary' as const },
-    EN_ATTENTE_VALIDATION: { label: 'En attente validation', variant: 'warning' as const },
-    PENDING_ADMIN_VALIDATION: { label: 'En attente ADMIN', variant: 'info' as const },
-    EN_COURS: { label: 'In Progress', variant: 'default' as const },
-    TERMINE: { label: 'Completed', variant: 'outline' as const },
-    ANNULE: { label: 'Cancelled', variant: 'destructive' as const },
-  };
-
-  const config = statusConfig[statut as keyof typeof statusConfig] || statusConfig.EN_ATTENTE;
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
+  CRITIQUE: { label: 'Critique', className: 'bg-red-100 text-red-800 border-red-300' },
+  HAUTE: { label: 'Haute', className: 'bg-orange-100 text-orange-800 border-orange-300' },
+  MOYENNE: { label: 'Moyenne', className: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+  BASSE: { label: 'Basse', className: 'bg-green-100 text-green-800 border-green-300' },
 };
 
-export const PriorityBadge: React.FC<{ priorite: string }> = ({ priorite }) => {
-  const priorityConfig = {
-    BASSE: { label: 'Low', className: 'bg-gray-100 text-blue-50' },
-    MOYENNE: { label: 'Medium', className: 'bg-blue-100 text-blue-800' },
-    ELEVEE: { label: 'High', className: 'bg-orange-100 text-orange-800' },
-    URGENTE: { label: 'Urgent', className: 'bg-red-100 text-red-800' },
-  };
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  EN_ATTENTE: { label: 'En attente', className: 'bg-gray-100 text-gray-800 border-gray-300' },
+  ASSIGNÉ: { label: 'Assigné', className: 'bg-blue-100 text-blue-800 border-blue-300' },
+  EN_COURS: { label: 'En cours', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+  TERMINÉ: { label: 'Terminé', className: 'bg-green-100 text-green-800 border-green-300' },
+  BLOQUÉ: { label: 'Bloqué', className: 'bg-red-100 text-red-800 border-red-300' },
+  ANNULÉ: { label: 'Annulé', className: 'bg-slate-100 text-slate-600 border-slate-300' },
+};
 
-  const config = priorityConfig[priorite as keyof typeof priorityConfig] || priorityConfig.MOYENNE;
+export function PriorityBadge({ priorite }: { priorite: string }) {
+  const config = PRIORITY_CONFIG[priorite] ?? { label: priorite, className: 'bg-gray-100 text-gray-700' };
   return <Badge className={config.className}>{config.label}</Badge>;
-};
+}
 
-export const isOverdue = (dueDate: string, status: string) => {
-  if (status === 'TERMINE' || status === 'ANNULE') return false;
-  return new Date(dueDate) < new Date();
-};
+export function StatusBadge({ statut }: { statut: string }) {
+  const config = STATUS_CONFIG[statut] ?? { label: statut, className: 'bg-gray-100 text-gray-700' };
+  return <Badge className={config.className}>{config.label}</Badge>;
+}

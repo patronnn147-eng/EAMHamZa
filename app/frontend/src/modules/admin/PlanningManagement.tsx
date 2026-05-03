@@ -21,10 +21,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar, Plus, Edit, Trash2, Users, Bell, Eye, Mail } from 'lucide-react';
+import { Calendar, Plus, Edit, Trash2, Users, Bell, Eye, Mail, Send, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Machine } from '@/lib/types';
 import { AppPagination } from '@/components/shared/AppPagination';
 
@@ -51,6 +52,7 @@ interface Planning {
   assigned_users: User[];
   machine_ids?: number[];
   created_at?: string;
+  planning_statut?: 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
 }
 
 export default function PlanningManagement() {
@@ -66,6 +68,13 @@ export default function PlanningManagement() {
   const [deletingPlanning, setDeletingPlanning] = useState<Planning | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN';
+  const isChefTech = user?.role === 'CHEFTECH';
+
+  const [submittingPlanningId, setSubmittingPlanningId] = useState<number | null>(null);
+  const [approvingPlanningId, setApprovingPlanningId] = useState<number | null>(null);
+  const [rejectingPlanningId, setRejectingPlanningId] = useState<number | null>(null);
 
   // User lists for dropdowns
   const [chefOperations, setChefOperations] = useState<User[]>([]);
@@ -463,6 +472,91 @@ const [formData, setFormData] = useState({
     }
   };
 
+  const handleSubmitForApprovalHandler = async (planningId: number) => {
+    try {
+      setSubmittingPlanningId(planningId);
+      await client.apiCall.invoke({
+        url: `/api/v1/plannings/${planningId}/submit`,
+        method: 'POST',
+      });
+      toast({
+        title: 'Success',
+        description: 'Planning submitted for approval',
+      });
+      fetchPlannings();
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to submit planning',
+        variant: 'destructive',
+      });
+    } finally {
+      setSubmittingPlanningId(null);
+    }
+  };
+
+  const isActive = (dateDebut: string, dateFin: string) => {
+    const now = new Date();
+    const start = new Date(dateDebut);
+    const end = new Date(dateFin);
+    return now >= start && now <= end;
+  };
+
+  const handleApprove = async (planningId: number) => {
+    try {
+      setApprovingPlanningId(planningId);
+      await client.apiCall.invoke({
+        url: `/api/v1/plannings/${planningId}/approve`,
+        method: 'POST',
+      });
+      toast({
+        title: 'Success',
+        description: 'Planning approved',
+      });
+      fetchPlannings();
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to approve planning',
+        variant: 'destructive',
+      });
+    } finally {
+      setApprovingPlanningId(null);
+    }
+  };
+
+  const handleReject = async (planningId: number) => {
+    try {
+      setRejectingPlanningId(planningId);
+      await client.apiCall.invoke({
+        url: `/api/v1/plannings/${planningId}/reject`,
+        method: 'POST',
+      });
+      toast({
+        title: 'Success',
+        description: 'Planning rejected',
+      });
+      fetchPlannings();
+    } catch (error: unknown) {
+      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
+        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+        || (error as { message?: string }).message;
+      toast({
+        title: 'Error',
+        description: detail || 'Failed to reject planning',
+        variant: 'destructive',
+      });
+    } finally {
+      setRejectingPlanningId(null);
+    }
+  };
+
   const getTypeBadge = (type: string) => {
     const typeConfig = {
       MAINTENANCE: { label: 'Maintenance', className: 'bg-orange-100 text-orange-800' },
@@ -485,7 +579,19 @@ const [formData, setFormData] = useState({
     return config ? <Badge className={config.className}>{config.label}</Badge> : null;
   };
 
-  const isActive = (dateDebut: string, dateFin: string) => {
+  const getStatusBadge = (statut?: string) => {
+    if (!statut) return null;
+    const statusConfig: Record<string, { label: string; className: string }> = {
+      DRAFT: { label: 'Brouillon', className: 'bg-gray-100 text-gray-800' },
+      SUBMITTED: { label: 'Soumis', className: 'bg-yellow-100 text-yellow-800' },
+      APPROVED: { label: 'Approuvé', className: 'bg-green-100 text-green-800' },
+      REJECTED: { label: 'Rejeté', className: 'bg-red-100 text-red-800' },
+    };
+    const config = statusConfig[statut];
+    return config ? <Badge className={config.className}>{config.label}</Badge> : null;
+  };
+
+  const handleSubmitForApproval = async (planningId: number) => {
     const now = new Date();
     const start = new Date(dateDebut);
     const end = new Date(dateFin);
@@ -545,6 +651,7 @@ const [formData, setFormData] = useState({
                   <div className="flex flex-col gap-2 items-end">
                     {getTypeBadge(planning.type)}
                     {getShiftBadge(planning.shift_type)}
+                    {getStatusBadge(planning.planning_statut)}
                     {isActive(planning.date_debut, planning.date_fin) && (
                       <Badge className="bg-green-100 text-green-800">Active</Badge>
                     )}
@@ -609,29 +716,73 @@ const [formData, setFormData] = useState({
                     </div>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleOpenDialog(planning)}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => {
-                      setDeletingPlanning(planning);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete
-                  </Button>
-                </div>
+                {/* ADMIN: Edit + Delete buttons */}
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleOpenDialog(planning)}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      onClick={() => {
+                        setDeletingPlanning(planning);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      Delete
+                    </Button>
+                  </div>
+                )}
+                {/* Submit for approval - CHEFTECH only for DRAFT */}
+                {(isChefTech && planning.planning_statut === 'DRAFT') && (
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-300"
+                      disabled={submittingPlanningId === planning.id}
+                      onClick={() => handleSubmitForApprovalHandler(planning.id)}
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      {submittingPlanningId === planning.id ? 'Submitting...' : 'Soumettre pour approbation'}
+                    </Button>
+                  </div>
+                )}
+                {/* Approve/Reject - ADMIN only for SUBMITTED */}
+                {(isAdmin && planning.planning_statut === 'SUBMITTED') && (
+                  <div className="flex gap-2 pt-2 border-t">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-green-50 text-green-700 hover:bg-green-100 border-green-300"
+                      disabled={approvingPlanningId === planning.id}
+                      onClick={() => handleApprove(planning.id)}
+                    >
+                      <Check className="mr-2 h-4 w-4" />
+                      {approvingPlanningId === planning.id ? 'Approving...' : 'Approuver'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 bg-red-50 text-red-700 hover:bg-red-100 border-red-300"
+                      disabled={rejectingPlanningId === planning.id}
+                      onClick={() => handleReject(planning.id)}
+                    >
+                      <X className="mr-2 h-4 w-4" />
+                      {rejectingPlanningId === planning.id ? 'Rejecting...' : 'Rejeter'}
+                    </Button>
+                  </div>
+                )}
+                {/* View Details - Always show */}
                 <div className="flex gap-2 pt-2 border-t">
                   <Button
                     variant="outline"
@@ -642,16 +793,19 @@ const [formData, setFormData] = useState({
                     <Eye className="mr-2 h-4 w-4" />
                     View Details
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    disabled={resendingPlanningId === planning.id}
-                    onClick={() => handleResendEmails(planning.id)}
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    {resendingPlanningId === planning.id ? 'Resending...' : 'Resend Emails'}
-                  </Button>
+                  {/* Resend Emails - ADMIN only */}
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      disabled={resendingPlanningId === planning.id}
+                      onClick={() => handleResendEmails(planning.id)}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      {resendingPlanningId === planning.id ? 'Resending...' : 'Resend Emails'}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

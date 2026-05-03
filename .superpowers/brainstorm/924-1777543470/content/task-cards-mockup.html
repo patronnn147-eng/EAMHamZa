@@ -1,0 +1,114 @@
+<h2>Technician Planning Tasks Page</h2>
+<p class="subtitle">Card list on the left — side drawer slides in on "View Details"</p>
+
+<div style="display:flex;gap:16px;margin-top:16px;">
+
+  <!-- LEFT: Card List -->
+  <div style="flex:1;min-width:0;">
+    <div class="mock-nav" style="margin-bottom:12px;font-size:13px;">Tâches de Planning &nbsp;·&nbsp; 3 tâches assignées</div>
+
+    <!-- Card 1 (active/selected state) -->
+    <div style="background:#1e293b;border:1.5px solid #f59e0b;border-radius:10px;padding:16px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <span style="background:#f59e0b22;color:#f59e0b;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;">CORRECTION</span>
+          <h3 style="color:#f1f5f9;margin:6px 0 2px;font-size:15px;">Vérification pompe hydraulique</h3>
+          <p style="color:#94a3b8;font-size:12px;margin:0;">Machine: Fraiseuse CNC-04 &nbsp;·&nbsp; Planning: PLN-2026-05</p>
+        </div>
+        <span style="background:#16a34a22;color:#4ade80;font-size:11px;padding:2px 8px;border-radius:4px;">APPROVED</span>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:#94a3b8;">
+        <span>📅 01/05/2026 08:00</span>
+        <span>→ 01/05/2026 12:00</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#3b82f6;color:white;border:none;border-radius:6px;">👁 View Details</button>
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#0f172a;color:#f59e0b;border:1px solid #f59e0b;border-radius:6px;">⚙ Demander intervention</button>
+      </div>
+    </div>
+
+    <!-- Card 2 -->
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:10px;opacity:0.85;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <span style="background:#3b82f622;color:#60a5fa;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;">DIAGNOSTIC</span>
+          <h3 style="color:#f1f5f9;margin:6px 0 2px;font-size:15px;">Diagnostic moteur électrique</h3>
+          <p style="color:#94a3b8;font-size:12px;margin:0;">Machine: Tour TU-07 &nbsp;·&nbsp; Planning: PLN-2026-05</p>
+        </div>
+        <span style="background:#eab30822;color:#fbbf24;font-size:11px;padding:2px 8px;border-radius:4px;">SUBMITTED</span>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:#94a3b8;">
+        <span>📅 02/05/2026 14:00</span>
+        <span>→ 02/05/2026 17:00</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#3b82f6;color:white;border:none;border-radius:6px;">👁 View Details</button>
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#0f172a;color:#f59e0b;border:1px solid #f59e0b;border-radius:6px;">⚙ Demander intervention</button>
+      </div>
+    </div>
+
+    <!-- Card 3 -->
+    <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:16px;opacity:0.85;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <span style="background:#f59e0b22;color:#f59e0b;font-size:11px;font-weight:600;padding:2px 8px;border-radius:4px;text-transform:uppercase;">CORRECTION</span>
+          <h3 style="color:#f1f5f9;margin:6px 0 2px;font-size:15px;">Remplacement filtre à huile</h3>
+          <p style="color:#94a3b8;font-size:12px;margin:0;">Machine: Presse PH-02 &nbsp;·&nbsp; Planning: PLN-2026-06</p>
+        </div>
+        <span style="background:#6b728022;color:#94a3b8;font-size:11px;padding:2px 8px;border-radius:4px;">DRAFT</span>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;color:#94a3b8;">
+        <span>📅 05/05/2026 09:00</span>
+        <span>→ 05/05/2026 11:00</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#3b82f6;color:white;border:none;border-radius:6px;">👁 View Details</button>
+        <button class="mock-button" style="font-size:12px;padding:5px 14px;background:#0f172a;color:#f59e0b;border:1px solid #f59e0b;border-radius:6px;">⚙ Demander intervention</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Side Drawer (open on card 1) -->
+  <div style="width:320px;background:#0f172a;border:1px solid #f59e0b55;border-radius:12px;padding:20px;flex-shrink:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3 style="color:#f1f5f9;margin:0;font-size:15px;">Détails de la tâche</h3>
+      <span style="color:#64748b;font-size:18px;cursor:pointer;">✕</span>
+    </div>
+
+    <div style="margin-bottom:12px;">
+      <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Titre</span>
+      <p style="color:#f1f5f9;font-size:14px;margin:2px 0 0;">Vérification pompe hydraulique</p>
+    </div>
+    <div style="margin-bottom:12px;">
+      <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Description</span>
+      <p style="color:#cbd5e1;font-size:13px;margin:2px 0 0;">Inspecter l'état de la pompe, vérifier les pressions et détecter toute fuite.</p>
+    </div>
+    <div style="display:flex;gap:12px;margin-bottom:12px;">
+      <div>
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Type</span>
+        <p style="color:#f59e0b;font-size:13px;margin:2px 0 0;font-weight:600;">CORRECTION</p>
+      </div>
+      <div>
+        <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Statut planning</span>
+        <p style="color:#4ade80;font-size:13px;margin:2px 0 0;font-weight:600;">APPROVED</p>
+      </div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Machine</span>
+      <p style="color:#f1f5f9;font-size:13px;margin:2px 0 0;">Fraiseuse CNC-04</p>
+    </div>
+    <div style="margin-bottom:12px;">
+      <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Planning</span>
+      <p style="color:#f1f5f9;font-size:13px;margin:2px 0 0;">PLN-2026-05 &nbsp;·&nbsp; 01/05 → 03/05</p>
+    </div>
+    <div style="margin-bottom:20px;">
+      <span style="color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;">Fenêtre d'intervention</span>
+      <p style="color:#f1f5f9;font-size:13px;margin:2px 0 0;">01/05/2026 08:00 → 12:00</p>
+    </div>
+
+    <button class="mock-button" style="width:100%;padding:10px;background:#f59e0b;color:#0f172a;font-weight:700;border:none;border-radius:8px;font-size:14px;cursor:pointer;">
+      ⚙ Demander une intervention
+    </button>
+  </div>
+
+</div>
