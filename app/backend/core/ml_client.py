@@ -76,8 +76,13 @@ class MLClient:
         tool_wear: int,
         machine_id: int = -1,
         telemetry_logs: list = None,
+        include_shap: bool = False,
     ) -> Dict:
-        """Get all P1-P6 predictions plus DST fusion."""
+        """Get all P1-P6 predictions plus DST fusion.
+
+        Set include_shap=True to request SHAP feature-importance explanations
+        (+50-200 ms overhead).  Default False for normal fleet/alert polling.
+        """
         client = await self.get_client()
         payload = {
             "air_temperature":    air_temperature,
@@ -86,11 +91,14 @@ class MLClient:
             "torque":             torque,
             "tool_wear":          tool_wear,
             "machine_id":         machine_id,
+            "include_shap":       include_shap,
         }
         if telemetry_logs:
             payload["telemetry_logs"] = telemetry_logs
         response = await client.post("/api/v1/ml/predict-all", json=payload)
-        return response.json()
+        data = response.json()
+        # Unwrap AllPredictionsResponse envelope {"success": bool, "predictions": {...}}
+        return data.get("predictions", data)
     
     async def predict_failure_type(
         self,

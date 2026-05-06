@@ -2,13 +2,38 @@
 ML Router - FastAPI routes for ML microservice
 Provides all P1-P6 prediction endpoints
 """
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from .predictions import MachineLearningService
+from .predictions import MachineLearningService, failure_prob_to_risk
 from .model_loader import get_all_models_status
 from .feature_store import feature_store
 from .model_registry import registry
+from .rate_limiter import check_rate_limit
+
+try:
+    import numpy as _np
+    def _to_python(obj):
+        """Recursively convert numpy scalars/arrays to Python native types."""
+        if isinstance(obj, dict):
+            return {k: _to_python(v) for k, v in obj.items()}
+        if isinstance(obj, (list, tuple)):
+            return [_to_python(v) for v in obj]
+        if isinstance(obj, _np.integer):
+            return int(obj)
+        if isinstance(obj, _np.floating):
+            return float(obj)
+        if isinstance(obj, _np.bool_):
+            return bool(obj)
+        if isinstance(obj, _np.ndarray):
+            return obj.tolist()
+        return obj
+except ImportError:
+    def _to_python(obj):
+        return obj
+
+# Maximum number of telemetry log entries accepted per request
+_MAX_LOGS = 500
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 
@@ -23,6 +48,7 @@ class TelemetryInput(BaseModel):
     tool_wear:          int
     machine_id:         Optional[int] = -1
     telemetry_logs:     Optional[List[Dict]] = None
+    include_shap:       bool = False
 
     class Config:
         populate_by_name = True
@@ -124,7 +150,7 @@ async def get_model_metrics():
 
 
 @router.post("/predict")
-async def predict(data: TelemetryInput) -> PredictionResponse:
+async def predict(data: TelemetryInput, request: Request, _: str = Depends(check_rate_limit)) -> PredictionResponse:
     """
     P1: Predict failure probability from telemetry.
     
@@ -141,30 +167,22 @@ async def predict(data: TelemetryInput) -> PredictionResponse:
     try:
         failure_prob = MachineLearningService.predict_failure_probability(features)
         
-        # Determine risk level
-        if failure_prob >= 75:
-            risk_level = "CRITICAL"
-        elif failure_prob >= 50:
-            risk_level = "HIGH"
-        elif failure_prob >= 25:
-            risk_level = "MEDIUM"
-        else:
-            risk_level = "LOW"
+        risk_level = failure_prob_to_risk(failure_prob)
         
         return PredictionResponse(
             success=True,
-            prediction={
+            prediction=_to_python({
                 "failure_probability": failure_prob,
                 "risk_level": risk_level,
                 "features": features
-            }
+            })
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
 @router.post("/predict-all")
-async def predict_all(data: TelemetryInput) -> AllPredictionsResponse:
+async def predict_all(data: TelemetryInput, request: Request, _: str = Depends(check_rate_limit)) -> AllPredictionsResponse:
     """
     Get all P1-P6 predictions in a single request.
     
@@ -176,6 +194,11 @@ async def predict_all(data: TelemetryInput) -> AllPredictionsResponse:
     - P5: Priority prediction
     - P6: Maintenance schedule
     """
+    if data.telemetry_logs and len(data.telemetry_logs) > _MAX_LOGS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"telemetry_logs exceeds maximum size of {_MAX_LOGS} entries"
+        )
     telemetry = {
         "air_temperature":    data.air_temperature,
         "process_temperature": data.process_temperature,
@@ -187,8 +210,8 @@ async def predict_all(data: TelemetryInput) -> AllPredictionsResponse:
     }
 
     try:
-        predictions = MachineLearningService.predict_all(telemetry)
-        
+        predictions = MachineLearningService.predict_all(telemetry, include_shap=data.include_shap)
+        predictions = _to_python(predictions)
         return AllPredictionsResponse(
             success=True,
             predictions=predictions
@@ -203,7 +226,9 @@ async def predict_failure_type_get(
     process: float,
     rpm: int,
     torque: float,
-    wear: int
+    wear: int,
+    request: Request,
+    _: str = Depends(check_rate_limit)
 ):
     """
     P2: Predict specific failure types.
@@ -257,7 +282,9 @@ async def predict_rul_get(
     process: float,
     rpm: int,
     torque: float,
-    wear: int
+    wear: int,
+    request: Request,
+    _: str = Depends(check_rate_limit)
 ):
     """
     P3: Predict Remaining Useful Life (RUL).
@@ -309,7 +336,9 @@ async def predict_anomaly_get(
     process: float,
     rpm: int,
     torque: float,
-    wear: int
+    wear: int,
+    request: Request,
+    _: str = Depends(check_rate_limit)
 ):
     """
     P4: Detect anomalies using Isolation Forest.
@@ -361,7 +390,9 @@ async def predict_priority_get(
     process: float,
     rpm: int,
     torque: float,
-    wear: int
+    wear: int,
+    request: Request,
+    _: str = Depends(check_rate_limit)
 ):
     """
     P5: Predict work order priority.
@@ -414,7 +445,9 @@ async def predict_schedule_get(
     process: float,
     rpm: int,
     torque: float,
-    wear: int
+    wear: int,
+    request: Request,
+    _: str = Depends(check_rate_limit)
 ):
     """
     P6: Predict maintenance schedule.
@@ -469,33 +502,49 @@ class BatchTelemetryInput(BaseModel):
 
 
 @router.post("/predict/batch")
-async def predict_batch(data: BatchTelemetryInput):
+async def predict_batch(data: BatchTelemetryInput, request: Request, _: str = Depends(check_rate_limit)):
     """
     Batch predict for multiple machines.
     
     Uses TTL cache to avoid redundant predictions.
     """
+    if len(data.machines) > 100:
+        raise HTTPException(
+            status_code=422,
+            detail="Batch size exceeds maximum of 100 machines per request"
+        )
     from .cache import prediction_cache, get_cached_prediction, set_cached_prediction
     
     results = []
     for machine in data.machines:
-        # Create cache key dict
+        # Full telemetry dict — must include machine_id and telemetry_logs so
+        # Wave 2 models (Kalman, Survival, DST fusion) are not silently bypassed.
         telemetry = {
-            "air_temperature": machine.air_temperature,
+            "air_temperature":    machine.air_temperature,
             "process_temperature": machine.process_temperature,
-            "rotational_speed": machine.rotational_speed,
-            "torque": machine.torque,
-            "tool_wear": machine.tool_wear
+            "rotational_speed":   machine.rotational_speed,
+            "torque":             machine.torque,
+            "tool_wear":          machine.tool_wear,
+            "machine_id":         machine.machine_id if machine.machine_id is not None else -1,
+            "telemetry_logs":     machine.telemetry_logs or [],
         }
-        
+
+        # Cache key uses only sensor values (machine_id/logs are context, not identity)
+        cache_key = {
+            "air_temperature":    machine.air_temperature,
+            "process_temperature": machine.process_temperature,
+            "rotational_speed":   machine.rotational_speed,
+            "torque":             machine.torque,
+            "tool_wear":          machine.tool_wear,
+        }
+
         # Check cache first
-        cached = get_cached_prediction(telemetry)
+        cached = get_cached_prediction(cache_key)
         if cached:
             results.append(cached)
         else:
-            # Make prediction
             pred = MachineLearningService.predict_all(telemetry)
-            set_cached_prediction(telemetry, pred)
+            set_cached_prediction(cache_key, pred)
             results.append(pred)
     
     return {

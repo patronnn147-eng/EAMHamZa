@@ -16,6 +16,23 @@ logger = logging.getLogger(__name__)
 # Get the models directory (relative to this file)
 MODELS_DIR = os.path.join(os.path.dirname(__file__), '..', 'models')
 
+
+def _extract_model(data, model_key: str = 'model'):
+    """
+    Defensively extract model from pkl data.
+
+    All pkl files are saved as dicts:
+        {'model': actual_sklearn/xgb_object, 'features': [...], 'metrics': {...}, ...}
+
+    P2 and P5 already used this pattern correctly.  This helper applies the
+    same logic to P1, P3, P4, and P6 so every loader is consistent.
+    Falls back to returning data as-is for any legacy pkl saved as a bare model.
+    """
+    if isinstance(data, dict):
+        return data.get(model_key)
+    return data  # legacy bare-model format
+
+
 # ==================== P1: Failure Probability Model ====================
 _MODEL = None
 _MODEL_PATH = os.path.join(MODELS_DIR, 'basic_machine_model.pkl')
@@ -26,7 +43,8 @@ def get_model():
     if _MODEL is None:
         if os.path.exists(_MODEL_PATH):
             try:
-                _MODEL = joblib.load(_MODEL_PATH)
+                data = joblib.load(_MODEL_PATH)
+                _MODEL = _extract_model(data)
                 logger.info(f"[OK] P1 model loaded from {_MODEL_PATH}")
             except Exception as e:
                 logger.error(f"[ERROR] Failed to load P1 model: {e}")
@@ -51,7 +69,8 @@ except Exception as e:
 # ==================== P3: RUL Estimation Model ====================
 P3_MODEL_PATH = os.path.join(MODELS_DIR, 'ml_model_p3_rul.pkl')
 try:
-    _ml_model_p3 = joblib.load(P3_MODEL_PATH)
+    _p3_data = joblib.load(P3_MODEL_PATH)
+    _ml_model_p3 = _extract_model(_p3_data)
     logger.info(f"[OK] P3 model loaded from {P3_MODEL_PATH}")
 except Exception as e:
     logger.warning(f"[WARN] Failed to load P3 model: {e}")
@@ -74,7 +93,8 @@ except Exception as e:
 # ==================== P4: Anomaly Detection Model ====================
 P4_MODEL_PATH = os.path.join(MODELS_DIR, 'ml_model_p4_anomaly.pkl')
 try:
-    _ml_model_p4 = joblib.load(P4_MODEL_PATH)
+    _p4_data = joblib.load(P4_MODEL_PATH)
+    _ml_model_p4 = _extract_model(_p4_data)
     logger.info(f"[OK] P4 model loaded from {P4_MODEL_PATH}")
 except Exception as e:
     logger.warning(f"[WARN] Failed to load P4 model: {e}")
@@ -84,7 +104,8 @@ except Exception as e:
 # ==================== P6: Maintenance Schedule Model ====================
 P6_MODEL_PATH = os.path.join(MODELS_DIR, 'ml_model_p6_schedule.pkl')
 try:
-    _ml_model_p6 = joblib.load(P6_MODEL_PATH)
+    _p6_data = joblib.load(P6_MODEL_PATH)
+    _ml_model_p6 = _extract_model(_p6_data)
     logger.info(f"[OK] P6 model loaded from {P6_MODEL_PATH}")
 except Exception as e:
     logger.warning(f"[WARN] Failed to load P6 model: {e}")

@@ -156,7 +156,7 @@ class SurvivalModel:
             dtrain.set_float_info("label_upper_bound", y_upper)
             params = {
                 "objective": "survival:aft",
-                "aft_loss_distribution": "weibull",
+                "aft_loss_distribution": "normal",
                 "aft_loss_distribution_scale": 1.0,
                 "learning_rate": 0.05,
                 "max_depth": 4,
