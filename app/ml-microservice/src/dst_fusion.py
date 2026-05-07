@@ -28,39 +28,53 @@ CONFLICT_THRESHOLD = 0.8
 
 def _model_output_to_bpa(output: Optional[Dict]) -> Dict[str, float]:
     """
-    Convert a ModelOutput dict to a Basic Probability Assignment over Θ.
+    Convert a ModelOutput dict to a Basic Probability Assignment (BPA) over Θ.
 
-    If output is None, all mass goes to Unknown (vacuous BPA — contributes nothing).
+    If output is None, all mass goes to Unknown (vacuous BPA — no evidence).
 
-    BPA mapping (from plan):
-        HI ≥ 80  → m(Healthy)  = confidence * (HI/100)
-        50 ≤ HI < 80 → m(Degrading) = confidence * (1 - HI/100)
-        HI < 50  → m(Critical) = critical_prob * confidence
-        remainder → m(Unknown) = 1 - assigned_mass
+    Soft (continuous) BPA using piecewise-linear membership functions:
+        m_H(hi)  = hi / 100                               — grows 0→1 as HI 0→100
+        m_D(hi)  = 1 - |hi - 50| / 50                     — triangle, peak at HI=50
+        m_C(hi)  = 1 - hi / 100                           — shrinks 1→0 as HI 0→100
 
-    The BPA must sum to 1.0.
+    critical_prob scales the Critical membership; (1 - critical_prob) scales Healthy.
+    All three raw masses are normalised to sum to 1 before applying confidence.
+    Confidence controls how much mass bleeds into Unknown:
+        m(Unknown) = 1 - confidence
+
+    Replaces the original hard-threshold mapping that created discontinuous cliffs
+    at HI=80 (H→D) and HI=50 (D→C) causing instability near boundaries.
     """
     if output is None:
         return {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 1.0}
 
     hi         = float(output.get("health_index",  50.0))
     crit_prob  = float(output.get("critical_prob",  0.5))
-    confidence = float(output.get("confidence",     0.5))
-    confidence = max(0.0, min(1.0, confidence))
+    confidence = max(0.0, min(1.0, float(output.get("confidence", 0.5))))
 
-    bpa = {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 0.0}
+    # Soft membership functions (continuous, no cliffs)
+    h_raw = hi / 100.0                             # 0→1 as HI goes 0→100
+    d_raw = max(0.0, 1.0 - abs(hi - 50.0) / 50.0) # triangle, peak=1 at HI=50
+    c_raw = 1.0 - h_raw                            # 1→0 as HI goes 0→100
 
-    if hi >= 80.0:
-        bpa[HEALTHY]  = confidence * (hi / 100.0)
-    elif hi >= 50.0:
-        bpa[DEGRADING] = confidence * (1.0 - hi / 100.0)
-    else:
-        bpa[CRITICAL] = crit_prob * confidence
+    # Blend critical membership with model's own critical_prob estimate
+    c_scaled = c_raw * (0.5 + 0.5 * crit_prob)   # up-weight when model says critical
+    h_scaled = h_raw * (1.0 - 0.5 * crit_prob)   # down-weight when model says critical
+    d_scaled = d_raw                               # degrading unaffected by crit_prob
 
-    assigned = bpa[HEALTHY] + bpa[DEGRADING] + bpa[CRITICAL]
-    bpa[UNKNOWN] = max(0.0, 1.0 - assigned)
+    raw_total = h_scaled + d_scaled + c_scaled
+    if raw_total < 1e-9:
+        raw_total = 1.0  # degenerate guard
 
-    # Normalise to exactly 1.0 (guard against float drift)
+    # Scale by confidence; remainder bleeds into Unknown
+    bpa = {
+        HEALTHY:   confidence * h_scaled / raw_total,
+        DEGRADING: confidence * d_scaled / raw_total,
+        CRITICAL:  confidence * c_scaled / raw_total,
+        UNKNOWN:   1.0 - confidence,
+    }
+
+    # Normalise to exactly 1.0 (guard float rounding)
     total = sum(bpa.values())
     if total > 0:
         for k in FRAME:

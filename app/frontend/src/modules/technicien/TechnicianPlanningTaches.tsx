@@ -5,6 +5,7 @@ import { TechnicianNewInterventionModal } from './components/TechnicianNewInterv
 
 type TaskType = 'DIAGNOSTIC' | 'CORRECTION';
 type PlanningStatut = 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+type TaskStatut = 'DRAFT' | 'IN_PROGRESS' | 'COMPLETED';
 
 interface PlanningTask {
   id: number;
@@ -17,6 +18,7 @@ interface PlanningTask {
   planning_id: number;
   planning_identifiant: string | null;
   planning_statut: PlanningStatut | null;
+  statut: TaskStatut;
   date_debut: string;
   date_fin: string;
   created_at: string;
@@ -32,6 +34,12 @@ const PLANNING_STATUT_STYLE: Record<PlanningStatut, { bg: string; text: string }
   SUBMITTED: { bg: 'bg-yellow-500/20', text: 'text-yellow-400' },
   APPROVED:  { bg: 'bg-green-500/20',  text: 'text-green-400' },
   REJECTED:  { bg: 'bg-red-500/20',    text: 'text-red-400' },
+};
+
+const TASK_STATUT_STYLE: Record<TaskStatut, { bg: string; text: string; label: string }> = {
+  DRAFT:       { bg: 'bg-slate-500/20',   text: 'text-slate-400',   label: 'À faire' },
+  IN_PROGRESS: { bg: 'bg-blue-500/20',    text: 'text-blue-400',    label: 'En cours' },
+  COMPLETED:   { bg: 'bg-emerald-500/20', text: 'text-emerald-400', label: 'Terminé' },
 };
 
 function formatDate(iso: string) {
@@ -102,7 +110,7 @@ export default function TechnicianPlanningTaches() {
           <div className="flex-1 min-w-0 space-y-3">
             {tasks.map((task) => {
               const typeStyle = TASK_TYPE_STYLE[task.task_type] ?? TASK_TYPE_STYLE.CORRECTION;
-              const statutStyle = task.planning_statut ? PLANNING_STATUT_STYLE[task.planning_statut] : PLANNING_STATUT_STYLE.DRAFT;
+              const taskStatutStyle = TASK_STATUT_STYLE[task.statut] ?? TASK_STATUT_STYLE.DRAFT;
               const isSelected = selectedTask?.id === task.id;
               return (
                 <div
@@ -124,11 +132,9 @@ export default function TechnicianPlanningTaches() {
                         )}
                       </p>
                     </div>
-                    {task.planning_statut && (
-                      <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded ${statutStyle.bg} ${statutStyle.text}`}>
-                        {task.planning_statut}
-                      </span>
-                    )}
+                    <span className={`shrink-0 text-[11px] font-medium px-2 py-0.5 rounded ${taskStatutStyle.bg} ${taskStatutStyle.text}`}>
+                      {taskStatutStyle.label}
+                    </span>
                   </div>
 
                   <div className="flex gap-4 mt-3 text-xs text-slate-400">
@@ -232,6 +238,7 @@ export default function TechnicianPlanningTaches() {
           onOpenChange={setInterventionOpen}
           onSuccess={handleInterventionSuccess}
           initialMachineId={interventionTask.machine_id}
+          initialPlanningTacheId={interventionTask.id}
         />
       )}
     </div>

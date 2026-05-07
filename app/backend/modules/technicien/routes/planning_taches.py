@@ -28,6 +28,7 @@ class TechnicianTaskResponse(BaseModel):
     planning_id: int
     planning_identifiant: Optional[str] = None
     planning_statut: Optional[PlanningStatut] = None
+    statut: str = "DRAFT"
     date_debut: datetime
     date_fin: datetime
     created_at: datetime

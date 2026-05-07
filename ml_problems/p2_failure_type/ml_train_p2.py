@@ -116,7 +116,6 @@ final_model = MultiOutputClassifier(
         max_depth=best_params.get('estimator__max_depth', 6),
         learning_rate=best_params.get('estimator__learning_rate', 0.1),
         scale_pos_weight=spw,
-        use_label_encoder=False,
         eval_metric='logloss',
         random_state=42,
         n_jobs=-1,

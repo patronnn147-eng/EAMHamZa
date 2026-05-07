@@ -99,11 +99,14 @@ const TechnicianWorkOrders: React.FC = () => {
     switch (statut) {
       case 'EN_ATTENTE':
       case 'ASSIGNÉ':
+      case 'ASSIGNED':
         return <Badge className={base + "text-amber-700 bg-amber-50/50 border-amber-200/50"}><Clock className="w-3 h-3 mr-1" />En attente</Badge>;
       case 'EN_COURS':
+      case 'IN_PROGRESS':
         return <Badge className={base + "text-blue-700 bg-blue-50/50 border-blue-200/50 animate-pulse shadow-[0_0_12px_rgba(59,130,246,0.2)]"}><Play className="w-3 h-3 mr-1" />En cours</Badge>;
       case 'TERMINE':
       case 'TERMINÉ':
+      case 'COMPLETED':
         return <Badge className={base + "text-emerald-800 bg-emerald-100/50 border-emerald-300/50"}><CheckCircle2 className="w-3 h-3 mr-1" />Terminé</Badge>;
       default:
         return <Badge className={base + "text-blue-200 bg-slate-800/50 border-blue-700/50"}>{statut}</Badge>;
@@ -181,7 +184,7 @@ const TechnicianWorkOrders: React.FC = () => {
                         <Eye className="w-4 h-4 mr-1" />
                         Voir
                       </Button>
-                      {(wo.statut === 'EN_ATTENTE' || wo.statut === 'ASSIGNÉ') && (
+                      {(wo.statut === 'EN_ATTENTE' || wo.statut === 'ASSIGNÉ' || wo.statut === 'ASSIGNED') && (
                         <Button
                           size="sm"
                           className="bg-gradient-premium hover:opacity-90 rounded-xl font-bold shadow-lg shadow-violet-500/20 transition-all border-none"
@@ -209,7 +212,7 @@ const TechnicianWorkOrders: React.FC = () => {
                           Commencer
                         </Button>
                       )}
-                      {wo.statut === 'EN_COURS' && (
+                      {(wo.statut === 'EN_COURS' || wo.statut === 'IN_PROGRESS') && (
                         <Button
                           size="sm"
                           className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 rounded-xl font-bold shadow-lg shadow-green-500/20 transition-all border-none"

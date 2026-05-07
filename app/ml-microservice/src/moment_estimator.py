@@ -275,12 +275,18 @@ class MOMENTRULEstimator:
 
     @staticmethod
     def _estimate_cadence_days(logs: List[Dict]) -> float:
-        """Try to infer hours between log entries; default 1/24 (hourly)."""
+        """
+        Infer mean cadence (days) between log entries; default 1/24 (hourly).
+
+        Reads 'created_at' — the canonical timestamp key used by feature_store.py,
+        survival_model.py, and the backend router.  'recorded_at' was the original
+        key name and caused cadence to always fall back to the 1-hour default.
+        """
         if len(logs) >= 2:
             try:
                 from datetime import datetime
-                t0 = datetime.fromisoformat(str(logs[0].get("recorded_at", "")))
-                t1 = datetime.fromisoformat(str(logs[-1].get("recorded_at", "")))
+                t0 = datetime.fromisoformat(str(logs[0].get("created_at", "")))
+                t1 = datetime.fromisoformat(str(logs[-1].get("created_at", "")))
                 total_days = (t1 - t0).total_seconds() / 86400.0
                 cadence = total_days / max(1, len(logs) - 1)
                 return max(cadence, 1 / 24 / 60)   # floor at 1 minute

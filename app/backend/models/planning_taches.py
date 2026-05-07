@@ -24,5 +24,6 @@ class Planning_taches(Base):
     task_type = Column(SQLEnum(TaskType), nullable=False)
     date_debut = Column(DateTime(timezone=True), nullable=False)
     date_fin = Column(DateTime(timezone=True), nullable=False)
+    statut = Column(String(20), nullable=False, default="DRAFT")
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

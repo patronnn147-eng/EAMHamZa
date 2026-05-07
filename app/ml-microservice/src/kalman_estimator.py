@@ -2,7 +2,19 @@
 Model F: Linear Kalman Filter State Estimator
 Smooths health state [HI, RUL, degradation_rate] from noisy multi-model observations.
 Treats each model output as a noisy measurement, automatically weighted by noise covariance.
-Supports missing observations (NaN masking).
+Supports missing observations (NaN masking) and variable time steps (dt).
+
+State: x = [HI, RUL, degradation_rate]
+
+Transition model (dt = elapsed days since last observation):
+    HI_t    = HI_{t-1}   - degradation_rate * dt   (health degrades at rate * elapsed_time)
+    RUL_t   = RUL_{t-1}  - dt                       (remaining life decreases by elapsed time)
+    rate_t  = rate_{t-1}                             (degradation rate held constant)
+
+Why variable dt matters:
+    Burst requests or irregular sensor cadence mean steps are NOT uniformly 1 day apart.
+    Hardcoding dt=1 causes RUL to drain N days for N requests regardless of real elapsed time.
+    Pass dt (days) per step; default=1.0 preserves backward-compat for daily cadence.
 """
 import logging
 import numpy as np
@@ -15,26 +27,31 @@ STATE_DIM = 3
 # Observation dimension: [rule_score, ml_score, survival_hi, mahal_hi]
 OBS_DIM = 4
 
-# Transition matrix: HI_t = HI_{t-1} - rate, RUL_t = RUL_{t-1} - 1, rate stays
-F = np.array([
-    [1.0, -1.0, 0.0],   # HI_{t} = HI_{t-1} - RUL_delta*rate (simplified: -rate*1)
-    [0.0,  1.0, -1.0],  # RUL_{t} = RUL_{t-1} - 1
-    [0.0,  0.0,  1.0],  # rate stays constant
+# Base transition matrix (dt=1.0, for reference only).
+# update() always builds F_dt dynamically — do NOT use this directly.
+#   Row 0: HI_t    = HI_{t-1} - 1.0 * rate
+#   Row 1: RUL covariance row (dt subtracted separately as deterministic bias)
+#   Row 2: rate stays constant
+_F_BASE = np.array([
+    [1.0, 0.0, -1.0],  # HI_t   = HI - rate * dt  (dt=1 here)
+    [0.0, 1.0,  0.0],  # RUL covariance propagation (x[1] -= dt separately)
+    [0.0, 0.0,  1.0],  # rate constant
 ], dtype=float)
 
 # All 4 observations map primarily to HI (state[0])
-# (We ignore RUL observation for simplicity — Cox/PINN provide it separately)
+# (RUL observation omitted — Cox/PINN provide it separately)
 H = np.array([
-    [1.0, 0.0, 0.0],   # rule_score → HI
-    [1.0, 0.0, 0.0],   # ml_score → HI
+    [1.0, 0.0, 0.0],   # rule_score  → HI
+    [1.0, 0.0, 0.0],   # ml_score    → HI
     [1.0, 0.0, 0.0],   # survival_hi → HI
-    [1.0, 0.0, 0.0],   # mahal_hi → HI
+    [1.0, 0.0, 0.0],   # mahal_hi    → HI
 ], dtype=float)
 
-# Process noise (Q): how much state can drift per step
-Q = 0.5 * np.eye(STATE_DIM, dtype=float)
+# Process noise (Q per unit time): how much state drifts per day.
+# Scaled by dt in update() so longer gaps accumulate more uncertainty.
+Q_per_day = 0.5 * np.eye(STATE_DIM, dtype=float)
 
-# Observation noise (R): how much we trust each sensor (variances)
+# Observation noise (R): trust per sensor (variances in HI-score units)
 # rule_score: σ=5 pts → var=25; ml_score: σ=5 → 25; survival: σ=6 → 36; mahal: σ=4 → 16
 R = np.diag([25.0, 25.0, 36.0, 16.0]).astype(float)
 
@@ -46,33 +63,42 @@ class KalmanStateEstimator:
     State: x = [HI, RUL, degradation_rate]
     Observations: z = [rule_score, ml_score, survival_hi, mahal_hi]
 
-    Missing observations (None or NaN) are handled via masked updates.
+    Missing observations (None or NaN) handled via masked updates.
+    Variable time steps via dt parameter in update() and smooth_from_scores().
 
-    Usage:
+    Usage (typical per-request pattern — create fresh instance per inference call):
         est = KalmanStateEstimator()
-        est.reset()
-        for step in time_series:
-            result = est.update(obs_dict)
-            hi_smoothed = result['hi_kalman']
+        result = est.smooth_from_scores(history_with_dt)
+        hi_smoothed = result['hi_kalman']
+
+    Each entry in history should optionally carry a "dt" key (days, default=1.0).
     """
 
-    def __init__(self, F=F, H=H, Q=Q, R=R):
-        self.F = np.array(F, dtype=float)
-        self.H = np.array(H, dtype=float)
-        self.Q = np.array(Q, dtype=float)
-        self.R = np.array(R, dtype=float)
+    def __init__(self, H=H, Q_per_day=Q_per_day, R=R):
+        self.H         = np.array(H,         dtype=float)
+        self.Q_per_day = np.array(Q_per_day, dtype=float)
+        self.R         = np.array(R,         dtype=float)
         # State and covariance — initialized by reset()
         self.x: np.ndarray = np.zeros(STATE_DIM)
         self.P: np.ndarray = np.eye(STATE_DIM) * 100.0  # high initial uncertainty
         self._innovation_history: List[float] = []
         self._initialized: bool = False
 
-    def reset(self, initial_hi: float = 80.0, initial_rul: float = 30.0) -> None:
-        """Reset filter to initial state (call before first observation)."""
-        self.x = np.array([initial_hi, initial_rul, 0.5], dtype=float)
-        self.P = np.eye(STATE_DIM, dtype=float) * 100.0
-        self._innovation_history = []
-        self._initialized = True
+    # ── Internal helpers ────────────────────────────────────────────────────────
+
+    def _build_F(self, dt: float) -> np.ndarray:
+        """
+        Build time-varying transition matrix for elapsed dt (days).
+
+        HI row:   HI_t = HI_{t-1} - rate * dt
+        RUL row:  covariance propagation only; actual RUL -= dt applied post-multiply
+        rate row: constant
+        """
+        return np.array([
+            [1.0, 0.0, -dt],  # HI_t = HI - rate * dt
+            [0.0, 1.0,  0.0], # RUL covariance (time-decay applied separately)
+            [0.0, 0.0,  1.0], # rate constant
+        ], dtype=float)
 
     def _obs_to_vector(self, obs: Dict) -> np.ndarray:
         """Convert observation dict to z vector (NaN for missing keys)."""
@@ -83,13 +109,26 @@ class KalmanStateEstimator:
             float(obs.get("mahal_hi",      np.nan)),
         ], dtype=float)
 
-    def update(self, obs: Dict) -> Dict:
+    # ── Public API ──────────────────────────────────────────────────────────────
+
+    def reset(self, initial_hi: float = 80.0, initial_rul: float = 30.0) -> None:
+        """Reset filter to initial state (call before first observation)."""
+        self.x = np.array([initial_hi, initial_rul, 0.5], dtype=float)
+        self.P = np.eye(STATE_DIM, dtype=float) * 100.0
+        self._innovation_history = []
+        self._initialized = True
+
+    def update(self, obs: Dict, dt: float = 1.0) -> Dict:
         """
         Run one Kalman filter step with the given observations.
 
         Args:
             obs: Dict with zero or more of:
                  rule_score, ml_score, survival_hi, mahal_hi (all in [0, 100])
+                 (The "dt" key is ignored here — pass dt explicitly.)
+            dt:  Elapsed time since last update in days (default=1.0).
+                 Use actual elapsed days from telemetry timestamps to avoid
+                 RUL drain on burst requests or irregular sensor cadence.
 
         Returns:
             Dict with:
@@ -103,12 +142,16 @@ class KalmanStateEstimator:
         if not self._initialized:
             self.reset()
 
+        dt = max(dt, 1e-6)  # guard against zero/negative dt
+
         # --- Predict step ---
-        x_pred = self.F @ self.x
-        P_pred = self.F @ self.P @ self.F.T + self.Q
+        F_dt   = self._build_F(dt)
+        x_pred = F_dt @ self.x
+        x_pred[1] = max(0.0, x_pred[1] - dt)  # RUL decreases by elapsed time (deterministic)
+        P_pred = F_dt @ self.P @ F_dt.T + self.Q_per_day * dt  # noise scales with dt
 
         # --- Build observation vector, handle missing ---
-        z_full = self._obs_to_vector(obs)
+        z_full     = self._obs_to_vector(obs)
         valid_mask = ~np.isnan(z_full)
 
         if not valid_mask.any():
@@ -125,17 +168,18 @@ class KalmanStateEstimator:
             }
 
         # Mask to valid observations only
-        H_valid = self.H[valid_mask]      # (n_valid, STATE_DIM)
-        R_valid = self.R[np.ix_(valid_mask, valid_mask)]  # (n_valid, n_valid)
-        z_valid = z_full[valid_mask]       # (n_valid,)
+        H_valid = self.H[valid_mask]
+        R_valid = self.R[np.ix_(valid_mask, valid_mask)]
+        z_valid = z_full[valid_mask]
 
         # --- Update step ---
-        S = H_valid @ P_pred @ H_valid.T + R_valid          # innovation covariance
-        K = P_pred @ H_valid.T @ np.linalg.inv(S)           # Kalman gain
+        S         = H_valid @ P_pred @ H_valid.T + R_valid  # innovation covariance
+        K         = P_pred @ H_valid.T @ np.linalg.inv(S)   # Kalman gain
         innovation = z_valid - H_valid @ x_pred              # innovation vector
-        self.x = x_pred + K @ innovation
-        self.P = (np.eye(STATE_DIM) - K @ H_valid) @ P_pred
+        self.x    = x_pred + K @ innovation
+        self.P    = (np.eye(STATE_DIM) - K @ H_valid) @ P_pred
 
+        # Clamp state to physical bounds
         self.x[0] = float(np.clip(self.x[0], 0.0, 100.0))
         self.x[1] = max(0.0, float(self.x[1]))
         self.x[2] = max(0.0, float(self.x[2]))
@@ -144,13 +188,11 @@ class KalmanStateEstimator:
         innovation_norm = float(np.linalg.norm(innovation))
         self._innovation_history.append(innovation_norm)
 
-        # Sensor fault: norm > 3 * running std of innovations
+        sensor_fault = False
         if len(self._innovation_history) >= 5:
-            hist = np.array(self._innovation_history)
+            hist        = np.array(self._innovation_history)
             running_std = float(np.std(hist)) + 1e-9
             sensor_fault = innovation_norm > 3.0 * running_std
-        else:
-            sensor_fault = False   # not enough history to judge
 
         return {
             "hi_kalman":              float(self.x[0]),
@@ -168,18 +210,17 @@ class KalmanStateEstimator:
         initial_rul: float = 30.0,
     ) -> Dict:
         """
-        Reset filter and run through a sequence of historical health observations.
+        Reset filter and replay a sequence of historical health observations.
 
         Each entry in score_history is an obs dict with zero or more of:
             rule_score, ml_score, survival_hi, mahal_hi
+        and optionally:
+            dt  (float, days since previous entry — default 1.0)
 
-        Returns the smoothed state after the final observation — same format
-        as update().
+        Embedding actual elapsed days per entry is CRITICAL for correct RUL
+        estimation when readings are non-uniform or burst-loaded.
 
-        Args:
-            score_history: List of obs dicts, oldest first.
-            initial_hi: Initial health index assumption (default 80).
-            initial_rul: Initial RUL assumption in days (default 30).
+        Returns the smoothed state after the final observation (same format as update()).
         """
         self.reset(initial_hi=initial_hi, initial_rul=initial_rul)
         result = {
@@ -191,16 +232,18 @@ class KalmanStateEstimator:
             "state_covariance_trace": float(np.trace(self.P)),
         }
         for obs in score_history:
-            result = self.update(obs)
+            dt     = float(obs.get("dt", 1.0))
+            result = self.update(obs, dt=dt)
         return result
 
     def smooth(self, obs_sequence: List[Dict]) -> List[Dict]:
         """
         Run Kalman filter over a full sequence of observations.
         Returns list of state dicts, one per step.
+        Each entry may include "dt" key (days, default=1.0).
         """
         self.reset()
-        return [self.update(obs) for obs in obs_sequence]
+        return [self.update(obs, dt=float(obs.get("dt", 1.0))) for obs in obs_sequence]
 
     @property
     def current_hi(self) -> float:
@@ -215,9 +258,7 @@ class KalmanStateEstimator:
         return list(self._innovation_history)
 
 
-# -----------------------------------------------------------------------
-# Module-level singleton
-# -----------------------------------------------------------------------
+# ── Module-level singleton ──────────────────────────────────────────────────────
 
 _kalman_estimator: Optional[KalmanStateEstimator] = None
 

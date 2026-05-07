@@ -248,6 +248,12 @@ class AlertService:
                 "anomaly_detected": 0,
             }
 
+            # Check ML microservice availability ONCE before iterating machines.
+            # Calling is_ml_service_available() per machine = N health-check HTTP requests.
+            from modules.ml.rul_calculator import RULCalculator
+            from core.ml_client import ml_client, is_ml_service_available
+            _ml_available = await is_ml_service_available()
+
             for machine in machines:
                 try:
                     # Get intervention history
@@ -257,11 +263,28 @@ class AlertService:
                     itv_result = await self.db.execute(interventions_query)
                     interventions = list(itv_result.scalars().all())
 
-                    # Get RUL prediction
-                    from modules.ml.ml_predictive import MachineLearningService
+                    # Best-effort microservice call; fall back to formula if unavailable
+                    fusion_result = None
+                    try:
+                        if _ml_available:
+                            air  = float(getattr(machine, "air_temperature",     300.0) or 300.0)
+                            proc = float(getattr(machine, "process_temperature", 310.0) or 310.0)
+                            rpm  = int(getattr(machine,   "rotational_speed",    1500)  or 1500)
+                            torq = float(getattr(machine, "torque",              40.0)  or 40.0)
+                            wear = int(getattr(machine,   "tool_wear",           0)     or 0)
+                            fusion_result = await ml_client.predict_all(
+                                air_temperature=air,
+                                process_temperature=proc,
+                                rotational_speed=rpm,
+                                torque=torq,
+                                tool_wear=wear,
+                                machine_id=machine.id,
+                            )
+                    except Exception:
+                        pass
 
-                    prediction = MachineLearningService.calculate_rul(
-                        machine, list(interventions)
+                    prediction = RULCalculator.calculate_rul(
+                        machine, list(interventions), fusion_result=fusion_result
                     )
 
                     rul_days = prediction.get("rul_days")

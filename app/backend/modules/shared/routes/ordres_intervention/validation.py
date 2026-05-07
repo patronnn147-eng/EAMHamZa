@@ -51,8 +51,8 @@ async def validate_ordres_intervention(
                 "priorite": intervention.priority or "MOYENNE",
                 "statut": OrdreStatut.ASSIGNED,  # Use new enum
                 "machine_id": intervention.machine_id,
-                "utilisateur_id": intervention.technicien_id,
-                "created_by": intervention.technicien_id,
+                "utilisateur_id": intervention.technician_id,
+                "created_by": intervention.technician_id,
                 "validated_by": current_user.id,
                 "date_validation": datetime.now(),
             })

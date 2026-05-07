@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, asc
+from sqlalchemy import select, desc, asc, cast, String
 from core.database import get_db
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
+from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.ml_prediction_log import MlPredictionLog
 from models.machine_telemetry import MachineTelemetry
-from .predictions import MachineLearningService
+from .logging import ShadowLogger
 from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
 from core.ml_client import ml_client, is_ml_service_available, get_model_metrics
@@ -18,6 +18,12 @@ from schemas.pagination import PaginatedResponse
 from sqlalchemy import func
 from datetime import datetime, timedelta
 import asyncio
+import os
+
+# System/simulation entries need a non-null technician_id.
+# Set SYSTEM_TECHNICIAN_ID env var to a valid technician PK in your DB.
+# Default 0 works when there is no FK constraint on technician_id.
+_SYSTEM_TECHNICIAN_ID = int(os.getenv("SYSTEM_TECHNICIAN_ID", "0"))
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 
@@ -44,12 +50,15 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     Returns (entries, log_dicts) where log_dicts is compatible with
     FeatureStore.build_time_series_from_logs.
     """
+    # Fetch latest 500 entries (matches microservice _MAX_LOGS cap).
+    # Order DESC + limit, then reverse in Python to get oldest-first ascending.
     result = await db.execute(
         select(MachineTelemetry)
         .where(MachineTelemetry.machine_id == machine_id)
-        .order_by(asc(MachineTelemetry.recorded_at))
+        .order_by(MachineTelemetry.recorded_at.desc())
+        .limit(500)
     )
-    entries = result.scalars().all()
+    entries = list(reversed(result.scalars().all()))
     log_dicts = [
         {
             "machine_id":           machine_id,
@@ -99,7 +108,7 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     from sqlalchemy import func as sa_func
     wo_query = select(sa_func.count(Ordres_travail.id)).where(
         Ordres_travail.machine_id == machine_id,
-        ~Ordres_travail.statut.in_(["TERMINÉ", "ANNULÉ"])
+        cast(Ordres_travail.statut, String).notin_(["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"])
     )
     wo_result = await db.execute(wo_query)
     open_wo_count = wo_result.scalar() or 0
@@ -128,7 +137,8 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     else:
         _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
 
-    # Try ML microservice for DST fusion
+    # Try ML microservice for DST fusion.
+    # include_shap=True: unified-health is the detailed view and needs explanations.
     fusion_result: Optional[Dict] = None
     try:
         if await is_ml_service_available():
@@ -140,6 +150,7 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
                 tool_wear=int(_wear),
                 machine_id=machine_id,
                 telemetry_logs=telemetry_logs,
+                include_shap=True,
             )
     except Exception:
         pass
@@ -217,11 +228,11 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
     from datetime import datetime, timedelta, timezone
     from sqlalchemy import func
     now_dt = datetime.now(timezone.utc)
-    
+
     # Open = not TERMINÉ or ANNULÉ
     wo_query = select(func.count(Ordres_travail.id)).where(
         Ordres_travail.machine_id == machine_id,
-        ~Ordres_travail.statut.in_(["TERMINÉ", "ANNULÉ"])
+        cast(Ordres_travail.statut, String).notin_(["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"])
     )
     wo_result = await db.execute(wo_query)
     open_wo_count = wo_result.scalar() or 0
@@ -229,7 +240,7 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
     # 4. Count recent interventions (last 30 days)
     thirty_days_ago = now_dt - timedelta(days=30)
     recent_interventions_count = len([
-        i for i in interventions 
+        i for i in interventions
         if i.date_intervention and (
             i.date_intervention.replace(tzinfo=timezone.utc) if i.date_intervention.tzinfo is None else i.date_intervention
         ) > thirty_days_ago
@@ -277,7 +288,7 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
 
         # 4. Shadow Log (PDCA Phase 1): persist prediction without showing to user
         try:
-            log_entry = MachineLearningService.create_shadow_log(prediction)
+            log_entry = ShadowLogger.create_shadow_log(prediction)
             db.add(log_entry)
             await db.commit()
         except Exception:
@@ -315,8 +326,18 @@ async def get_failure_probability(
     if not machine:
         raise HTTPException(status_code=404, detail="Machine non trouvée")
 
-    features = [air, process, float(rpm), torque, float(wear)]
-    probability = MachineLearningService.predict_failure_probability(features)
+    # Delegate to ML microservice
+    try:
+        ml_result = await ml_client.predict_failure_probability(
+            air_temperature=air,
+            process_temperature=process,
+            rotational_speed=rpm,
+            torque=torque,
+            tool_wear=wear,
+        )
+        probability = float(ml_result.get("failure_probability", ml_result.get("prediction", {}).get("failure_probability", 0.0)))
+    except Exception:
+        probability = 0.0
 
     return {
         "machine_id": machine_id,
@@ -350,7 +371,18 @@ async def get_failure_type(
     temp_delta = process - air
     features = [float(air), float(process), float(rpm), float(torque), float(wear), float(temp_delta)]
 
-    failure_types = MachineLearningService.predict_failure_type(features)
+    # Delegate to ML microservice
+    try:
+        ml_result = await ml_client.predict_failure_type(
+            air_temperature=air,
+            process_temperature=process,
+            rotational_speed=rpm,
+            torque=torque,
+            tool_wear=wear,
+        )
+        failure_types = ml_result.get("failure_types", {})
+    except Exception:
+        failure_types = {}
 
     return {
         "machine_id": machine_id,
@@ -369,13 +401,14 @@ async def get_fleet_critical_predictions(db: AsyncSession = Depends(get_db)):
     machines = result.scalars().all()
     predictions = []
 
-    for machine in machines:
-        interventions_query = select(Ordres_intervention).where(
-            Ordres_intervention.machine_id == machine.id
-        )
-        execute_result = await db.execute(interventions_query)
-        interventions = execute_result.scalars().all()
+    # Single query for all interventions — avoids N per-machine round-trips.
+    all_oi_result = await db.execute(select(Ordres_intervention))
+    _oi_by_machine: dict = {}
+    for _oi in all_oi_result.scalars().all():
+        _oi_by_machine.setdefault(_oi.machine_id, []).append(_oi)
 
+    for machine in machines:
+        interventions = _oi_by_machine.get(machine.id, [])
         pred = RULCalculator.calculate_rul(machine, list(interventions))
         if pred["risk_level"] in ["CRITICAL", "HIGH"]:
             predictions.append(pred)
@@ -383,15 +416,57 @@ async def get_fleet_critical_predictions(db: AsyncSession = Depends(get_db)):
     return {"machines": sorted(predictions, key=lambda x: x["rul_days"])}
 
 
-async def _process_single_machine(machine: Machines, db: AsyncSession) -> Dict:
-    """Helper to process single machine prediction."""
-    interventions_query = select(Ordres_intervention).where(
-        Ordres_intervention.machine_id == machine.id
+async def _process_single_machine(
+    machine: Machines,
+    db: AsyncSession,
+    interventions_by_machine: dict = None,
+    latest_logs_by_machine: dict = None,
+    latest_telemetry_by_machine: dict = None,
+) -> Dict:
+    """Helper to process single machine prediction.
+
+    Args:
+        interventions_by_machine: pre-fetched dict {machine_id: [Ordres_intervention]}
+        latest_logs_by_machine: pre-fetched dict {machine_id: MlPredictionLog} — latest log row per machine
+        latest_telemetry_by_machine: pre-fetched dict {machine_id: MachineTelemetry} — latest telemetry row per machine
+    """
+    if interventions_by_machine is not None:
+        interventions = interventions_by_machine.get(machine.id, [])
+    else:
+        execute_result = await db.execute(
+            select(Ordres_intervention).where(Ordres_intervention.machine_id == machine.id)
+        )
+        interventions = execute_result.scalars().all()
+
+    # Build synthetic fusion_result from latest MlPredictionLog row.
+    # Avoids per-machine ML microservice calls while giving realistic health scores.
+    # RULCalculator uses failure_probability → health = 100 - failure_prob.
+    fusion_result = None
+    if latest_logs_by_machine is not None:
+        log = latest_logs_by_machine.get(machine.id)
+        if log is not None:
+            fusion_result = {
+                "p1_failure_probability": float(log.failure_probability or 0.0),
+                "p3_rul_days":           float(log.rul_days) if log.rul_days is not None else None,
+                "p4_is_anomaly":         bool(log.is_anomaly or False),
+                "p4_anomaly_score":      float(log.anomaly_score or 0.0),
+                "p5_predicted_priority": log.predicted_priority,
+                "p2_failure_types":      {},
+            }
+
+    # Build telemetry_entries list from latest snapshot (for degradation rate).
+    telemetry_entries = []
+    if latest_telemetry_by_machine is not None:
+        entry = latest_telemetry_by_machine.get(machine.id)
+        if entry is not None:
+            telemetry_entries = [entry]
+
+    pred = RULCalculator.calculate_rul(
+        machine,
+        list(interventions),
+        telemetry_entries=telemetry_entries if telemetry_entries else None,
+        fusion_result=fusion_result,
     )
-    execute_result = await db.execute(interventions_query)
-    interventions = execute_result.scalars().all()
-    
-    pred = RULCalculator.calculate_rul(machine, list(interventions))
     pred["zone"] = machine.zone
     pred["sous_zone"] = machine.sous_zone
     pred["statut"] = machine.statut
@@ -405,32 +480,89 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     Cached for 5 minutes + parallel processing for speed.
     """
     now = datetime.utcnow()
-    
+
     # Check cache
-    if (_fleet_cache["data"] is not None and 
+    if (_fleet_cache["data"] is not None and
         _fleet_cache["timestamp"] is not None and
         (now - _fleet_cache["timestamp"]).total_seconds() < _fleet_cache["ttl_seconds"]):
         return _fleet_cache["data"]
-    
+
     # Build dashboard fresh - parallel processing
     result = await db.execute(select(Machines))
     machines = result.scalars().all()
 
+    # Fetch ALL interventions in a single query and group by machine_id.
+    # Avoids N per-machine queries (was O(N) DB round-trips, now O(1)).
+    all_interventions_result = await db.execute(select(Ordres_intervention))
+    _interventions_by_machine: dict = {}
+    for _oi in all_interventions_result.scalars().all():
+        _interventions_by_machine.setdefault(_oi.machine_id, []).append(_oi)
+
+    # Batch-fetch latest MlPredictionLog per machine (one query, no ML calls).
+    # Subquery: for each machine_id, get the id of the most recent log row.
+    from sqlalchemy import func as sa_func
+    latest_log_subq = (
+        select(
+            MlPredictionLog.machine_id,
+            sa_func.max(MlPredictionLog.id).label("max_id"),
+        )
+        .group_by(MlPredictionLog.machine_id)
+        .subquery()
+    )
+    _latest_logs_result = await db.execute(
+        select(MlPredictionLog).join(
+            latest_log_subq,
+            (MlPredictionLog.machine_id == latest_log_subq.c.machine_id)
+            & (MlPredictionLog.id == latest_log_subq.c.max_id),
+        )
+    )
+    _latest_logs_by_machine: dict = {
+        row.machine_id: row for row in _latest_logs_result.scalars().all()
+    }
+
+    # Batch-fetch latest MachineTelemetry per machine.
+    latest_telem_subq = (
+        select(
+            MachineTelemetry.machine_id,
+            sa_func.max(MachineTelemetry.id).label("max_id"),
+        )
+        .group_by(MachineTelemetry.machine_id)
+        .subquery()
+    )
+    _latest_telem_result = await db.execute(
+        select(MachineTelemetry).join(
+            latest_telem_subq,
+            (MachineTelemetry.machine_id == latest_telem_subq.c.machine_id)
+            & (MachineTelemetry.id == latest_telem_subq.c.max_id),
+        )
+    )
+    _latest_telem_by_machine: dict = {
+        row.machine_id: row for row in _latest_telem_result.scalars().all()
+    }
+
     # Process all machines in parallel
-    tasks = [_process_single_machine(m, db) for m in machines]
+    tasks = [
+        _process_single_machine(
+            m, db,
+            _interventions_by_machine,
+            _latest_logs_by_machine,
+            _latest_telem_by_machine,
+        )
+        for m in machines
+    ]
     dashboard = await asyncio.gather(*tasks, return_exceptions=True)
-    
+
     # Filter out errors
     dashboard = [d for d in dashboard if isinstance(d, dict)]
 
     # Sort: CRITICAL first, then HIGH, then MEDIUM, then LOW
     risk_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
     sorted_dashboard = sorted(dashboard, key=lambda x: (risk_order.get(x["risk_level"], 4), x["rul_days"]))
-    
+
     # Cache result
     _fleet_cache["data"] = sorted_dashboard
     _fleet_cache["timestamp"] = now
-    
+
     return sorted_dashboard
 
 
@@ -513,7 +645,7 @@ async def update_machine_telemetry(
     entry = MachineTelemetry(
         machine_id=machine_id,
         work_order_id=None,
-        technician_id=0,  # system/simulation entry
+        technician_id=_SYSTEM_TECHNICIAN_ID,  # configurable via SYSTEM_TECHNICIAN_ID env var
         air_temperature=data.air_temperature or 300.0,
         process_temperature=data.process_temperature or 310.0,
         rotational_speed=data.rotational_speed or 1500,

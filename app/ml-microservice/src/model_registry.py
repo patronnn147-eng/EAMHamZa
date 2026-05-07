@@ -16,10 +16,15 @@ class ModelRegistry:
     
     def __init__(self):
         self.models: Dict[str, Dict] = {}
-        self._registry_file = os.path.join(
-            os.path.dirname(__file__), 
-            '..', 
-            'model_registry.json'
+        # Registry file location is configurable via MODEL_REGISTRY_PATH env var.
+        # Default writes to /data/model_registry.json (persistent volume).
+        # Fallback: parent of src/ dir (ml-microservice root) for local dev.
+        self._registry_file = os.getenv(
+            'MODEL_REGISTRY_PATH',
+            os.path.join(
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                'model_registry.json',
+            ),
         )
         self._load_from_disk()
     

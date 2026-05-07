@@ -13,8 +13,9 @@ from core.database import get_db
 from core.security import verify_technicien
 from models.utilisateurs import Utilisateurs, UserRole
 from models.machines import Machines
-from models.ordres_travail import Ordres_travail
+from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.ordres_intervention import Ordres_intervention
+from models.planning_taches import Planning_taches
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
 
@@ -74,7 +75,7 @@ async def get_my_work_orders(
         count_query = select(func.count(Ordres_travail.id))\
             .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .where(
-                (Ordres_intervention.technicien_id == current_user.id) |
+                (Ordres_intervention.technician_id == current_user.id) |
                 (Ordres_travail.utilisateur_id == current_user.id)
             )
         total_result = await db.execute(count_query)
@@ -84,7 +85,7 @@ async def get_my_work_orders(
             .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
             .where(
-                (Ordres_intervention.technicien_id == current_user.id) |
+                (Ordres_intervention.technician_id == current_user.id) |
                 (Ordres_travail.utilisateur_id == current_user.id)
             )\
             .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
@@ -140,7 +141,7 @@ async def start_work_order(
             int_result = await db.execute(
                 select(Ordres_intervention).where(
                     Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technicien_id == current_user.id
+                    Ordres_intervention.technician_id == current_user.id
                 )
             )
             if int_result.scalar_one_or_none():
@@ -149,12 +150,12 @@ async def start_work_order(
         if not has_access:
             raise HTTPException(status_code=403, detail="You can only start work orders assigned to you")
         
-        if wo.statut not in ["EN_ATTENTE", "ASSIGNÉ"]:
+        if wo.statut not in ["EN_ATTENTE", "ASSIGNÉ", "ASSIGNED"]:
             raise HTTPException(status_code=400, detail="Only pending/assigned orders can be started")
 
         previous_statut = wo.statut
         now = datetime.utcnow()
-        wo.statut = "EN_COURS"
+        wo.statut = OrdreStatut.IN_PROGRESS
         if not wo.date_debut:
             wo.date_debut = now
         
@@ -177,7 +178,7 @@ async def start_work_order(
                 entity_type=AuditEntityType.WORK_ORDER,
                 entity_id=order_id,
                 old_values={"statut": previous_statut},
-                new_values={"statut": "EN_COURS"},
+                new_values={"statut": OrdreStatut.IN_PROGRESS},
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=wo.titre,
@@ -185,7 +186,7 @@ async def start_work_order(
         except Exception:
             logger.warning("Audit log failed for technician start work order %s", order_id)
 
-        return {"message": "Work order started", "statut": "EN_COURS"}
+        return {"message": "Work order started", "statut": OrdreStatut.IN_PROGRESS}
     except HTTPException:
         raise
     except Exception as e:
@@ -216,7 +217,7 @@ async def complete_work_order(
             int_result = await db.execute(
                 select(Ordres_intervention).where(
                     Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technicien_id == current_user.id
+                    Ordres_intervention.technician_id == current_user.id
                 )
             )
             if int_result.scalar_one_or_none():
@@ -225,11 +226,11 @@ async def complete_work_order(
         if not has_access:
             raise HTTPException(status_code=403, detail="You can only complete work orders assigned to you")
         
-        if wo.statut != "EN_COURS":
-            raise HTTPException(status_code=400, detail="Only 'EN_COURS' orders can be completed")
-            
+        if wo.statut != OrdreStatut.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Only 'IN_PROGRESS' orders can be completed")
+
         now = datetime.utcnow()
-        wo.statut = "TERMINÉ"
+        wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
         
@@ -260,7 +261,14 @@ async def complete_work_order(
             intervention.check_verification_method = payload.check_verification_method
             intervention.act_preventive_actions = payload.act_preventive_actions
             intervention.act_recommendations = payload.act_recommendations
-        
+
+            if intervention.planning_tache_id:
+                tache = await db.scalar(
+                    select(Planning_taches).where(Planning_taches.id == intervention.planning_tache_id)
+                )
+                if tache:
+                    tache.statut = "COMPLETED"
+
         # Save telemetry if any telemetry field is provided
         if any([
             payload.air_temperature,

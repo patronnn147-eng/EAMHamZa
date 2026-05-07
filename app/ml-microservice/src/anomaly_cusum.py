@@ -97,8 +97,12 @@ class AnomalyEnsemble:
     """
     Dual-gate anomaly detector combining Isolation Forest and CUSUM charts.
 
-    fit() on healthy baseline data → predict() for new observations.
-    The CUSUM detectors maintain rolling state — call reset_cusum() after alarm.
+    fit() on healthy baseline data → predict_with_history() for new observations.
+
+    Thread-safety: The IsolationForest is read-only after fit(). The legacy
+    predict() and replay_history() methods mutate self._cusums and are NOT
+    safe under concurrent requests — use predict_with_history() instead,
+    which creates fresh CUSUM detectors per call.
     """
 
     def __init__(
@@ -161,11 +165,110 @@ class AnomalyEnsemble:
         )
         return self
 
+    def predict_with_history(
+        self,
+        x: np.ndarray,
+        feature_names: List[str] = None,
+        history: List[np.ndarray] = None,
+    ) -> Dict:
+        """
+        Stateless anomaly prediction — safe for concurrent requests.
+
+        Creates fresh CUSUM detectors per call (not stored on self), replays
+        the provided history through them, then scores the latest observation x.
+        The global IsolationForest singleton is read-only and always safe.
+
+        Args:
+            x: array-like (n_features,) — the latest sensor reading to score
+            feature_names: Names for each feature (default: FEATURE_NAMES[:n])
+            history: Optional list of prior observations (oldest first), each
+                     of shape (n_features,). Used to warm-start CUSUM state.
+                     Pass logs[:-1] from the caller — do NOT include x itself.
+
+        Returns:
+            ModelOutput dict (same schema as predict()):
+                model_id, health_index (0-100), critical_prob (0-1),
+                rul_estimate (None), uncertainty, confidence,
+                is_anomaly (bool), iso_score (float), cusum_alarms (dict)
+        """
+        if not self._fitted:
+            return {
+                "model_id":      "model_e_anomaly",
+                "health_index":  50.0,
+                "critical_prob": 0.5,
+                "rul_estimate":  None,
+                "uncertainty":   0.5,
+                "confidence":    0.0,
+                "is_anomaly":    False,
+                "iso_score":     0.0,
+                "cusum_alarms":  {},
+            }
+
+        x = np.asarray(x, dtype=float)
+        if feature_names is None:
+            feature_names = list(self._baselines.keys())
+
+        # --- Build fresh per-request CUSUM detectors (no shared mutable state) ---
+        temp_cusums: Dict[str, CUSUMDetector] = {}
+        for name, (mu, sigma) in self._baselines.items():
+            temp_cusums[name] = CUSUMDetector(k=0.5 * sigma, h=5.0 * sigma)
+
+        # --- Warm-start: replay history through fresh detectors ---
+        if history:
+            for obs in history:
+                obs_arr = np.asarray(obs, dtype=float)
+                for i, name in enumerate(feature_names):
+                    if name not in temp_cusums or i >= len(obs_arr):
+                        continue
+                    mu = self._baselines[name][0]
+                    temp_cusums[name].update(float(obs_arr[i]), mu)
+
+        # --- Isolation Forest gate (read-only, always thread-safe) ---
+        iso_score = float(self._iso_forest.decision_function(x.reshape(1, -1))[0])
+        iso_anomaly = iso_score < self.iso_threshold
+
+        # --- CUSUM gate using fresh per-request detectors ---
+        cusum_alarms: Dict[str, bool] = {}
+        for i, name in enumerate(feature_names):
+            if name in temp_cusums and i < len(x):
+                mu = self._baselines[name][0]
+                alarmed = temp_cusums[name].update(float(x[i]), mu)
+                cusum_alarms[name] = alarmed
+        any_cusum_alarm = any(cusum_alarms.values())
+
+        # --- Dual-gate reconciliation ---
+        anomaly_detected = iso_anomaly and any_cusum_alarm
+
+        # --- Health Index from Isolation Forest score ---
+        pct_rank = float(np.searchsorted(self._iso_scores_sorted, iso_score)) / max(1, len(self._iso_scores_sorted))
+        hi = round(100.0 * pct_rank, 2)
+        hi = max(0.0, min(100.0, hi))
+        critical_prob = 1.0 - (hi / 100.0)
+
+        if anomaly_detected:
+            hi = min(hi, 20.0)
+            critical_prob = max(critical_prob, 0.8)
+
+        return {
+            "model_id":      "model_e_anomaly",
+            "health_index":  hi,
+            "critical_prob": float(critical_prob),
+            "rul_estimate":  None,
+            "uncertainty":   float(abs(iso_score)),
+            "confidence":    0.85 if self._fitted else 0.0,
+            "is_anomaly":    bool(anomaly_detected),
+            "iso_score":     iso_score,
+            "cusum_alarms":  cusum_alarms,
+        }
+
     def predict(
         self, x: np.ndarray, feature_names: List[str] = None
     ) -> Dict:
         """
         Predict anomaly status for a single observation.
+
+        WARNING: This method mutates self._cusums and is NOT safe under
+        concurrent requests. Use predict_with_history() for production inference.
 
         Args:
             x: array-like (n_features,) — single sensor reading
@@ -244,10 +347,8 @@ class AnomalyEnsemble:
         """
         Warm-start CUSUM state by replaying historical observations (excluding latest).
 
-        Resets CUSUM statistics to zero first, then sequentially updates each
-        detector with all entries except the last (the latest will be scored
-        via predict()). This initialises cumulative sums to reflect real
-        accumulated drift rather than cold-starting at zero.
+        WARNING: Mutates self._cusums — NOT safe under concurrent requests.
+        Use predict_with_history(history=...) instead.
 
         Args:
             history: List of 1-D arrays, each of shape (n_features,), oldest first.

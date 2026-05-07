@@ -86,7 +86,6 @@ print("\nRunning GridSearchCV (5-fold, f1 scoring)...")
 grid = GridSearchCV(
     estimator=XGBClassifier(
         scale_pos_weight=spw,
-        use_label_encoder=False,
         eval_metric='logloss',
         random_state=42,
         n_jobs=-1,

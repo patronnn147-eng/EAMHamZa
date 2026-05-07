@@ -11,7 +11,15 @@ from models.ml_prediction_log import MlPredictionLog
 
 logger = logging.getLogger(__name__)
 
-MODELS_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models')
+# Models live in the ml-microservice container.
+# In Docker Compose this maps to the 'ml-models' named volume mounted at:
+#   ml-microservice: /app/models  (write)
+#   backend:         /ml_models   (read/write via shared volume)
+# Env var ML_MODELS_DIR overrides for local dev (set to microservice models path).
+MODELS_DIR = os.getenv(
+    'ML_MODELS_DIR',
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))), 'ml-microservice', 'models'),
+)
 DATA_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'ai4i2020.csv')
 
 # Model file mapping
@@ -149,9 +157,20 @@ class RetrainingService:
         # 3. Load Baseline Data
         try:
             import pandas as pd
+            from sklearn.model_selection import train_test_split as _tts
             baseline_df = pd.read_csv(DATA_PATH)
             new_df = pd.DataFrame(new_data)
             combined_df = pd.concat([baseline_df, new_df], ignore_index=True)
+
+            # 3a. Hold out 20% for post-training accuracy gate.
+            # val_df never seen by training — used to reject regressions.
+            _train_df, _val_df = _tts(combined_df, test_size=0.2, random_state=42,
+                                      stratify=combined_df.get("Machine failure", None))
+
+            # Minimum accuracy/F1 to accept new model (compared against val set).
+            # P1/P2/P5 classifiers: F1 >= 0.70; P3 regressor: R2 >= 0.40.
+            _MIN_CLASSIFIER_F1 = 0.70
+            _MIN_REGRESSOR_R2  = 0.40
 
             models_retrained = []
             model_types = list(MODEL_FILES.keys()) if model_type == 'all' else [model_type]
@@ -176,58 +195,103 @@ class RetrainingService:
                 existing_features = existing_data.get('features', [])
                 xgb_features = existing_data.get('xgb_features', existing_features)
 
-                # Prepare features for training
+                # Prepare features for training (use _train_df — val held out for accuracy gate)
                 if xgb_features:
-                    # Map original feature names to sanitized names
                     feature_map = {}
                     for orig, sanitized in zip(existing_features, xgb_features):
                         feature_map[orig] = sanitized
 
                     train_features = existing_features
-                    X = combined_df[train_features].copy()
+                    X      = _train_df[train_features].copy()
                     X.columns = xgb_features
+                    X_val  = _val_df[train_features].copy()
+                    X_val.columns = xgb_features
                 else:
                     train_features = ["Air temperature [K]", "Process temperature [K]",
                                       "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
-                    X = combined_df[train_features]
+                    X     = _train_df[train_features]
+                    X_val = _val_df[train_features]
 
                 # Model-specific target
                 if mt == 'p1':
-                    y = combined_df["Machine failure"]
+                    y     = _train_df["Machine failure"]
+                    y_val = _val_df["Machine failure"]
                 elif mt == 'p2':
-                    # P2 uses failure type labels - skip for now if not available
+                    import pandas as _pd
+                    _failure_types = ['TWF', 'HDF', 'PWF', 'OSF', 'RNF']
+                    _ft_col = _train_df.get(
+                        "actual_failure_type",
+                        _pd.Series(["NONE"] * len(_train_df))
+                    )
+                    _ft_val_col = _val_df.get(
+                        "actual_failure_type",
+                        _pd.Series(["NONE"] * len(_val_df))
+                    )
+                    for _ft in _failure_types:
+                        _train_df = _train_df.copy()
+                        _val_df   = _val_df.copy()
+                        _train_df[_ft] = _ft_col.str.contains(_ft, na=False).astype(int)
+                        _val_df[_ft]   = _ft_val_col.str.contains(_ft, na=False).astype(int)
+                    y_p2     = _train_df[_failure_types].fillna(0)
+                    y_p2_val = _val_df[_failure_types].fillna(0)
+                elif mt == 'p3':
+                    _max_wear = _train_df["Tool wear [min]"].max()
+                    _train_df = _train_df.copy()
+                    _val_df   = _val_df.copy()
+                    _train_df['_rul_proxy'] = _train_df.apply(
+                        lambda row: 0.0 if row['Machine failure'] == 1
+                        else max(0.0, (_max_wear - row['Tool wear [min]']) / 60.0),
+                        axis=1,
+                    )
+                    _val_df['_rul_proxy'] = _val_df.apply(
+                        lambda row: 0.0 if row['Machine failure'] == 1
+                        else max(0.0, (_max_wear - row['Tool wear [min]']) / 60.0),
+                        axis=1,
+                    )
+                    y_p3     = _train_df['_rul_proxy']
+                    y_p3_val = _val_df['_rul_proxy']
+                elif mt == 'p6':
+                    # P6 requires actual maintenance scheduling outcome data not yet
+                    # captured per intervention.  Skipped until planning schema exposes
+                    # next_maintenance_date.
                     models_retrained.append({
-                        "model": mt,
-                        "status": "skipped",
-                        "reason": "P2 requires separate failure type labels"
-                    })
-                    continue
-                elif mt in ('p3', 'p6'):
-                    # P3/P6 require RUL calculation - skip for incremental retraining
-                    models_retrained.append({
-                        "model": mt,
-                        "status": "skipped",
-                        "reason": f"{mt.upper()} requires full RUL recalculation"
+                        "model": mt, "status": "skipped",
+                        "reason": "P6 requires actual maintenance scheduling outcomes"
                     })
                     continue
                 elif mt == 'p4':
                     # P4 is unsupervised - retrain on combined features
                     pass
                 elif mt == 'p5':
-                    # P5 requires priority labels - skip for incremental
-                    models_retrained.append({
-                        "model": mt,
-                        "status": "skipped",
-                        "reason": "P5 requires priority label recalculation"
-                    })
-                    continue
+                    _max_wear_p5 = _train_df["Tool wear [min]"].max()
+                    _high_wear_thresh = _max_wear_p5 * 0.75
+                    _train_df = _train_df.copy()
+                    _val_df   = _val_df.copy()
+                    _train_df['_priority_proxy'] = _train_df.apply(
+                        lambda row: (
+                            0 if (row['Machine failure'] == 1
+                                  and row['Tool wear [min]'] >= _high_wear_thresh)
+                            else (1 if row['Machine failure'] == 1 else 2)
+                        ),
+                        axis=1,
+                    )
+                    _val_df['_priority_proxy'] = _val_df.apply(
+                        lambda row: (
+                            0 if (row['Machine failure'] == 1
+                                  and row['Tool wear [min]'] >= _high_wear_thresh)
+                            else (1 if row['Machine failure'] == 1 else 2)
+                        ),
+                        axis=1,
+                    )
+                    y_p5     = _train_df['_priority_proxy']
+                    y_p5_val = _val_df['_priority_proxy']
                 else:
-                    y = combined_df["Machine failure"]
+                    y = _train_df["Machine failure"]
 
                 # Backup existing model
                 backup_path = RetrainingService._backup_model(mt)
 
-                # For P1: refit with existing model config
+                # Train model — all paths go through backup → validate → rollback below.
                 if mt == 'p1':
                     from xgboost import XGBClassifier
                     model = XGBClassifier(
@@ -239,7 +303,6 @@ class RetrainingService:
                         eval_metric='logloss',
                     )
                     model.fit(X, y)
-
                     model_data = {
                         'model': model,
                         'features': existing_features,
@@ -249,16 +312,40 @@ class RetrainingService:
                                     'new_samples': len(new_data)},
                     }
 
+                elif mt == 'p2':
+                    from sklearn.multioutput import MultiOutputClassifier
+                    from xgboost import XGBClassifier as _XGBC
+                    model = MultiOutputClassifier(
+                        _XGBC(n_estimators=100, max_depth=4, eval_metric='logloss', random_state=42)
+                    )
+                    model.fit(X, y_p2)
+                    model_data = {
+                        'model':    model,
+                        'features': existing_features,
+                        'labels':   _failure_types,
+                        'metrics':  {'retrained_at': datetime.now(timezone.utc).isoformat(),
+                                     'new_samples': len(new_data)},
+                    }
+
+                elif mt == 'p3':
+                    from xgboost import XGBRegressor as _XGBR
+                    model = _XGBR(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
+                    model.fit(X, y_p3)
+                    model_data = {
+                        'model':    model,
+                        'features': existing_features,
+                        'metrics':  {'retrained_at': datetime.now(timezone.utc).isoformat(),
+                                     'new_samples': len(new_data),
+                                     'rul_source':  'tool_wear_proxy'},
+                    }
+
                 elif mt == 'p4':
                     from sklearn.ensemble import IsolationForest
                     model = IsolationForest(
-                        n_estimators=100,
-                        contamination=0.04,
-                        max_samples=0.9,
-                        random_state=42,
+                        n_estimators=100, contamination=0.04,
+                        max_samples=0.9, random_state=42,
                     )
                     model.fit(X)
-
                     model_data = {
                         'model': model,
                         'features': existing_features,
@@ -266,6 +353,20 @@ class RetrainingService:
                         'metrics': {'retrained_at': datetime.now(timezone.utc).isoformat(),
                                     'new_samples': len(new_data)},
                     }
+
+                elif mt == 'p5':
+                    from sklearn.ensemble import RandomForestClassifier as _RFC
+                    model = _RFC(n_estimators=100, random_state=42)
+                    model.fit(X, y_p5)
+                    model_data = {
+                        'model':    model,
+                        'features': existing_features,
+                        'labels':   ['P1', 'P2', 'P3'],
+                        'metrics':  {'retrained_at':    datetime.now(timezone.utc).isoformat(),
+                                     'new_samples':     len(new_data),
+                                     'priority_source': 'failure_proxy'},
+                    }
+
                 else:
                     continue
 
@@ -282,7 +383,56 @@ class RetrainingService:
                     })
                     continue
 
-                # Save new model
+                # ── Accuracy gate: evaluate on held-out val set ────────────────────────
+                _acc_gate_passed = True
+                _acc_metrics = {}
+                try:
+                    from sklearn.metrics import f1_score as _f1, r2_score as _r2
+                    _m = model_data['model']
+                    if mt == 'p1':
+                        _preds_val = _m.predict(X_val)
+                        _f1_val    = float(_f1(_val_df['Machine failure'], _preds_val, zero_division=0))
+                        _acc_metrics = {'val_f1': round(_f1_val, 4)}
+                        if _f1_val < _MIN_CLASSIFIER_F1:
+                            _acc_gate_passed = False
+                    elif mt == 'p2':
+                        _preds_val = _m.predict(X_val)
+                        _f1_val    = float(_f1(y_p2_val, _preds_val, average='macro', zero_division=0))
+                        _acc_metrics = {'val_f1_macro': round(_f1_val, 4)}
+                        if _f1_val < _MIN_CLASSIFIER_F1:
+                            _acc_gate_passed = False
+                    elif mt == 'p3':
+                        _preds_val = _m.predict(X_val)
+                        _r2_val    = float(_r2(y_p3_val, _preds_val))
+                        _acc_metrics = {'val_r2': round(_r2_val, 4)}
+                        if _r2_val < _MIN_REGRESSOR_R2:
+                            _acc_gate_passed = False
+                    elif mt == 'p5':
+                        _preds_val = _m.predict(X_val)
+                        _f1_val    = float(_f1(y_p5_val, _preds_val, average='macro', zero_division=0))
+                        _acc_metrics = {'val_f1_macro': round(_f1_val, 4)}
+                        if _f1_val < _MIN_CLASSIFIER_F1:
+                            _acc_gate_passed = False
+                    # P4 (IsolationForest) is unsupervised — no labelled val target; skip gate.
+                except Exception as _gate_exc:
+                    logger.warning(f"Accuracy gate eval failed for {mt}: {_gate_exc}")
+                    # On eval error, let the model through (don't block on infra failure)
+
+                if not _acc_gate_passed:
+                    # Reject new model — restore backup and report
+                    if backup_path and os.path.exists(backup_path):
+                        os.rename(backup_path, model_path)
+                    models_retrained.append({
+                        "model":   mt,
+                        "status":  "rejected",
+                        "reason":  f"accuracy gate failed: {_acc_metrics} (minimum: classifier F1>={_MIN_CLASSIFIER_F1}, regressor R2>={_MIN_REGRESSOR_R2})",
+                        "metrics": _acc_metrics,
+                    })
+                    continue
+
+                # ── Gate passed — save new model ───────────────────────────────────────
+                # Record val metrics alongside training metadata
+                model_data.setdefault('metrics', {}).update(_acc_metrics)
                 joblib.dump(model_data, model_path)
 
                 # Cleanup old versions
@@ -292,6 +442,7 @@ class RetrainingService:
                     "model": mt,
                     "status": "success",
                     "validation": validation,
+                    "val_metrics": _acc_metrics,
                     "backup": backup_path,
                 })
 

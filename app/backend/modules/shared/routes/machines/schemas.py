@@ -9,6 +9,7 @@ class MachinesData(BaseModel):
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
     ordre: Optional[str] = None
+    statut: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None
@@ -21,6 +22,7 @@ class MachinesUpdateData(BaseModel):
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
     ordre: Optional[str] = None
+    statut: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None
@@ -34,6 +36,7 @@ class MachinesResponse(BaseModel):
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
     ordre: Optional[str] = None
+    statut: Optional[str] = None
     date_derniere_maintenance: Optional[datetime] = None
     date_prochaine_maintenance: Optional[datetime] = None
     image_url: Optional[str] = None

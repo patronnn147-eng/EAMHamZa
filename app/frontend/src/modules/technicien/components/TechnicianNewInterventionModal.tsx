@@ -35,6 +35,7 @@ interface Props {
   onSuccess: () => void;
   initialOrdreTravailId?: number | null;
   initialMachineId?: number | null;
+  initialPlanningTacheId?: number | null;
 }
 
 export const TechnicianNewInterventionModal: React.FC<Props> = ({
@@ -42,6 +43,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
   onOpenChange,
   onSuccess,
   initialMachineId = null,
+  initialPlanningTacheId = null,
 }) => {
   const { toast } = useToast();
   const [machines, setMachines] = useState<Machine[]>([]);
@@ -171,6 +173,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
 
       const payload = {
         machine_id: parseInt(formData.machine_id),
+        ...(initialPlanningTacheId != null && { planning_tache_id: initialPlanningTacheId }),
         problem_description: formData.description,
         priority: formData.priority,
         estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,

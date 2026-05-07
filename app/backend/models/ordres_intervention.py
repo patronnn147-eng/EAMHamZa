@@ -14,6 +14,7 @@ class Ordres_intervention(Base):
     ordre_travail_id = Column(Integer, nullable=True)
     technician_id = Column(Integer, nullable=True)
     planning_id = Column(Integer, nullable=True)  # Links intervention to a planning
+    planning_tache_id = Column(Integer, nullable=True)  # Links intervention to a specific task
     statut = Column(String(20), nullable=False, default="EN_ATTENTE")
     problem_description = Column(Text, nullable=True)
     priority = Column(String(20), nullable=True)

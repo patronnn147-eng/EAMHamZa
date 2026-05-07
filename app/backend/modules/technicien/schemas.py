@@ -71,6 +71,7 @@ class InterventionStatusUpdate(BaseModel):
 
 class InterventionRequestPayload(BaseModel):
     ordre_travail_id: Optional[int] = None
+    planning_tache_id: Optional[int] = None
     machine_id: int
     problem_description: str
     priority: str

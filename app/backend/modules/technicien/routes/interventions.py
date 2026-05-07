@@ -17,6 +17,7 @@ from core.rabbitmq import (
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
+from models.planning_taches import Planning_taches
 from models.utilisateurs import Utilisateurs, UserRole
 from core.security import verify_technicien
 from tasks.intervention_events import (
@@ -242,6 +243,7 @@ async def request_intervention(
         intervention = Ordres_intervention(
             date_intervention=now,
             ordre_travail_id=payload.ordre_travail_id,
+            planning_tache_id=payload.planning_tache_id,
             technician_id=current_user.id,
             requested_by=current_user.id,
             statut="PENDING_APPROVAL",
@@ -263,6 +265,11 @@ async def request_intervention(
         )
         db.add(intervention)
         await db.flush()
+
+    if payload.planning_tache_id:
+        tache = await db.scalar(select(Planning_taches).where(Planning_taches.id == payload.planning_tache_id))
+        if tache and tache.statut == "DRAFT":
+            tache.statut = "IN_PROGRESS"
     else:
         if intervention.statut not in {"EN_ATTENTE", "PENDING_APPROVAL", "DECLINED"}:
             raise HTTPException(status_code=400, detail="Intervention cannot be requested in its current status")
