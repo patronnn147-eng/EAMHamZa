@@ -15,6 +15,7 @@ celery_app = Celery(
         "tasks.work_order_events",
         "tasks.intervention_events",
         "tasks.maintenance_scheduler",
+        "tasks.alert_checker",
     ],
 )
 
@@ -28,6 +29,10 @@ celery_app.conf.update(
         "check-maintenance-daily": {
             "task": "tasks.check_preventive_maintenance",
             "schedule": 86400.0,  # Once every 24 hours
+        },
+        "check-predictive-alerts": {
+            "task": "tasks.check_predictive_alerts",
+            "schedule": 300.0,  # Every 15 minutes
         },
     },
 )

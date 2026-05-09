@@ -21,13 +21,29 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Paperclip, Loader2, AlertCircle, Zap, Activity, History } from 'lucide-react';
+import { Paperclip, Loader2, AlertCircle, Zap, Activity, History, Brain } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Machine {
   id: number;
   nom: string;
 }
+
+interface MachineMLHealth {
+  predicted_priority: string;
+  health_score: number;
+  failure_probability: number;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  rul_days: number;
+  suggested_cause?: string;
+}
+
+const ML_PRIORITY_MAP: Record<string, string> = {
+  Critical: 'URGENTE',
+  High: 'ÉLEVÉE',
+  Medium: 'MOYENNE',
+  Low: 'BASSE',
+};
 
 interface Props {
   open: boolean;
@@ -50,6 +66,9 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
   const [loadingMachines, setLoadingMachines] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingField, setUploadingField] = useState<'description' | 'required_materials' | null>(null);
+  const [machineHealth, setMachineHealth] = useState<MachineMLHealth | null>(null);
+  const [loadingHealth, setLoadingHealth] = useState(false);
+  const [priorityAISuggested, setPriorityAISuggested] = useState(false);
 
   const [formData, setFormData] = useState({
     machine_id: '',
@@ -91,6 +110,8 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
   useEffect(() => {
     if (open) {
       fetchMachines();
+      setMachineHealth(null);
+      setPriorityAISuggested(false);
       setFormData({
         machine_id: initialMachineId != null ? initialMachineId.toString() : '',
         description: '',
@@ -109,6 +130,35 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
       });
     }
   }, [open]);
+
+  const fetchMachineHealth = async (machineId: string) => {
+    if (!machineId) { setMachineHealth(null); setPriorityAISuggested(false); return; }
+    setLoadingHealth(true);
+    try {
+      const token = localStorage.getItem('access_token');
+      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+      const res = await fetch(`${apiBase}/api/v1/ml/machines/${machineId}/prediction`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data: MachineMLHealth = await res.json();
+        setMachineHealth(data);
+        const mapped = ML_PRIORITY_MAP[data.predicted_priority];
+        if (mapped) {
+          setFormData(prev => ({ ...prev, priority: mapped }));
+          setPriorityAISuggested(true);
+        }
+      } else {
+        setMachineHealth(null);
+        setPriorityAISuggested(false);
+      }
+    } catch {
+      setMachineHealth(null);
+      setPriorityAISuggested(false);
+    } finally {
+      setLoadingHealth(false);
+    }
+  };
 
   const handleFileUpload = async (field: 'description' | 'required_materials') => {
     const input = document.createElement('input');
@@ -239,7 +289,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="font-bold text-sm ml-1">Machine</Label>
-                  <Select value={formData.machine_id} onValueChange={(v) => setFormData({ ...formData, machine_id: v })} disabled={loadingMachines}>
+                  <Select value={formData.machine_id} onValueChange={(v) => { setFormData({ ...formData, machine_id: v }); fetchMachineHealth(v); }} disabled={loadingMachines}>
                     <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
                       <SelectValue placeholder={loadingMachines ? "Chargement..." : "Choisir une machine"} />
                     </SelectTrigger>
@@ -265,6 +315,45 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
                   </Select>
                 </div>
               </div>
+
+              {/* ML Health Card */}
+              {loadingHealth && (
+                <div className="flex items-center gap-2 text-xs text-violet-400 pl-1">
+                  <Loader2 className="w-3 h-3 animate-spin" /> Analyse IA en cours...
+                </div>
+              )}
+              {!loadingHealth && machineHealth && (
+                <div className="rounded-xl border border-violet-700/40 bg-violet-950/30 px-4 py-3 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-violet-300 uppercase tracking-wide">
+                    <Brain className="w-3.5 h-3.5" /> Santé IA — Machine sélectionnée
+                  </div>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                    <span>
+                      Score santé:{' '}
+                      <span className={`font-bold ${machineHealth.health_score >= 70 ? 'text-emerald-400' : machineHealth.health_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                        {machineHealth.health_score.toFixed(0)}%
+                      </span>
+                    </span>
+                    <span>
+                      Prob. panne:{' '}
+                      <span className="font-bold text-orange-300">{machineHealth.failure_probability.toFixed(0)}%</span>
+                    </span>
+                    <span>
+                      Risque:{' '}
+                      <span className={`font-bold ${machineHealth.risk_level === 'CRITICAL' ? 'text-red-400' : machineHealth.risk_level === 'HIGH' ? 'text-orange-400' : machineHealth.risk_level === 'MEDIUM' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                        {machineHealth.risk_level}
+                      </span>
+                    </span>
+                    <span>RUL: <span className="font-bold text-blue-300">{machineHealth.rul_days}j</span></span>
+                  </div>
+                  <div className="text-xs font-semibold text-violet-300">
+                    Priorité IA suggérée: <span className="text-violet-100">{ML_PRIORITY_MAP[machineHealth.predicted_priority] ?? machineHealth.predicted_priority}</span>
+                  </div>
+                  {machineHealth.suggested_cause && (
+                    <div className="text-xs italic text-slate-400">Cause probable: {machineHealth.suggested_cause}</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <Separator />
@@ -400,8 +489,13 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
               </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Priorité d'intervention</Label>
-                  <Select onValueChange={(val) => setFormData({ ...formData, priority: val })} value={formData.priority}>
+                  <div className="flex items-center gap-2 ml-1">
+                    <Label className="font-bold text-sm">Priorité d'intervention</Label>
+                    {priorityAISuggested && (
+                      <span className="text-xs text-violet-400 font-medium">(suggérée par IA)</span>
+                    )}
+                  </div>
+                  <Select onValueChange={(val) => { setFormData({ ...formData, priority: val }); setPriorityAISuggested(false); }} value={formData.priority}>
                     <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
                       <SelectValue />
                     </SelectTrigger>

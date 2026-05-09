@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 
 from core.celery_app import celery_app
 from core.database import db_manager
+from models.alertes import Alert  # noqa: F401 — registers Alert mapper for string relationships
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail
 from sqlalchemy import select, and_
@@ -14,7 +15,12 @@ logger = logging.getLogger(__name__)
 
 async def run_maintenance_check():
     """Logic for the maintenance check"""
-    # Ensure database is initialized
+    # Each asyncio.run() creates a new event loop. Close + reinit db_manager
+    # (engine + asyncio.Locks) so everything is bound to the current loop,
+    # avoiding "Future attached to a different loop" errors.
+    await db_manager.close_db()
+    db_manager._init_lock = asyncio.Lock()
+    db_manager._table_creation_lock = asyncio.Lock()
     await db_manager.init_db()
     
     async with db_manager.async_session_maker() as session:

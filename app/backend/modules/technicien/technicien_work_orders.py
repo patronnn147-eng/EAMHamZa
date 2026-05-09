@@ -31,6 +31,8 @@ class WorkOrderResponse(BaseModel):
     machine_id: int
     machine_nom: Optional[str] = None
     created_at: datetime
+    date_echeance: Optional[datetime] = None
+    source: Optional[str] = None
 
 class WorkOrderCompletePayload(BaseModel):
     rapport: str
@@ -58,6 +60,7 @@ class WorkOrderCompletePayload(BaseModel):
     torque: Optional[float] = None
     tool_wear: Optional[int] = None
     telemetry_notes: Optional[str] = None
+    ml_prediction_matched: Optional[bool] = None
 
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
@@ -102,7 +105,9 @@ async def get_my_work_orders(
                 statut=wo.statut,
                 machine_id=wo.machine_id,
                 machine_nom=machine_nom,
-                created_at=wo.created_at
+                created_at=wo.created_at,
+                date_echeance=wo.date_echeance,
+                source=getattr(wo, 'source', None),
             ) for wo, machine_nom in rows
         ]
 
@@ -261,6 +266,8 @@ async def complete_work_order(
             intervention.check_verification_method = payload.check_verification_method
             intervention.act_preventive_actions = payload.act_preventive_actions
             intervention.act_recommendations = payload.act_recommendations
+            if payload.ml_prediction_matched is not None:
+                intervention.ml_prediction_matched = payload.ml_prediction_matched
 
             if intervention.planning_tache_id:
                 tache = await db.scalar(

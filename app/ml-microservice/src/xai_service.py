@@ -7,7 +7,6 @@ Module-level explainer cache keyed by id(model).
 Avoids rebuilding SHAP explainer on every call (~100-500ms overhead for tree models).
 Uses id() which may alias after GC — acceptable: worst case is one extra build.
 """
-import shap
 import pandas as pd
 import numpy as np
 from typing import List, Dict
@@ -26,6 +25,7 @@ def _get_explainer(model, X: pd.DataFrame) -> object:
     needed, ~10× faster than generic Explainer). Falls back to generic Explainer
     for non-tree models using X as background dataset.
     """
+    import shap  # lazy import — optional dependency; install shap>=0.44.0
     key = id(model)
     if key not in _explainer_cache:
         try:
@@ -84,7 +84,14 @@ class XAIService:
             return []
 
         try:
-            X = pd.DataFrame([features], columns=feature_names)
+            # XGBoost DMatrix forbids [ ] < in feature names — sanitize before
+            # building the DataFrame. SHAP values are positional so original
+            # feature_names are still used for labelling impacts below.
+            safe_names = [
+                n.replace("[", "_").replace("]", "_").replace("<", "_")
+                for n in feature_names
+            ]
+            X = pd.DataFrame([features], columns=safe_names)
             actual_model = (
                 model['model'] if isinstance(model, dict) and 'model' in model else model
             )

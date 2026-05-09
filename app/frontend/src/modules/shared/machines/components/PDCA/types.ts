@@ -1,4 +1,5 @@
 // PDCA Kanban Types
+
 export interface KanbanItem {
     id: string | number;
     title: string;
@@ -50,7 +51,6 @@ export interface KanbanColumn {
     id: 'PLAN' | 'DO' | 'CHECK' | 'ACT';
     label: string;
     description: string;
-    icon: React.ReactNode;
     color: string;
     border: string;
 }

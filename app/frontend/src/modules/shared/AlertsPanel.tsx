@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2, Cpu, Clock, Activity, TrendingDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -34,11 +34,51 @@ interface AlertStats {
   machines_affected: number;
 }
 
-const severityConfig: Record<string, { color: string; icon: React.ReactNode; bg: string }> = {
-  CRITICAL: { color: 'bg-red-500', icon: <AlertTriangle className="h-4 w-4 text-red-500" />, bg: 'bg-red-50' },
-  HIGH: { color: 'bg-orange-500', icon: <AlertCircle className="h-4 w-4 text-orange-500" />, bg: 'bg-orange-50' },
-  MEDIUM: { color: 'bg-yellow-500', icon: <AlertCircle className="h-4 w-4 text-yellow-500" />, bg: 'bg-yellow-50' },
-  LOW: { color: 'bg-blue-500', icon: <Info className="h-4 w-4 text-blue-500" />, bg: 'bg-blue-50' },
+const severityConfig: Record<string, {
+  border: string;
+  iconBg: string;
+  icon: React.ReactNode;
+  badgeClass: string;
+  barColor: string;
+  glow: string;
+  label: string;
+}> = {
+  CRITICAL: {
+    border: 'border-l-red-500',
+    iconBg: 'bg-red-500/10',
+    icon: <AlertTriangle className="h-5 w-5 text-red-500" />,
+    badgeClass: 'bg-red-500/20 text-red-400 border-red-500/30',
+    barColor: 'bg-red-500',
+    glow: 'shadow-red-500/10',
+    label: 'CRITICAL',
+  },
+  HIGH: {
+    border: 'border-l-orange-500',
+    iconBg: 'bg-orange-500/10',
+    icon: <AlertCircle className="h-5 w-5 text-orange-400" />,
+    badgeClass: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    barColor: 'bg-orange-500',
+    glow: 'shadow-orange-500/10',
+    label: 'HIGH',
+  },
+  MEDIUM: {
+    border: 'border-l-yellow-500',
+    iconBg: 'bg-yellow-500/10',
+    icon: <AlertCircle className="h-5 w-5 text-yellow-400" />,
+    badgeClass: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+    barColor: 'bg-yellow-500',
+    glow: 'shadow-yellow-500/10',
+    label: 'MEDIUM',
+  },
+  LOW: {
+    border: 'border-l-blue-500',
+    iconBg: 'bg-blue-500/10',
+    icon: <Info className="h-5 w-5 text-blue-400" />,
+    badgeClass: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    barColor: 'bg-blue-500',
+    glow: 'shadow-blue-500/10',
+    label: 'LOW',
+  },
 };
 
 export const AlertsPanel: React.FC = () => {
@@ -243,78 +283,137 @@ export const AlertsPanel: React.FC = () => {
         <div className="space-y-3">
           {alerts.map((alert) => {
             const config = severityConfig[alert.severity] || severityConfig.LOW;
+            const failurePct = alert.failure_probability != null
+              ? Math.round(alert.failure_probability * 100)
+              : null;
+            const typeLabel = alert.alert_type.replace(/_/g, ' ');
+
             return (
-              <Card key={alert.id} className={config.bg}>
-                <CardContent className="flex items-start justify-between py-4">
-                  <div className="flex items-start gap-4">
-                    <div className="mt-1">{config.icon}</div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="font-semibold cursor-pointer hover:underline"
+              <div
+                key={alert.id}
+                className={`
+                  relative flex flex-col gap-0 rounded-xl border border-white/[0.06]
+                  border-l-4 ${config.border}
+                  bg-[#0f1623] shadow-lg ${config.glow}
+                  overflow-hidden transition-all duration-200
+                  hover:bg-[#131c2e] hover:border-white/[0.1]
+                `}
+              >
+                {/* Top row */}
+                <div className="flex items-start justify-between px-5 pt-4 pb-3">
+                  {/* Left: icon + info */}
+                  <div className="flex items-start gap-3">
+                    {/* Severity icon */}
+                    <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.iconBg}`}>
+                      {config.icon}
+                    </div>
+
+                    {/* Text block */}
+                    <div className="flex flex-col gap-1">
+                      {/* Machine + badges row */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
                           onClick={() => handleMachineClick(alert.machine_id)}
+                          className="flex items-center gap-1.5 text-sm font-bold text-white hover:text-blue-400 transition-colors"
                         >
+                          <Cpu className="h-3.5 w-3.5 opacity-70" />
                           Machine #{alert.machine_id}
+                        </button>
+
+                        {/* Alert type pill */}
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold tracking-wide uppercase ${config.badgeClass}`}>
+                          {typeLabel}
                         </span>
-                        <Badge variant={alert.severity === 'CRITICAL' ? 'destructive' : 'secondary'}>
-                          {alert.alert_type}
-                        </Badge>
-                        <Badge variant="outline">{alert.severity}</Badge>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-1">{alert.message}</p>
-                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span>
-                          Created: {new Date(alert.created_at).toLocaleString()}
+
+                        {/* Severity pill */}
+                        <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${config.badgeClass}`}>
+                          {config.label}
                         </span>
-                        {alert.rul_days !== null && (
-                          <span>RUL: {alert.rul_days?.toFixed(1)} days</span>
-                        )}
-                        {alert.failure_probability !== null && (
-                          <span>
-                            Failure Prob: {(alert.failure_probability * 100).toFixed(1)}%
+
+                        {alert.priority && (
+                          <span className="inline-flex items-center rounded-full border border-white/10 px-2.5 py-0.5 text-[11px] font-medium text-white/50">
+                            P: {alert.priority}
                           </span>
                         )}
-                        {alert.priority && (
-                          <Badge variant="outline" className="text-xs">Priority: {alert.priority}</Badge>
-                        )}
                       </div>
+
+                      {/* Message */}
+                      <p className="text-[13px] text-white/60 leading-snug max-w-lg">
+                        {alert.message}
+                      </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Right: actions */}
+                  <div className="flex shrink-0 items-center gap-2 ml-4">
                     {alert.is_linked_to_wo && alert.work_order_id ? (
                       <Button
                         variant="outline"
                         size="sm"
                         onClick={() => handleViewWorkOrder(alert.work_order_id!)}
+                        className="h-8 border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs"
                       >
-                        <ExternalLink className="mr-1 h-3 w-3" />
-                        View WO #{alert.work_order_id}
+                        <ExternalLink className="mr-1.5 h-3 w-3" />
+                        WO #{alert.work_order_id}
                       </Button>
                     ) : (
                       <Button
-                        variant="default"
                         size="sm"
                         onClick={() => handleCreateWorkOrder(alert.id)}
                         disabled={creatingWo === alert.id}
+                        className="h-8 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium"
                       >
                         {creatingWo === alert.id ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
                         ) : (
-                          <Wrench className="mr-1 h-3 w-3" />
+                          <Wrench className="mr-1.5 h-3 w-3" />
                         )}
                         Create WO
                       </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
+                    <button
                       onClick={() => handleDismiss(alert.id)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-white/30 hover:bg-white/5 hover:text-white/70 transition-colors"
                     >
                       <X className="h-4 w-4" />
-                    </Button>
+                    </button>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                {/* Bottom metrics row */}
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/[0.05] px-5 py-2.5">
+                  {/* Created at */}
+                  <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+                    <Clock className="h-3 w-3" />
+                    {new Date(alert.created_at).toLocaleString()}
+                  </div>
+
+                  {/* RUL */}
+                  {alert.rul_days != null && (
+                    <div className="flex items-center gap-1.5 text-[11px] text-white/40">
+                      <TrendingDown className="h-3 w-3" />
+                      RUL: <span className="font-semibold text-white/70">{alert.rul_days.toFixed(1)} days</span>
+                    </div>
+                  )}
+
+                  {/* Failure probability with bar */}
+                  {failurePct != null && (
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-3 w-3 text-white/40" />
+                      <span className="text-[11px] text-white/40">Failure prob:</span>
+                      <span className={`text-[11px] font-bold ${failurePct >= 80 ? 'text-red-400' : failurePct >= 60 ? 'text-orange-400' : 'text-yellow-400'}`}>
+                        {failurePct}%
+                      </span>
+                      <div className="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${config.barColor} transition-all`}
+                          style={{ width: `${Math.min(failurePct, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             );
           })}
         </div>

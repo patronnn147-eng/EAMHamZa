@@ -15,23 +15,40 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
 import { WorkOrderCompleteDialog, WorkOrderCompletePayload } from '@/modules/technicien/components/WorkOrderCompleteDialog';
+import { WorkOrderTechnicien } from '../../lib/types';
 
-interface WorkOrder {
-  id: number;
-  titre: string;
-  description?: string;
-  priorite: string;
-  statut: string;
-  machine_id: number;
-  machine_nom?: string;
-  created_at: string;
+const PRIORITY_ORDER: Record<string, number> = { URGENTE: 0, 'ÉLEVÉE': 1, MOYENNE: 2, BASSE: 3 };
+
+function sortWorkOrders(items: WorkOrderTechnicien[]): WorkOrderTechnicien[] {
+  return [...items].sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priorite] ?? 4;
+    const pb = PRIORITY_ORDER[b.priorite] ?? 4;
+    if (pa !== pb) return pa - pb;
+    if (!a.date_echeance && !b.date_echeance) return 0;
+    if (!a.date_echeance) return 1;
+    if (!b.date_echeance) return -1;
+    return new Date(a.date_echeance).getTime() - new Date(b.date_echeance).getTime();
+  });
+}
+
+function getDueDateInfo(date_echeance?: string): { label: string; colorClass: string; badge: string | null } | null {
+  if (!date_echeance) return null;
+  const due = new Date(date_echeance);
+  const now = new Date();
+  const diffMs = due.getTime() - now.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const label = 'Échéance : ' + due.toLocaleDateString('fr-FR');
+  if (diffMs < 0) return { label, colorClass: 'text-red-400', badge: 'EN RETARD' };
+  if (diffDays <= 2) return { label, colorClass: 'text-amber-400', badge: 'URGENT' };
+  return { label, colorClass: 'text-blue-300', badge: null };
 }
 
 const TechnicianWorkOrders: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [workOrders, setWorkOrders] = useState<WorkOrderTechnicien[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [startingId, setStartingId] = useState<number | null>(null); // Kept for types if needed elsewhere, but focus is on new flow
   const [requestOpen, setRequestOpen] = useState(false);
   const [selectedWoId, setSelectedWoId] = useState<number | null>(null);
@@ -39,6 +56,7 @@ const TechnicianWorkOrders: React.FC = () => {
   const [completingWoId, setCompletingWoId] = useState<number | null>(null);
 
   const fetchWorkOrders = async () => {
+    setError(null);
     try {
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
@@ -47,20 +65,23 @@ const TechnicianWorkOrders: React.FC = () => {
       });
       if (response.ok) {
         const data = await response.json();
+        let items: WorkOrderTechnicien[] = [];
         // Handle both paginated response and array response
         if (data && typeof data === 'object' && 'items' in data) {
-          setWorkOrders(data.items || []);
+          items = data.items || [];
         } else if (Array.isArray(data)) {
-          setWorkOrders(data);
-        } else {
-          setWorkOrders([]);
+          items = data;
         }
+        setWorkOrders(sortWorkOrders(items));
       } else {
-        console.error('Failed to fetch work orders:', await response.text());
+        const text = await response.text();
+        console.error('Failed to fetch work orders:', text);
+        setError('Impossible de charger les ordres de travail.');
         setWorkOrders([]);
       }
-    } catch (error) {
-      console.error('Error fetching work orders:', error);
+    } catch (err) {
+      console.error('Error fetching work orders:', err);
+      setError(err instanceof Error ? err.message : 'Erreur de chargement');
       setWorkOrders([]);
     } finally {
       setLoading(false);
@@ -142,6 +163,12 @@ const TechnicianWorkOrders: React.FC = () => {
           </p>
         </div>
 
+        {error && (
+          <div className="bg-red-600/90 text-white rounded-xl px-5 py-3 text-sm font-semibold shadow-lg">
+            {error}
+          </div>
+        )}
+
         {workOrders.length === 0 ? (
           <Card className="bg-slate-800/80 backdrop-blur-md border border-blue-800/30 shadow-xl">
             <CardContent className="flex flex-col items-center justify-center py-20 text-center">
@@ -163,6 +190,9 @@ const TechnicianWorkOrders: React.FC = () => {
                         <h3 className="text-lg font-bold text-white truncate">{wo.titre}</h3>
                         {getStatusBadge(wo.statut)}
                         {getPriorityBadge(wo.priorite)}
+                        {wo.source === 'ML_ALERT' && (
+                          <Badge className="bg-purple-600 text-white border-none px-2 py-0.5 text-[10px] font-black tracking-widest">IA</Badge>
+                        )}
                       </div>
                       {wo.description && (
                         <p className="text-sm text-blue-300 line-clamp-2 mb-3">{wo.description}</p>
@@ -172,6 +202,20 @@ const TechnicianWorkOrders: React.FC = () => {
                         <span>Créé le: <span className="text-blue-200">{new Date(wo.created_at).toLocaleDateString('fr-FR')}</span></span>
                         <span>OT #{wo.id}</span>
                       </div>
+                      {(() => {
+                        const due = getDueDateInfo(wo.date_echeance);
+                        if (!due) return null;
+                        return (
+                          <div className={`flex items-center gap-2 mt-1 text-xs font-semibold ${due.colorClass}`}>
+                            <span>{due.label}</span>
+                            {due.badge && (
+                              <span className={`px-1.5 py-0.5 rounded text-[10px] font-black tracking-widest ${due.badge === 'EN RETARD' ? 'bg-red-600/80 text-white' : 'bg-amber-500/80 text-white'}`}>
+                                {due.badge}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">

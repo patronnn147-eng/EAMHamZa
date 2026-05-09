@@ -4,3 +4,4 @@ scikit-learn>=1.5.0
 numpy>=2.0
 xgboost>=2.1.0
 lifelines>=0.29.0
+shap>=0.44.0

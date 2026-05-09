@@ -1,12 +1,21 @@
 import logging
+import sys
+import os
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
+
+# Ensure /app is on sys.path so `from modules.ml...` works in all execution
+# contexts (Celery ForkPoolWorkers, pytest, etc.) regardless of cwd.
+_backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _backend_root not in sys.path:
+    sys.path.insert(0, _backend_root)
 
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity
 from models.machines import Machines
+from models.machine_telemetry import MachineTelemetry
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from core.notifications import broadcaster
@@ -263,15 +272,31 @@ class AlertService:
                     itv_result = await self.db.execute(interventions_query)
                     interventions = list(itv_result.scalars().all())
 
+                    # Get latest telemetry reading for this machine
+                    telemetry_query = (
+                        select(MachineTelemetry)
+                        .where(MachineTelemetry.machine_id == machine.id)
+                        .order_by(MachineTelemetry.recorded_at.desc())
+                        .limit(10)
+                    )
+                    tel_result = await self.db.execute(telemetry_query)
+                    telemetry_entries = list(reversed(tel_result.scalars().all()))
+
+                    # Use latest telemetry values if available, else nominal defaults
+                    if telemetry_entries:
+                        latest = telemetry_entries[-1]
+                        air  = float(latest.air_temperature)
+                        proc = float(latest.process_temperature)
+                        rpm  = int(latest.rotational_speed)
+                        torq = float(latest.torque)
+                        wear = int(latest.tool_wear)
+                    else:
+                        air, proc, rpm, torq, wear = 300.0, 310.0, 1500, 40.0, 0
+
                     # Best-effort microservice call; fall back to formula if unavailable
                     fusion_result = None
                     try:
                         if _ml_available:
-                            air  = float(getattr(machine, "air_temperature",     300.0) or 300.0)
-                            proc = float(getattr(machine, "process_temperature", 310.0) or 310.0)
-                            rpm  = int(getattr(machine,   "rotational_speed",    1500)  or 1500)
-                            torq = float(getattr(machine, "torque",              40.0)  or 40.0)
-                            wear = int(getattr(machine,   "tool_wear",           0)     or 0)
                             fusion_result = await ml_client.predict_all(
                                 air_temperature=air,
                                 process_temperature=proc,
@@ -284,7 +309,10 @@ class AlertService:
                         pass
 
                     prediction = RULCalculator.calculate_rul(
-                        machine, list(interventions), fusion_result=fusion_result
+                        machine,
+                        list(interventions),
+                        telemetry_entries=telemetry_entries,
+                        fusion_result=fusion_result,
                     )
 
                     rul_days = prediction.get("rul_days")

@@ -28,6 +28,7 @@ interface WorkOrderCompleteDialogProps {
     workOrderId: number;
     workOrderTitle: string;
     machineName?: string;
+    suggestedCause?: string;
 }
 
 export interface WorkOrderCompletePayload {
@@ -50,6 +51,7 @@ export interface WorkOrderCompletePayload {
     torque?: number;
     tool_wear?: number;
     telemetry_notes?: string;
+    ml_prediction_matched?: boolean | null;
 }
 
 const INTERVENTION_TYPES = [
@@ -87,8 +89,10 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
     workOrderId,
     workOrderTitle,
     machineName,
+    suggestedCause,
 }) => {
     const [loading, setLoading] = useState(false);
+    const [mlPredictionMatched, setMlPredictionMatched] = useState<boolean | null>(null);
 
     const [rapport, setRapport] = useState('');
     const [interventionType, setInterventionType] = useState<string>('CORRECTIVE');
@@ -132,11 +136,14 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
         setTorqueVal('');
         setToolWear('');
         setTelemetryNotes('');
+        setMlPredictionMatched(null);
     };
 
     useEffect(() => {
         if (!open) {
             resetForm();
+        } else if (suggestedCause && !rootCauseDescription) {
+            setRootCauseDescription(suggestedCause);
         }
     }, [open]);
 
@@ -163,6 +170,7 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                 torque: torqueVal ? parseFloat(torqueVal) : undefined,
                 tool_wear: toolWear ? parseInt(toolWear) : undefined,
                 telemetry_notes: telemetryNotes.trim() || undefined,
+                ml_prediction_matched: mlPredictionMatched,
             };
             onConfirm(payload);
         } finally {
@@ -253,6 +261,11 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
 
                     <div className="grid gap-2">
                         <Label className="text-sm font-semibold">Description de la cause</Label>
+                        {suggestedCause && (
+                            <p className="text-xs text-purple-400">
+                                💡 Cause suggérée par l'IA: {suggestedCause}
+                            </p>
+                        )}
                         <Textarea
                             placeholder="Décrivez la cause du problème..."
                             value={rootCauseDescription}
@@ -396,6 +409,29 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                                 checked={checkResolved}
                                 onCheckedChange={setCheckResolved}
                             />
+                        </div>
+
+                        <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/50 border border-purple-800/50 mb-3">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-semibold">CHECK - L'analyse IA était-elle correcte ?</Label>
+                                <p className="text-[10px] text-purple-300">Feedback sur le diagnostic IA</p>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setMlPredictionMatched(true)}
+                                    className={`px-3 py-1 rounded text-sm font-medium border transition-colors ${mlPredictionMatched === true ? 'bg-green-600 border-green-500 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-green-600 hover:text-green-400'}`}
+                                >
+                                    Oui ✓
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setMlPredictionMatched(false)}
+                                    className={`px-3 py-1 rounded text-sm font-medium border transition-colors ${mlPredictionMatched === false ? 'bg-red-600 border-red-500 text-white' : 'bg-transparent border-slate-600 text-slate-400 hover:border-red-600 hover:text-red-400'}`}
+                                >
+                                    Non ✗
+                                </button>
+                            </div>
                         </div>
 
                         <div className="grid gap-2 mb-3">

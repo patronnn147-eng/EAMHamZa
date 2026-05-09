@@ -160,7 +160,6 @@ class SurvivalModel:
                 "aft_loss_distribution_scale": 1.0,
                 "learning_rate": 0.05,
                 "max_depth": 4,
-                "n_estimators": 100,
             }
             self._xgb = xgb.train(params, dtrain, num_boost_round=100)
             self._use_cox = False

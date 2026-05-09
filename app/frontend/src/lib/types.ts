@@ -47,6 +47,32 @@ export interface OrdreTravail {
   created_by_role?: 'ADMIN' | 'CHEFTECH' | 'CHETOP' | 'TECHNICIEN';
 }
 
+export interface WorkOrderTechnicien {
+  id: number;
+  titre: string;
+  description?: string;
+  priorite: string;
+  statut: string;
+  machine_id: number;
+  machine_nom?: string;
+  created_at: string;
+  date_echeance?: string;
+  p6_schedule_days?: number;
+  source?: 'ML_ALERT' | 'PLANNING' | 'MANUAL';
+}
+
+export interface MachineMLHealth {
+  machine_id: number;
+  health_score: number;
+  failure_probability: number;
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  predicted_priority?: string;
+  p6_schedule_days?: number;
+  rul_days?: number;
+  suggested_cause?: string;
+  explanations?: SHAPExplanation[];
+}
+
 export interface Intervention {
   id: number;
   date_intervention: string;
@@ -99,6 +125,12 @@ export interface Intervention {
   // AI Fields
   ai_failure_risk?: number;
   ai_recommended_action?: string;
+
+  // ML Prediction Fields (from backend Ordres_intervention model)
+  suggested_priority?: string;
+  risk_score?: string;
+  suggested_cause?: string;
+  machine_nom?: string;
 }
 
 export interface Planning {

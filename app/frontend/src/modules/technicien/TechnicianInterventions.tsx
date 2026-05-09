@@ -27,6 +27,8 @@ export default function TechnicianInterventions() {
   const [finishDialogOpen, setFinishDialogOpen] = useState(false);
   const [finishIntervention, setFinishIntervention] = useState<Intervention | null>(null);
   const [newRequestOpen, setNewRequestOpen] = useState(false);
+  const [blockingId, setBlockingId] = useState<number | null>(null);
+  const [blockReason, setBlockReason] = useState('');
 
   const [now, setNow] = useState(() => Date.now());
 
@@ -534,14 +536,48 @@ export default function TechnicianInterventions() {
                       Terminer
                     </Button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => updateStatus(intervention.id, 'BLOQUÉ')}
-                  >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Bloquer
-                  </Button>
+                  {blockingId === intervention.id ? (
+                    <div className="w-full mt-2 p-3 bg-red-900/20 border border-red-700/40 rounded-lg space-y-2">
+                      <p className="text-sm font-medium text-red-300">Raison du blocage:</p>
+                      <textarea
+                        className="w-full text-sm bg-slate-800 border border-red-700/40 rounded p-2 text-blue-100 placeholder-blue-500 resize-none focus:outline-none focus:border-red-500"
+                        rows={3}
+                        placeholder="Décrivez la raison du blocage (optionnel mais recommandé)..."
+                        value={blockReason}
+                        onChange={(e) => setBlockReason(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="bg-red-700 hover:bg-red-800 text-white"
+                          onClick={() => {
+                            updateStatus(intervention.id, 'BLOQUÉ', blockReason ? { actual_failure_type: '', rapport: blockReason } : undefined);
+                            setBlockingId(null);
+                            setBlockReason('');
+                          }}
+                        >
+                          <AlertTriangle className="mr-2 h-4 w-4" />
+                          Confirmer le blocage
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setBlockingId(null); setBlockReason(''); }}
+                        >
+                          Annuler
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setBlockingId(intervention.id)}
+                    >
+                      <AlertTriangle className="mr-2 h-4 w-4" />
+                      Bloquer
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
