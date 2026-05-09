@@ -80,6 +80,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Stocks / Pièces', href: '/cheftech/inventory', icon: Package },
       { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
+      { name: 'Centre des alertes', href: '/cheftech/alerts', icon: Bell },
       { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
       { name: 'Historique (Audit)', href: '/audit-log', icon: History },
       { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },

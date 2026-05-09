@@ -56,6 +56,7 @@ import { ChatWidget, ChatPage } from '@/modules/shared/ChatInterface';
 import IoTDashboard from '@/modules/shared/IoTDashboard';
 import TelemetryPanel from '@/modules/shared/TelemetryPanel';
 import AuditLogViewer from '@/modules/shared/AuditLogViewer';
+import ChefTechAlertWorkflow from '@/modules/cheftech/ChefTechAlertWorkflow';
 
 export function AppRoutes() {
   return (
@@ -263,6 +264,16 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
             <Layout>
               <AlertsPanel />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cheftech/alerts"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <ChefTechAlertWorkflow />
             </Layout>
           </ProtectedRoute>
         }
