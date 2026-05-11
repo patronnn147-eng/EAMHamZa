@@ -16,6 +16,10 @@ class ChatRequest(BaseModel):
         default_factory=list,
         description="Conversation history"
     )
+    machine_id: Optional[int] = Field(
+        default=None,
+        description="Optional machine ID for filtered RAG retrieval",
+    )
 
 
 class ToolCall(BaseModel):

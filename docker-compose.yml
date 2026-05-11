@@ -138,6 +138,7 @@ services:
       OSS_PUBLIC_URL: http://localhost:9000/
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       ML_SERVICE_URL: http://ml-service:8000
+      RAG_SERVICE_URL: http://rag-service:8003
     ports:
       - "8000:8000"
     depends_on:
@@ -215,6 +216,30 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_started
+    networks:
+      - asset_management_network
+
+  # RAG Microservice — document ingestion + semantic retrieval
+  rag-service:
+    build:
+      context: ./app/rag-service
+      dockerfile: Dockerfile
+    container_name: asset_management_rag
+    restart: always
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-asset_management}
+      PYTHONUNBUFFERED: 1
+    ports:
+      - "8003:8003"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - asset_management_network
 

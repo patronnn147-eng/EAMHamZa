@@ -1,7 +1,6 @@
+import json
 import logging
-from typing import Optional, List, Any, Dict
-from datetime import datetime, timedelta
-from collections import defaultdict
+from typing import List, Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -9,127 +8,106 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from core.auth import get_current_user
-from models.utilisateurs import Utilisateurs, UserRole
-from services import chat as chat_service
+from models.utilisateurs import Utilisateurs
 
-# AI Chat imports
 from schemas.ai_chat import ChatRequest, ChatResponse
 from services.ai_tools import get_tool_definitions, execute_tool
-from services.ai_prompts import get_system_prompt
+from services.ai_prompts import build_full_system_prompt, format_tool_result, build_rag_context
+import services.rag_client as rag_client
+from services.ai_memory import AIMemoryService
+from services.chat_session_service import ChatSessionService
+from services.ai_agents import run_eam_analysis
 from core.groq_client import get_groq_client
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
-# In-memory chat history (in production, use Redis or DB)
-CHAT_HISTORY: dict = defaultdict(list)
-RATE_LIMIT = 10  # queries per minute
 
+# ---------------------------------------------------------------------------
+# Suggestions — static per role, no external import needed
+# ---------------------------------------------------------------------------
 
-class ChatQueryRequest(BaseModel):
-    query: str
+_SUGGESTIONS: Dict[str, List[str]] = {
+    "ADMIN": [
+        "Montre toutes les machines en panne",
+        "Alertes critiques actives",
+        "Ordres de travail en attente",
+        "Reparations les plus couteuses",
+        "Analyse complete de la Zone_Nord",
+    ],
+    "CHEFTECH": [
+        "Machines necessitant maintenance urgente",
+        "Interventions en cours",
+        "Alertes haute priorite",
+        "Planning de la semaine",
+        "Analyse predictive par zone",
+    ],
+    "CHETOP": [
+        "Ordres de travail en attente",
+        "Machines en panne dans ma zone",
+        "Planning production",
+        "Demandes d'intervention ouvertes",
+    ],
+    "TECHNICIEN": [
+        "Mes ordres de travail assignes",
+        "Machines a inspecter aujourd'hui",
+        "Alertes pour mes machines",
+    ],
+}
 
-
-class ChatQueryResponse(BaseModel):
-    intent: str
-    results: List[dict]
-    confidence: float
-    formatted_message: str
-    suggestions: List[str]
-    query: str
-
-
-@router.post("/query", response_model=ChatQueryResponse)
-async def chat_query(
-    request: ChatQueryRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
-):
-    """
-    Process a natural language query and return structured results.
-    """
-    # Rate limiting check
-    user_history = CHAT_HISTORY.get(current_user.id, [])
-    now = datetime.utcnow()
-    recent_queries = [q for q in user_history if q.get("timestamp") and 
-                     (now - q["timestamp"]).total_seconds() < 60]
-    
-    if len(recent_queries) >= RATE_LIMIT:
-        raise HTTPException(
-            status_code=429,
-            detail="Rate limit exceeded. Please wait before sending another query."
-        )
-    
-    # Parse the query
-    parsed = chat_service.parse_query(request.query)
-    
-    # Execute query
-    results = await chat_service.execute_query(
-        db, 
-        parsed["intent"], 
-        parsed["params"]
-    )
-    
-    # Format response
-    formatted = chat_service.format_response(
-        results, 
-        parsed["intent"], 
-        parsed["params"]
-    )
-    
-    # Get suggestions
-    suggestions = chat_service.get_suggestions(current_user.role.value if current_user.role else None)
-    
-    # Save to history
-    chat_entry = {
-        "query": request.query,
-        "intent": parsed["intent"],
-        "results_count": len(results),
-        "timestamp": now
-    }
-    CHAT_HISTORY[current_user.id].append(chat_entry)
-    
-    # Keep only last 50 entries per user
-    if len(CHAT_HISTORY[current_user.id]) > 50:
-        CHAT_HISTORY[current_user.id] = CHAT_HISTORY[current_user.id][-50:]
-    
-    return ChatQueryResponse(
-        intent=parsed["intent"],
-        results=results,
-        confidence=parsed["confidence"],
-        formatted_message=formatted["message"],
-        suggestions=suggestions,
-        query=request.query
-    )
+_DEFAULT_SUGGESTIONS = [
+    "Montre les machines en panne",
+    "Alertes actives",
+    "Ordres de travail en cours",
+]
 
 
 @router.get("/suggestions", response_model=List[str])
 async def get_suggestions(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
-    """
-    Get suggested queries based on user role.
-    """
-    return chat_service.get_suggestions(
-        current_user.role.value if current_user.role else None
-    )
+    """Role-based query suggestions."""
+    role = current_user.role.value if current_user.role else ""
+    return _SUGGESTIONS.get(role, _DEFAULT_SUGGESTIONS)
 
+
+# ---------------------------------------------------------------------------
+# History — DB-backed, survives restarts
+# ---------------------------------------------------------------------------
 
 @router.get("/history")
 async def get_history(
     limit: int = Query(default=20, le=50),
+    db: AsyncSession = Depends(get_db),
     current_user: Utilisateurs = Depends(get_current_user),
 ):
-    """
-    Get chat query history for the current user.
-    """
-    history = CHAT_HISTORY.get(current_user.id, [])
+    """Chat history for current user — DB-backed, survives restarts."""
+    session_svc = ChatSessionService(db)
+    info = await session_svc.get_session_info(current_user.id)
+    messages = info["history"]
     return {
-        "history": history[-limit:],
-        "total": len(history)
+        "history": messages[-limit:],
+        "total": info["total"],
+        "session_id": info["session_id"],
+        "last_query": info["last_query"],
     }
 
+
+@router.delete("/history")
+async def clear_history(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Clear chat history for current user."""
+    session_svc = ChatSessionService(db)
+    await session_svc.clear(current_user.id)
+    return {"message": "Historique efface."}
+
+
+# ---------------------------------------------------------------------------
+# AI chat — LLM + tool calling + memory + DB history
+# ---------------------------------------------------------------------------
 
 @router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(
@@ -138,28 +116,62 @@ async def ai_chat(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
     """
-    AI-powered chat using Groq LLM.
-    
-    No memory integration yet - plain chat with tool calling.
+    AI-powered chat using Groq LLM with:
+    - Role-based system prompt
+    - User memory context (preferences, strategies, failures)
+    - DB-persisted conversation history
+    - Tool calling for structured EAM data
+    - Memory feedback (success/failure tracking)
     """
-    # Build messages
     role_name = current_user.role.value if current_user.role else "TECHNICIEN"
-    system_prompt = get_system_prompt(role_name, current_user.nom or "User")
-    
-    messages = [{"role": "system", "content": system_prompt}]
-    
-    # Add history
+    user_name = current_user.nom or "User"
+
+    memory_svc = AIMemoryService(db)
+    session_svc = ChatSessionService(db)
+
+    # ── 1. Load + rank memories ───────────────────────────────────────────
+    try:
+        memories = await memory_svc.get_by_user(current_user.id)
+        memories.sort(key=lambda m: m.success_count, reverse=True)
+        memories = memories[:15]
+    except Exception as e:
+        logger.warning(f"Memory load failed, continuing without: {e}")
+        memories = []
+
+    # ── 2. RAG retrieval (before system prompt — chunks injected into it) ────
+    rag_chunks = []
+    try:
+        rag_chunks = await rag_client.retrieve_chunks(
+            query=request.message,
+            machine_id=getattr(request, "machine_id", None),
+            top_k=3,
+            threshold=0.7,
+        )
+    except Exception as e:
+        logger.warning(f"RAG retrieval failed, continuing without context: {e}")
+
+    # ── 3. System prompt + memory + RAG context ───────────────────────────
+    system_prompt = build_full_system_prompt(role_name, user_name, memories, rag_chunks)
+
+    # ── 4. Message list (client history → DB fallback) ────────────────────
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
+
     if request.history:
         for msg in request.history:
             messages.append({"role": msg.role, "content": msg.content})
-    
-    # Add current message
+    else:
+        try:
+            db_history = await session_svc.get_history(current_user.id, limit=20)
+            for msg in db_history:
+                if msg.get("role") in ("user", "assistant"):
+                    messages.append(msg)
+        except Exception as e:
+            logger.warning(f"History load failed, continuing without: {e}")
+
     messages.append({"role": "user", "content": request.message})
-    
-    # Get tools
+
+    # ── 5. Groq call ──────────────────────────────────────────────────────
     tools = get_tool_definitions()
-    
-    # Call Groq
     try:
         groq = get_groq_client()
         response = groq.chat(messages=messages, tools=tools)
@@ -167,60 +179,190 @@ async def ai_chat(
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.error(f"Groq error: {e}")
-        raise HTTPException(status_code=503, detail=f"AI service unavailable: {str(e)}")
-    
-    # Extract response
+        raise HTTPException(status_code=503, detail=f"AI service unavailable: {e}")
+
     choices = response.get("choices", [])
     if not choices:
         raise HTTPException(status_code=500, detail="No response from AI")
-    
+
     choice = choices[0]
     response_message = choice.get("message", {})
-    content = response_message.get("content", "")
-    
-    # Check for tool calls
+    content: str = response_message.get("content", "") or ""
     tool_calls = response_message.get("tool_calls", [])
-    
-    # Execute tools if present
+
+    # ── 5. Tool execution ─────────────────────────────────────────────────
     sources = None
+    tool_success = False
+    tool_failure = False
+
     if tool_calls:
         sources = []
         for tool_call in tool_calls:
             func_name = tool_call["function"]["name"]
-            func_args = tool_call["function"]["arguments"]
+            func_args_raw = tool_call["function"]["arguments"]
+            func_args = (
+                json.loads(func_args_raw)
+                if isinstance(func_args_raw, str)
+                else func_args_raw
+            )
 
-            import json
-            func_args_parsed = json.loads(func_args) if isinstance(func_args, str) else func_args
-            result = await execute_tool(func_name, func_args_parsed, db)
-            sources.append({
-                "tool": func_name,
-                "result": result
-            })
-            
-            # Add tool result to messages for final response
+            try:
+                result = await execute_tool(func_name, func_args, db)
+                tool_success = bool(result)
+                if not result:
+                    tool_failure = True
+            except Exception as e:
+                logger.error(f"Tool {func_name} failed: {e}")
+                result = {"error": str(e)}
+                tool_failure = True
+
+            sources.append({"tool": func_name, "result": result})
+
             messages.append({
                 "role": "assistant",
                 "content": None,
-                "tool_calls": [tool_call]
+                "tool_calls": [tool_call],
             })
             messages.append({
                 "role": "tool",
                 "tool_call_id": tool_call["id"],
-                "content": str(result)
+                "content": format_tool_result(func_name, result),
             })
-        
-        # Get final response with tool results
+
+        # ── 6. Second Groq call with tool results ─────────────────────────
         try:
             final_response = groq.chat(messages=messages)
             final_choices = final_response.get("choices", [])
             if final_choices:
-                content = final_choices[0].get("message", {}).get("content", content)
+                content = (
+                    final_choices[0].get("message", {}).get("content", content) or content
+                )
         except Exception as e:
-            logger.warning(f"Error getting final response: {e}")
+            logger.warning(f"Final Groq call failed: {e}")
             content = content or "J'ai execute les actions demandees."
-    
+
+    final_content = content or "J'ai traite votre requete."
+
+    # ── 7. Persist exchange ───────────────────────────────────────────────
+    try:
+        await session_svc.append_messages(
+            current_user.id,
+            [
+                {"role": "user", "content": request.message},
+                {"role": "assistant", "content": final_content},
+            ],
+        )
+    except Exception as e:
+        logger.warning(f"Failed to persist AI chat messages: {e}")
+
+    # ── 8. Memory feedback ────────────────────────────────────────────────
+    if memories and tool_calls:
+        try:
+            if tool_success:
+                top = next((m for m in memories if m.memory_type == "strategy"), None)
+                if top:
+                    await memory_svc.increment_success(str(top.id))
+            elif tool_failure:
+                top = next((m for m in memories if m.memory_type == "failure"), None)
+                if top:
+                    await memory_svc.increment_failure(str(top.id))
+        except Exception as e:
+            logger.warning(f"Memory feedback failed: {e}")
+
+    # ── 9. Return ─────────────────────────────────────────────────────────
     return ChatResponse(
-        message=content or "J'ai traite votre requete.",
-        tool_calls=[{"id": tc["id"], "name": tc["function"]["name"], "arguments": json.loads(tc["function"]["arguments"])} for tc in tool_calls] if tool_calls else None,
-        sources=sources
+        message=final_content,
+        tool_calls=(
+            [
+                {
+                    "id": tc["id"],
+                    "name": tc["function"]["name"],
+                    "arguments": (
+                        json.loads(tc["function"]["arguments"])
+                        if isinstance(tc["function"]["arguments"], str)
+                        else tc["function"]["arguments"]
+                    ),
+                }
+                for tc in tool_calls
+            ]
+            if tool_calls
+            else None
+        ),
+        sources=sources,
     )
+
+
+# ---------------------------------------------------------------------------
+# Multi-agent deep analysis
+# ---------------------------------------------------------------------------
+
+class AnalyzeRequest(BaseModel):
+    query: str
+
+
+class AnalyzeResponse(BaseModel):
+    query: str
+    analysis: str
+    plan: Dict[str, Any]
+    data_sources: List[Dict[str, Any]]
+
+
+@router.post("/analyze", response_model=AnalyzeResponse)
+async def analyze(
+    request: AnalyzeRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """
+    Multi-agent deep EAM analysis.
+
+    Three sequential specialized agents (all Groq):
+      1. DataCollector  — calls EAM tools to gather relevant data
+      2. Analyst        — diagnoses problems from collected data
+      3. Planner        — produces prioritized structured action plan (JSON)
+
+    Use for complex decisions, root-cause analysis, resource planning.
+    For simple queries use /ai/chat.
+    """
+    role_name = current_user.role.value if current_user.role else "TECHNICIEN"
+
+    # RAG context for analysis (injected as extra context string, not system prompt)
+    rag_context_str = ""
+    try:
+        rag_chunks = await rag_client.retrieve_chunks(
+            query=request.query,
+            top_k=3,
+            threshold=0.7,
+        )
+        if rag_chunks:
+            rag_context_str = build_rag_context(rag_chunks)
+    except Exception as e:
+        logger.warning(f"RAG retrieval failed for analyze: {e}")
+
+    # Append RAG context to query if available
+    enriched_query = request.query
+    if rag_context_str:
+        enriched_query = request.query + "\n\n" + rag_context_str
+
+    try:
+        result = await run_eam_analysis(query=enriched_query, db=db, role=role_name)
+    except ValueError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error(f"Multi-agent analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+
+    try:
+        session_svc = ChatSessionService(db)
+        plan_summary = result["plan"].get("resume", "")
+        await session_svc.append_messages(
+            current_user.id,
+            [
+                {"role": "user", "content": f"[ANALYSE] {request.query}"},
+                {"role": "assistant", "content": f"[PLAN] {plan_summary}\n\n{result['analysis']}"},
+            ],
+        )
+    except Exception as e:
+        logger.warning(f"Failed to persist analyze messages: {e}")
+
+    return AnalyzeResponse(**result)
