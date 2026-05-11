@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, func, cast, String
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from models.utilisateurs import Utilisateurs
+from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
+from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.machines import Machines
 from ..schemas import DashboardStats
 from ..dependencies import verify_cheftech
@@ -29,15 +29,17 @@ async def get_dashboard_stats(
         # Work order statistics
         total_ordres_travail = await db.scalar(select(func.count(Ordres_travail.id)))
         ordres_en_attente = await db.scalar(
-            select(func.count(Ordres_travail.id)).where(Ordres_travail.statut == "EN_ATTENTE")
+            select(func.count(Ordres_travail.id)).where(Ordres_travail.statut == OrdreStatut.SUBMITTED)
         )
         ordres_en_cours = await db.scalar(
-            select(func.count(Ordres_travail.id)).where(Ordres_travail.statut == "EN_COURS")
+            select(func.count(Ordres_travail.id)).where(
+                Ordres_travail.statut.in_([OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+            )
         )
 
         # Technician statistics
         total_techniciens = await db.scalar(
-            select(func.count(Utilisateurs.id)).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
+            select(func.count(Utilisateurs.id)).where(Utilisateurs.role == UserRole.TECHNICIEN)
         )
         techniciens_disponibles = total_techniciens
 

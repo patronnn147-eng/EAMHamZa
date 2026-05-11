@@ -9,7 +9,7 @@ from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_travail import Ordres_travail
+from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.machines import Machines
 from ..schemas import CompletedWorkOrderItem, ChefTechFeedbackRequest
 from ..dependencies import verify_cheftech_or_admin
@@ -32,7 +32,9 @@ async def get_completed_work_orders(
     """Get all completed Work Orders enriched with technician and machine info."""
     skip = (page - 1) * size
     
-    query = select(Ordres_travail).where(Ordres_travail.statut == "TERMINE")
+    query = select(Ordres_travail).where(
+        Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED])
+    )
     query = query.options(
         selectinload(Ordres_travail.machine),
         selectinload(Ordres_travail.utilisateur),
@@ -121,7 +123,7 @@ async def add_cheftech_feedback(
     if not ordre:
         raise HTTPException(status_code=404, detail="Ordre de travail non trouvé")
 
-    if ordre.statut != "TERMINE":
+    if ordre.statut not in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED):
         raise HTTPException(status_code=400, detail="Le feedback ne peut être ajouté qu'aux ordres terminés")
 
     ordre.cheftech_feedback = data.feedback.strip()
@@ -138,7 +140,9 @@ async def get_kpi_report(
     _current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
 ):
     """KPI summary for completed Work Orders. Available to ChefTech and Admin."""
-    base_query = select(Ordres_travail).where(Ordres_travail.statut == "TERMINE")
+    base_query = select(Ordres_travail).where(
+        Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED])
+    )
     base_query = base_query.options(
         selectinload(Ordres_travail.machine),
         selectinload(Ordres_travail.utilisateur),
@@ -198,15 +202,15 @@ async def get_cheftech_analytics_dashboard(
     i_result = await db.execute(
         select(Ordres_intervention)
         .options(selectinload(Ordres_intervention.machine))
-        .options(selectinload(Ordres_intervention.technicien))
+        .options(selectinload(Ordres_intervention.technician))
     )
     all_ints = list(i_result.scalars().all())
 
     # Metrics computation
     total_assigned = len(all_wos)
-    completed_wos = [wo for wo in all_wos if wo.statut == "TERMINE"]
-    pending_wos = [wo for wo in all_wos if wo.statut == "A FAIRE"]
-    in_progress_wos = [wo for wo in all_wos if wo.statut == "EN_COURS"]
+    completed_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED)]
+    pending_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.SUBMITTED, OrdreStatut.APPROVED)]
+    in_progress_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS)]
 
     durations = [
         int((wo.date_fin - wo.date_debut).total_seconds() / 60)

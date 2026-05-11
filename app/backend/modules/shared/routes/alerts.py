@@ -90,33 +90,22 @@ async def get_alerts_for_user_role(
     machine_id: Optional[int] = None,
     severity: Optional[AlertSeverity] = None,
 ) -> List[Alert]:
-    """Filter alerts based on user role"""
+    """Filter alerts based on user role.
+
+    ADMIN / CHEFTECH / CHETOP — see all active alerts (no zone column exists on Machines).
+    TECHNICIEN — same for now (no technicien_id FK on Machines).
+    """
     query = select(Alert).where(Alert.is_active == True)
-    
+
     if machine_id:
         query = query.where(Alert.machine_id == machine_id)
-    
+
     if severity:
         query = query.where(Alert.severity == severity)
-    
-    if current_user.role == UserRole.ADMIN:
-        pass  # Admin sees all alerts
-    
-    elif current_user.role == UserRole.CHEFTECH:
-        query = query.join(Machines).where(
-            Machines.zone_travail_id == current_user.zone_travail_id
-        )
-    
-    elif current_user.role == UserRole.CHETOP:
-        query = query.join(Machines).where(
-            Machines.zone_travail_id == current_user.zone_travail_id
-        )
-    
-    elif current_user.role == UserRole.TECHNICIEN:
-        query = query.where(Alert.machine_id.in_(
-            select(Machines.id).where(Machines.technicien_id == current_user.id)
-        ))
-    
+
+    # All authenticated roles see all alerts.
+    # Role-based scoping can be added here once Machines gains zone_travail_id / technicien_id.
+
     query = query.order_by(
         case(
             (Alert.severity == AlertSeverity.CRITICAL, 1),
@@ -127,7 +116,7 @@ async def get_alerts_for_user_role(
         ),
         Alert.created_at.desc(),
     )
-    
+
     result = await db.execute(query)
     return list(result.scalars().all())
 
@@ -148,16 +137,16 @@ async def get_alerts(
             alert_severity = AlertSeverity(severity.upper())
         except ValueError:
             raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}")
-    
+
     alerts = await get_alerts_for_user_role(
         db, current_user, machine_id, alert_severity
     )
-    
+
     total = len(alerts)
     start = (page - 1) * page_size
     end = start + page_size
     paginated_alerts = alerts[start:end]
-    
+
     return paginated_alerts
 
 
@@ -248,9 +237,9 @@ async def create_work_order_from_alert(
             status_code=403,
             detail="Only admin or cheftech can create work orders from alerts"
         )
-    
+
     service = AlertService(db)
-    
+
     wo_data = {
         "title": request.title,
         "description": request.description,
@@ -259,12 +248,12 @@ async def create_work_order_from_alert(
         "created_by": request.created_by,
         "priority": request.priority,
     }
-    
+
     wo = await service.create_work_order_from_alert(alert_id, wo_data)
-    
+
     if not wo:
         raise HTTPException(status_code=404, detail="Alert not found")
-    
+
     return {
         "status": "created",
         "alert_id": alert_id,
@@ -279,19 +268,5 @@ async def get_my_alerts(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
     """Get alerts relevant to the current user based on their role and assignments"""
-    service = AlertService(db)
-    alerts = await service.get_active_alerts()
-    
-    filtered_alerts = []
-    for alert in alerts:
-        if current_user.role == UserRole.TECHNICIEN:
-            machine_result = await db.execute(
-                select(Machines).where(Machines.id == alert.machine_id)
-            )
-            machine = machine_result.scalar_one_or_none()
-            if machine and machine.technicien_id == current_user.id:
-                filtered_alerts.append(alert)
-        else:
-            filtered_alerts.append(alert)
-    
-    return filtered_alerts[:50]
+    alerts = await get_alerts_for_user_role(db, current_user)
+    return alerts[:50]

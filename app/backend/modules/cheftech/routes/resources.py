@@ -1,11 +1,11 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, cast, String
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
-from models.utilisateurs import Utilisateurs
+from models.utilisateurs import Utilisateurs, UserRole
 from models.machines import Machines
 from ..schemas import MachineResponse, TechnicianResponse
 from ..dependencies import verify_cheftech
@@ -25,11 +25,11 @@ async def get_technicians(
         skip = (page - 1) * size
         
         # Count total
-        count_query = select(func.count(Utilisateurs.id)).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
+        count_query = select(func.count(Utilisateurs.id)).where(Utilisateurs.role == UserRole.TECHNICIEN)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(Utilisateurs).where(cast(Utilisateurs.role, String) == "TECHNICIEN")
+        query = select(Utilisateurs).where(Utilisateurs.role == UserRole.TECHNICIEN)
         query = query.order_by(Utilisateurs.nom).offset(skip).limit(size)
         result = await db.execute(query)
 

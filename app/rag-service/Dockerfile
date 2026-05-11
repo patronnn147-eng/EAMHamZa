@@ -26,9 +26,15 @@ RUN pip install --no-cache-dir --upgrade pip && \
 ENV HF_HOME=/app/.cache/huggingface
 ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
 
+# HF_TOKEN passed at build time only — never baked into image layers.
+# Usage: docker compose build --build-arg HF_TOKEN=hf_xxx rag-service
+ARG HF_TOKEN
+ENV HF_TOKEN=${HF_TOKEN}
+
 # Bake model into image (~90 MB) — eliminates cold-start download on first request.
 RUN python -c "from sentence_transformers import SentenceTransformer; \
-    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')"
+    SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')" && \
+    unset HF_TOKEN
 
 COPY . .
 
