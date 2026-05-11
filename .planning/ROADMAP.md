@@ -10,3 +10,23 @@
 - [ ] 11-01-PLAN.md — Backend eager‑loading of assigned users and machines
 - [ ] 11-02-PLAN.md — Frontend UI hydration for Planning Management
 - [ ] 11-03-PLAN.md — Regression tests for backend and frontend fixes
+
+### Phase 12: ChefTech Alert Response Workflow page
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 11
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 12 to break down)
+
+### Phase 12.1: RAG Implementation — pgvector document ingestion, semantic retrieval, and chat context augmentation (INSERTED)
+
+**Goal:** [Urgent work - to be planned]
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 12.1 to break down)

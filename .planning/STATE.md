@@ -36,6 +36,8 @@
 
 ### Roadmap Evolution
 - Phase 7 added: ML Pipeline End-to-End: Model Training to Frontend Integration
+- Phase 12 added: ChefTech Alert Response Workflow page
+- Phase 12.1 inserted after Phase 12: RAG Implementation — pgvector document ingestion, semantic retrieval, and chat context augmentation (URGENT)
 
 ## Blocker / Issues
 
