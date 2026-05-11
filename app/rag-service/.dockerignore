@@ -1,0 +1,21 @@
+# Byte-compiled / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Local cache (model weights baked in build — don't re-send from host)
+.cache/
+
+# Dev artifacts
+.env
+*.log
+*.md
+.git/
+.gitignore
+
+# Test artifacts
+tests/
+pytest.ini
+.pytest_cache/
