@@ -1,0 +1,376 @@
+GUIDE DE MAINTENANCE — LIGNE CMS (COMPOSANTS MONTÉS EN SURFACE)
+Site: SagemCom Tunisie | Zone: CMS1 & CMS2
+Référence: SAGCMS-MAINT-FR-2024 | Révision: 2.4
+=================================================================
+
+## 1. PRÉSENTATION DE LA LIGNE CMS
+
+La ligne CMS (Component Surface Mounting) est une ligne d'assemblage automatisée de cartes
+électroniques (PCB). Elle est composée de plusieurs machines séquentielles dont chacune
+joue un rôle précis dans le processus de brasage sans plomb (lead-free).
+
+### Machines de la ligne (ordre de production)
+
+1. **Dépileur** — Chargement automatique des PCB vierges
+2. **Machine de Sérigraphie DEK/MPM** — Dépôt de pâte à braser par stencil
+3. **Machine SPI** (Solder Paste Inspection) — Contrôle 3D de la pâte déposée
+4. **Machine de Pose Pick & Place** — Placement automatique des composants CMS
+5. **Four de refusion** (non couvert ici)
+6. **Test In-Situ** (Bed of Nails) — Test électrique des composants soudés
+7. **Banc TF** (Test Fonctionnel) — Test fonctionnel complet de la carte
+
+---
+
+## 2. DÉPILEUR — CHARGEUR AUTOMATIQUE PCB
+
+### 2.1 Description
+Le dépileur alimente la ligne en PCB vierges depuis une pile (stack) de cartes.
+Il transfère les cartes une par une sur le convoyeur de la ligne CMS.
+Capacité: 50 cartes par chargement. Format PCB: 50mm×50mm à 350mm×350mm.
+
+### 2.2 Démarrage du dépileur
+1. Vérifier que la pile de PCB est correctement positionnée dans le magasin.
+2. Mettre le sectionneur ON.
+3. Appuyer sur le bouton POWER (vert) sur le panneau de commande.
+4. Sélectionner le format de carte via l'IHM (largeur convoyeur).
+5. Appuyer sur START — le dépileur entre en mode AUTO.
+
+### 2.3 Alarmes fréquentes du dépileur
+
+**Alarme D-01 — Magasin vide (No PCB detected)**
+CAUSE: Pile de cartes épuisée.
+ACTION:
+  1. Appuyer sur PAUSE.
+  2. Charger une nouvelle pile de PCB dans le magasin.
+  3. Vérifier l'orientation des cartes (marquage sérigraphié vers le haut).
+  4. Appuyer sur RESUME.
+
+**Alarme D-02 — Bourrage carte (Card Jam)**
+CAUSE: PCB mal alignée, gauchissement excessif (> 0.5mm), débris sur convoyeur.
+ACTION:
+  1. Appuyer sur ARRÊT D'URGENCE.
+  2. Ouvrir le capot de protection latéral.
+  3. Retirer la carte coincée MANUELLEMENT (ne pas forcer).
+  4. Inspecter les guides latéraux — nettoyage si nécessaire.
+  5. Réinitialiser l'alarme et redémarrer.
+
+**Alarme D-03 — Capteur de présence défaillant**
+CAUSE: Capteur optique encrassé ou hors plage.
+ACTION:
+  1. Nettoyer le capteur avec chiffon non pelucheux + IPA (isopropanol).
+  2. Vérifier l'alignement du capteur (écart max 2mm).
+  3. Si défaillance persistante → contacter le responsable maintenance.
+
+### 2.4 Maintenance préventive dépileur
+- **Hebdomadaire**: Nettoyer les convoyeurs et guides à l'IPA. Vérifier les courroies.
+- **Mensuelle**: Graisser les guides linéaires (graisse Mobilux EP2).
+- **Annuelle**: Remplacement courroies de transport si usure > 30%.
+
+---
+
+## 3. MACHINE DE SÉRIGRAPHIE DEK / MPM
+
+### 3.1 Description
+La machine de sérigraphie dépose la pâte à braser (solder paste) sur les pads du PCB
+via un stencil métallique (pochoir) à l'aide d'une racle (squeegee).
+Modèles: DEK Horizon 03iX ou MPM UP3000.
+Précision de dépôt: ±12.5 µm à 6 sigma. Épaisseur stencil: 0.1mm à 0.2mm.
+
+### 3.2 Chargement du programme sérigraphie
+1. Scanner le code-barres de la référence produit sur l'IHM.
+2. Le programme associé se charge automatiquement depuis le serveur.
+3. Vérifier les paramètres affichés:
+   - Vitesse racle: 40–80 mm/s selon pâte utilisée
+   - Pression racle: 4–8 kg selon stencil
+   - Séparation stencil (Snap-off): 0 mm (contact) ou 0.5 mm (semi-contact)
+4. Valider avec le code opérateur.
+
+### 3.3 Procédure de changement de stencil
+1. Appuyer sur PAUSE — attendre arrêt complet.
+2. Ouvrir le capot avant (bouton UNLOCK FRAME).
+3. Retirer l'ancien stencil en desserrant les 4 verrous de cadre.
+4. Nettoyer le cadre stencil au solvant approprié (nettoyeur pâte SAC305).
+5. Insérer le nouveau stencil — vérifier l'encoche de référence.
+6. Verrouiller les 4 verrous — couple: 2 Nm.
+7. Fermer le capot et lancer la procédure d'alignement automatique.
+8. Valider avec l'opérateur de qualité (1ère carte de contrôle).
+
+### 3.4 Alarmes fréquentes sérigraphie
+
+**Alarme S-101 — Pâte insuffisante (Paste low)**
+CAUSE: Cartouche de pâte à braser vide ou basse.
+ACTION:
+  1. Vider la cartouche résiduelle.
+  2. Insérer une nouvelle cartouche (vérifier date de péremption — max 6 mois).
+  3. Purger 5 cm de pâte avant la première impression.
+
+**Alarme S-102 — Mauvais alignement stencil (Fiducial not found)**
+CAUSE: Fiducials PCB non reconnus, stencil mal positionné, caméra encrassée.
+ACTION:
+  1. Nettoyer la caméra de vision (lentille + éclairage LED).
+  2. Vérifier l'état des fiducials sur le PCB (pas de contamination).
+  3. Relancer l'alignement automatique.
+  4. Si échec → alignement manuel depuis l'IHM (décalage X/Y/θ).
+
+**Alarme S-110 — Température pâte hors plage**
+CAUSE: Pâte trop froide (< 18°C) ou trop chaude (> 25°C).
+ACTION:
+  1. Vérifier la température ambiante (salle CMS: 20–24°C recommandé).
+  2. Laisser la pâte s'acclimater 1 heure avant utilisation si sortie du réfrigérateur.
+  3. NE PAS chauffer la pâte artificiellement.
+
+### 3.5 Maintenance préventive sérigraphie
+- **Après chaque production**: Nettoyage automatique sous-stencil (cycle wash).
+- **Hebdomadaire**: Nettoyage complet raclettes + carter de pâte.
+- **Mensuelle**: Vérification planéité table (tolérance: ±0.05mm).
+- **Semestrielle**: Étalonnage caméra d'alignement par technicien qualifié.
+
+### 3.6 Paramètres de référence pâte SAC305
+Les paramètres d'impression de la pâte à braser SAC305 sur la machine de sérigraphie sont les suivants.
+La vitesse de la racle doit être réglée à 60 mm/s avec une tolérance de plus ou moins 10 mm/s.
+La pression de la racle doit être de 5.5 kg avec une tolérance de plus ou moins 0.5 kg.
+La séparation stencil Snap-off est de 0 mm (contact direct).
+La température de la pâte SAC305 doit être de 22 degrés Celsius, entre 18 et 25 degrés.
+L'épaisseur de dépôt cible est de 0.15 mm avec une tolérance entre 0.12 et 0.18 mm.
+
+| Paramètre          | Valeur cible    | Tolérance   |
+|--------------------|-----------------|-------------|
+| Vitesse racle      | 60 mm/s         | ±10 mm/s    |
+| Pression racle     | 5.5 kg          | ±0.5 kg     |
+| Snap-off           | 0 mm            | —           |
+| Température pâte   | 22°C            | 18–25°C     |
+| Épaisseur dépôt    | 0.15 mm         | 0.12–0.18mm |
+
+---
+
+## 4. MACHINE SPI — CONTRÔLE PÂTE À BRASER
+
+### 4.1 Description
+La machine SPI (Solder Paste Inspection) effectue un contrôle 3D de la pâte déposée
+par la sérigraphie avant le placement des composants. Elle mesure le volume, la hauteur,
+l'aire et le décalage de chaque dépôt de pâte.
+Technologie: profilométrie par projection de franges (Moiré).
+Précision: ±1 µm en Z, ±3 µm en X/Y.
+
+### 4.2 Critères d'acceptation SPI
+- Volume pâte: 70% à 130% du volume nominal
+- Hauteur pâte: > 80% de l'épaisseur stencil
+- Décalage XY: < 25% de la largeur du pad
+- Recouvrement pad: > 75%
+
+### 4.3 Alarmes SPI
+
+**Alarme SPI-201 — Taux de rejet > 5% (Paste volume out of spec)**
+CAUSE: Usure racle sérigraphie, mauvaise pression, contamination stencil.
+ACTION:
+  1. Stopper la production.
+  2. Analyser le rapport SPI (Pareto des défauts par zone du PCB).
+  3. Si défauts concentrés sur une zone → vérifier stencil (obstruction ouvertures).
+  4. Si défauts distribués → ajuster pression/vitesse racle.
+  5. Relancer après validation 3 cartes consécutives conformes.
+
+**Alarme SPI-202 — Erreur calibration (Height reference lost)**
+ACTION:
+  1. Lancer le cycle de calibration automatique (menu → Calibrate → Full).
+  2. Utiliser la tuile de référence fournie avec la machine.
+  3. Si erreur persistante → contacter support SPI.
+
+### 4.4 Maintenance préventive SPI
+- **Hebdomadaire**: Nettoyer l'optique (lentille laser + projecteur).
+- **Mensuelle**: Vérifier calibration Z avec tuile étalon.
+- **Annuelle**: Recalibration complète par le constructeur.
+
+---
+
+## 5. MACHINE DE POSE PICK & PLACE
+
+### 5.1 Description
+La machine de pose place les composants CMS (résistances, condensateurs, circuits intégrés,
+connecteurs) sur le PCB encollé de pâte à braser.
+Modèles: Fuji NXT III ou Yamaha YSM20.
+Cadence: jusqu'à 30 000 composants/heure.
+Précision placement: ±0.035 mm à 3 sigma.
+
+### 5.2 Chargement des feeders
+1. Vérifier la référence du composant sur le feeder (étiquette + code-barres).
+2. Scanner le feeder avant insertion (vérification système MES).
+3. Insérer le feeder dans le slot correspondant au programme en cours.
+4. Vérifier le voyant vert (feeder reconnu) sur le panneau.
+5. NE PAS intervertir les feeders sans vérification — risque de mauvais placement.
+
+### 5.3 Alarmes Pick & Place
+
+**Alarme PP-301 — Composant non trouvé (No pick)**
+CAUSE: Bande composant vide, mauvais pitch feeder, composant tombé.
+ACTION:
+  1. Vérifier le feeder concerné (numéro slot indiqué sur alarme).
+  2. Vérifier l'avancement de la bande (splicing correct?).
+  3. Si bande vide → remplacer la bobine.
+  4. Si persiste → vérifier la tête de prise (buse encrassée ou usée).
+
+**Alarme PP-302 — Erreur de vision (Bad component vision)**
+CAUSE: Buse sale, éclairage caméra défaillant, composant mal orienté sur la buse.
+ACTION:
+  1. Nettoyer la buse incriminée avec chiffon IPA.
+  2. Vérifier l'éclairage de la caméra de centrage.
+  3. Si le problème est systématique → vérifier la bibliothèque composant.
+
+**Alarme PP-310 — Pression vide insuffisante (Vacuum error)**
+CAUSE: Filtre vide saturé, fuite sur circuit pneumatique, compresseur faible.
+ACTION:
+  1. Vérifier la pression d'alimentation air comprimé: 0.5 MPa (5 bar) minimum.
+  2. Remplacer le filtre vide (maintenance mensuelle).
+  3. Inspecter les raccords pneumatiques des têtes de pose.
+
+### 5.4 Maintenance préventive Pick & Place
+- **Hebdomadaire**: Nettoyer les buses avec IPA. Inspecter les convoyeurs.
+- **Mensuelle**: Remplacer les filtres vide. Lubrifier les axes XY (graisse NSK LG2).
+- **Semestrielle**: Étalonnage géométrique des têtes de pose.
+- **Annuelle**: Révision complète axes, roulements, courroies.
+
+---
+
+## 6. TEST IN-SITU (BED OF NAILS)
+
+### 6.1 Description
+Le test in-situ (ICT — In-Circuit Test) vérifie la qualité électrique de chaque composant
+soudé sur la carte. Un banc de sondes (bed of nails) entre en contact avec tous les points
+de test de la carte et mesure les valeurs (résistances, condensateurs, diodes, circuits).
+Équipement: HP/Agilent 3070 ou Teradyne Spectrum.
+
+### 6.2 Procédure de test ICT
+1. Placer la carte sur le gabarit de test (orientation indiquée par marquage).
+2. Abaisser le plateau de contact (bouton PRESS ou pédale).
+3. Le test démarre automatiquement (durée: 15–90 secondes selon complexité carte).
+4. Résultat affiché: PASS (vert) ou FAIL (rouge) avec liste des défauts.
+5. Cartes FAIL: étiqueter et placer dans le bac de réparation.
+6. Cartes PASS: placer dans le convoyeur vers Banc TF.
+
+### 6.3 Alarmes et codes d'erreur ICT
+
+**Erreur ICT-401 — Mauvais contact sondes (Contact failure)**
+CAUSE: Sondes usées, plan de test décalé, PCB non conforme (trou de test bouché).
+ACTION:
+  1. Nettoyer le gabarit de sondes (soufflage air comprimé propre, max 2 bar).
+  2. Vérifier visuellement les sondes (plongeur doit sortir librement, min 1.5mm).
+  3. Remplacer les sondes défectueuses (référence selon type: 100-mil, 75-mil).
+  4. Vérifier la planéité du PCB.
+
+**Erreur ICT-402 — Composant hors tolérance (Component out of range)**
+CAUSE: Composant défectueux ou mal soudé (valeur, polarité, manquant).
+ACTION:
+  1. Identifier le composant en défaut (repère fourni par le rapport ICT).
+  2. Vérifier visuellement la soudure sous binoculaire.
+  3. Envoyer en réparation: dessoudage + replacement si composant défectueux.
+
+**Erreur ICT-410 — Programme non trouvé (Test program missing)**
+CAUSE: Nouvelle référence non programmée, serveur de programmes inaccessible.
+ACTION:
+  1. Vérifier la connexion réseau du banc ICT.
+  2. Contacter l'équipe Méthodes pour chargement du programme.
+
+### 6.4 Maintenance préventive ICT
+- **Hebdomadaire**: Nettoyer le gabarit (soufflage). Vérifier courses sondes.
+- **Mensuelle**: Compter les cycles de contact — remplacement sondes > 100 000 cycles.
+- **Annuelle**: Étalonnage des sources de mesure (résistance, capacité, tension).
+
+---
+
+## 7. BANC TF — TEST FONCTIONNEL
+
+### 7.1 Description
+Le Banc TF (Test Fonctionnel) valide le fonctionnement complet de la carte assemblée
+en la soumettant à des conditions réelles d'utilisation (alimentation nominale,
+signaux d'entrée/sortie, communication, charge électrique).
+Équipement: PC de test + rack NI (National Instruments) ou Labview.
+
+### 7.2 Types de tests fonctionnels
+- Test d'alimentation: vérification des tensions régulées (3.3V, 5V, 12V, 48V selon carte)
+- Test communication: Ethernet, USB, WiFi, UART selon protocole produit
+- Test RF (produits Box): puissance TX, sensibilité RX, canaux
+- Test de charge: courant consommé dans toutes les configurations
+
+### 7.3 Procédure Banc TF
+1. Connecter la carte aux connecteurs du banc (orientation par détrompeurs).
+2. Sélectionner la référence produit sur l'IHM du banc.
+3. Lancer le test: appuyer sur START (bouton bleu).
+4. Le banc exécute la séquence de test automatiquement (2–15 minutes).
+5. Résultat: PASS → carte orientée vers l'emballage.
+6. Résultat: FAIL → carte avec rapport d'échec vers le bac réparation.
+
+### 7.4 Alarmes Banc TF
+
+**Erreur TF-501 — Alimentation hors spec (PSU voltage error)**
+CAUSE: Mauvaise tension sur carte, régulateur défectueux, court-circuit.
+ACTION:
+  1. Mesurer les tensions de sortie avec multimètre (points de mesure indiqués sur gabarit).
+  2. Si court-circuit → retirer immédiatement la carte (risque de dommage banc).
+  3. Envoyer en réparation niveau composant.
+
+**Erreur TF-502 — Test RF échoué (RF power out of range)**
+CAUSE: Antenne mal connectée, module RF défectueux, câble coaxial endommagé.
+ACTION:
+  1. Vérifier la connexion de l'antenne RF sur la carte.
+  2. Vérifier l'état du câble coaxial du banc (pas de plié/écrasement).
+  3. Si le banc lui-même est suspect → test avec carte connue GOOD.
+
+**Erreur TF-510 — Timeout communication (Communication timeout)**
+CAUSE: Firmware non chargé, port USB/UART défectueux, séquence de boot échouée.
+ACTION:
+  1. Vérifier que le firmware est bien flashé (via ICT ou procédure flash dédiée).
+  2. Réinitialiser la carte (bouton RESET ou coupure alimentation 5 secondes).
+  3. Vérifier les connexions du câble de communication banc/carte.
+
+### 7.5 Maintenance préventive Banc TF
+- **Hebdomadaire**: Vérifier les connecteurs de test (pas de pin tordu/oxydé).
+- **Mensuelle**: Vérifier les câbles coaxiaux RF (continuité, isolement).
+- **Semestrielle**: Étalonnage des alimentations de test (précision ±1%).
+- **Annuelle**: Révision complète du rack NI, mise à jour logiciel de test.
+
+---
+
+## 8. RÈGLES DE SÉCURITÉ LIGNE CMS
+
+1. **ESD obligatoire**: Bracelet antistatique et tapis ESD à tous les postes.
+   Test bracelet: minimum 1 fois par jour sur le testeur ESD entrée atelier.
+2. **Pâte à braser**: Port de gants nitrile obligatoire. Pâte SAC305 contient de l'étain/argent/cuivre — pas de contact peau prolongé.
+3. **IPA (Isopropanol)**: Produit inflammable. Pas de source de chaleur à moins de 2 mètres. Ventilation obligatoire.
+4. **Machines en mouvement**: Ne jamais introduire les mains dans les zones de mouvement des axes Pick & Place ou des convoyeurs sans avoir appuyé sur ARRÊT D'URGENCE.
+5. **Cartes sous tension (Banc TF)**: Ne pas toucher les composants en cours de test. Tension max 220 VAC possible sur certains bancs.
+
+---
+
+## 9. INDICATEURS QUALITÉ LIGNE CMS
+
+Les indicateurs qualité de la ligne CMS permettent de surveiller la performance de la production.
+Le taux de premier passage FPY doit être supérieur à 95%, une alarme se déclenche si inférieur à 90%.
+Le taux de rejet à la machine SPI doit être inférieur à 2%, alarme si supérieur à 5%.
+Le taux de défaut à l'ICT (Test In-Situ) doit être inférieur à 3%, alarme si supérieur à 6%.
+Le taux de défaut au Banc TF (Test Fonctionnel) doit être inférieur à 1%, alarme si supérieur à 3%.
+L'efficacité de la machine Pick and Place PP doit être supérieure à 92%, alarme si inférieure à 85%.
+Le temps de changement de série doit être inférieur à 30 minutes, alarme si supérieur à 45 minutes.
+
+| Indicateur          | Cible         | Alarme si     |
+|---------------------|---------------|---------------|
+| Taux premier passage (FPY) | > 95%  | < 90%         |
+| Taux rejet SPI      | < 2%          | > 5%          |
+| Taux défaut ICT     | < 3%          | > 6%          |
+| Taux défaut TF      | < 1%          | > 3%          |
+| Efficacité PP       | > 92%         | < 85%         |
+| Temps changement de série | < 30 min | > 45 min    |
+
+---
+
+## 10. CONTACTS MAINTENANCE
+
+Responsable Maintenance CMS: poste 412
+Chef Technicien Zone CMS: poste 415
+Support Pick & Place Fuji: +216 71 xxx xxx
+Support DEK/MPM Sérigraphie: support.emea@dek.com
+Commande pièces détachées: magasin.maintenance@sagemcom.tn
+
+En cas de panne bloquante ligne:
+→ Arrêt immédiat — Sécurisation poste
+→ Appel Chef Technicien (poste 415)
+→ Remplissage fiche d'intervention (GMAO EAM)
+→ Ne pas tenter réparation sans habilitation niveau 2

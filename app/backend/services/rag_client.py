@@ -20,7 +20,7 @@ async def retrieve_chunks(
     query: str,
     machine_id: Optional[int] = None,
     top_k: int = 3,
-    threshold: float = 0.7,
+    threshold: float = 0.30,
 ) -> list[dict]:
     """
     Call RAG service /retrieve — returns list of {content, metadata, similarity} dicts.

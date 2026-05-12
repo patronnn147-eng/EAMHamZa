@@ -19,7 +19,7 @@ async def retrieve_chunks(
     db: AsyncSession,
     machine_id: Optional[int] = None,
     top_k: int = 3,
-    threshold: float = 0.7,
+    threshold: float = 0.30,
 ) -> list[dict]:
     """
     Embed query → cosine similarity search → return top-k chunks above threshold.
@@ -47,7 +47,7 @@ async def retrieve_chunks(
                    1 - (dc.embedding <=> CAST(:vec AS vector)) AS similarity
             FROM doc_chunks dc
             JOIN documents d ON dc.doc_id = d.id
-            WHERE (:machine_id::int IS NULL OR d.machine_id = :machine_id)
+            WHERE (CAST(:machine_id AS integer) IS NULL OR d.machine_id = CAST(:machine_id AS integer))
               AND 1 - (dc.embedding <=> CAST(:vec AS vector)) > :threshold
             ORDER BY dc.embedding <=> CAST(:vec AS vector)
             LIMIT :top_k

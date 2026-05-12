@@ -16,8 +16,8 @@ from embedder import embed_batch, vec_to_str
 
 logger = logging.getLogger(__name__)
 
-CHUNK_SIZE = 512   # words
-CHUNK_OVERLAP = 50  # words
+CHUNK_SIZE = 200   # words  — smaller chunks = sharper per-topic embeddings
+CHUNK_OVERLAP = 20  # words
 
 
 # ---------------------------------------------------------------------------

@@ -144,8 +144,8 @@ async def ai_chat(
         rag_chunks = await rag_client.retrieve_chunks(
             query=request.message,
             machine_id=getattr(request, "machine_id", None),
-            top_k=3,
-            threshold=0.7,
+            top_k=8,
+            threshold=0.30,
         )
     except Exception as e:
         logger.warning(f"RAG retrieval failed, continuing without context: {e}")
@@ -167,6 +167,27 @@ async def ai_chat(
                     messages.append(msg)
         except Exception as e:
             logger.warning(f"History load failed, continuing without: {e}")
+
+    # ── 4b. RAG pre-turn: inject doc context as conversation turn ──────────
+    # When RAG chunks found, prime the conversation with a user→assistant exchange
+    # so the LLM answers from documentation BEFORE attempting any tool call.
+    if rag_chunks:
+        rag_text = build_rag_context(rag_chunks)
+        messages.append({
+            "role": "user",
+            "content": (
+                f"[BASE DOCUMENTAIRE] Voici les extraits pertinents de la documentation officielle:\n"
+                f"{rag_text}\n\n"
+                "Reponds directement depuis cette documentation. Ne pas appeler d'outil."
+            ),
+        })
+        messages.append({
+            "role": "assistant",
+            "content": (
+                "J'ai bien les extraits documentaires. "
+                "Je vais repondre directement depuis la documentation officielle."
+            ),
+        })
 
     messages.append({"role": "user", "content": request.message})
 
@@ -332,7 +353,7 @@ async def analyze(
         rag_chunks = await rag_client.retrieve_chunks(
             query=request.query,
             top_k=3,
-            threshold=0.7,
+            threshold=0.30,
         )
         if rag_chunks:
             rag_context_str = build_rag_context(rag_chunks)

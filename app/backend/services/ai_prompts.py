@@ -113,7 +113,13 @@ def build_rag_context(chunks: List[Any]) -> str:
     if not chunks:
         return ""
 
-    lines = ["\n\n[CONTEXTE DOCUMENTAIRE]"]
+    lines = [
+        "\n\n[CONTEXTE DOCUMENTAIRE]",
+        "INSTRUCTION CRITIQUE: Les extraits ci-dessous proviennent de la base documentaire officielle.",
+        "Tu DOIS repondre en priorite depuis ce contexte documentaire.",
+        "N'utilise PAS les outils de recherche si la reponse est dans ces extraits.",
+        "Cite la source (nom du fichier) dans ta reponse.",
+    ]
     for chunk in chunks:
         meta = chunk.get("metadata", {}) or {}
         source = meta.get("filename", "Document")
@@ -121,7 +127,7 @@ def build_rag_context(chunks: List[Any]) -> str:
         page_str = f" (page {page})" if page else ""
         sim = chunk.get("similarity", 0)
         lines.append(f"\nSource: {source}{page_str} (similarite: {sim:.0%})")
-        lines.append(f"Contenu: {chunk['content'][:800]}")
+        lines.append(f"Contenu: {chunk['content'][:1500]}")
     lines.append("\n[FIN CONTEXTE DOCUMENTAIRE]")
     return "\n".join(lines)
 
