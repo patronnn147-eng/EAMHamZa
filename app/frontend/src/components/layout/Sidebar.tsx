@@ -20,6 +20,7 @@ import {
   History,
   ChevronLeft,
   ListChecks,
+  Database,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
@@ -50,6 +51,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
       { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
+      { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
       { name: 'Historique (Audit)', href: '/audit-log', icon: History },
       { name: 'Configuration Alertes', href: '/admin/alert-config', icon: Bell },
       { name: 'Rapports Planifiés', href: '/admin/report-scheduler', icon: FileText },
@@ -66,7 +68,8 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Demandes Intervention', href: '/chetop/itv-requests', icon: ClipboardList },
       { name: 'Ordres de Travail', href: '/chetop/work-orders', icon: Wrench },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
-      { name: 'Archives', href: '/archives', icon: Archive }
+      { name: 'Archives', href: '/archives', icon: Archive },
+      { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
     ];
   }
 
@@ -82,6 +85,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
       { name: 'Centre des alertes', href: '/cheftech/alerts', icon: Bell },
       { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
+      { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
       { name: 'Historique (Audit)', href: '/audit-log', icon: History },
       { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
@@ -98,6 +102,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Tâches de Planning', href: '/technician/planning-taches', icon: ListChecks },
       { name: 'Machines', href: '/technician/machines', icon: Settings },
       { name: 'Docs Techniques', href: '/technician/documents', icon: FileText },
+      { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
       { name: 'Stocks', href: '/technician/inventory', icon: Package }
     ];
   }

@@ -57,6 +57,7 @@ import IoTDashboard from '@/modules/shared/IoTDashboard';
 import TelemetryPanel from '@/modules/shared/TelemetryPanel';
 import AuditLogViewer from '@/modules/shared/AuditLogViewer';
 import ChefTechAlertWorkflow from '@/modules/cheftech/ChefTechAlertWorkflow';
+import RAGDocuments from '@/modules/shared/RAGDocuments';
 
 export function AppRoutes() {
   return (
@@ -683,6 +684,16 @@ export function AppRoutes() {
         <Route path="documents" element={<TechnicianDocuments />} />
         <Route path="planning-taches" element={<TechnicianPlanningTaches />} />
       </Route>
+      <Route
+        path="/rag-documents"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
+            <Layout>
+              <RAGDocuments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );

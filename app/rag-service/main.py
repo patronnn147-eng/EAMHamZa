@@ -165,6 +165,8 @@ class DocumentRecord(BaseModel):
     chunk_count: int
     file_size_bytes: Optional[int]
     uploaded_by: Optional[int]
+    uploader_name: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 @app.get("/documents", response_model=List[DocumentRecord])
@@ -186,11 +188,14 @@ async def list_documents(
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
     sql = text(f"""
-        SELECT id, filename, doc_type, description, machine_id,
-               chunk_count, file_size_bytes, uploaded_by
-        FROM documents
+        SELECT d.id, d.filename, d.doc_type, d.description, d.machine_id,
+               d.chunk_count, d.file_size_bytes, d.uploaded_by,
+               u.nom AS uploader_name,
+               d.created_at
+        FROM documents d
+        LEFT JOIN utilisateurs u ON u.id = d.uploaded_by
         {where_sql}
-        ORDER BY created_at DESC
+        ORDER BY d.created_at DESC
         LIMIT 100
     """)
 
@@ -207,6 +212,8 @@ async def list_documents(
             chunk_count=r.chunk_count,
             file_size_bytes=r.file_size_bytes,
             uploaded_by=r.uploaded_by,
+            uploader_name=r.uploader_name,
+            created_at=r.created_at.isoformat() if r.created_at else None,
         )
         for r in rows
     ]

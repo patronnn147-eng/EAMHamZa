@@ -20,7 +20,23 @@ import {
   ChevronUp,
   Table,
   AlertTriangle,
+  Plus,
+  FileText,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
@@ -222,6 +238,39 @@ export const ChatWidget: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Doc upload state
+  const [showDocUpload, setShowDocUpload] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<'manual' | 'sop' | 'report'>('manual');
+  const [docUploading, setDocUploading] = useState(false);
+
+  const handleDocUpload = async () => {
+    if (!docFile) return;
+    setDocUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', docFile);
+      fd.append('doc_type', docType);
+      const res = await fetch(`${API}/api/v1/rag/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erreur ${res.status}`);
+      }
+      toast({ title: 'Document ajouté à la base documentaire IA' });
+      setShowDocUpload(false);
+      setDocFile(null);
+    } catch (e: any) {
+      toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' });
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && suggestions.length === 0) {
       fetchSuggestions();
@@ -415,6 +464,15 @@ export const ChatWidget: React.FC = () => {
               onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
               className="flex gap-2"
             >
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                onClick={() => setShowDocUpload(true)}
+                title="Importer un document dans la base RAG"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
               <Input
                 placeholder="Ask about machines, alerts..."
                 value={input}
@@ -426,6 +484,51 @@ export const ChatWidget: React.FC = () => {
               </Button>
             </form>
           </div>
+
+          {/* Doc upload dialog */}
+          <Dialog open={showDocUpload} onOpenChange={setShowDocUpload}>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-blue-500" />
+                  Importer un document
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 py-2">
+                <div>
+                  <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.txt"
+                    className="text-sm w-full"
+                    onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium block mb-1.5">Type</label>
+                  <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manual">Manuel technique</SelectItem>
+                      <SelectItem value="sop">SOP</SelectItem>
+                      <SelectItem value="report">Rapport d'intervention</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowDocUpload(false)} disabled={docUploading}>
+                  Annuler
+                </Button>
+                <Button onClick={handleDocUpload} disabled={!docFile || docUploading} className="gap-2">
+                  {docUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Importer
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       )}
     </Card>
@@ -441,6 +544,39 @@ export const ChatPage: React.FC = () => {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Doc upload state
+  const [showDocUpload, setShowDocUpload] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<'manual' | 'sop' | 'report'>('manual');
+  const [docUploading, setDocUploading] = useState(false);
+
+  const handleDocUpload = async () => {
+    if (!docFile) return;
+    setDocUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', docFile);
+      fd.append('doc_type', docType);
+      const res = await fetch(`${API}/api/v1/rag/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erreur ${res.status}`);
+      }
+      toast({ title: 'Document ajouté à la base documentaire IA' });
+      setShowDocUpload(false);
+      setDocFile(null);
+    } catch (e: any) {
+      toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' });
+    } finally {
+      setDocUploading(false);
+    }
+  };
 
   useEffect(() => {
     fetchSuggestions();
@@ -649,6 +785,16 @@ export const ChatPage: React.FC = () => {
                 onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
                 className="flex gap-3"
               >
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-12 w-12 flex-shrink-0"
+                  onClick={() => setShowDocUpload(true)}
+                  title="Importer un document dans la base RAG"
+                >
+                  <Plus className="h-5 w-5" />
+                </Button>
                 <Input
                   placeholder="Tapez votre question... (ex: Machines en panne dans Zone A)"
                   value={input}
@@ -666,6 +812,51 @@ export const ChatPage: React.FC = () => {
                 </Button>
               </form>
             </div>
+
+            {/* Doc upload dialog */}
+            <Dialog open={showDocUpload} onOpenChange={setShowDocUpload}>
+              <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-500" />
+                    Importer un document
+                  </DialogTitle>
+                </DialogHeader>
+                <div className="space-y-3 py-2">
+                  <div>
+                    <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.txt"
+                      className="text-sm w-full"
+                      onChange={(e) => setDocFile(e.target.files?.[0] ?? null)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium block mb-1.5">Type</label>
+                    <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manual">Manuel technique</SelectItem>
+                        <SelectItem value="sop">SOP</SelectItem>
+                        <SelectItem value="report">Rapport d'intervention</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => setShowDocUpload(false)} disabled={docUploading}>
+                    Annuler
+                  </Button>
+                  <Button onClick={handleDocUpload} disabled={!docFile || docUploading} className="gap-2">
+                    {docUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Importer
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardContent>
         </Card>
 

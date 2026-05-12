@@ -33,6 +33,8 @@ class DocumentResponse(BaseModel):
     chunk_count: int
     file_size_bytes: Optional[int] = None
     uploaded_by: Optional[int] = None
+    uploader_name: Optional[str] = None
+    created_at: Optional[str] = None
 
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
