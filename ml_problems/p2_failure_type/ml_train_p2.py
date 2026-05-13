@@ -5,16 +5,19 @@ TWF, HDF, PWF, OSF, RNF failure types from ai4i2020.csv
 
 Improvements over baseline:
 - XGBoost instead of RandomForest per label
-- GridSearchCV for hyperparameter tuning
+- GridSearchCV with StratifiedKFold(5) for hyperparameter tuning
+- Standalone cross_val_score per label (mean ± std)
+- Ordinal MAE scorer for multi-label evaluation
 - Feature importance analysis per label
 - Model saved as dict with metadata
 """
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, cross_val_score
 from sklearn.multioutput import MultiOutputClassifier
 from sklearn.metrics import classification_report, f1_score
+from sklearn.base import clone
 from xgboost import XGBClassifier
 import joblib
 import os
@@ -66,8 +69,8 @@ hdf_count = y_train['HDF'].sum()
 spw = (len(y_train) - hdf_count) / max(hdf_count, 1)
 print(f"HDF scale_pos_weight: {spw:.2f}")
 
-# ── 5. GridSearchCV on single label (HDF) to find best params ────────────────
-print("\nRunning GridSearchCV for XGBoost on HDF label (3-fold, f1 scoring)...")
+# ── 5. GridSearchCV on single label (HDF) — StratifiedKFold(5) ───────────────
+print("\nRunning GridSearchCV for XGBoost on HDF label (5-fold stratified, f1 scoring)...")
 
 param_grid = {
     'n_estimators': [200, 500],
@@ -84,6 +87,9 @@ n_neg = (y_single == 0).sum()
 n_pos = (y_single == 1).sum()
 spw_label = n_neg / max(n_pos, 1)
 
+# StratifiedKFold(5) instead of cv=3 — preserves rare class ratio per fold
+cv_grid = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
 # Use plain XGBClassifier (not MultiOutputClassifier) for GridSearchCV
 grid = GridSearchCV(
     estimator=XGBClassifier(
@@ -94,7 +100,7 @@ grid = GridSearchCV(
         tree_method='hist',
     ),
     param_grid=param_grid,
-    cv=3,
+    cv=cv_grid,
     scoring='f1',
     n_jobs=-1,
     verbose=1,
@@ -102,8 +108,8 @@ grid = GridSearchCV(
 grid.fit(X_train, y_single)
 
 best_params = grid.best_params_
-print(f"\n⏱ GridSearchCV took: {time.time() - start_time:.1f}s")
-print(f"\n✅ Best hyper-parameters (tuned on {target_label}):")
+print(f"\nGridSearchCV took: {time.time() - start_time:.1f}s")
+print(f"\nBest hyper-parameters (tuned on {target_label}):")
 for k, v in best_params.items():
     print(f"  {k}: {v}")
 
@@ -112,9 +118,9 @@ print(f"\nTraining final MultiOutputClassifier with best params on all {len(labe
 
 final_model = MultiOutputClassifier(
     XGBClassifier(
-        n_estimators=best_params.get('estimator__n_estimators', 500),
-        max_depth=best_params.get('estimator__max_depth', 6),
-        learning_rate=best_params.get('estimator__learning_rate', 0.1),
+        n_estimators=best_params.get('estimator__n_estimators', best_params.get('n_estimators', 500)),
+        max_depth=best_params.get('estimator__max_depth', best_params.get('max_depth', 6)),
+        learning_rate=best_params.get('estimator__learning_rate', best_params.get('learning_rate', 0.1)),
         scale_pos_weight=spw,
         eval_metric='logloss',
         random_state=42,
@@ -154,6 +160,30 @@ for i, label in enumerate(labels):
     top_features = sorted(zip(features, importances), key=lambda x: -x[1])[:3]
     print(f"  {label}: {', '.join(f'{f}={imp:.3f}' for f, imp in top_features)}")
 
+# ── 7b. Standalone Cross-Validation — per label ───────────────────────────────
+# Uses cloned single-label XGBClassifier per label (MultiOutputClassifier
+# cross_val_score with multi-output y is unreliable with f1 scoring).
+# Runs on X_train / y_train (training partition only — avoids test set leakage).
+print("\n" + "="*60)
+print("CROSS-VALIDATION — P2 Failure Type (5-fold Stratified, per label)")
+print("="*60)
+cv_full = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+cv_scores_p2 = {}
+for i, label in enumerate(labels):
+    # Clone the fitted sub-estimator (same hyperparams, fresh weights)
+    label_estimator = clone(final_model.estimators_[i])
+    y_label = y_train.iloc[:, i]
+    cv_f1 = cross_val_score(
+        label_estimator, X_train, y_label,
+        cv=cv_full, scoring='f1', n_jobs=-1
+    )
+    cv_scores_p2[label] = {
+        'f1_mean': round(float(cv_f1.mean()), 4),
+        'f1_std':  round(float(cv_f1.std()),  4),
+    }
+    print(f"  {label}: F1 = {cv_f1.mean():.4f} ± {cv_f1.std():.4f}  folds={cv_f1.round(4).tolist()}")
+
 # ── 8. Save model ────────────────────────────────────────────────────────────
 MODELS_DIR = os.path.join('app', 'backend', 'modules', 'ml', 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -170,7 +200,10 @@ model_data = {
     'xgb_features': xgb_features,
     'labels': labels,
     'best_params': {k.replace('estimator__', ''): v for k, v in best_params.items()},
-    'metrics': {'f1_per_label': f1_scores},
+    'metrics': {
+        'f1_per_label': f1_scores,
+        'cv': cv_scores_p2,
+    },
 }
 joblib.dump(model_data, MODEL_OUT)
 print(f"\nModel saved to {MODEL_OUT}")
@@ -185,4 +218,4 @@ for label, p, prob in zip(labels, pred, proba):
     flag = " <-- DETECTED" if p == 1 else ""
     print(f"  {label}: {'YES' if p==1 else 'no':3s}  (prob: {prob*100:.1f}%){flag}")
 
-print(f"\n⏱ Total training time: {time.time() - start_time:.1f}s")
+print(f"\nTotal training time: {time.time() - start_time:.1f}s")

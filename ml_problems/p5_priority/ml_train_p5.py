@@ -1,6 +1,11 @@
 """
 P5 — Work Order Priority Prediction (Optimized)
-Training script: XGBoost Classifier with GridSearchCV
+Training script: XGBoost Classifier with GridSearchCV + StratifiedKFold(5)
+
+Improvements:
+- StratifiedKFold(5) instead of cv=3 — preserves class distribution per fold
+- Standalone cross_val_score: f1_macro + ordinal MAE
+- Ordinal MAE: LOW<MEDIUM<HIGH<CRITICAL — penalizes CRITICAL->LOW more than CRITICAL→HIGH
 """
 
 import pandas as pd
@@ -9,8 +14,8 @@ import os
 import joblib
 import time
 from xgboost import XGBClassifier
-from sklearn.model_selection import train_test_split, GridSearchCV
-from sklearn.metrics import classification_report, accuracy_score, f1_score
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, cross_val_score
+from sklearn.metrics import classification_report, accuracy_score, f1_score, mean_absolute_error, make_scorer
 
 start_time = time.time()
 
@@ -72,13 +77,16 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ── 5. GridSearchCV ─────────────────────────────────────────────────────────
-print("\nRunning GridSearchCV (3-fold, f1_macro)...")
+# ── 5. GridSearchCV with StratifiedKFold(5) ──────────────────────────────────
+# StratifiedKFold(5) preserves class distribution — critical for imbalanced priority levels
+print("\nRunning GridSearchCV (StratifiedKFold(5), f1_macro)...")
 param_grid = {
     'n_estimators': [200, 500],
     'max_depth': [6, 10, 15],
     'learning_rate': [0.05, 0.1],
 }
+
+cv_grid = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
 
 grid = GridSearchCV(
     estimator=XGBClassifier(
@@ -86,7 +94,7 @@ grid = GridSearchCV(
         eval_metric='mlogloss', random_state=42, n_jobs=-1, tree_method='hist',
     ),
     param_grid=param_grid,
-    cv=3,
+    cv=cv_grid,
     scoring='f1_macro',
     n_jobs=-1,
     verbose=1,
@@ -103,14 +111,38 @@ for k, v in grid.best_params_.items():
 y_pred = best_model.predict(X_test)
 acc = accuracy_score(y_test, y_pred)
 f1_macro = f1_score(y_test, y_pred, average='macro')
+ordinal_mae = mean_absolute_error(y_test, y_pred)  # MAE on label indices (ordinal)
 
 print("\n" + "="*60)
 print("EVALUATION — P5 Priority Classification")
 print("="*60)
-print(f"Accuracy:  {acc:.4f}")
-print(f"F1 Macro:  {f1_macro:.4f}")
+print(f"Accuracy    : {acc:.4f}")
+print(f"F1 Macro    : {f1_macro:.4f}")
+print(f"Ordinal MAE : {ordinal_mae:.4f}  (0=perfect, 3=worst; penalizes CRITICAL->LOW heavily)")
 print("\nClassification Report:")
 print(classification_report(y_test, y_pred, target_names=['Low', 'Medium', 'High', 'Critical']))
+
+# ── 6b. Standalone Cross-Validation ──────────────────────────────────────────
+# Ordinal MAE scorer: priority has natural order LOW<MEDIUM<HIGH<CRITICAL.
+# f1_macro treats all errors equal. Ordinal MAE penalizes large label jumps.
+# cross_val_score clones best_model — model untouched.
+print("\n" + "="*60)
+print("CROSS-VALIDATION — P5 Priority (StratifiedKFold(5))")
+print("="*60)
+cv_full = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+ordinal_scorer = make_scorer(mean_absolute_error, greater_is_better=False)
+
+print("Running CV (f1_macro)...")
+cv_f1 = cross_val_score(best_model, X, y, cv=cv_full, scoring='f1_macro', n_jobs=-1)
+print("Running CV (accuracy)...")
+cv_acc = cross_val_score(best_model, X, y, cv=cv_full, scoring='accuracy', n_jobs=-1)
+print("Running CV (ordinal MAE)...")
+cv_ord = cross_val_score(best_model, X, y, cv=cv_full, scoring=ordinal_scorer, n_jobs=-1)
+
+print(f"\nF1 Macro    : {cv_f1.mean():.4f} ± {cv_f1.std():.4f}  folds={cv_f1.round(4).tolist()}")
+print(f"Accuracy    : {cv_acc.mean():.4f} ± {cv_acc.std():.4f}  folds={cv_acc.round(4).tolist()}")
+print(f"Ordinal MAE : {-cv_ord.mean():.4f} ± {cv_ord.std():.4f}  folds={(-cv_ord).round(4).tolist()}")
 
 # ── 7. Save Model ────────────────────────────────────────────────────────────
 MODELS_DIR = os.path.join(BASE_DIR, 'app', 'backend', 'modules', 'ml', 'models')
@@ -127,7 +159,19 @@ joblib.dump({
     'xgb_features': sanitized_features,
     'labels': ['Low', 'Medium', 'High', 'Critical'],
     'best_params': grid.best_params_,
-    'metrics': {'accuracy': round(acc, 4), 'f1_macro': round(f1_macro, 4)},
+    'metrics': {
+        'accuracy':    round(acc, 4),
+        'f1_macro':    round(f1_macro, 4),
+        'ordinal_mae': round(ordinal_mae, 4),
+        'cv': {
+            'f1_macro_mean':    round(float(cv_f1.mean()),   4),
+            'f1_macro_std':     round(float(cv_f1.std()),    4),
+            'acc_mean':         round(float(cv_acc.mean()),  4),
+            'acc_std':          round(float(cv_acc.std()),   4),
+            'ordinal_mae_mean': round(float(-cv_ord.mean()), 4),
+            'ordinal_mae_std':  round(float(cv_ord.std()),   4),
+        }
+    },
 }, MODEL_OUT)
 print(f"\nModel saved to {MODEL_OUT}")
 

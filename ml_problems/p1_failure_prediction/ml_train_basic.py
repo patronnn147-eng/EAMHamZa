@@ -9,15 +9,17 @@ Improvements over baseline:
 - Expanded hyperparameter search grid
 - scale_pos_weight for class imbalance
 - ROC-AUC and PR-AUC metrics
+- Standalone cross_val_score reporting (mean ± std)
 - Model saved as dict with metadata
 """
 
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold
+from sklearn.model_selection import train_test_split, GridSearchCV, StratifiedKFold, cross_val_score
 from sklearn.metrics import (
     classification_report, confusion_matrix,
-    roc_auc_score, precision_recall_curve, auc
+    roc_auc_score, average_precision_score, precision_recall_curve, auc,
+    make_scorer, f1_score
 )
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
@@ -132,6 +134,35 @@ importances = best_model.feature_importances_
 for feat, imp in sorted(zip(features, importances), key=lambda x: -x[1]):
     print(f"  {feat:30s} {imp:.4f}")
 
+# ── 7b. Standalone Cross-Validation (full dataset, StratifiedKFold) ───────────
+# cross_val_score clones the model — best_model is NOT modified.
+# Runs on full X (sanitized names) and full y for unbiased generalization estimate.
+#
+# XGBoost 2.x + sklearn 1.4+: is_classifier(XGBClassifier()) returns False.
+# make_scorer(response_method='predict_proba') rejects non-classifiers.
+# Fix: pass callable scorer(estimator, X, y) → bypasses is_classifier check.
+def _roc_scorer(estimator, X, y):
+    return roc_auc_score(y, estimator.predict_proba(X)[:, 1])
+
+def _pr_scorer(estimator, X, y):
+    return average_precision_score(y, estimator.predict_proba(X)[:, 1])
+
+print("\n" + "="*60)
+print("CROSS-VALIDATION — P1 Failure Prediction (5-fold Stratified)")
+print("="*60)
+cv_full = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+
+print("Running CV (f1)...")
+cv_f1 = cross_val_score(best_model, X, y, cv=cv_full, scoring='f1', n_jobs=-1)
+print("Running CV (roc_auc)...")
+cv_roc = cross_val_score(best_model, X, y, cv=cv_full, scoring=_roc_scorer, n_jobs=-1)
+print("Running CV (average_precision / PR-AUC)...")
+cv_pr = cross_val_score(best_model, X, y, cv=cv_full, scoring=_pr_scorer, n_jobs=-1)
+
+print(f"\nF1         : {cv_f1.mean():.4f} ± {cv_f1.std():.4f}  folds={cv_f1.round(4).tolist()}")
+print(f"ROC-AUC    : {cv_roc.mean():.4f} ± {cv_roc.std():.4f}  folds={cv_roc.round(4).tolist()}")
+print(f"PR-AUC     : {cv_pr.mean():.4f} ± {cv_pr.std():.4f}  folds={cv_pr.round(4).tolist()}")
+
 # ── 8. Save model with metadata ──────────────────────────────────────────────
 MODELS_DIR = os.path.join('app', 'backend', 'modules', 'ml', 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -141,10 +172,18 @@ model_data = {
     'features': features,  # Original names for display
     'xgb_features': xgb_features,  # Sanitized names for XGBoost
     'best_params': grid.best_params_,
-'metrics': {
+    'metrics': {
         'roc_auc': round(roc_auc, 4),
         'pr_auc': round(pr_auc, 4),
         'f1_failure': round(float(classification_report(y_test, y_pred, output_dict=True).get('1', {}).get('f1-score', 0)), 4),
+        'cv': {
+            'f1_mean':       round(float(cv_f1.mean()), 4),
+            'f1_std':        round(float(cv_f1.std()),  4),
+            'roc_auc_mean':  round(float(cv_roc.mean()), 4),
+            'roc_auc_std':   round(float(cv_roc.std()),  4),
+            'pr_auc_mean':   round(float(cv_pr.mean()), 4),
+            'pr_auc_std':    round(float(cv_pr.std()),  4),
+        }
     }
 }
 

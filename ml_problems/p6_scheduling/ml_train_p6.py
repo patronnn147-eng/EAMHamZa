@@ -1,6 +1,10 @@
 """
 P6 — Maintenance Schedule Optimization (Optimized)
-Training script: XGBoost Regressor with GridSearchCV
+Training script: XGBoost Regressor with GridSearchCV + TimeSeriesSplit(5)
+
+Improvements:
+- TimeSeriesSplit(5) instead of cv=3 — preserves temporal order, prevents leakage
+- Standalone cross_val_score: neg_MAE, R²
 """
 
 import pandas as pd
@@ -9,7 +13,7 @@ import os
 import joblib
 import time
 from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split, GridSearchCV, TimeSeriesSplit, cross_val_score
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 
 start_time = time.time()
@@ -70,18 +74,23 @@ X = df[raw_features].copy()
 X.columns = sanitized_features
 y = df['maintenance_days']
 
-# ── 4. Train/Test Split ──────────────────────────────────────────────────────
-X_train, X_test, y_train, y_test = train_test_split(
-    X, y, test_size=0.2, random_state=42
-)
+# ── 4. Train/Test Split (temporal) ──────────────────────────────────────────
+# Temporal split: last 20% = test (preserves time order, no shuffling)
+split_idx = int(len(X) * 0.8)
+X_train, X_test = X.iloc[:split_idx], X.iloc[split_idx:]
+y_train, y_test = y.iloc[:split_idx], y.iloc[split_idx:]
+print(f"\nTemporal split: train={len(X_train)}, test={len(X_test)}")
 
-# ── 5. GridSearchCV ─────────────────────────────────────────────────────────
-print("\nRunning GridSearchCV (3-fold, neg_mean_absolute_error)...")
+# ── 5. GridSearchCV with TimeSeriesSplit ─────────────────────────────────────
+# TimeSeriesSplit preserves temporal order — no future days leak into training folds
+print("\nRunning GridSearchCV (TimeSeriesSplit(5), neg_mean_absolute_error)...")
 param_grid = {
     'n_estimators': [200, 500],
     'max_depth': [6, 10, 15],
     'learning_rate': [0.05, 0.1],
 }
+
+tscv = TimeSeriesSplit(n_splits=5)
 
 grid = GridSearchCV(
     estimator=XGBRegressor(
@@ -89,7 +98,7 @@ grid = GridSearchCV(
         random_state=42, n_jobs=-1, tree_method='hist',
     ),
     param_grid=param_grid,
-    cv=3,
+    cv=tscv,
     scoring='neg_mean_absolute_error',
     n_jobs=-1,
     verbose=1,
@@ -115,6 +124,22 @@ print(f"MAE  (Mean Absolute Error):  {mae:.2f} days")
 print(f"RMSE (Root Mean Sq Error):   {rmse:.2f} days")
 print(f"R2   (Coefficient of Det):   {r2:.4f}")
 
+# ── 6b. Standalone Cross-Validation (TimeSeriesSplit — temporal safe) ─────────
+# cross_val_score clones best_model — model untouched.
+print("\n" + "="*60)
+print("CROSS-VALIDATION — P6 Schedule Optimization (TimeSeriesSplit(5))")
+print("="*60)
+
+cv_tscv = TimeSeriesSplit(n_splits=5)
+
+print("Running CV (neg_MAE)...")
+cv_mae = cross_val_score(best_model, X, y, cv=cv_tscv, scoring='neg_mean_absolute_error', n_jobs=-1)
+print("Running CV (R²)...")
+cv_r2 = cross_val_score(best_model, X, y, cv=cv_tscv, scoring='r2', n_jobs=-1)
+
+print(f"\nMAE  : {-cv_mae.mean():.2f} ± {cv_mae.std():.2f} days  folds={(-cv_mae).round(2).tolist()}")
+print(f"R²   : {cv_r2.mean():.4f} ± {cv_r2.std():.4f}         folds={cv_r2.round(4).tolist()}")
+
 # ── 7. Save Model ────────────────────────────────────────────────────────────
 MODELS_DIR = os.path.join(BASE_DIR, 'app', 'backend', 'modules', 'ml', 'models')
 os.makedirs(MODELS_DIR, exist_ok=True)
@@ -129,7 +154,17 @@ joblib.dump({
     'features': raw_features,
     'xgb_features': sanitized_features,
     'best_params': grid.best_params_,
-    'metrics': {'mae': round(mae, 2), 'rmse': round(rmse, 2), 'r2': round(r2, 4)},
+    'metrics': {
+        'mae':  round(mae, 2),
+        'rmse': round(rmse, 2),
+        'r2':   round(r2, 4),
+        'cv': {
+            'mae_mean': round(float(-cv_mae.mean()), 2),
+            'mae_std':  round(float(cv_mae.std()),   2),
+            'r2_mean':  round(float(cv_r2.mean()),   4),
+            'r2_std':   round(float(cv_r2.std()),    4),
+        }
+    },
 }, MODEL_OUT)
 print(f"\nModel saved to {MODEL_OUT}")
 
