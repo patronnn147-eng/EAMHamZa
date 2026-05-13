@@ -1,19 +1,19 @@
-# Research / notebook environment — NOT production
+# ML Research environment — NOT production
 # Usage:
 #   docker compose -f docker-compose.notebooks.yml up --build
 #   Open: http://localhost:8888
 #
 # Mounts entire project so notebooks can access:
-#   /workspace/notebooks/    ← .ipynb files
-#   /workspace/ai4i2020.csv  ← dataset
-#   /workspace/app/backend/modules/ml/models/  ← saved models
-#   /workspace/ml_problems/  ← shared feature engineering
+#   /workspace/app/ml-microservice/ml_research/  ← .ipynb files
+#   /workspace/ai4i2020.csv                       ← dataset
+#   /workspace/app/backend/modules/ml/models/     ← saved models
+#   /workspace/ml_problems/                       ← shared feature engineering
 
 services:
   notebooks:
     build:
       context: .
-      dockerfile: notebooks/Dockerfile
+      dockerfile: app/ml-microservice/ml_research/Dockerfile
     container_name: eam_notebooks
     ports:
       - "8888:8888"

@@ -187,6 +187,7 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "reliability_score": prediction.get("reliability_score"),
         "explanations": prediction.get("explanations", []),
         "is_anomaly": prediction.get("is_anomaly", False),
+        "p4_anomaly_score": fusion_result.get("p4_anomaly_score", 0.0) if fusion_result else 0.0,
         "predicted_priority": prediction.get("predicted_priority"),
         # Latest telemetry readings
         "air_temperature": _air,

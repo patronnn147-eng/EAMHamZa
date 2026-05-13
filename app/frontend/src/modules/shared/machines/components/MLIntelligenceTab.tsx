@@ -8,6 +8,7 @@ interface MLPredictionFull {
     unified_health_score?: number;
     failure_probability?: number;
     is_anomaly?: boolean;
+    p4_anomaly_score?: number;
     predicted_priority?: string;
     dst_verdict?: string;
     kalman_hi?: number | null;
@@ -60,6 +61,12 @@ const glassAlt: React.CSSProperties = {
     ...glass,
     border: '1px solid rgba(188,0,255,0.3)',
     boxShadow: '0 0 20px rgba(188,0,255,0.08)',
+};
+
+const glassWarning: React.CSSProperties = {
+    ...glass,
+    border: '1px solid rgba(249,115,22,0.3)',
+    boxShadow: '0 0 20px rgba(249,115,22,0.08)',
 };
 
 function getHealthLabel(score: number): { label: string; color: string } {
@@ -153,9 +160,9 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
         ? Math.round(mo.survival.survival_probability * 100)
         : Math.max(0, Math.round(healthScore));
 
-    // MOMENT anomaly metrics
-    const momentMSE = mo?.moment_anomaly?.reconstruction_mse ?? 0;
-    const momentScore = mo?.moment_anomaly?.anomaly_score ?? 0;
+    // Behavioral Anomaly (ensemble detector — 4 methods combined)
+    const behaviorScore = p?.p4_anomaly_score ?? 0;
+    const behaviorFlagged = isAnomaly || behaviorScore > 0.5;
     const mahalScore = mo?.mahal_hi?.dm2 ?? 0;
 
     // Sensor values — prefer machine fields, fall back to values in mlPrediction
@@ -301,17 +308,33 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
                     <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>Precision: ±0.8d</p>
                 </div>
 
-                {/* MOMENT Anomaly Scores */}
-                <div style={{ ...glass, padding: '1.25rem' }}>
+                {/* Behavioral Anomaly — 4-method ensemble detector */}
+                <div style={{ ...(behaviorFlagged ? glassWarning : glass), padding: '1.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em' }}>MOMENT Anomaly</h4>
-                        <span style={{ fontSize: '0.55rem', color: '#bc00ff', fontFamily: 'Space Grotesk, monospace' }}>⬡</span>
+                        <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Behavioral Anomaly</h4>
+                        <span style={{
+                            fontSize: '0.5rem',
+                            fontFamily: 'Space Grotesk, monospace',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                            padding: '0.15rem 0.4rem',
+                            borderRadius: '0.25rem',
+                            background: behaviorFlagged ? 'rgba(249,115,22,0.15)' : 'rgba(0,242,255,0.08)',
+                            color: behaviorFlagged ? '#f97316' : '#00f2ff',
+                            border: `1px solid ${behaviorFlagged ? 'rgba(249,115,22,0.3)' : 'rgba(0,242,255,0.2)'}`,
+                        }}>
+                            {behaviorFlagged ? 'Flagged' : 'Normal'}
+                        </span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        <AnomalyBar label="Reconstruction MSE" value={momentMSE} max={1} color="#00f2ff" />
-                        <AnomalyBar label="Anomaly Score" value={momentScore} max={1} color="#bc00ff" />
-                        <AnomalyBar label="Mahal. Distance" value={mahalScore} max={5} color="#f97316" />
+                        <AnomalyBar label="Ensemble Score" value={behaviorScore} max={1} color={behaviorFlagged ? '#f97316' : '#00f2ff'} />
+                        <AnomalyBar label="Mahal. Distance" value={mahalScore} max={Math.max(5, mahalScore)} color="#bc00ff" />
                     </div>
+                    <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
+                        {behaviorFlagged
+                            ? 'Machine behaviour deviates from normal operating pattern.'
+                            : '4 detectors agree: machine within normal operating range.'}
+                    </p>
                 </div>
             </div>
 

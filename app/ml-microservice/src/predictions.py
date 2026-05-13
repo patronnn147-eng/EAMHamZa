@@ -11,6 +11,13 @@ from .model_loader import (
     _ml_model_p2,
     _ml_model_p3,
     _ml_model_p4,
+    _p4_weights,
+    _p4_thresholds,
+    _p4_training_stats,
+    _p4_ae_scaler,
+    _p4_autoencoder,
+    _p4_feature_pipeline,
+    _p4_ensemble_type,
     _ml_model_p5,
     _ml_model_p6,
     _p2_labels,
@@ -25,7 +32,7 @@ from .dst_fusion import DSTFusion, get_dst_fusion
 
 logger = logging.getLogger(__name__)
 
-# Try to import PINN — optional (requires torch)
+# Try to import PINN -- optional (requires torch)
 try:
     from .pinn_rul import PINNRULEstimator, get_pinn_estimator
     _PINN_AVAILABLE = True
@@ -33,7 +40,7 @@ except ImportError:
     _PINN_AVAILABLE = False
     get_pinn_estimator = None  # type: ignore
 
-# Try to import MOMENT — optional (requires momentfm + torch)
+# Try to import MOMENT -- optional (requires momentfm + torch)
 try:
     from .moment_estimator import (
         get_moment_anomaly_detector,
@@ -50,8 +57,8 @@ except ImportError:
 def failure_prob_to_risk(prob: float) -> str:
     """Map failure probability (0-100) to risk level string.
 
-    Thresholds:  >= 75 → CRITICAL, >= 50 → HIGH, >= 25 → MEDIUM, else LOW.
-    Single authoritative definition — import this instead of duplicating.
+    Thresholds:  >= 75 -> CRITICAL, >= 50 -> HIGH, >= 25 -> MEDIUM, else LOW.
+    Single authoritative definition -- import this instead of duplicating.
     """
     if prob >= 75:
         return "CRITICAL"
@@ -118,7 +125,7 @@ class MachineLearningService:
                 }
             return result
         except ValueError:
-            # Feature shape mismatch — try with 7-feature vector (rpm_torque added)
+            # Feature shape mismatch -- try with 7-feature vector (rpm_torque added)
             try:
                 if len(features) == 6:
                     air, process, rpm, torque, wear, temp_delta = features
@@ -169,26 +176,97 @@ class MachineLearningService:
     @staticmethod
     def detect_anomaly(features: List[float]) -> tuple:
         """
-        Detect machine anomaly using P4 Isolation Forest.
-        Args: [air, process, rpm, torque, wear] (5) or
-              [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7)
-        Returns: (is_anomaly: bool, anomaly_score: float)
+        Detect machine anomaly using P4 ensemble (IF + Z-Score + Cluster + optional AE).
+        Args: [air, process, rpm, torque, wear] (5 raw sensors)
+        Returns: (is_anomaly: bool, anomaly_score: float 0-1)
         """
         if _ml_model_p4 is None:
             return False, 0.0
+
         try:
-            # P4 trained on 7 features. Auto-derive temp_delta + rpm_torque.
-            if len(features) == 5:
-                air, process, rpm, torque, wear = features
-                temp_delta = float(process) - float(air)
-                rpm_torque = (float(rpm) * float(torque)) / 1000.0
-                features = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
-            pred = _ml_model_p4.predict([features])[0]
-            score = _ml_model_p4.decision_function([features])[0]
-            return bool(pred == -1), float(score)
+            # Always work with 5 raw sensor features
+            x5 = np.array(features[:5], dtype=float).reshape(1, -1)
+
+            component_scores:  dict = {}
+            component_weights: dict = {}
+
+            # -- 1. Isolation Forest (always available) ----------------
+            # decision_function: lower = more anomalous; negate so higher = more anomalous
+            if_raw = float(-_ml_model_p4.decision_function(x5)[0])
+            component_scores['if']  = if_raw
+            component_weights['if'] = _p4_weights.get('if', 0.30)
+
+            # -- 2. Autoencoder (optional - needs TensorFlow) ----------
+            if _p4_autoencoder is not None and _p4_ae_scaler is not None:
+                try:
+                    x_scaled = _p4_ae_scaler.transform(x5)
+                    x_recon  = _p4_autoencoder.predict(x_scaled, verbose=0)
+                    ae_raw   = float(np.mean((x_scaled - x_recon) ** 2))
+                    component_scores['ae']  = ae_raw
+                    component_weights['ae'] = _p4_weights.get('ae', 0.40)
+                except Exception:
+                    pass  # TF inference failed - skip silently
+
+            # -- 3. Z-Score (needs training_stats in pkl) --------------
+            t_mean = _p4_training_stats.get('mean')
+            t_std  = _p4_training_stats.get('std')
+            if t_mean and t_std:
+                mean_arr = np.array(t_mean)
+                std_arr  = np.array(t_std)
+                std_arr[std_arr == 0] = 1.0  # avoid div-by-zero
+                z_scores = np.abs((x5[0] - mean_arr) / std_arr)
+                z_raw    = float(np.max(z_scores))
+                component_scores['zscore']  = z_raw
+                component_weights['zscore'] = _p4_weights.get('zscore', 0.20)
+
+            # -- 4. Cluster Deviation (needs feature pipeline) ---------
+            if _p4_feature_pipeline is not None:
+                try:
+                    import pandas as pd
+                    SENSOR_COLS = [
+                        'Air temperature [K]', 'Process temperature [K]',
+                        'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]'
+                    ]
+                    df_snap  = pd.DataFrame(x5, columns=SENSOR_COLS)
+                    x_v3     = _p4_feature_pipeline.transform(df_snap)
+                    if hasattr(x_v3, 'columns') and 'cluster_distance' in x_v3.columns:
+                        cluster_raw = float(x_v3['cluster_distance'].values[0])
+                        component_scores['cluster']  = cluster_raw
+                        component_weights['cluster'] = _p4_weights.get('cluster', 0.10)
+                except Exception:
+                    pass  # pipeline inference failed - skip silently
+
+            # -- Normalize each component to [0, 1] using training thresholds
+            def _norm(name: str, raw: float) -> float:
+                lo = _p4_thresholds.get(f'{name}_min', 0.0)
+                hi = _p4_thresholds.get(f'{name}_max', 1.0)
+                if hi == lo:
+                    return 0.5
+                return float(np.clip((raw - lo) / (hi - lo), 0.0, 1.0))
+
+            # -- Weighted ensemble score (renormalized across available components)
+            total_weight = sum(component_weights.values())
+            if total_weight == 0:
+                return False, 0.0
+
+            ensemble_score = sum(
+                _norm(name, score) * component_weights[name]
+                for name, score in component_scores.items()
+            ) / total_weight
+
+            is_anomaly = ensemble_score > 0.5
+            return is_anomaly, round(ensemble_score, 4)
+
         except Exception:
             logger.warning("P4 anomaly detection failed", exc_info=True)
-            return False, 0.0
+            # Fallback: bare IF prediction
+            try:
+                x_fb  = np.array(features[:5]).reshape(1, -1)
+                pred  = _ml_model_p4.predict(x_fb)[0]
+                score = float(-_ml_model_p4.decision_function(x_fb)[0])
+                return bool(pred == -1), round(score, 4)
+            except Exception:
+                return False, 0.0
 
     # ==================== P5: Work Order Priority ====================
     @staticmethod
@@ -326,7 +404,7 @@ class MachineLearningService:
             # When it's absent, spin up a fresh local instance so that
             # fit_and_score_history() can train on history[:-1] and score
             # history[-1] on-the-fly.  Requires 11+ logs for a real result
-            # (10 training points → fit succeeds; < 11 returns dm2=0.0).
+            # (10 training points -> fit succeeds; < 11 returns dm2=0.0).
             if hi_model is None and len(logs) >= 2:
                 hi_model = MahalanobisHealthIndex()
             if hi_model is not None:
@@ -345,7 +423,7 @@ class MachineLearningService:
                 elif hi_model._fitted:
                     model_c_out = hi_model.score(np.array(features_5))
 
-            # --- Model E: Anomaly Ensemble (stateless — safe under concurrent requests) ---
+            # --- Model E: Anomaly Ensemble (stateless -- safe under concurrent requests) ---
             model_e_out: Optional[Dict] = None
             anomaly_model = get_anomaly_ensemble()
             feature_names = ["air_temperature", "process_temperature",
@@ -360,9 +438,9 @@ class MachineLearningService:
                         float(lg.get("torque", 40)),
                         float(lg.get("tool_wear", 0)),
                     ])
-                    for lg in logs[:-1]  # exclude latest — that's what we score
+                    for lg in logs[:-1]  # exclude latest -- that's what we score
                 ] if len(logs) > 1 else []
-                # predict_with_history creates fresh CUSUM detectors per call —
+                # predict_with_history creates fresh CUSUM detectors per call --
                 # no shared mutable state, safe for concurrent requests.
                 model_e_out = anomaly_model.predict_with_history(
                     np.array(features_5),
@@ -384,7 +462,7 @@ class MachineLearningService:
                 except Exception as _e:
                     logger.warning(f"Survival fit_from_logs failed: {_e}")
             else:
-                # Not enough logs to fit machine-specific model — use global pre-trained
+                # Not enough logs to fit machine-specific model -- use global pre-trained
                 global_surv = get_survival_model()
                 if global_surv is not None and global_surv._fitted:
                     model_b_out = global_surv.predict(snapshot)
@@ -413,7 +491,7 @@ class MachineLearningService:
                 except Exception as _me:
                     logger.warning(f"MOMENT RUL failed: {_me}")
 
-            # --- Kalman state update (fresh instance per request — no shared state) ---
+            # --- Kalman state update (fresh instance per request -- no shared state) ---
             # Default health scores when advanced models aren't fitted
             DEFAULT_HI = 75.0  # Assume healthy baseline
             rule_score = max(0.0, 100.0 - failure_prob)  # invert P1 as rule signal
@@ -480,7 +558,7 @@ class MachineLearningService:
 
             # --- DST Fusion ---
             # Filter out None, NaN health_index, and Mahal placeholder outputs
-            # (score_source "no_model"/"fallback" means <11 logs — the returned
+            # (score_source "no_model"/"fallback" means <11 logs -- the returned
             # health_index=100 is a stub, not a real measurement; including it
             # would bias the fused score toward perfect health).
             valid_outputs = []
@@ -530,7 +608,7 @@ class MachineLearningService:
             base_result["score_source"] = "fallback_additive"
 
         # ==================== SHAP Explanations (P1) ====================
-        # Skipped unless caller passes include_shap=True — saves 50-200 ms per request.
+        # Skipped unless caller passes include_shap=True -- saves 50-200 ms per request.
         if not include_shap:
             base_result["shap_explanations"] = []
         else:

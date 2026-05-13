@@ -1,5 +1,4 @@
-# Notebook research environment
-# tensorflow + umap-learn + mlflow + jupyter
+# ML Research environment — tensorflow + umap-learn + mlflow + jupyter
 # NOT production — dev/research only
 FROM python:3.11-slim
 
@@ -9,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-COPY notebooks/requirements-notebooks.txt .
+COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements-notebooks.txt
 
@@ -23,4 +22,4 @@ RUN jupyter notebook --generate-config && \
 
 EXPOSE 8888
 
-CMD ["jupyter", "notebook", "--notebook-dir=/workspace/notebooks"]
+CMD ["jupyter", "notebook", "--notebook-dir=/workspace/app/ml-microservice/ml_research"]
