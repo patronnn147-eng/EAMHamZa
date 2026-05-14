@@ -75,6 +75,18 @@ def load_p6():
     return _extract(data)
 
 
+def get_all_models_status():
+    """Get status of all models as dict."""
+    return {
+        "p1_failure":      {"loaded": load_p1() is not None},
+        "p2_failure_type": {"loaded": load_p2() is not None},
+        "p3_rul":          {"loaded": load_p3() is not None},
+        "p4_anomaly":      {"loaded": load_p4() is not None},
+        "p5_priority":     {"loaded": load_p5() is not None},
+        "p6_schedule":     {"loaded": load_p6() is not None},
+    }
+
+
 def startup_check():
     """Call at service startup. Logs OK/MISSING status of all models."""
     for name, fn in [("P1", load_p1), ("P2", load_p2), ("P3", load_p3),

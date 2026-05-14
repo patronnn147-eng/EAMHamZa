@@ -8,7 +8,7 @@ from typing import List, Optional, Dict
 from .predictions import MachineLearningService, failure_prob_to_risk
 from .core.config import config
 from .core.feature_pipeline import FeaturePipeline, SensorReading
-from .model_loader import get_all_models_status
+from .core.model_loader import get_all_models_status, startup_check
 from .feature_store import feature_store
 from .model_registry import registry
 from .rate_limiter import check_rate_limit
@@ -91,22 +91,19 @@ class ModelsStatusResponse(BaseModel):
 @router.get("/health")
 async def health():
     """Health check with model status."""
-    from src.model_loader import (
-        get_model, _ml_model_p2, _ml_model_p3,
-        _ml_model_p4, _ml_model_p5, _ml_model_p6
-    )
-    
+    from src.core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
+
     return {
         "status": "healthy",
         "service": "ml-prediction",
         "version": "2.0.0",
         "models": {
-            "p1_failure": get_model() is not None,
-            "p2_failure_type": _ml_model_p2 is not None,
-            "p3_rul": _ml_model_p3 is not None,
-            "p4_anomaly": _ml_model_p4 is not None,
-            "p5_priority": _ml_model_p5 is not None,
-            "p6_schedule": _ml_model_p6 is not None,
+            "p1_failure":      load_p1() is not None,
+            "p2_failure_type": load_p2() is not None,
+            "p3_rul":          load_p3() is not None,
+            "p4_anomaly":      load_p4() is not None,
+            "p5_priority":     load_p5() is not None,
+            "p6_schedule":     load_p6() is not None,
         }
     }
 

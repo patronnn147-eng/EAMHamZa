@@ -31,20 +31,8 @@ async def lifespan(app: FastAPI):
     logger.info("EAM ML Prediction Service v2.0.0 STARTING")
     logger.info("=" * 50)
 
-    from src.model_loader import get_all_models_status
-    statuses = get_all_models_status()
-    loaded = [k for k, v in statuses.items() if v]
-    failed = [k for k, v in statuses.items() if not v]
-
-    for name in loaded:
-        logger.info(f"  [OK]     {name}")
-    for name in failed:
-        logger.warning(f"  [MISS]   {name} — model file not found or failed to load")
-
-    if failed:
-        logger.warning(f"{len(failed)} model(s) unavailable — predictions will fall back to defaults")
-    else:
-        logger.info("All ML models loaded successfully")
+    from src.core.model_loader import startup_check
+    startup_check()
     logger.info("=" * 50)
 
     yield  # ← application runs here
@@ -82,19 +70,19 @@ app.include_router(ml_router)
 @app.get("/health")
 async def health_check():
     """Health check endpoint for container orchestration."""
-    from src.model_loader import get_model, _ml_model_p2, _ml_model_p3, _ml_model_p4, _ml_model_p5, _ml_model_p6
+    from src.core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
 
     return {
         "status": "healthy",
         "service": "ml-prediction",
         "version": "2.0.0",
         "models": {
-            "p1_failure":     get_model() is not None,
-            "p2_failure_type": _ml_model_p2 is not None,
-            "p3_rul":         _ml_model_p3 is not None,
-            "p4_anomaly":     _ml_model_p4 is not None,
-            "p5_priority":    _ml_model_p5 is not None,
-            "p6_schedule":    _ml_model_p6 is not None,
+            "p1_failure":      load_p1() is not None,
+            "p2_failure_type": load_p2() is not None,
+            "p3_rul":          load_p3() is not None,
+            "p4_anomaly":      load_p4() is not None,
+            "p5_priority":     load_p5() is not None,
+            "p6_schedule":     load_p6() is not None,
         }
     }
 
