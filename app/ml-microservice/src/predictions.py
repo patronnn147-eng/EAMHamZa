@@ -6,23 +6,9 @@ import logging
 import numpy as np
 from typing import List, Dict, Optional
 
-from .model_loader import (
-    get_model,
-    _ml_model_p2,
-    _ml_model_p3,
-    _ml_model_p4,
-    _p4_weights,
-    _p4_thresholds,
-    _p4_training_stats,
-    _p4_ae_scaler,
-    _p4_autoencoder,
-    _p4_feature_pipeline,
-    _p4_ensemble_type,
-    _ml_model_p5,
-    _ml_model_p6,
-    _p2_labels,
-    _p5_labels,
-)
+from .core.config import config
+from .core.feature_pipeline import FeaturePipeline, SensorReading
+from .core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
 from .feature_store import FeatureStore
 from .health_index import MahalanobisHealthIndex, get_health_index_model
 from .survival_model import SurvivalModel, get_survival_model
@@ -32,15 +18,13 @@ from .dst_fusion import DSTFusion, get_dst_fusion
 
 logger = logging.getLogger(__name__)
 
-# Try to import PINN -- optional (requires torch)
 try:
     from .pinn_rul import PINNRULEstimator, get_pinn_estimator
     _PINN_AVAILABLE = True
 except ImportError:
     _PINN_AVAILABLE = False
-    get_pinn_estimator = None  # type: ignore
+    get_pinn_estimator = None
 
-# Try to import MOMENT -- optional (requires momentfm + torch)
 try:
     from .moment_estimator import (
         get_moment_anomaly_detector,
@@ -49,9 +33,8 @@ try:
     )
 except ImportError:
     _MOMENT_AVAILABLE = False
-    get_moment_anomaly_detector = None  # type: ignore
-    get_moment_rul_estimator    = None  # type: ignore
-
+    get_moment_anomaly_detector = None
+    get_moment_rul_estimator = None
 
 
 def failure_prob_to_risk(prob: float) -> str:
@@ -79,22 +62,11 @@ class MachineLearningService:
         Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: probability (0-100)
         """
-        model_p1 = get_model()
+        model_p1 = load_p1()
         if model_p1 is None:
             return 0.0
         try:
-            # Ensure we have 7 features: [air, process, rpm, torque, wear, temp_delta, rpm_torque]
-            air = float(features[0]) if len(features) > 0 else 298.0
-            process = float(features[1]) if len(features) > 1 else 308.0
-            rpm = float(features[2]) if len(features) > 2 else 1500.0
-            torque = float(features[3]) if len(features) > 3 else 40.0
-            wear = float(features[4]) if len(features) > 4 else 0.0
-
-            # Add derived features if not provided
-            temp_delta = float(features[5]) if len(features) > 5 else process - air
-            rpm_torque = float(features[6]) if len(features) > 6 else (rpm * torque) / 1000.0
-
-            features_7 = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
+            features_7 = features[:7] if len(features) >= 7 else features
             prob = model_p1.predict_proba([features_7])[0, 1]
             return round(prob * 100, 1)
         except Exception:
@@ -109,38 +81,31 @@ class MachineLearningService:
         Features: [air, process, rpm, torque, wear, temp_delta] or 7-feature vector.
         Returns: {TWF: {detected, probability}, HDF: {...}, etc.}
         """
-        if _ml_model_p2 is None:
+        p2 = load_p2()
+        if p2 is None:
             return {}
-
+        model, labels = p2["model"], p2["labels"]
         try:
             input_data = [features]
-            predictions = _ml_model_p2.predict(input_data)[0]
-            probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
-
-            result = {}
-            for i, label in enumerate(_p2_labels):
-                result[label] = {
-                    "detected": bool(predictions[i]),
-                    "probability": round(float(probabilities[i]) * 100, 1)
-                }
-            return result
+            predictions = model.predict(input_data)[0]
+            probabilities = [est.predict_proba(input_data)[0, 1] for est in model.estimators_]
+            return {
+                label: {"detected": bool(predictions[i]), "probability": round(float(probabilities[i]) * 100, 1)}
+                for i, label in enumerate(labels)
+            }
         except ValueError:
-            # Feature shape mismatch -- try with 7-feature vector (rpm_torque added)
             try:
                 if len(features) == 6:
                     air, process, rpm, torque, wear, temp_delta = features
                     rpm_torque = (float(rpm) * float(torque)) / 1000.0
                     features_7 = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
                     input_data = [features_7]
-                    predictions = _ml_model_p2.predict(input_data)[0]
-                    probabilities = [est.predict_proba(input_data)[0, 1] for est in _ml_model_p2.estimators_]
-                    result = {}
-                    for i, label in enumerate(_p2_labels):
-                        result[label] = {
-                            "detected": bool(predictions[i]),
-                            "probability": round(float(probabilities[i]) * 100, 1)
-                        }
-                    return result
+                    predictions = model.predict(input_data)[0]
+                    probabilities = [est.predict_proba(input_data)[0, 1] for est in model.estimators_]
+                    return {
+                        label: {"detected": bool(predictions[i]), "probability": round(float(probabilities[i]) * 100, 1)}
+                        for i, label in enumerate(labels)
+                    }
             except Exception:
                 logger.warning("P2 failure type prediction failed (fallback)", exc_info=True)
             return {}
@@ -157,16 +122,16 @@ class MachineLearningService:
               [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7)
         Returns: days until failure
         """
-        if _ml_model_p3 is None:
+        model_p3 = load_p3()
+        if model_p3 is None:
             return None
         try:
-            # P3 trained on 7 features. Auto-derive temp_delta + rpm_torque.
             if len(features) == 5:
                 air, process, rpm, torque, wear = features
                 temp_delta = float(process) - float(air)
                 rpm_torque = (float(rpm) * float(torque)) / 1000.0
                 features = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
-            pred_rul = _ml_model_p3.predict(np.array([features]))[0]
+            pred_rul = model_p3.predict(np.array([features[:7]]))[0]
             return float(pred_rul)
         except Exception:
             logger.warning("P3 RUL prediction failed", exc_info=True)
@@ -180,8 +145,17 @@ class MachineLearningService:
         Args: [air, process, rpm, torque, wear] (5 raw sensors)
         Returns: (is_anomaly: bool, anomaly_score: float 0-1)
         """
-        if _ml_model_p4 is None:
+        p4 = load_p4()
+        if p4 is None or p4.get("model") is None:
             return False, 0.0
+
+        _ml_model_p4        = p4["model"]
+        _p4_weights         = p4["weights"]
+        _p4_thresholds      = p4["thresholds"]
+        _p4_training_stats  = p4["training_stats"]
+        _p4_ae_scaler       = p4["ae_scaler"]
+        _p4_autoencoder     = p4["autoencoder"]
+        _p4_feature_pipeline = p4.get("feature_pipeline")  # optional — None disables cluster deviation
 
         try:
             # Always work with 5 raw sensor features
@@ -254,7 +228,7 @@ class MachineLearningService:
                 for name, score in component_scores.items()
             ) / total_weight
 
-            is_anomaly = ensemble_score > 0.5
+            is_anomaly = ensemble_score > config.p4_anomaly_threshold
             return is_anomaly, round(ensemble_score, 4)
 
         except Exception:
@@ -277,17 +251,16 @@ class MachineLearningService:
               [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: priority level string
         """
-        if _ml_model_p5 is None:
+        p5 = load_p5()
+        if p5 is None:
             return "Medium"
-
+        model, labels = p5["model"], p5["labels"]
         try:
-            # P5 model trained on 7 features. Auto-derive rpm_torque when
-            # caller provides 6 so both call-sites work without shape errors.
             if len(features) == 6:
                 rpm_torque = (float(features[2]) * float(features[3])) / 1000.0
                 features = list(features) + [rpm_torque]
-            pred_idx = _ml_model_p5.predict([features])[0]
-            return _p5_labels[pred_idx]
+            pred_idx = model.predict([features])[0]
+            return labels[pred_idx]
         except Exception:
             logger.warning("P5 priority prediction failed", exc_info=True)
             return "Medium"
@@ -302,11 +275,10 @@ class MachineLearningService:
               [air, process, rpm, torque, wear, temp_delta, rpm_torque, tool_wear_sq] (8)
         Returns: days
         """
-        if _ml_model_p6 is None:
+        model_p6 = load_p6()
+        if model_p6 is None:
             return 7.0
-
         try:
-            # P6 trained on 8 features. Auto-derive derived features.
             if len(features) >= 5:
                 air   = float(features[0])
                 rpm   = float(features[2])
@@ -317,7 +289,7 @@ class MachineLearningService:
                 tool_wear_sq = float(features[7]) if len(features) > 7 else wear ** 2
                 features = [air, float(features[1]), rpm, torque, wear,
                             temp_delta, rpm_torque, tool_wear_sq]
-            days = _ml_model_p6.predict([features])[0]
+            days = model_p6.predict([features])[0]
             return max(0.0, float(days))
         except Exception:
             logger.warning("P6 maintenance schedule prediction failed", exc_info=True)
@@ -339,22 +311,17 @@ class MachineLearningService:
         }
         """
         # Extract features
-        air = float(telemetry.get("air_temperature", 298))
-        process = float(telemetry.get("process_temperature", 308))
-        rpm = int(telemetry.get("rotational_speed", 1500))
-        torque = float(telemetry.get("torque", 40))
-        wear = int(telemetry.get("tool_wear", 0))
+        air     = float(telemetry.get("air_temperature",    config.default_air_temp))
+        process = float(telemetry.get("process_temperature", config.default_process_temp))
+        rpm     = float(telemetry.get("rotational_speed",   config.default_rpm))
+        torque  = float(telemetry.get("torque",             config.default_torque))
+        wear    = float(telemetry.get("tool_wear",          config.default_tool_wear))
 
-        # 5-feature vector
-        features_5 = [air, process, rpm, torque, wear]
-
-        # 6-feature vector (with temp_delta)
-        temp_delta = process - air
-        features_6 = features_5 + [temp_delta]
-
-        # 7-feature vector (with rpm_torque for P1)
-        rpm_torque = (rpm * torque) / 1000.0
-        features_7 = features_6 + [rpm_torque]
+        reading    = SensorReading(air_temp=air, process_temp=process,
+                                   rpm=rpm, torque=torque, tool_wear=wear)
+        features_5 = FeaturePipeline.build_5(reading)
+        features_7 = FeaturePipeline.build_7(reading)
+        features_6 = features_7[:6]   # 5 raw + temp_delta (no rpm_torque)
 
         # Run all predictions
         failure_prob = MachineLearningService.predict_failure_probability(features_7)
@@ -614,7 +581,7 @@ class MachineLearningService:
         else:
             try:
                 from .xai_service import XAIService
-                model_p1_raw = get_model()
+                model_p1_raw = load_p1()
                 if model_p1_raw is not None:
                     # P1 expects 5 base features for SHAP (not 7 with derived features)
                     _p1_shap_features = [air, process, rpm, torque, wear]
