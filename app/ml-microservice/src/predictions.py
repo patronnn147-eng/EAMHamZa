@@ -78,7 +78,7 @@ class MachineLearningService:
     def predict_failure_type(features: List[float]) -> Dict:
         """
         Predict specific failure types using P2 model.
-        Features: [air, process, rpm, torque, wear, temp_delta] or 7-feature vector.
+        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: {TWF: {detected, probability}, HDF: {...}, etc.}
         """
         p2 = load_p2()
@@ -93,22 +93,6 @@ class MachineLearningService:
                 label: {"detected": bool(predictions[i]), "probability": round(float(probabilities[i]) * 100, 1)}
                 for i, label in enumerate(labels)
             }
-        except ValueError:
-            try:
-                if len(features) == 6:
-                    air, process, rpm, torque, wear, temp_delta = features
-                    rpm_torque = (float(rpm) * float(torque)) / 1000.0
-                    features_7 = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
-                    input_data = [features_7]
-                    predictions = model.predict(input_data)[0]
-                    probabilities = [est.predict_proba(input_data)[0, 1] for est in model.estimators_]
-                    return {
-                        label: {"detected": bool(predictions[i]), "probability": round(float(probabilities[i]) * 100, 1)}
-                        for i, label in enumerate(labels)
-                    }
-            except Exception:
-                logger.warning("P2 failure type prediction failed (fallback)", exc_info=True)
-            return {}
         except Exception:
             logger.warning("P2 failure type prediction failed", exc_info=True)
             return {}
@@ -118,19 +102,13 @@ class MachineLearningService:
     def predict_rul(features: List[float]) -> Optional[float]:
         """
         Predict Remaining Useful Life using P3 XGBoost.
-        Args: [air, process, rpm, torque, wear] (5) or
-              [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7)
+        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: days until failure
         """
         model_p3 = load_p3()
         if model_p3 is None:
             return None
         try:
-            if len(features) == 5:
-                air, process, rpm, torque, wear = features
-                temp_delta = float(process) - float(air)
-                rpm_torque = (float(rpm) * float(torque)) / 1000.0
-                features = [air, process, rpm, torque, wear, temp_delta, rpm_torque]
             pred_rul = model_p3.predict(np.array([features[:7]]))[0]
             return float(pred_rul)
         except Exception:
@@ -247,8 +225,7 @@ class MachineLearningService:
     def predict_priority(features: List[float]) -> str:
         """
         Predict work order priority level using P5 model.
-        Args: [air, process, rpm, torque, wear, temp_delta] (6 features) OR
-              [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
+        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: priority level string
         """
         p5 = load_p5()
@@ -256,9 +233,6 @@ class MachineLearningService:
             return "Medium"
         model, labels = p5["model"], p5["labels"]
         try:
-            if len(features) == 6:
-                rpm_torque = (float(features[2]) * float(features[3])) / 1000.0
-                features = list(features) + [rpm_torque]
             pred_idx = model.predict([features])[0]
             return labels[pred_idx]
         except Exception:
@@ -270,26 +244,17 @@ class MachineLearningService:
     def predict_maintenance_schedule(features: List[float]) -> float:
         """
         Predict optimal days to schedule maintenance using P6.
-        Args: [air, process, rpm, torque, wear, temp_delta] (6) or
-              [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7) or
-              [air, process, rpm, torque, wear, temp_delta, rpm_torque, tool_wear_sq] (8)
+        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
         Returns: days
         """
         model_p6 = load_p6()
         if model_p6 is None:
             return 7.0
         try:
-            if len(features) >= 5:
-                air   = float(features[0])
-                rpm   = float(features[2])
-                torque = float(features[3])
-                wear  = float(features[4])
-                temp_delta = float(features[5]) if len(features) > 5 else (float(features[1]) - air)
-                rpm_torque = float(features[6]) if len(features) > 6 else (rpm * torque) / 1000.0
-                tool_wear_sq = float(features[7]) if len(features) > 7 else wear ** 2
-                features = [air, float(features[1]), rpm, torque, wear,
-                            temp_delta, rpm_torque, tool_wear_sq]
-            days = model_p6.predict([features])[0]
+            wear = float(features[4])
+            tool_wear_sq = float(features[7]) if len(features) > 7 else wear ** 2
+            features_8 = list(features[:7]) + [tool_wear_sq]
+            days = model_p6.predict([features_8])[0]
             return max(0.0, float(days))
         except Exception:
             logger.warning("P6 maintenance schedule prediction failed", exc_info=True)
@@ -321,15 +286,14 @@ class MachineLearningService:
                                    rpm=rpm, torque=torque, tool_wear=wear)
         features_5 = FeaturePipeline.build_5(reading)
         features_7 = FeaturePipeline.build_7(reading)
-        features_6 = features_7[:6]   # 5 raw + temp_delta (no rpm_torque)
 
         # Run all predictions
         failure_prob = MachineLearningService.predict_failure_probability(features_7)
-        failure_types = MachineLearningService.predict_failure_type(features_6)
-        rul_days = MachineLearningService.predict_rul(features_5)
+        failure_types = MachineLearningService.predict_failure_type(features_7)
+        rul_days = MachineLearningService.predict_rul(features_7)
         is_anomaly, anomaly_score = MachineLearningService.detect_anomaly(features_5)
-        priority = MachineLearningService.predict_priority(features_6)
-        schedule_days = MachineLearningService.predict_maintenance_schedule(features_6)
+        priority = MachineLearningService.predict_priority(features_7)
+        schedule_days = MachineLearningService.predict_maintenance_schedule(features_7)
 
         risk_level = failure_prob_to_risk(failure_prob)
 
