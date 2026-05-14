@@ -91,7 +91,7 @@ class ModelsStatusResponse(BaseModel):
 @router.get("/health")
 async def health():
     """Health check with model status."""
-    from src.core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
+    from .core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
 
     return {
         "status": "healthy",
