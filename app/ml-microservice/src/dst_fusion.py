@@ -12,6 +12,8 @@ import logging
 import numpy as np
 from typing import Dict, List, Optional
 
+from .core.config import config
+
 logger = logging.getLogger(__name__)
 
 # Frame labels
@@ -23,7 +25,7 @@ UNKNOWN   = "Unknown"
 FRAME = [HEALTHY, DEGRADING, CRITICAL, UNKNOWN]
 
 # Conflict threshold: above this Yager's rule applies
-CONFLICT_THRESHOLD = 0.8
+CONFLICT_THRESHOLD = config.dst_conflict_threshold
 
 
 def _model_output_to_bpa(output: Optional[Dict]) -> Dict[str, float]:
