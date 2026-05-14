@@ -6,6 +6,8 @@ from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from .predictions import MachineLearningService, failure_prob_to_risk
+from .core.config import config
+from .core.feature_pipeline import FeaturePipeline, SensorReading
 from .model_loader import get_all_models_status
 from .feature_store import feature_store
 from .model_registry import registry
@@ -232,11 +234,12 @@ async def predict_failure_type_get(
 ):
     """
     P2: Predict specific failure types.
-    
+
     Query parameters for features.
     """
-    temp_delta = process - air
-    features = [float(air), float(process), float(rpm), float(torque), float(wear), float(temp_delta)]
+    _reading = SensorReading(air_temp=float(air), process_temp=float(process),
+                             rpm=float(rpm), torque=float(torque), tool_wear=float(wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         failure_types = MachineLearningService.predict_failure_type(features)
@@ -255,15 +258,12 @@ async def predict_failure_type_post(data: TelemetryInput):
     """
     P2: Predict specific failure types (POST).
     """
-    temp_delta = data.process_temperature - data.air_temperature
-    features = [
-        data.air_temperature,
-        data.process_temperature,
-        data.rotational_speed,
-        data.torque,
-        data.tool_wear,
-        temp_delta
-    ]
+    _reading = SensorReading(air_temp=float(data.air_temperature),
+                             process_temp=float(data.process_temperature),
+                             rpm=float(data.rotational_speed),
+                             torque=float(data.torque),
+                             tool_wear=float(data.tool_wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         failure_types = MachineLearningService.predict_failure_type(features)
@@ -396,11 +396,12 @@ async def predict_priority_get(
 ):
     """
     P5: Predict work order priority.
-    
+
     Query parameters for features.
     """
-    temp_delta = process - air
-    features = [float(air), float(process), float(rpm), float(torque), float(wear), float(temp_delta)]
+    _reading = SensorReading(air_temp=float(air), process_temp=float(process),
+                             rpm=float(rpm), torque=float(torque), tool_wear=float(wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         priority = MachineLearningService.predict_priority(features)
@@ -418,15 +419,12 @@ async def predict_priority_post(data: TelemetryInput):
     """
     P5: Predict work order priority (POST).
     """
-    temp_delta = data.process_temperature - data.air_temperature
-    features = [
-        data.air_temperature,
-        data.process_temperature,
-        data.rotational_speed,
-        data.torque,
-        data.tool_wear,
-        temp_delta
-    ]
+    _reading = SensorReading(air_temp=float(data.air_temperature),
+                             process_temp=float(data.process_temperature),
+                             rpm=float(data.rotational_speed),
+                             torque=float(data.torque),
+                             tool_wear=float(data.tool_wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         priority = MachineLearningService.predict_priority(features)
@@ -451,11 +449,12 @@ async def predict_schedule_get(
 ):
     """
     P6: Predict maintenance schedule.
-    
+
     Query parameters for features.
     """
-    temp_delta = process - air
-    features = [float(air), float(process), float(rpm), float(torque), float(wear), float(temp_delta)]
+    _reading = SensorReading(air_temp=float(air), process_temp=float(process),
+                             rpm=float(rpm), torque=float(torque), tool_wear=float(wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         days = MachineLearningService.predict_maintenance_schedule(features)
@@ -473,15 +472,12 @@ async def predict_schedule_post(data: TelemetryInput):
     """
     P6: Predict maintenance schedule (POST).
     """
-    temp_delta = data.process_temperature - data.air_temperature
-    features = [
-        data.air_temperature,
-        data.process_temperature,
-        data.rotational_speed,
-        data.torque,
-        data.tool_wear,
-        temp_delta
-    ]
+    _reading = SensorReading(air_temp=float(data.air_temperature),
+                             process_temp=float(data.process_temperature),
+                             rpm=float(data.rotational_speed),
+                             torque=float(data.torque),
+                             tool_wear=float(data.tool_wear))
+    features = FeaturePipeline.build_7(_reading)
     
     try:
         days = MachineLearningService.predict_maintenance_schedule(features)
