@@ -27,4 +27,5 @@ class MLConfig(BaseSettings):
     model_config = {"env_prefix": "ML_"}
 
 
+# Singleton — env vars (ML_ prefix) must be set before first import of this module.
 config = MLConfig()
