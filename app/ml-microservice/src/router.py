@@ -155,25 +155,26 @@ async def predict(data: TelemetryInput, request: Request, _: str = Depends(check
     
     Returns failure probability (0-100) and risk level.
     """
-    features = [
-        data.air_temperature,
-        data.process_temperature,
-        data.rotational_speed,
-        data.torque,
-        data.tool_wear
-    ]
-    
+    reading = SensorReading(
+        air_temp=data.air_temperature,
+        process_temp=data.process_temperature,
+        rpm=data.rotational_speed,
+        torque=data.torque,
+        tool_wear=data.tool_wear,
+    )
+    features_7 = FeaturePipeline.build_7(reading)
+
     try:
-        failure_prob = MachineLearningService.predict_failure_probability(features)
-        
+        failure_prob = MachineLearningService.predict_failure_probability(features_7)
+
         risk_level = failure_prob_to_risk(failure_prob)
-        
+
         return PredictionResponse(
             success=True,
             prediction=_to_python({
                 "failure_probability": failure_prob,
                 "risk_level": risk_level,
-                "features": features
+                "features": features_7
             })
         )
     except Exception as e:
@@ -288,11 +289,13 @@ async def predict_rul_get(
     
     Query parameters for features.
     """
-    features = [float(air), float(process), float(rpm), float(torque), float(wear)]
-    
+    reading = SensorReading(air_temp=float(air), process_temp=float(process),
+                            rpm=float(rpm), torque=float(torque), tool_wear=float(wear))
+    features_7 = FeaturePipeline.build_7(reading)
+
     try:
-        rul_days = MachineLearningService.predict_rul(features)
-        
+        rul_days = MachineLearningService.predict_rul(features_7)
+
         return {
             "success": True,
             "rul_days": round(rul_days, 1) if rul_days else None,
@@ -307,17 +310,18 @@ async def predict_rul_post(data: TelemetryInput):
     """
     P3: Predict Remaining Useful Life (RUL) (POST).
     """
-    features = [
-        data.air_temperature,
-        data.process_temperature,
-        data.rotational_speed,
-        data.torque,
-        data.tool_wear
-    ]
-    
+    reading = SensorReading(
+        air_temp=data.air_temperature,
+        process_temp=data.process_temperature,
+        rpm=data.rotational_speed,
+        torque=data.torque,
+        tool_wear=data.tool_wear,
+    )
+    features_7 = FeaturePipeline.build_7(reading)
+
     try:
-        rul_days = MachineLearningService.predict_rul(features)
-        
+        rul_days = MachineLearningService.predict_rul(features_7)
+
         return {
             "success": True,
             "rul_days": round(rul_days, 1) if rul_days else None,

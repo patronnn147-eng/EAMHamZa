@@ -38,16 +38,12 @@ except ImportError:
 
 
 def failure_prob_to_risk(prob: float) -> str:
-    """Map failure probability (0-100) to risk level string.
-
-    Thresholds:  >= 75 -> CRITICAL, >= 50 -> HIGH, >= 25 -> MEDIUM, else LOW.
-    Single authoritative definition -- import this instead of duplicating.
-    """
-    if prob >= 75:
+    """Map failure probability (0-100) to risk level string using config thresholds."""
+    if prob >= config.p1_risk_critical:
         return "CRITICAL"
-    if prob >= 50:
+    if prob >= config.p1_risk_high:
         return "HIGH"
-    if prob >= 25:
+    if prob >= config.p1_risk_medium:
         return "MEDIUM"
     return "LOW"
 
