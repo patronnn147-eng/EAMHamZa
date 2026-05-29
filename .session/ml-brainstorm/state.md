@@ -48,11 +48,11 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 ## PROGRESS (update every step)
 - [x] Brainstorm done, plan approved.
 - [x] Session state file created (this).
-- [ ] Master spec written → docs/superpowers/specs/2026-05-29-p7-parts-coordination-design.md
-- [ ] Spec self-review
-- [ ] User review gate (spec)
-- [ ] writing-plans → impl plan
-- [ ] subagent-driven-development → execute P7.1..P7.6
+- [x] Master spec written → docs/superpowers/specs/2026-05-29-p7-parts-coordination-design.md (committed 59b06b1)
+- [x] Spec self-review (passed, no fixes)
+- [x] User review gate (spec) — GREEN-LIT
+- [x] writing-plans → impl plan: docs/superpowers/plans/2026-05-29-p7-parts-coordination.md (27 tasks)
+- [ ] subagent-driven-development → execute P7.1..P7.6 ← NEXT (start Task 1)
 - [ ] P7.1 brain | [ ] P7.2 alerts | [ ] P7.3 UX | [ ] P7.4 drafts | [ ] P7.5 score/timeline | [ ] P7.6 feedback
 - [ ] E2E verify
 
