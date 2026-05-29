@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,7 @@ import {
     User,
     Beaker,
     Brain,
+    Box,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,6 +40,9 @@ import type { Machine, Intervention } from '@/lib/types';
 
 import { MLIntelligenceTab } from './machines/components/MLIntelligenceTab';
 import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
+import { MachineHero3D } from './machines/components/3d/MachineHero3D';
+
+const MachineViewer3D = lazy(() => import('./machines/components/3d/MachineViewer3D'));
 
 interface MLPrediction {
     risk_level: string;
@@ -232,6 +236,30 @@ export default function MachineDetailPage() {
         );
     };
 
+    const getRecoveryBadge = (prediction: MLPrediction | null) => {
+        const rec = prediction?.recovery;
+        if (!rec || !rec.within_recovery_window) return null;
+        // Only render meaningful states; suppress Monitoring + No baseline noise.
+        if (rec.status !== 'Recovered' && rec.status !== 'Recovering' && rec.status !== 'No improvement') {
+            return null;
+        }
+        const config: Record<string, { className: string; label: string }> = {
+            'Recovered':      { className: 'bg-emerald-600 text-white border-emerald-700', label: 'Récupérée' },
+            'Recovering':     { className: 'bg-amber-500 text-white border-amber-600',     label: 'En récupération' },
+            'No improvement': { className: 'bg-red-600 text-white border-red-700',         label: 'Aucune amélioration' },
+        };
+        const c = config[rec.status];
+        const deltaLabel = rec.delta == null
+            ? ''
+            : ` (${rec.delta > 0 ? '+' : ''}${rec.delta.toFixed(0)} pts)`;
+        return (
+            <Badge className={`shrink-0 text-sm px-3 py-1 flex items-center gap-1.5 shadow-sm ${c.className}`}>
+                <Activity className="h-4 w-4" />
+                {c.label}{deltaLabel}
+            </Badge>
+        );
+    };
+
     return (
         <div className="space-y-6">
             {/* ── Header ── */}
@@ -251,6 +279,7 @@ export default function MachineDetailPage() {
                         {statusConfig.label}
                     </Badge>
                     {getMlRiskBadge(mlPrediction)}
+                    {getRecoveryBadge(mlPrediction)}
                     {(user?.role === 'CHEFOP' || user?.role === 'ADMIN') && (
                         <Button
                             variant="outline"
@@ -272,13 +301,17 @@ export default function MachineDetailPage() {
             </div>
 
             {/* ── Full-width Tabs ── */}
+            <MachineHero3D machine={machine} mlPrediction={mlPrediction as any} />
             <Tabs defaultValue="ml" className="w-full">
-                <TabsList className="grid grid-cols-2 w-full max-w-sm">
+                <TabsList className="grid grid-cols-3 w-full max-w-lg">
                     <TabsTrigger value="ml" className="flex items-center gap-1.5 text-sm">
                         <Brain className="h-3.5 w-3.5" /> ML Intelligence
                     </TabsTrigger>
                     <TabsTrigger value="history" className="flex items-center gap-1.5 text-sm">
                         <History className="h-3.5 w-3.5" /> Historique
+                    </TabsTrigger>
+                    <TabsTrigger value="3d" className="flex items-center gap-1.5 text-sm">
+                        <Box className="h-3.5 w-3.5" /> 3D Vue
                     </TabsTrigger>
                 </TabsList>
 
@@ -289,6 +322,31 @@ export default function MachineDetailPage() {
                         mlPrediction={mlPrediction as any}
                         interventions={interventions}
                     />
+                </TabsContent>
+
+                {/* 3D Vue Tab — lazy-loaded canvas */}
+                <TabsContent value="3d" className="mt-4">
+                    <Suspense
+                        fallback={
+                            <div
+                                style={{
+                                    height: 'min(500px, 60vh)',
+                                    background: '#0a1628',
+                                    borderRadius: '0.75rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: '#475569',
+                                    fontSize: '0.8rem',
+                                    fontFamily: 'Manrope, sans-serif',
+                                }}
+                            >
+                                Chargement 3D…
+                            </div>
+                        }
+                    >
+                        <MachineViewer3D machine={machine} mlPrediction={mlPrediction as any} />
+                    </Suspense>
                 </TabsContent>
 
                 {/* History Tab */}
