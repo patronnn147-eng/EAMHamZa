@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Machine, Intervention } from '@/lib/types';
+import { MachineMini3D } from './3d/MachineMini3D';
 
 interface MLPredictionFull {
     risk_level?: string;
@@ -33,6 +34,28 @@ interface MLPredictionFull {
     rotational_speed?: number | null;
     torque?: number | null;
     tool_wear?: number | null;
+    // Inventory parts readiness (injected by unified-health endpoint)
+    parts_readiness?: {
+        status: 'OK' | 'WARNING' | 'CRITICAL' | 'UNKNOWN';
+        parts_checked: number;
+        critical_missing: { id: number; name: string; qty: number }[];
+        low_stock: { id: number; name: string; qty: number; min_stock: number }[];
+        all_available: boolean;
+    };
+    // Post-maintenance recovery (most recent completed WO within 7-day window)
+    recovery?: RecoveryInfo | null;
+}
+
+export interface RecoveryInfo {
+    work_order_id: number | null;
+    delta: number | null;
+    status: 'Recovered' | 'Recovering' | 'No improvement' | 'Monitoring' | 'No baseline';
+    score_before: number | null;
+    score_after_completion: number | null;
+    current_score: number | null;
+    days_since_completion: number | null;
+    within_recovery_window: boolean;
+    completion_date: string | null;
 }
 
 interface Props {
@@ -138,6 +161,172 @@ function AnomalyBar({ label, value, max, color }: { label: string; value: number
     );
 }
 
+function PartsReadinessCard({ readiness }: { readiness: MLPredictionFull['parts_readiness'] }) {
+    if (!readiness || readiness.status === 'OK' || readiness.status === 'UNKNOWN') return null;
+
+    const isCritical = readiness.status === 'CRITICAL';
+    const cardStyle: React.CSSProperties = isCritical
+        ? {
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(239,68,68,0.35)',
+            boxShadow: '0 0 20px rgba(239,68,68,0.08)',
+            borderRadius: '1.5rem',
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '1.25rem',
+        }
+        : {
+            background: 'rgba(255,255,255,0.03)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: '1px solid rgba(245,158,11,0.35)',
+            boxShadow: '0 0 20px rgba(245,158,11,0.08)',
+            borderRadius: '1.5rem',
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '1.25rem',
+        };
+
+    const accentColor = isCritical ? '#ef4444' : '#f59e0b';
+    const badgeLabel = isCritical ? 'Parts Missing' : 'Low Stock';
+    const problemParts = isCritical
+        ? readiness.critical_missing
+        : readiness.low_stock.map(p => ({ ...p, display: `${p.qty} / ${p.min_stock} min` }));
+    const displayParts = problemParts.slice(0, 5);
+
+    return (
+        <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace' }}>
+                    Parts Readiness
+                </h4>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, color: accentColor, textTransform: 'uppercase', letterSpacing: '0.08em', fontFamily: 'Space Grotesk, monospace', background: `${accentColor}18`, padding: '0.2rem 0.6rem', borderRadius: 999 }}>
+                    {badgeLabel}
+                </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                {displayParts.map((part) => (
+                    <div key={part.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontFamily: 'Space Grotesk, monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>
+                            {part.name}
+                        </span>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: accentColor, fontFamily: 'Manrope, sans-serif', flexShrink: 0 }}>
+                            {isCritical ? 'Out of stock' : `Qty: ${part.qty}`}
+                        </span>
+                    </div>
+                ))}
+                {problemParts.length > 5 && (
+                    <p style={{ fontSize: '0.6rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginTop: '0.25rem' }}>
+                        +{problemParts.length - 5} more
+                    </p>
+                )}
+            </div>
+            <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
+                {readiness.parts_checked} part{readiness.parts_checked !== 1 ? 's' : ''} checked for this machine.
+            </p>
+        </div>
+    );
+}
+
+function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
+    const { status, delta, score_before, current_score, days_since_completion, within_recovery_window, work_order_id } = recovery;
+
+    // Color tokens per status
+    const palette: Record<RecoveryInfo['status'], { accent: string; bg: string; badgeBg: string; }> = {
+        'Recovered':       { accent: '#10b981', bg: 'rgba(16,185,129,0.35)',  badgeBg: 'rgba(16,185,129,0.15)' },
+        'Recovering':      { accent: '#f59e0b', bg: 'rgba(245,158,11,0.35)',  badgeBg: 'rgba(245,158,11,0.15)' },
+        'No improvement':  { accent: '#ef4444', bg: 'rgba(239,68,68,0.35)',   badgeBg: 'rgba(239,68,68,0.15)' },
+        'Monitoring':      { accent: '#00f2ff', bg: 'rgba(0,242,255,0.30)',   badgeBg: 'rgba(0,242,255,0.10)' },
+        'No baseline':     { accent: '#64748b', bg: 'rgba(100,116,139,0.30)', badgeBg: 'rgba(100,116,139,0.10)' },
+    };
+    const tone = palette[status];
+
+    const cardStyle: React.CSSProperties = {
+        background: 'rgba(255,255,255,0.03)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: `1px solid ${tone.bg}`,
+        boxShadow: `0 0 20px ${tone.bg.replace('0.35', '0.10').replace('0.30', '0.08')}`,
+        borderRadius: '1.5rem',
+        position: 'relative',
+        overflow: 'hidden',
+        padding: '1.25rem',
+        marginTop: '0.75rem',
+    };
+
+    const deltaLabel =
+        delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} pts`;
+    const daysLabel =
+        days_since_completion == null
+            ? null
+            : `${days_since_completion} day${days_since_completion === 1 ? '' : 's'} ago`;
+    const windowLabel =
+        within_recovery_window && days_since_completion != null
+            ? `${Math.max(0, 7 - days_since_completion)} day${(7 - days_since_completion) === 1 ? '' : 's'} remaining`
+            : 'Window closed';
+
+    return (
+        <div style={cardStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem' }}>
+                <div>
+                    <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace' }}>
+                        Post-Maintenance Recovery
+                    </h4>
+                    {work_order_id != null && (
+                        <p style={{ fontSize: '0.55rem', color: '#64748b', marginTop: '0.2rem', fontFamily: 'Space Grotesk, monospace' }}>
+                            WO #{work_order_id}{daysLabel ? ` · ${daysLabel}` : ''}
+                        </p>
+                    )}
+                </div>
+                <span style={{
+                    fontSize: '0.6rem', fontWeight: 700, color: tone.accent,
+                    textTransform: 'uppercase', letterSpacing: '0.08em',
+                    fontFamily: 'Space Grotesk, monospace',
+                    background: tone.badgeBg, padding: '0.2rem 0.6rem', borderRadius: 999,
+                    border: `1px solid ${tone.bg}`,
+                }}>
+                    {status}
+                </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                <div style={{ textAlign: 'left' }}>
+                    <p style={{ fontSize: '0.55rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Before</p>
+                    <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#94a3b8', fontFamily: 'Manrope, sans-serif' }}>
+                        {score_before != null ? score_before.toFixed(0) : '—'}
+                    </p>
+                </div>
+                <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${tone.accent}, transparent)`, position: 'relative' }}>
+                    <span style={{
+                        position: 'absolute', top: '-0.6rem', left: '50%', transform: 'translateX(-50%)',
+                        fontSize: '0.75rem', fontWeight: 800, color: tone.accent, fontFamily: 'Manrope, sans-serif',
+                        background: 'rgba(15,23,42,0.85)', padding: '0.05rem 0.5rem', borderRadius: 999,
+                    }}>
+                        {deltaLabel}
+                    </span>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '0.55rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Now</p>
+                    <p style={{ fontSize: '1.6rem', fontWeight: 800, color: tone.accent, fontFamily: 'Manrope, sans-serif' }}>
+                        {current_score != null ? current_score.toFixed(0) : '—'}
+                    </p>
+                </div>
+            </div>
+
+            <p style={{ fontSize: '0.55rem', color: '#475569', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
+                {status === 'Recovered' && 'Machine returned to healthy range. Maintenance effective.'}
+                {status === 'Recovering' && 'Health trending up, not yet in healthy range.'}
+                {status === 'No improvement' && 'Telemetry has not improved after this work order. Investigate.'}
+                {status === 'Monitoring' && 'Work order still in progress — baseline captured at creation.'}
+                {status === 'No baseline' && 'Baseline missing (ML service was offline at WO creation).'}
+                {` · ${windowLabel}`}
+            </p>
+        </div>
+    );
+}
+
 export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
     const p = mlPrediction;
     const healthScore = p?.unified_health_score ?? p?.health_score ?? 0;
@@ -219,20 +408,29 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', marginBottom: '0.75rem' }}>
 
                 {/* Health Donut */}
-                <div style={{ ...glassAlt, padding: '2rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gridRow: 'span 1' }}>
-                    {p ? (
-                        <>
-                            <DonutGauge score={healthScore} />
-                            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1.25rem', marginBottom: '0.35rem' }}>
-                                Unified Health
-                            </h4>
-                            <p style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 220 }}>
-                                {isAnomaly ? 'Anomalous behaviour detected. Immediate attention recommended.' : 'DST-fused score across 8 active models.'}
-                            </p>
-                        </>
-                    ) : (
-                        <p style={{ color: '#475569', fontSize: '0.8rem' }}>No ML data yet</p>
-                    )}
+                <div style={{ ...glassAlt, padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', gridRow: 'span 1' }}>
+                    <MachineMini3D
+                        riskLevel={
+                            (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(riskLevel)
+                                ? riskLevel
+                                : 'LOW') as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+                        }
+                    />
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                        {p ? (
+                            <>
+                                <DonutGauge score={healthScore} />
+                                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '1.25rem', marginBottom: '0.35rem' }}>
+                                    Unified Health
+                                </h4>
+                                <p style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 220 }}>
+                                    {isAnomaly ? 'Anomalous behaviour detected. Immediate attention recommended.' : 'DST-fused score across 8 active models.'}
+                                </p>
+                            </>
+                        ) : (
+                            <p style={{ color: '#475569', fontSize: '0.8rem' }}>No ML data yet</p>
+                        )}
+                    </div>
                 </div>
 
                 {/* AI Analysis */}
@@ -337,6 +535,14 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
                     </p>
                 </div>
             </div>
+
+            {/* Post-Maintenance Recovery — pre vs post unified_health_score delta */}
+            {p?.recovery && (
+                <PostMaintenanceRecoveryCard recovery={p.recovery} />
+            )}
+
+            {/* Parts Readiness */}
+            <PartsReadinessCard readiness={p?.parts_readiness} />
 
             {/* BPA Beliefs (if available) */}
             {p?.bpa && (
