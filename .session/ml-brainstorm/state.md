@@ -56,5 +56,30 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 - [ ] P7.1 brain | [ ] P7.2 alerts | [ ] P7.3 UX | [ ] P7.4 drafts | [ ] P7.5 score/timeline | [ ] P7.6 feedback
 - [ ] E2E verify
 
-## NEXT ACTION
-Write master spec. Then ask user to review it (gate) before writing-plans.
+## RESOLVED AT EXECUTION (corrections to plan — authoritative)
+- Real loader = `app/ml-microservice/src/core/model_loader.py` (lru_cache, config.models_dir, _load/_extract helpers, startup_check). `src/model_loader.py` = legacy dup, IGNORE. (CLAUDE.md stale.) → load_p7 goes in src/core/.
+- Import convention (root conftest.py aliases hyphen dir): `from app.ml_microservice.src.core.model_loader import ...` and `from app.ml_microservice.src.p7_parts_demand import ...`. NEVER `from src....`.
+- Test locations (repo-root): ml-microservice units → `tests/unit/core/`; backend → `tests/backend/`; integration → `tests/integration/`. Plan's `app/ml-microservice/tests/` is WRONG.
+- Existing loader pkl dict pattern: saved as dict {'model':..., ...}; `_extract(data,key)` pulls it. Mirror for p7.
+- run tests from repo root: `pytest tests/unit/core/test_p7_parts_demand.py -v` (root conftest auto-loads).
+- Execution batching (token-prudent): P7.1 Tasks1-4 = ONE dispatch (single file p7_parts_demand.py, TDD). Tasks 5-9 separate.
+
+## EXEC PROGRESS (subagent-driven)
+- [x] P7.1-core (T1-4 bundled: p7_parts_demand.py) — commit c47d359, 10 tests pass, verified
+- [x] T6 load_p7 — commit c356962, 13 tests pass, verified
+- [ ] T5 notebook+pkl (NEEDS DOCKER Jupyter — boundary) | [ ] T7 predict_parts_demand | [ ] T8 routes+unified-health | [ ] T9 card
+
+### More exec corrections
+- db_ml_training/ EXISTS but NO consumed_pieces.csv / required_pieces.csv. Task5 label source → use `mouvement_stock.csv` (movement_type='out', has piece_id+intervention_id+quantity) ⋈ `ordres_intervention.csv`(actual_failure_type) to build failure_part_map. Consumable Croston series from mouvement_stock out per piece. (Same source demand_forecast.py already uses.)
+- load_p7 returns WHOLE dict (pkl = {failure_part_map, consumable_params, meta}); do NOT _extract. Add to get_all_models_status + startup_check (model_loader.py:78-97).
+- T5 needs Docker Jupyter (docker-compose.notebooks.yml) → heavy; do T6 first (headless), pause/decide at T5.
+- [ ] P7.2 (T10-12) | [ ] P7.3 (T13-17) | [ ] P7.4 (T18-20) | [ ] P7.5 (T21-24) | [ ] P7.6 (T25-27) | [ ] E2E
+
+## NEXT ACTION (resume here)
+T5 = author p7 training: read db_ml_training/{mouvement_stock,ordres_intervention,pieces,stock,piece_machine}.csv → build failure_part_map (mouvement_stock out ⋈ ordres_intervention.actual_failure_type) + consumable Croston series → save ml_model_p7_parts_demand.pkl to BOTH model dirs. Backtest vs deterministic.
+NEEDS: Docker Jupyter (docker-compose.notebooks.yml) OR a headless train_p7.py if pandas/joblib available. Decide with user (heavy compute = token/time).
+Then T7 predict_parts_demand (loads pkl, falls back if None) → T8 routes+unified-health → T9 card → P7.1 GATE.
+After P7.1: P7.2 alerts → P7.3 UX → P7.4 drafts → P7.5 score/timeline → P7.6 feedback → E2E.
+
+## DONE THIS SESSION
+brainstorm→spec(59b06b1)→plan(162ba31)→persistence+memory. Code: P7.1-core(c47d359), load_p7(c356962). Loader fully ready. p7_parts_demand.py pure module tested (10), loader tested (13).
