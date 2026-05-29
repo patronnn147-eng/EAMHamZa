@@ -75,19 +75,26 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 ## EXEC PROGRESS (subagent-driven)
 - [x] P7.1-core (T1-4 bundled: p7_parts_demand.py) — commit c47d359, 10 tests pass, verified
 - [x] T6 load_p7 — commit c356962, 13 tests pass, verified
-- [ ] T5 notebook+pkl (NEEDS DOCKER Jupyter — boundary) | [ ] T7 predict_parts_demand | [ ] T8 routes+unified-health | [ ] T9 card
+- [~] T5 notebook written (p7_parts_demand.ipynb) — AWAITING user to run in Docker Jupyter | [ ] T7 predict_parts_demand | [ ] T8 routes+unified-health | [ ] T9 card
 
 ### More exec corrections
-- db_ml_training/ EXISTS but NO consumed_pieces.csv / required_pieces.csv. Task5 label source → use `mouvement_stock.csv` (movement_type='out', has piece_id+intervention_id+quantity) ⋈ `ordres_intervention.csv`(actual_failure_type) to build failure_part_map. Consumable Croston series from mouvement_stock out per piece. (Same source demand_forecast.py already uses.)
-- load_p7 returns WHOLE dict (pkl = {failure_part_map, consumable_params, meta}); do NOT _extract. Add to get_all_models_status + startup_check (model_loader.py:78-97).
-- T5 needs Docker Jupyter (docker-compose.notebooks.yml) → heavy; do T6 first (headless), pause/decide at T5.
+- db_ml_training/ EXISTS but NO consumed_pieces.csv / required_pieces.csv / mouvement_stock rows. Task5 label source → ordres_intervention.parts_replaced text parsed to build failure_part_map. consumable_params={} (no mouvement_stock data).
+- load_p7 returns WHOLE dict (pkl = {failure_part_map, consumable_params, parts_catalog, meta}); do NOT _extract. Add to get_all_models_status + startup_check (model_loader.py:78-97).
+- T5 notebook written: app/ml-microservice/ml_research/p7_parts_demand.ipynb (7 code cells). User chosen Docker Jupyter.
+- pieces/stock/mouvement_stock CSVs are ALL EMPTY. Only ordres_intervention has data (4000 rows, 1000 per FT).
+- Graduate gate: P7 F1 > naive top-5-popularity baseline.
 - [ ] P7.2 (T10-12) | [ ] P7.3 (T13-17) | [ ] P7.4 (T18-20) | [ ] P7.5 (T21-24) | [ ] P7.6 (T25-27) | [ ] E2E
 
 ## NEXT ACTION (resume here)
-T5 = author p7 training: read db_ml_training/{mouvement_stock,ordres_intervention,pieces,stock,piece_machine}.csv → build failure_part_map (mouvement_stock out ⋈ ordres_intervention.actual_failure_type) + consumable Croston series → save ml_model_p7_parts_demand.pkl to BOTH model dirs. Backtest vs deterministic.
-NEEDS: Docker Jupyter (docker-compose.notebooks.yml) OR a headless train_p7.py if pandas/joblib available. Decide with user (heavy compute = token/time).
-Then T7 predict_parts_demand (loads pkl, falls back if None) → T8 routes+unified-health → T9 card → P7.1 GATE.
+USER MUST RUN T5 notebook:
+  1. `docker compose -f docker-compose.notebooks.yml up --build`
+  2. Open http://localhost:8888
+  3. Navigate to `app/ml-microservice/ml_research/p7_parts_demand.ipynb`
+  4. Run All Cells — verify "GRADUATE: YES ✓" and "pkl verified"
+  5. Confirm pkl saved to both model dirs
+Then continue in code: T7 predict_parts_demand (loads pkl, falls back if None) → T8 routes+unified-health → T9 card → P7.1 GATE.
 After P7.1: P7.2 alerts → P7.3 UX → P7.4 drafts → P7.5 score/timeline → P7.6 feedback → E2E.
 
 ## DONE THIS SESSION
 brainstorm→spec(59b06b1)→plan(162ba31)→persistence+memory. Code: P7.1-core(c47d359), load_p7(c356962). Loader fully ready. p7_parts_demand.py pure module tested (10), loader tested (13).
+T5: p7_parts_demand.ipynb notebook written (2026-05-29 session 2). User to run in Docker Jupyter.
