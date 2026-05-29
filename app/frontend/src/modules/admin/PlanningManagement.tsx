@@ -93,7 +93,7 @@ const [formData, setFormData] = useState({
     zone_travail: '',
     sous_zone: '',
     ordre: '',
-    techniciens_ids: [] as number[],
+    technicien_ids: [] as number[],
     machine_ids: [] as number[],
   });
 
@@ -135,8 +135,8 @@ const [formData, setFormData] = useState({
   const toggleMachine = (machineId: number) => {
     setFormData((prev) => ({
       ...prev,
-      machine_ids: prev.machine_ids.includes(machineId)
-        ? prev.machine_ids.filter((id) => id !== machineId)
+      machine_ids: (prev.machine_ids || []).includes(machineId)
+        ? (prev.machine_ids || []).filter((id) => id !== machineId)
         : [...prev.machine_ids, machineId],
     }));
   };
@@ -273,8 +273,8 @@ const [formData, setFormData] = useState({
   const toggleTechnicien = (techId: number) => {
     setFormData(prev => ({
       ...prev,
-      technicien_ids: prev.technicien_ids.includes(techId)
-        ? prev.technicien_ids.filter(id => id !== techId)
+      technicien_ids: (prev.technicien_ids || []).includes(techId)
+        ? (prev.technicien_ids || []).filter(id => id !== techId)
         : [...prev.technicien_ids, techId],
     }));
   };
@@ -307,25 +307,33 @@ const [formData, setFormData] = useState({
   };
 
   const filteredMachines = machines.filter((m) => {
-    // If no zone selected, show no machines
-    if (!formData.zone_travail) return false;
-
-    // Filter by zone (exact match)
-    const zoneMatch = m.zone === formData.zone_travail;
-
-    // Filter by sub-zone (if selected)
-    const subZoneMatch = !formData.sous_zone || m.sous_zone === formData.sous_zone;
-
-    // Filter by order (if selected)
-    const orderMatch = !formData.ordre || String(m.ordre) === String(formData.ordre);
-
-    // Filter by availability (support both 'disponible' and 'available')
-    const isAvailable = m.statut?.toLowerCase() === 'disponible' || m.statut?.toLowerCase() === 'available' || !m.statut;
+    // All filters are OPTIONAL hints — they progressively narrow the list,
+    // but ordre + sous_zone do NOT hide machines that lack metadata, since
+    // most legacy machines don't carry exact ordre/sous_zone values.
+    //
+    // Behaviour:
+    //   - zone        : strict (when set, machine must match)
+    //   - sous_zone   : strict ONLY for machines that carry a sous_zone value
+    //   - ordre       : non-strict (acts as a label hint only, never hides)
+    //   - statut      : exclude machines explicitly marked unavailable
+    const zoneMatch = !formData.zone_travail || m.zone === formData.zone_travail;
+    const subZoneMatch =
+      !formData.sous_zone ||
+      !m.sous_zone ||
+      m.sous_zone === formData.sous_zone;
+    // ordre intentionally not used to filter — selecting an ordre is now a UI
+    // hint only, so users can still multi-select machines after picking one.
+    const status = (m.statut || '').toLowerCase();
+    const isAvailable =
+      !status ||
+      status === 'disponible' ||
+      status === 'available' ||
+      status === 'operationnelle' ||
+      status === 'en_marche';
 
     // Always keep already selected machines in the list
-    const isSelected = formData.machine_ids.includes(m.id);
-
-    return (zoneMatch && subZoneMatch && orderMatch && isAvailable) || isSelected;
+    const isSelected = (formData.machine_ids || []).includes(m.id);
+    return (zoneMatch && subZoneMatch && isAvailable) || isSelected;
   });
 
   const handleSubmit = async () => {
@@ -968,8 +976,39 @@ const [formData, setFormData] = useState({
             )}
 
             <div className="space-y-2">
-              <Label>Machines</Label>
-              <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-800/50">
+              <div className="flex items-center justify-between gap-2">
+                <Label>
+                  Machines{' '}
+                  <span className="text-xs text-blue-400/70 font-normal">
+                    · {(formData.machine_ids || []).length} sélectionnée(s) / {filteredMachines.length} affichée(s)
+                  </span>
+                </Label>
+                {filteredMachines.length > 0 && (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      className="text-[11px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors"
+                      onClick={() => {
+                        const allIds = filteredMachines.map((m) => m.id);
+                        setFormData((prev) => ({ ...prev, machine_ids: Array.from(new Set([...(prev.machine_ids || []), ...allIds])) }));
+                      }}
+                    >
+                      Tout cocher
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-slate-500/30 bg-slate-700/30 text-slate-300 hover:bg-slate-700/50 transition-colors"
+                      onClick={() => {
+                        const visibleIds = new Set(filteredMachines.map((m) => m.id));
+                        setFormData((prev) => ({ ...prev, machine_ids: (prev.machine_ids || []).filter((id) => !visibleIds.has(id)) }));
+                      }}
+                    >
+                      Tout décocher
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="border rounded-md p-3 max-h-80 overflow-y-auto space-y-2 bg-slate-800/50">
                 {filteredMachines?.length === 0 ? (
                   <p className="text-sm text-blue-300">
                     {formData.zone_travail
@@ -981,7 +1020,7 @@ const [formData, setFormData] = useState({
                     <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-slate-800 rounded">
                       <Checkbox
                         id={`machine-${m.id}`}
-                        checked={formData.machine_ids.includes(m.id)}
+                        checked={(formData.machine_ids || []).includes(m.id)}
                         onCheckedChange={() => toggleMachine(m.id)}
                       />
                       <label
@@ -994,7 +1033,6 @@ const [formData, setFormData] = useState({
                   ))
                 )}
               </div>
-              <p className="text-xs text-blue-300">Selected: {formData.machine_ids?.length ?? 0} machine(s)</p>
             </div>
 
             <div className="grid gap-2">
@@ -1080,7 +1118,7 @@ const [formData, setFormData] = useState({
                       <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-slate-800 rounded">
                         <Checkbox
                           id={`tech-${tech.id}`}
-                          checked={formData.technicien_ids.includes(tech.id)}
+                          checked={(formData.technicien_ids || []).includes(tech.id)}
                           onCheckedChange={() => toggleTechnicien(tech.id)}
                         />
                         <label
@@ -1094,7 +1132,7 @@ const [formData, setFormData] = useState({
                     ))
                   )}
                 </div>
-                <p className="text-xs text-blue-300">Selected: {formData.technicien_ids?.length ?? 0} technician(s)</p>
+                <p className="text-xs text-blue-300">Selected: {(formData.technicien_ids || []).length ?? 0} technician(s)</p>
               </div>
             </div>
           </div>

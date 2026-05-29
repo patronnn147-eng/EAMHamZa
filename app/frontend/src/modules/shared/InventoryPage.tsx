@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -33,6 +33,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Package,
     Plus,
+    Minus,
     Search,
     Edit,
     Trash2,
@@ -40,7 +41,13 @@ import {
     ArrowUpCircle,
     ArrowDownCircle,
     BoxIcon,
+    Zap,
+    Link2,
+    ChevronRight,
+    CheckCircle2,
+    TrendingDown,
 } from 'lucide-react';
+import { PieceMachinesLinker } from '@/components/inventory/PieceMachinesLinker';
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -83,24 +90,206 @@ interface Movement {
 }
 
 const CATEGORIES = [
-    'Électrique',
-    'Mécanique',
-    'Hydraulique',
-    'Pneumatique',
-    'Électronique',
-    'Consommable',
-    'Autre',
+    'Électrique', 'Mécanique', 'Hydraulique',
+    'Pneumatique', 'Électronique', 'Consommable', 'Autre',
 ];
 
 function getAuthHeaders() {
     const token = localStorage.getItem('access_token');
-    return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+    return token
+        ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+        : { 'Content-Type': 'application/json' };
 }
 
+// ─── Quick Actions Panel ───────────────────────────────────────────────────────
+interface QuickActionsPanelProps {
+    alerts: StockAlert[];
+    canManage: boolean;
+    canConsume: boolean;
+    onNewPiece: () => void;
+    onAddStock: (pieceId?: number, qty?: number) => void;
+    onConsume: (pieceId?: number) => void;
+    onGoToAlerts: () => void;
+}
+
+function QuickActionsPanel({
+    alerts,
+    canManage,
+    canConsume,
+    onNewPiece,
+    onAddStock,
+    onConsume,
+    onGoToAlerts,
+}: QuickActionsPanelProps) {
+    const criticalAlerts = alerts.filter((a) => a.current_quantity === 0);
+    const lowAlerts = alerts.filter((a) => a.current_quantity > 0);
+
+    return (
+        <Card className="border-blue-500/30 bg-gradient-to-br from-slate-900 to-blue-950/40">
+            <CardContent className="py-4 px-5">
+                {/* Row 1 – Always-available primary actions */}
+                <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-blue-300 mr-1">
+                        <Zap className="h-4 w-4 text-yellow-400" />
+                        <span className="text-sm font-semibold">Actions rapides</span>
+                    </div>
+
+                    {canManage && (
+                        <Button
+                            size="sm"
+                            className="bg-blue-600 hover:bg-blue-500 text-white h-8 gap-1.5"
+                            onClick={onNewPiece}
+                            title="N"
+                        >
+                            <Plus className="h-3.5 w-3.5" />
+                            Nouvelle pièce
+                            <kbd className="ml-1 text-[10px] opacity-50 font-mono bg-white/20 px-1 rounded">N</kbd>
+                        </Button>
+                    )}
+
+                    {canManage && (
+                        <Button
+                            size="sm"
+                            className="bg-green-700 hover:bg-green-600 text-white h-8 gap-1.5"
+                            onClick={() => onAddStock()}
+                            title="A"
+                        >
+                            <ArrowUpCircle className="h-3.5 w-3.5" />
+                            Entrée stock
+                            <kbd className="ml-1 text-[10px] opacity-50 font-mono bg-white/20 px-1 rounded">A</kbd>
+                        </Button>
+                    )}
+
+                    {canConsume && (
+                        <Button
+                            size="sm"
+                            className="bg-orange-700 hover:bg-orange-600 text-white h-8 gap-1.5"
+                            onClick={() => onConsume()}
+                            title="C"
+                        >
+                            <ArrowDownCircle className="h-3.5 w-3.5" />
+                            Sortie stock
+                            <kbd className="ml-1 text-[10px] opacity-50 font-mono bg-white/20 px-1 rounded">C</kbd>
+                        </Button>
+                    )}
+
+                    {alerts.length === 0 && (
+                        <span className="ml-auto flex items-center gap-1.5 text-green-400 text-sm">
+                            <CheckCircle2 className="h-4 w-4" />
+                            Tous les stocks sont suffisants
+                        </span>
+                    )}
+                </div>
+
+                {/* Row 2 – Contextual: out-of-stock urgencies (one click = dialog pre-filled) */}
+                {criticalAlerts.length > 0 && canManage && (
+                    <div className="mt-3 pt-3 border-t border-red-500/20">
+                        <div className="flex items-start gap-3 flex-wrap">
+                            <span className="flex items-center gap-1 text-red-400 text-xs font-semibold pt-1 whitespace-nowrap">
+                                <AlertTriangle className="h-3.5 w-3.5" />
+                                Rupture totale :
+                            </span>
+                            {criticalAlerts.map((alert) => (
+                                <button
+                                    key={alert.piece_id}
+                                    onClick={() => onAddStock(alert.piece_id, alert.deficit)}
+                                    className="group flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-950/30
+                                               px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:border-red-400
+                                               hover:text-red-200 transition-all"
+                                >
+                                    <ArrowUpCircle className="h-3 w-3" />
+                                    <span className="font-medium">{alert.piece_name}</span>
+                                    <span className="text-red-500 font-mono">×0</span>
+                                    <span className="text-red-400">→ commander {alert.deficit}</span>
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Row 3 – Low stock warnings */}
+                {lowAlerts.length > 0 && canManage && (
+                    <div className="mt-3 pt-3 border-t border-orange-500/20">
+                        <div className="flex items-start gap-3 flex-wrap">
+                            <span className="flex items-center gap-1 text-orange-400 text-xs font-semibold pt-1 whitespace-nowrap">
+                                <TrendingDown className="h-3.5 w-3.5" />
+                                Stock bas :
+                            </span>
+                            {lowAlerts.slice(0, 5).map((alert) => (
+                                <button
+                                    key={alert.piece_id}
+                                    onClick={() => onAddStock(alert.piece_id, alert.deficit)}
+                                    className="group flex items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-950/30
+                                               px-3 py-1.5 text-xs text-orange-300 hover:bg-orange-500/20 hover:border-orange-400
+                                               hover:text-orange-200 transition-all"
+                                >
+                                    <ArrowUpCircle className="h-3 w-3" />
+                                    <span className="font-medium">{alert.piece_name}</span>
+                                    <span className="text-orange-500 font-mono">{alert.current_quantity}/{alert.min_stock}</span>
+                                    <span className="text-orange-400">+{alert.deficit}</span>
+                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </button>
+                            ))}
+                            {lowAlerts.length > 5 && (
+                                <button
+                                    onClick={onGoToAlerts}
+                                    className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2"
+                                >
+                                    +{lowAlerts.length - 5} autres →
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+// ─── Inline Stock Control (no dialog needed for ±1) ───────────────────────────
+interface InlineStockControlProps {
+    stock: StockLevel;
+    canManage: boolean;
+    canConsume: boolean;
+    onAdd: (pieceId: number, qty?: number) => void;
+    onConsume: (pieceId: number) => void;
+}
+
+function InlineStockControl({ stock, canManage, canConsume, onAdd, onConsume }: InlineStockControlProps) {
+    return (
+        <div className="flex items-center gap-1 justify-end">
+            {canConsume && stock.quantity > 0 && (
+                <button
+                    onClick={() => onConsume(stock.piece_id)}
+                    className="flex items-center gap-0.5 rounded border border-orange-500/40 bg-orange-950/30
+                               px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 hover:border-orange-400 transition-all"
+                    title="Consommer"
+                >
+                    <Minus className="h-3 w-3" />
+                    Sortie
+                </button>
+            )}
+            {canManage && (
+                <button
+                    onClick={() => onAdd(stock.piece_id)}
+                    className="flex items-center gap-0.5 rounded border border-green-500/40 bg-green-950/30
+                               px-2 py-1 text-xs text-green-400 hover:bg-green-500/20 hover:border-green-400 transition-all"
+                    title="Ajouter stock"
+                >
+                    <Plus className="h-3 w-3" />
+                    Entrée
+                </button>
+            )}
+        </div>
+    );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
     const { user } = useAuth();
     const { toast } = useToast();
-    const [activeTab, setActiveTab] = useState('catalog');
+    const [activeTab, setActiveTab] = useState('stock');   // default: stock overview (most useful)
     const [pieces, setPieces] = useState<Piece[]>([]);
     const [stockLevels, setStockLevels] = useState<StockLevel[]>([]);
     const [alerts, setAlerts] = useState<StockAlert[]>([]);
@@ -115,68 +304,69 @@ export default function InventoryPage() {
     const [deletingPiece, setDeletingPiece] = useState<Piece | null>(null);
     const [stockDialogOpen, setStockDialogOpen] = useState(false);
     const [stockAction, setStockAction] = useState<'add' | 'consume'>('add');
+    const [linkerPiece, setLinkerPiece] = useState<Piece | null>(null);
 
-    // Form data
+    const searchRef = useRef<HTMLInputElement>(null);
+
     const [pieceForm, setPieceForm] = useState({
-        reference: '',
-        name: '',
-        description: '',
-        unit_price: '',
-        category: '',
-        min_stock: '5',
+        reference: '', name: '', description: '', unit_price: '', category: '', min_stock: '5',
     });
     const [stockForm, setStockForm] = useState({
-        piece_id: '',
-        quantity: '',
-        reference: '',
+        piece_id: '', quantity: '', reference: '',
     });
 
-    const canManage = user?.role === 'ADMIN' || user?.role === 'CHEFTECH';
-    const canConsume = canManage || user?.role === 'CHETOP';
+    // Resolve role from auth context, fallback to localStorage (matches Sidebar pattern)
+    // — avoids the gap where useAuth() resolves AFTER first render.
+    const resolvedRole = (() => {
+        if (user?.role) return user.role.toUpperCase();
+        try {
+            const stored = localStorage.getItem('user');
+            if (stored) return (JSON.parse(stored).role || '').toUpperCase();
+        } catch { /* ignore */ }
+        return '';
+    })();
+    const canManage = resolvedRole === 'ADMIN' || resolvedRole === 'CHEFTECH';
+    const canConsume = canManage || resolvedRole === 'CHETOP';
 
-    // ---------- Data Fetching ----------
+    // Derived: current stock for selected piece
+    const selectedPieceStock = stockForm.piece_id
+        ? stockLevels.find((s) => s.piece_id === parseInt(stockForm.piece_id))
+        : null;
+    const selectedPieceInfo = stockForm.piece_id
+        ? pieces.find((p) => p.id === parseInt(stockForm.piece_id))
+        : null;
+
+    // ── Data Fetching ──────────────────────────────────────────────────────────
     const fetchPieces = useCallback(async () => {
         try {
-            const resp = await fetch(`${apiBase}/api/v1/inventory/pieces?limit=500`, { headers: getAuthHeaders() });
-            if (!resp.ok) throw new Error('Failed to fetch pieces');
-            const data = await resp.json();
-            setPieces(data.items || []);
-        } catch (e) {
-            console.error('Error fetching pieces:', e);
-        }
+            const r = await fetch(`${apiBase}/api/v1/inventory/pieces?limit=500`, { headers: getAuthHeaders() });
+            const d = await r.json();
+            setPieces(d.items || []);
+        } catch { /* silent */ }
     }, []);
 
     const fetchStockLevels = useCallback(async () => {
         try {
-            const resp = await fetch(`${apiBase}/api/v1/inventory/stock`, { headers: getAuthHeaders() });
-            if (!resp.ok) throw new Error('Failed to fetch stock');
-            const data = await resp.json();
-            setStockLevels(data || []);
-        } catch (e) {
-            console.error('Error fetching stock:', e);
-        }
+            const r = await fetch(`${apiBase}/api/v1/inventory/stock`, { headers: getAuthHeaders() });
+            const d = await r.json();
+            setStockLevels(d.items || []);
+        } catch { /* silent */ }
     }, []);
 
     const fetchAlerts = useCallback(async () => {
         try {
-            const resp = await fetch(`${apiBase}/api/v1/inventory/stock/alertes`, { headers: getAuthHeaders() });
-            if (!resp.ok) throw new Error('Failed to fetch alerts');
-            const data = await resp.json();
-            setAlerts(data || []);
-        } catch (e) {
-            console.error('Error fetching alerts:', e);
-        }
+            const r = await fetch(`${apiBase}/api/v1/inventory/stock/alertes`, { headers: getAuthHeaders() });
+            const d = await r.json();
+            setAlerts(d.items || []);
+        } catch { /* silent */ }
     }, []);
 
     const fetchMovements = useCallback(async () => {
         try {
-            const resp = await fetch(`${apiBase}/api/v1/inventory/stock/movements?limit=100`, { headers: getAuthHeaders() });
-            if (!resp.ok) throw new Error('Failed to fetch movements');
-            const data = await resp.json();
-            setMovements(data || []);
-        } catch (e) {
-            console.error('Error fetching movements:', e);
-        }
+            const r = await fetch(`${apiBase}/api/v1/inventory/stock/movements?limit=100`, { headers: getAuthHeaders() });
+            const d = await r.json();
+            setMovements(d.items || []);
+        } catch { /* silent */ }
     }, []);
 
     const fetchAll = useCallback(async () => {
@@ -185,11 +375,23 @@ export default function InventoryPage() {
         setLoading(false);
     }, [fetchPieces, fetchStockLevels, fetchAlerts, fetchMovements]);
 
-    useEffect(() => {
-        fetchAll();
-    }, [fetchAll]);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    // ---------- Piece CRUD ----------
+    // ── Keyboard shortcuts ─────────────────────────────────────────────────────
+    useEffect(() => {
+        const handler = (e: KeyboardEvent) => {
+            // Don't fire when typing in an input/select/textarea
+            if (['INPUT', 'SELECT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
+            if (e.key === 'n' || e.key === 'N') { e.preventDefault(); if (canManage) openCreatePiece(); }
+            if (e.key === 'a' || e.key === 'A') { e.preventDefault(); if (canManage) openStockDialog('add'); }
+            if (e.key === 'c' || e.key === 'C') { e.preventDefault(); if (canConsume) openStockDialog('consume'); }
+            if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
+        };
+        window.addEventListener('keydown', handler);
+        return () => window.removeEventListener('keydown', handler);
+    }, [canManage, canConsume]); // eslint-disable-line
+
+    // ── Piece CRUD ─────────────────────────────────────────────────────────────
     const openCreatePiece = () => {
         setEditingPiece(null);
         setPieceForm({ reference: '', name: '', description: '', unit_price: '', category: '', min_stock: '5' });
@@ -211,7 +413,7 @@ export default function InventoryPage() {
 
     const handlePieceSubmit = async () => {
         try {
-            const body: Record<string, unknown> = {
+            const body = {
                 reference: pieceForm.reference,
                 name: pieceForm.name,
                 description: pieceForm.description || null,
@@ -219,332 +421,272 @@ export default function InventoryPage() {
                 category: pieceForm.category || null,
                 min_stock: parseInt(pieceForm.min_stock) || 5,
             };
-
             const url = editingPiece
                 ? `${apiBase}/api/v1/inventory/pieces/${editingPiece.id}`
                 : `${apiBase}/api/v1/inventory/pieces`;
-
-            const resp = await fetch(url, {
-                method: editingPiece ? 'PUT' : 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(body),
-            });
-
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                throw new Error((err as { detail?: string }).detail || 'Failed');
-            }
-
-            toast({
-                title: 'Succès',
-                description: editingPiece ? 'Pièce mise à jour' : 'Pièce créée',
-            });
+            const r = await fetch(url, { method: editingPiece ? 'PUT' : 'POST', headers: getAuthHeaders(), body: JSON.stringify(body) });
+            if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { detail?: string }).detail || 'Erreur'); }
+            toast({ title: 'Succès', description: editingPiece ? 'Pièce mise à jour' : 'Pièce créée' });
             setPieceDialogOpen(false);
             fetchAll();
         } catch (e) {
-            toast({
-                title: 'Erreur',
-                description: e instanceof Error ? e.message : 'Erreur lors de la sauvegarde',
-                variant: 'destructive',
-            });
+            toast({ title: 'Erreur', description: e instanceof Error ? e.message : 'Erreur', variant: 'destructive' });
         }
     };
 
     const handleDeletePiece = async () => {
         if (!deletingPiece) return;
         try {
-            const resp = await fetch(`${apiBase}/api/v1/inventory/pieces/${deletingPiece.id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-            });
-            if (!resp.ok) throw new Error('Failed to delete piece');
+            await fetch(`${apiBase}/api/v1/inventory/pieces/${deletingPiece.id}`, { method: 'DELETE', headers: getAuthHeaders() });
             toast({ title: 'Succès', description: 'Pièce supprimée' });
             setDeleteDialogOpen(false);
             setDeletingPiece(null);
             fetchAll();
-        } catch (e) {
-            toast({
-                title: 'Erreur',
-                description: e instanceof Error ? e.message : 'Erreur lors de la suppression',
-                variant: 'destructive',
-            });
+        } catch {
+            toast({ title: 'Erreur', description: 'Suppression échouée', variant: 'destructive' });
         }
     };
 
-    // ---------- Stock Operations ----------
-    const openStockDialog = (action: 'add' | 'consume') => {
+    // ── Stock Operations ───────────────────────────────────────────────────────
+    const openStockDialog = (action: 'add' | 'consume', pieceId?: number, qty?: number) => {
         setStockAction(action);
-        setStockForm({ piece_id: '', quantity: '', reference: '' });
+        setStockForm({
+            piece_id: pieceId?.toString() ?? '',
+            quantity: qty?.toString() ?? '',
+            reference: '',
+        });
         setStockDialogOpen(true);
     };
 
     const handleStockSubmit = async () => {
+        const qty = parseInt(stockForm.quantity);
+        if (stockAction === 'consume' && selectedPieceStock && qty > selectedPieceStock.quantity) {
+            toast({ title: 'Stock insuffisant', description: `Disponible : ${selectedPieceStock.quantity}`, variant: 'destructive' });
+            return;
+        }
         try {
             const url = stockAction === 'add'
                 ? `${apiBase}/api/v1/inventory/stock`
                 : `${apiBase}/api/v1/inventory/stock/consume`;
-
-            const body = {
-                piece_id: parseInt(stockForm.piece_id),
-                quantity: parseInt(stockForm.quantity),
-                reference: stockForm.reference || null,
-            };
-
-            const resp = await fetch(url, {
+            const r = await fetch(url, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify(body),
+                body: JSON.stringify({ piece_id: parseInt(stockForm.piece_id), quantity: qty, reference: stockForm.reference || null }),
             });
-
-            if (!resp.ok) {
-                const err = await resp.json().catch(() => ({}));
-                throw new Error((err as { detail?: string }).detail || 'Failed');
-            }
-
+            if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { detail?: string }).detail || 'Erreur'); }
             toast({
                 title: 'Succès',
-                description: stockAction === 'add' ? 'Stock ajouté' : 'Stock consommé',
+                description: stockAction === 'add'
+                    ? `+${qty} unité(s) — ${selectedPieceInfo?.name ?? ''}`
+                    : `-${qty} unité(s) consommée(s) — ${selectedPieceInfo?.name ?? ''}`,
             });
             setStockDialogOpen(false);
             fetchAll();
         } catch (e) {
-            toast({
-                title: 'Erreur',
-                description: e instanceof Error ? e.message : 'Erreur lors de l\'opération',
-                variant: 'destructive',
-            });
+            toast({ title: 'Erreur', description: e instanceof Error ? e.message : 'Erreur', variant: 'destructive' });
         }
     };
 
-    // ---------- Filtering ----------
-    const filteredPieces = pieces.filter(
-        (p) =>
-            p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            p.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            (p.category || '').toLowerCase().includes(searchTerm.toLowerCase())
+    // ── Filtering ──────────────────────────────────────────────────────────────
+    const filteredPieces = pieces.filter((p) =>
+        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.reference.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (p.category || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // ---------- Render ----------
+    const filteredStock = stockLevels.filter((s) =>
+        (s.piece_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.piece_reference || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // ── Loading ────────────────────────────────────────────────────────────────
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
             </div>
         );
     }
 
+    const totalStockValue = stockLevels.reduce((sum, s) => {
+        const price = pieces.find((p) => p.id === s.piece_id)?.unit_price ?? 0;
+        return sum + s.quantity * price;
+    }, 0);
+
+    // ── Render ─────────────────────────────────────────────────────────────────
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="space-y-5">
+
+            {/* Page Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                        <Package className="h-7 w-7" />
+                        <Package className="h-7 w-7 text-blue-400" />
                         Gestion des Stocks
                     </h1>
-                    <p className="text-blue-300 mt-1">
-                        Catalogue de pièces, niveaux de stock et alertes de réapprovisionnement
+                    <p className="text-blue-400 mt-0.5 text-sm">
+                        {pieces.length} pièces · {stockLevels.length} références en stock
+                        {totalStockValue > 0 && ` · valeur estimée ${totalStockValue.toLocaleString('fr-FR', { style: 'currency', currency: 'EUR' })}`}
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    {canConsume && (
-                        <Button variant="outline" onClick={() => openStockDialog('consume')}>
-                            <ArrowDownCircle className="mr-2 h-4 w-4" />
-                            Consommer
-                        </Button>
-                    )}
-                    {canManage && (
-                        <>
-                            <Button variant="outline" onClick={() => openStockDialog('add')}>
-                                <ArrowUpCircle className="mr-2 h-4 w-4" />
-                                Ajouter Stock
-                            </Button>
-                            <Button onClick={openCreatePiece} className="bg-blue-600 hover:bg-blue-700 text-white">
-                                <Plus className="mr-2 h-4 w-4" />
-                                Nouvelle Pièce
-                            </Button>
-                        </>
-                    )}
-                </div>
+                {/* Keyboard hint */}
+                <p className="text-xs text-blue-500 hidden md:block">
+                    Raccourcis&nbsp;:&nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">N</kbd> nouvelle &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">A</kbd> entrée &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">C</kbd> sortie &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">/</kbd> recherche
+                </p>
             </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Pièces au catalogue</CardDescription>
-                        <CardTitle className="text-3xl">{pieces.length}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Articles en stock</CardDescription>
-                        <CardTitle className="text-3xl">{stockLevels.length}</CardTitle>
-                    </CardHeader>
-                </Card>
-                <Card className={alerts.length > 0 ? 'border-orange-300 bg-orange-50' : ''}>
-                    <CardHeader className="pb-2">
-                        <CardDescription className="flex items-center gap-1">
-                            {alerts.length > 0 && <AlertTriangle className="h-4 w-4 text-orange-500" />}
-                            Alertes stock bas
+            {/* ── Quick Actions Panel (always visible, context-aware) ── */}
+            <QuickActionsPanel
+                alerts={alerts}
+                canManage={canManage}
+                canConsume={canConsume}
+                onNewPiece={openCreatePiece}
+                onAddStock={(id, qty) => openStockDialog('add', id, qty)}
+                onConsume={(id) => openStockDialog('consume', id)}
+                onGoToAlerts={() => setActiveTab('alerts')}
+            />
+
+            {/* Summary KPI Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Card className="cursor-pointer hover:border-blue-400 transition-colors" onClick={openCreatePiece}>
+                    <CardHeader className="pb-2 pt-3 px-4">
+                        <CardDescription className="text-xs flex items-center gap-1">
+                            <BoxIcon className="h-3 w-3" /> Pièces catalogue
                         </CardDescription>
-                        <CardTitle className={`text-3xl ${alerts.length > 0 ? 'text-orange-600' : ''}`}>
+                        <CardTitle className="text-2xl">{pieces.length}</CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card className="cursor-pointer hover:border-green-400 transition-colors" onClick={() => openStockDialog('add')}>
+                    <CardHeader className="pb-2 pt-3 px-4">
+                        <CardDescription className="text-xs flex items-center gap-1">
+                            <ArrowUpCircle className="h-3 w-3" /> Articles en stock
+                        </CardDescription>
+                        <CardTitle className="text-2xl">{stockLevels.length}</CardTitle>
+                    </CardHeader>
+                </Card>
+                <Card
+                    className={`cursor-pointer transition-colors ${alerts.length > 0 ? 'border-orange-400 bg-orange-950/20 hover:border-orange-300' : 'hover:border-gray-400'}`}
+                    onClick={() => setActiveTab('alerts')}
+                >
+                    <CardHeader className="pb-2 pt-3 px-4">
+                        <CardDescription className={`text-xs flex items-center gap-1 ${alerts.length > 0 ? 'text-orange-400' : ''}`}>
+                            {alerts.length > 0 && <AlertTriangle className="h-3 w-3" />}
+                            Alertes stock
+                        </CardDescription>
+                        <CardTitle className={`text-2xl ${alerts.length > 0 ? 'text-orange-400' : ''}`}>
                             {alerts.length}
                         </CardTitle>
                     </CardHeader>
                 </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardDescription>Mouvements récents</CardDescription>
-                        <CardTitle className="text-3xl">{movements.length}</CardTitle>
+                <Card className="cursor-pointer hover:border-purple-400 transition-colors" onClick={() => setActiveTab('history')}>
+                    <CardHeader className="pb-2 pt-3 px-4">
+                        <CardDescription className="text-xs">Mouvements récents</CardDescription>
+                        <CardTitle className="text-2xl">{movements.length}</CardTitle>
                     </CardHeader>
                 </Card>
             </div>
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList>
-                    <TabsTrigger value="catalog">
-                        <BoxIcon className="mr-2 h-4 w-4" />
-                        Catalogue
-                    </TabsTrigger>
-                    <TabsTrigger value="stock">
-                        <Package className="mr-2 h-4 w-4" />
-                        Niveaux de Stock
-                    </TabsTrigger>
-                    <TabsTrigger value="alerts" className="relative">
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        Alertes
-                        {alerts.length > 0 && (
-                            <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0.5">
-                                {alerts.length}
-                            </Badge>
-                        )}
-                    </TabsTrigger>
-                    <TabsTrigger value="history">
-                        Historique
-                    </TabsTrigger>
-                </TabsList>
+                <div className="flex items-center justify-between flex-wrap gap-3">
+                    <TabsList>
+                        <TabsTrigger value="stock">
+                            <Package className="mr-1.5 h-3.5 w-3.5" /> Niveaux de stock
+                        </TabsTrigger>
+                        <TabsTrigger value="catalog">
+                            <BoxIcon className="mr-1.5 h-3.5 w-3.5" /> Catalogue
+                        </TabsTrigger>
+                        <TabsTrigger value="alerts" className="relative">
+                            <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
+                            Alertes
+                            {alerts.length > 0 && (
+                                <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 leading-4">
+                                    {alerts.length}
+                                </Badge>
+                            )}
+                        </TabsTrigger>
+                        <TabsTrigger value="history">Historique</TabsTrigger>
+                    </TabsList>
 
-                {/* Catalog Tab */}
-                <TabsContent value="catalog" className="space-y-4">
-                    <div className="flex items-center gap-4">
-                        <div className="relative flex-1 max-w-sm">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-400" />
-                            <Input
-                                placeholder="Rechercher une pièce..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
+                    {/* Inline search — / shortcut */}
+                    <div className="relative w-64">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-blue-400" />
+                        <Input
+                            ref={searchRef}
+                            placeholder="Rechercher… (/)"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="pl-8 h-8 text-sm"
+                        />
                     </div>
+                </div>
 
-                    <div className="border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Référence</TableHead>
-                                    <TableHead>Nom</TableHead>
-                                    <TableHead>Catégorie</TableHead>
-                                    <TableHead>Prix unitaire</TableHead>
-                                    <TableHead>Stock min.</TableHead>
-                                    {canManage && <TableHead className="text-right">Actions</TableHead>}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredPieces.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={canManage ? 6 : 5} className="text-center text-blue-300 py-8">
-                                            Aucune pièce trouvée
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredPieces.map((piece) => (
-                                        <TableRow key={piece.id}>
-                                            <TableCell className="font-mono text-sm">{piece.reference}</TableCell>
-                                            <TableCell className="font-medium">{piece.name}</TableCell>
-                                            <TableCell>
-                                                {piece.category && (
-                                                    <Badge variant="secondary">{piece.category}</Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {piece.unit_price ? `${piece.unit_price.toFixed(2)} €` : '—'}
-                                            </TableCell>
-                                            <TableCell>{piece.min_stock ?? 5}</TableCell>
-                                            {canManage && (
-                                                <TableCell className="text-right">
-                                                    <div className="flex gap-1 justify-end">
-                                                        <Button size="sm" variant="ghost" onClick={() => openEditPiece(piece)}>
-                                                            <Edit className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="text-red-600 hover:text-red-700"
-                                                            onClick={() => {
-                                                                setDeletingPiece(piece);
-                                                                setDeleteDialogOpen(true);
-                                                            }}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-                                                </TableCell>
-                                            )}
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </TabsContent>
-
-                {/* Stock Levels Tab */}
-                <TabsContent value="stock" className="space-y-4">
-                    <div className="border rounded-lg">
+                {/* ── Stock Levels Tab (default) ─────────────────────────────── */}
+                <TabsContent value="stock" className="mt-3">
+                    <div className="border rounded-lg overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Référence</TableHead>
                                     <TableHead>Pièce</TableHead>
-                                    <TableHead>Quantité</TableHead>
-                                    <TableHead>Seuil min.</TableHead>
+                                    <TableHead className="text-center">Qté</TableHead>
+                                    <TableHead className="text-center">Min.</TableHead>
                                     <TableHead>Statut</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {stockLevels.length === 0 ? (
+                                {filteredStock.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-blue-300 py-8">
+                                        <TableCell colSpan={6} className="text-center text-blue-300 py-10">
                                             Aucun stock enregistré
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    stockLevels.map((s) => {
-                                        const isLow = s.min_stock != null && s.quantity < s.min_stock;
+                                    filteredStock.map((s) => {
+                                        const isOut  = s.quantity === 0;
+                                        const isLow  = !isOut && s.min_stock != null && s.quantity < s.min_stock;
+                                        const deficit = (isOut || isLow) && s.min_stock ? s.min_stock - s.quantity : 0;
                                         return (
-                                            <TableRow key={s.id} className={isLow ? 'bg-orange-50' : ''}>
-                                                <TableCell className="font-mono text-sm">{s.piece_reference}</TableCell>
+                                            <TableRow
+                                                key={s.id}
+                                                className={isOut ? 'bg-red-950/20' : isLow ? 'bg-orange-950/15' : ''}
+                                            >
+                                                <TableCell className="font-mono text-xs text-blue-300">{s.piece_reference}</TableCell>
                                                 <TableCell className="font-medium">{s.piece_name}</TableCell>
-                                                <TableCell>
-                                                    <span className={`font-semibold ${isLow ? 'text-orange-600' : 'text-green-600'}`}>
+                                                <TableCell className="text-center">
+                                                    <span className={`font-bold text-base ${isOut ? 'text-red-400' : isLow ? 'text-orange-400' : 'text-green-400'}`}>
                                                         {s.quantity}
                                                     </span>
                                                 </TableCell>
-                                                <TableCell>{s.min_stock ?? '—'}</TableCell>
+                                                <TableCell className="text-center text-blue-300">{s.min_stock ?? '—'}</TableCell>
                                                 <TableCell>
-                                                    {isLow ? (
-                                                        <Badge variant="destructive" className="flex items-center gap-1 w-fit">
-                                                            <AlertTriangle className="h-3 w-3" />
-                                                            Stock bas
+                                                    {isOut ? (
+                                                        <Badge className="bg-red-900/60 text-red-300 border border-red-500/40 text-xs">
+                                                            Rupture
+                                                        </Badge>
+                                                    ) : isLow ? (
+                                                        <Badge className="bg-orange-900/60 text-orange-300 border border-orange-500/40 text-xs">
+                                                            Bas — manque {deficit}
                                                         </Badge>
                                                     ) : (
-                                                        <Badge variant="secondary" className="bg-green-100 text-green-800 w-fit">
+                                                        <Badge className="bg-green-900/60 text-green-300 border border-green-500/40 text-xs">
                                                             OK
                                                         </Badge>
                                                     )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <InlineStockControl
+                                                        stock={s}
+                                                        canManage={canManage}
+                                                        canConsume={canConsume}
+                                                        onAdd={(id) => openStockDialog('add', id, isLow || isOut ? deficit : undefined)}
+                                                        onConsume={(id) => openStockDialog('consume', id)}
+                                                    />
                                                 </TableCell>
                                             </TableRow>
                                         );
@@ -555,101 +697,226 @@ export default function InventoryPage() {
                     </div>
                 </TabsContent>
 
-                {/* Alerts Tab */}
-                <TabsContent value="alerts" className="space-y-4">
+                {/* ── Catalog Tab ────────────────────────────────────────────── */}
+                <TabsContent value="catalog" className="mt-3">
+                    <div className="border rounded-lg overflow-hidden">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Référence</TableHead>
+                                    <TableHead>Nom</TableHead>
+                                    <TableHead>Catégorie</TableHead>
+                                    <TableHead>Prix</TableHead>
+                                    <TableHead className="text-center">Stock</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {filteredPieces.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center text-blue-300 py-10">
+                                            Aucune pièce trouvée
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredPieces.map((piece) => {
+                                        const stock = stockLevels.find((s) => s.piece_id === piece.id);
+                                        const isLow = stock && piece.min_stock != null && stock.quantity < piece.min_stock;
+                                        return (
+                                            <TableRow key={piece.id}>
+                                                <TableCell className="font-mono text-xs text-blue-300">{piece.reference}</TableCell>
+                                                <TableCell className="font-medium">{piece.name}</TableCell>
+                                                <TableCell>
+                                                    {piece.category && <Badge variant="secondary" className="text-xs">{piece.category}</Badge>}
+                                                </TableCell>
+                                                <TableCell className="text-sm">
+                                                    {piece.unit_price ? `${piece.unit_price.toFixed(2)} €` : '—'}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    {stock ? (
+                                                        <span className={`font-semibold ${isLow ? 'text-orange-400' : 'text-green-400'}`}>
+                                                            {stock.quantity}
+                                                            {isLow && <AlertTriangle className="inline ml-1 h-3 w-3" />}
+                                                        </span>
+                                                    ) : <span className="text-blue-500 text-sm">—</span>}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="flex gap-1 justify-end">
+                                                        {canManage && (
+                                                            <button
+                                                                onClick={() => openStockDialog('add', piece.id)}
+                                                                className="flex items-center gap-0.5 rounded border border-green-500/40 bg-green-950/30
+                                                                           px-2 py-1 text-xs text-green-400 hover:bg-green-500/20 transition-all"
+                                                                title="Entrée stock"
+                                                            >
+                                                                <Plus className="h-3 w-3" />
+                                                            </button>
+                                                        )}
+                                                        {canConsume && stock && stock.quantity > 0 && (
+                                                            <button
+                                                                onClick={() => openStockDialog('consume', piece.id)}
+                                                                className="flex items-center gap-0.5 rounded border border-orange-500/40 bg-orange-950/30
+                                                                           px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 transition-all"
+                                                                title="Sortie stock"
+                                                            >
+                                                                <Minus className="h-3 w-3" />
+                                                            </button>
+                                                        )}
+                                                        {canManage && (
+                                                            <>
+                                                                <button
+                                                                    onClick={() => setLinkerPiece(piece)}
+                                                                    className="rounded border border-violet-500/40 bg-violet-950/30 px-2 py-1
+                                                                               text-xs text-violet-400 hover:bg-violet-500/20 transition-all"
+                                                                    title="Lier aux machines"
+                                                                >
+                                                                    <Link2 className="h-3 w-3" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => openEditPiece(piece)}
+                                                                    className="rounded border border-blue-500/30 bg-blue-950/30 px-2 py-1
+                                                                               text-xs text-blue-400 hover:bg-blue-500/20 transition-all"
+                                                                    title="Modifier"
+                                                                >
+                                                                    <Edit className="h-3 w-3" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => { setDeletingPiece(piece); setDeleteDialogOpen(true); }}
+                                                                    className="rounded border border-red-500/30 bg-red-950/30 px-2 py-1
+                                                                               text-xs text-red-400 hover:bg-red-500/20 transition-all"
+                                                                    title="Supprimer"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </TabsContent>
+
+                {/* ── Alerts Tab ─────────────────────────────────────────────── */}
+                <TabsContent value="alerts" className="mt-3 space-y-3">
                     {alerts.length === 0 ? (
                         <Card>
-                            <CardContent className="flex flex-col items-center justify-center py-12 text-blue-300">
-                                <Package className="h-12 w-12 mb-4 text-green-500" />
+                            <CardContent className="flex flex-col items-center justify-center py-16 gap-3 text-green-400">
+                                <CheckCircle2 className="h-12 w-12" />
                                 <p className="text-lg font-medium">Tous les stocks sont suffisants</p>
-                                <p className="text-sm">Aucune alerte de réapprovisionnement</p>
+                                <p className="text-sm text-blue-300">Aucune alerte de réapprovisionnement active</p>
                             </CardContent>
                         </Card>
                     ) : (
-                        <div className="space-y-3">
-                            {alerts.map((alert) => (
-                                <Card key={alert.piece_id} className="border-orange-300 bg-orange-50">
-                                    <CardContent className="flex items-center justify-between py-4">
-                                        <div className="flex items-center gap-4">
-                                            <div className="bg-orange-100 p-2 rounded-full">
-                                                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold">{alert.piece_name}</p>
-                                                <p className="text-sm text-blue-200">Réf: {alert.piece_reference}</p>
-                                            </div>
+                        alerts.map((alert) => (
+                            <Card
+                                key={alert.piece_id}
+                                className={`border-l-4 ${alert.current_quantity === 0 ? 'border-l-red-500 bg-red-950/10' : 'border-l-orange-400 bg-orange-950/10'}`}
+                            >
+                                <CardContent className="flex items-center justify-between py-4 px-5 gap-4 flex-wrap">
+                                    {/* Info */}
+                                    <div className="flex items-center gap-4 min-w-0">
+                                        <div className={`p-2 rounded-full ${alert.current_quantity === 0 ? 'bg-red-900/50' : 'bg-orange-900/50'}`}>
+                                            <AlertTriangle className={`h-5 w-5 ${alert.current_quantity === 0 ? 'text-red-400' : 'text-orange-400'}`} />
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-sm text-blue-300">
-                                                Stock actuel: <span className="font-bold text-orange-600">{alert.current_quantity}</span> / Minimum: {alert.min_stock}
-                                            </p>
-                                            <p className="text-sm font-semibold text-red-600">
-                                                Manque: {alert.deficit} unité(s)
-                                            </p>
+                                        <div className="min-w-0">
+                                            <p className="font-semibold text-white truncate">{alert.piece_name}</p>
+                                            <p className="text-xs text-blue-400">Réf. {alert.piece_reference}</p>
                                         </div>
+                                    </div>
+
+                                    {/* Stock numbers */}
+                                    <div className="flex items-center gap-6 text-sm">
+                                        <div className="text-center">
+                                            <p className={`text-2xl font-bold ${alert.current_quantity === 0 ? 'text-red-400' : 'text-orange-400'}`}>
+                                                {alert.current_quantity}
+                                            </p>
+                                            <p className="text-xs text-blue-400">En stock</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-blue-300">{alert.min_stock}</p>
+                                            <p className="text-xs text-blue-400">Minimum</p>
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-2xl font-bold text-white">{alert.deficit}</p>
+                                            <p className="text-xs text-blue-400">À commander</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Quick actions on the alert itself */}
+                                    <div className="flex gap-2">
                                         {canManage && (
                                             <Button
                                                 size="sm"
-                                                variant="outline"
-                                                onClick={() => {
-                                                    setStockAction('add');
-                                                    setStockForm({ piece_id: alert.piece_id.toString(), quantity: alert.deficit.toString(), reference: '' });
-                                                    setStockDialogOpen(true);
-                                                }}
+                                                className="bg-green-700 hover:bg-green-600 text-white"
+                                                onClick={() => openStockDialog('add', alert.piece_id, alert.deficit)}
                                             >
-                                                <ArrowUpCircle className="mr-1 h-4 w-4" />
-                                                Réapprovisionner
+                                                <ArrowUpCircle className="mr-1.5 h-4 w-4" />
+                                                Réapprovisionner +{alert.deficit}
                                             </Button>
                                         )}
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                                        {canConsume && alert.current_quantity > 0 && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10"
+                                                onClick={() => openStockDialog('consume', alert.piece_id)}
+                                            >
+                                                <ArrowDownCircle className="mr-1.5 h-4 w-4" />
+                                                Sortie
+                                            </Button>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
                     )}
                 </TabsContent>
 
-                {/* History Tab */}
-                <TabsContent value="history" className="space-y-4">
-                    <div className="border rounded-lg">
+                {/* ── History Tab ────────────────────────────────────────────── */}
+                <TabsContent value="history" className="mt-3">
+                    <div className="border rounded-lg overflow-hidden">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Pièce</TableHead>
                                     <TableHead>Type</TableHead>
-                                    <TableHead>Quantité</TableHead>
+                                    <TableHead className="text-center">Quantité</TableHead>
                                     <TableHead>Référence</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {movements.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center text-blue-300 py-8">
+                                        <TableCell colSpan={5} className="text-center text-blue-300 py-10">
                                             Aucun mouvement enregistré
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     movements.map((m) => (
                                         <TableRow key={m.id}>
-                                            <TableCell className="text-sm text-blue-300">
+                                            <TableCell className="text-xs text-blue-300 whitespace-nowrap">
                                                 {m.created_at ? new Date(m.created_at).toLocaleString('fr-FR') : '—'}
                                             </TableCell>
                                             <TableCell className="font-medium">{m.piece_name}</TableCell>
                                             <TableCell>
                                                 {m.movement_type === 'in' ? (
-                                                    <Badge className="bg-green-100 text-green-800 flex items-center gap-1 w-fit">
-                                                        <ArrowUpCircle className="h-3 w-3" />
-                                                        Entrée
-                                                    </Badge>
+                                                    <span className="flex items-center gap-1 text-green-400 text-xs font-medium">
+                                                        <ArrowUpCircle className="h-3.5 w-3.5" /> Entrée
+                                                    </span>
                                                 ) : (
-                                                    <Badge className="bg-red-100 text-red-800 flex items-center gap-1 w-fit">
-                                                        <ArrowDownCircle className="h-3 w-3" />
-                                                        Sortie
-                                                    </Badge>
+                                                    <span className="flex items-center gap-1 text-orange-400 text-xs font-medium">
+                                                        <ArrowDownCircle className="h-3.5 w-3.5" /> Sortie
+                                                    </span>
                                                 )}
                                             </TableCell>
-                                            <TableCell className="font-semibold">{m.quantity}</TableCell>
-                                            <TableCell className="text-sm text-blue-300">{m.reference || '—'}</TableCell>
+                                            <TableCell className="text-center font-semibold">{m.quantity}</TableCell>
+                                            <TableCell className="text-xs text-blue-300">{m.reference || '—'}</TableCell>
                                         </TableRow>
                                     ))
                                 )}
@@ -659,147 +926,100 @@ export default function InventoryPage() {
                 </TabsContent>
             </Tabs>
 
-            {/* ---------- Piece Create/Edit Dialog ---------- */}
+            {/* ── Dialogs ────────────────────────────────────────────────────── */}
+
+            {/* Piece Create/Edit */}
             <Dialog open={pieceDialogOpen} onOpenChange={setPieceDialogOpen}>
                 <DialogContent className="max-w-lg">
                     <DialogHeader>
                         <DialogTitle>{editingPiece ? 'Modifier la pièce' : 'Nouvelle pièce'}</DialogTitle>
                         <DialogDescription>
-                            {editingPiece
-                                ? 'Modifiez les informations de la pièce de rechange.'
-                                : 'Ajoutez une nouvelle pièce de rechange au catalogue.'}
+                            {editingPiece ? 'Modifiez les informations de la pièce.' : 'Ajoutez une nouvelle pièce au catalogue.'}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="reference">Référence *</Label>
-                                <Input
-                                    id="reference"
-                                    value={pieceForm.reference}
-                                    onChange={(e) => setPieceForm({ ...pieceForm, reference: e.target.value })}
-                                    placeholder="REF-001"
-                                    disabled={!!editingPiece}
-                                />
+                                <Label>Référence *</Label>
+                                <Input value={pieceForm.reference} onChange={(e) => setPieceForm({ ...pieceForm, reference: e.target.value })} placeholder="REF-001" disabled={!!editingPiece} />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="name">Nom *</Label>
-                                <Input
-                                    id="name"
-                                    value={pieceForm.name}
-                                    onChange={(e) => setPieceForm({ ...pieceForm, name: e.target.value })}
-                                    placeholder="Nom de la pièce"
-                                />
+                                <Label>Nom *</Label>
+                                <Input value={pieceForm.name} onChange={(e) => setPieceForm({ ...pieceForm, name: e.target.value })} placeholder="Nom de la pièce" />
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
-                            <Input
-                                id="description"
-                                value={pieceForm.description}
-                                onChange={(e) => setPieceForm({ ...pieceForm, description: e.target.value })}
-                                placeholder="Description optionnelle"
-                            />
+                            <Label>Description</Label>
+                            <Input value={pieceForm.description} onChange={(e) => setPieceForm({ ...pieceForm, description: e.target.value })} placeholder="Optionnel" />
                         </div>
                         <div className="grid grid-cols-3 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="unit_price">Prix unitaire (€)</Label>
-                                <Input
-                                    id="unit_price"
-                                    type="number"
-                                    step="0.01"
-                                    value={pieceForm.unit_price}
-                                    onChange={(e) => setPieceForm({ ...pieceForm, unit_price: e.target.value })}
-                                    placeholder="0.00"
-                                />
+                                <Label>Prix (€)</Label>
+                                <Input type="number" step="0.01" value={pieceForm.unit_price} onChange={(e) => setPieceForm({ ...pieceForm, unit_price: e.target.value })} placeholder="0.00" />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="category">Catégorie</Label>
-                                <Select
-                                    value={pieceForm.category}
-                                    onValueChange={(val) => setPieceForm({ ...pieceForm, category: val })}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder="Choisir..." />
-                                    </SelectTrigger>
+                                <Label>Catégorie</Label>
+                                <Select value={pieceForm.category} onValueChange={(v) => setPieceForm({ ...pieceForm, category: v })}>
+                                    <SelectTrigger><SelectValue placeholder="Choisir…" /></SelectTrigger>
                                     <SelectContent>
-                                        {CATEGORIES.map((c) => (
-                                            <SelectItem key={c} value={c}>
-                                                {c}
-                                            </SelectItem>
-                                        ))}
+                                        {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="min_stock">Stock minimum</Label>
-                                <Input
-                                    id="min_stock"
-                                    type="number"
-                                    value={pieceForm.min_stock}
-                                    onChange={(e) => setPieceForm({ ...pieceForm, min_stock: e.target.value })}
-                                    placeholder="5"
-                                />
+                                <Label>Stock min.</Label>
+                                <Input type="number" value={pieceForm.min_stock} onChange={(e) => setPieceForm({ ...pieceForm, min_stock: e.target.value })} placeholder="5" />
                             </div>
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setPieceDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button
-                            onClick={handlePieceSubmit}
-                            disabled={!pieceForm.reference || !pieceForm.name}
-                        >
+                        <Button variant="outline" onClick={() => setPieceDialogOpen(false)}>Annuler</Button>
+                        <Button onClick={handlePieceSubmit} disabled={!pieceForm.reference || !pieceForm.name}>
                             {editingPiece ? 'Mettre à jour' : 'Créer'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ---------- Delete Confirmation Dialog ---------- */}
+            {/* Delete Confirm */}
             <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Confirmer la suppression</DialogTitle>
                         <DialogDescription>
-                            Êtes-vous sûr de vouloir supprimer la pièce "{deletingPiece?.name}" (Réf: {deletingPiece?.reference}) ?
-                            Cette action est irréversible.
+                            Supprimer « {deletingPiece?.name} » (Réf. {deletingPiece?.reference}) ? Action irréversible.
                         </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
-                            Annuler
-                        </Button>
-                        <Button variant="destructive" onClick={handleDeletePiece}>
-                            Supprimer
-                        </Button>
+                        <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>Annuler</Button>
+                        <Button variant="destructive" onClick={handleDeletePiece}>Supprimer</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
-            {/* ---------- Stock Add/Consume Dialog ---------- */}
+            {/* Stock Add / Consume */}
             <Dialog open={stockDialogOpen} onOpenChange={setStockDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>
-                            {stockAction === 'add' ? 'Ajouter du stock' : 'Consommer du stock'}
+                        <DialogTitle className="flex items-center gap-2">
+                            {stockAction === 'add'
+                                ? <><ArrowUpCircle className="h-5 w-5 text-green-400" /> Entrée de stock</>
+                                : <><ArrowDownCircle className="h-5 w-5 text-orange-400" /> Sortie de stock</>}
                         </DialogTitle>
                         <DialogDescription>
                             {stockAction === 'add'
-                                ? 'Enregistrez une entrée de stock (livraison, retour, etc.)'
-                                : 'Enregistrez une sortie de stock (utilisation en intervention, etc.)'}
+                                ? 'Livraison, retour fournisseur, réapprovisionnement…'
+                                : 'Utilisation en intervention, panne, prélèvement…'}
                         </DialogDescription>
                     </DialogHeader>
+
                     <div className="space-y-4">
+                        {/* Piece selector */}
                         <div className="space-y-2">
                             <Label>Pièce *</Label>
-                            <Select
-                                value={stockForm.piece_id}
-                                onValueChange={(val) => setStockForm({ ...stockForm, piece_id: val })}
-                            >
+                            <Select value={stockForm.piece_id} onValueChange={(v) => setStockForm({ ...stockForm, piece_id: v })}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Sélectionner une pièce..." />
+                                    <SelectValue placeholder="Sélectionner une pièce…" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {pieces.map((p) => (
@@ -810,39 +1030,95 @@ export default function InventoryPage() {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {/* Stock context badge */}
+                        {stockForm.piece_id && (
+                            <div className={`rounded-md px-3 py-2.5 text-sm flex items-center justify-between border
+                                ${!selectedPieceStock || selectedPieceStock.quantity === 0
+                                    ? 'bg-red-950/40 border-red-500/40 text-red-300'
+                                    : selectedPieceStock.min_stock != null && selectedPieceStock.quantity < selectedPieceStock.min_stock
+                                        ? 'bg-orange-950/40 border-orange-500/40 text-orange-300'
+                                        : 'bg-green-950/40 border-green-500/40 text-green-300'}`}
+                            >
+                                <span className="font-medium">{selectedPieceInfo?.name}</span>
+                                <span className="font-mono text-lg font-bold">
+                                    {selectedPieceStock?.quantity ?? 0}
+                                    <span className="text-xs font-normal ml-1 opacity-70">
+                                        en stock{selectedPieceInfo?.min_stock ? ` (min. ${selectedPieceInfo.min_stock})` : ''}
+                                    </span>
+                                </span>
+                            </div>
+                        )}
+
+                        {/* Quantity */}
                         <div className="space-y-2">
                             <Label>Quantité *</Label>
                             <Input
                                 type="number"
                                 min="1"
+                                max={stockAction === 'consume' && selectedPieceStock ? selectedPieceStock.quantity : undefined}
                                 value={stockForm.quantity}
                                 onChange={(e) => setStockForm({ ...stockForm, quantity: e.target.value })}
-                                placeholder="Quantité"
+                                placeholder="Ex. 5"
+                                autoFocus
+                                className={
+                                    stockAction === 'consume' &&
+                                    selectedPieceStock &&
+                                    parseInt(stockForm.quantity) > selectedPieceStock.quantity
+                                        ? 'border-red-500 focus:ring-red-500'
+                                        : ''
+                                }
                             />
+                            {stockAction === 'consume' && selectedPieceStock &&
+                                parseInt(stockForm.quantity) > selectedPieceStock.quantity && (
+                                <p className="text-xs text-red-400 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Dépasse le stock disponible ({selectedPieceStock.quantity})
+                                </p>
+                            )}
                         </div>
+
+                        {/* Optional reference */}
                         <div className="space-y-2">
-                            <Label>Référence (optionnel)</Label>
+                            <Label>Référence <span className="text-blue-400 text-xs">(optionnel)</span></Label>
                             <Input
                                 value={stockForm.reference}
                                 onChange={(e) => setStockForm({ ...stockForm, reference: e.target.value })}
-                                placeholder="N° bon de commande, intervention..."
+                                placeholder={stockAction === 'add' ? 'N° bon de commande, livraison…' : 'N° OT, intervention, demande…'}
                             />
                         </div>
                     </div>
+
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setStockDialogOpen(false)}>
-                            Annuler
-                        </Button>
+                        <Button variant="outline" onClick={() => setStockDialogOpen(false)}>Annuler</Button>
                         <Button
                             onClick={handleStockSubmit}
-                            disabled={!stockForm.piece_id || !stockForm.quantity}
-                            className={stockAction === 'consume' ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                            disabled={
+                                !stockForm.piece_id ||
+                                !stockForm.quantity ||
+                                parseInt(stockForm.quantity) < 1 ||
+                                (stockAction === 'consume' && !!selectedPieceStock && parseInt(stockForm.quantity) > selectedPieceStock.quantity)
+                            }
+                            className={stockAction === 'add' ? 'bg-green-700 hover:bg-green-600' : 'bg-orange-700 hover:bg-orange-600'}
                         >
-                            {stockAction === 'add' ? 'Ajouter' : 'Consommer'}
+                            {stockAction === 'add'
+                                ? <><ArrowUpCircle className="mr-2 h-4 w-4" />Entrée {stockForm.quantity ? `× ${stockForm.quantity}` : ''}</>
+                                : <><ArrowDownCircle className="mr-2 h-4 w-4" />Sortie {stockForm.quantity ? `× ${stockForm.quantity}` : ''}</>
+                            }
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {linkerPiece && (
+                <PieceMachinesLinker
+                    open={linkerPiece !== null}
+                    onOpenChange={(o) => { if (!o) setLinkerPiece(null); }}
+                    pieceId={linkerPiece.id}
+                    pieceName={linkerPiece.name}
+                    pieceReference={linkerPiece.reference}
+                />
+            )}
         </div>
     );
 }

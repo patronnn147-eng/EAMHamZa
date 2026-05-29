@@ -45,6 +45,10 @@ class Plannings(Base):
     ordre = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), nullable=True)
 
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    archive_reason = Column(String(50), nullable=True)
+
     # Relationships for eager loading (bridge tables)
     planning_utilisateurs = relationship(
         "Planning_utilisateurs",

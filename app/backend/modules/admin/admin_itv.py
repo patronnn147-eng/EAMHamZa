@@ -18,6 +18,8 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.machines import Machines
+from services.inventory import InventoryReservationService, InsufficientStockError
+from services.ml.recovery import PostMaintenanceRecoveryService
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -57,7 +59,7 @@ async def get_all_pending_requests(
         skip = (page - 1) * size
 
         # Count total - get PENDING_APPROVAL status
-        count_query = select(func.count(Ordres_intervention.id))\
+        count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.archived_at.is_(None))\
             .where(Ordres_intervention.statut == "PENDING_APPROVAL")
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
@@ -127,7 +129,50 @@ async def validate_itv_request(
         if data.status == "REJECTED":
             itv_request.statut = "DECLINED"
             itv_request.rejection_reason = data.rejection_reason
+            # Release any prior reservation (defensive — usually no rows match)
+            try:
+                await InventoryReservationService(db).release_all(
+                    intervention_id=itv_request.id,
+                    reason="rejected",
+                    auto_commit=False,
+                )
+            except Exception as rls_exc:
+                logger.warning(f"Release on reject failed for itv {itv_request.id}: {rls_exc}")
         elif data.status == "APPROVED":
+            # ── Reserve stock for required pieces ─────────────────────────
+            # Try reservation FIRST — if there's a deficit, reject the approval
+            # with a 409 detailing what's missing. Approval and reservation
+            # share the same DB transaction so neither persists on failure.
+            try:
+                reservation_svc = InventoryReservationService(db)
+                await reservation_svc.try_reserve(
+                    intervention_id=itv_request.id,
+                    auto_commit=False,
+                )
+                itv_request.parts_approved = True
+            except InsufficientStockError as ise:
+                await db.rollback()
+                # Surface deficit details to the caller for the UI
+                raise HTTPException(
+                    status_code=409,
+                    detail={
+                        "message": "Stock insuffisant pour cette intervention",
+                        "missing": [
+                            {
+                                "piece_id": m.piece_id,
+                                "piece_name": m.piece_name,
+                                "requested": str(m.requested),
+                                "available": str(m.available),
+                                "deficit": str(m.deficit),
+                            }
+                            for m in ise.missing
+                        ],
+                    },
+                )
+            except Exception as rsv_exc:
+                logger.warning(f"Reservation soft-failure for itv {itv_request.id}: {rsv_exc}")
+                # Continue — interventions without required_pieces simply have nothing to reserve
+
             itv_request.statut = "APPROVED"
             
             # Create a Work Order when approved - assign to the ChefOp who requested it
@@ -137,7 +182,7 @@ async def validate_itv_request(
                 priorite=itv_request.priority or "MOYENNE",
                 machine_id=itv_request.machine_id,
                 utilisateur_id=assigned_user_id,  # Assign to ChefOp who requested
-                statut="ASSIGNÉ",
+                statut="ASSIGNED",
                 date_echeance=itv_request.requested_at,
                 created_by=current_user.id,
                 validated_by=current_user.id,
@@ -146,15 +191,30 @@ async def validate_itv_request(
             )
             db.add(new_wo)
             await db.flush()
-            
+
             # Link WO to ITV
             itv_request.ordre_travail_id = new_wo.id
-            
+
             # Update title to include machine name if possible
             machine_result = await db.execute(select(Machines.nom).where(Machines.id == itv_request.machine_id))
             machine_nom = machine_result.scalar_one_or_none()
             if machine_nom:
                 new_wo.titre = f"Intervention #{itv_request.id} - {machine_nom}"
+
+            # Post-maintenance recovery: snapshot the pre-maintenance baseline.
+            # Non-blocking — if ML service is down, score is None and recovery
+            # status will later show "No baseline".
+            try:
+                _score = await PostMaintenanceRecoveryService(db).snapshot_health(
+                    new_wo.machine_id
+                )
+                if _score is not None:
+                    new_wo.health_score_at_creation = _score
+            except Exception as _rec_exc:
+                logger.warning(
+                    "Recovery baseline snapshot failed for WO %s: %s",
+                    new_wo.id, _rec_exc,
+                )
 
             # Publish Event
             try:

@@ -16,6 +16,8 @@ celery_app = Celery(
         "tasks.intervention_events",
         "tasks.maintenance_scheduler",
         "tasks.alert_checker",
+        "tasks.reservation_expiry",
+        "tasks.archive_sweep",
     ],
 )
 
@@ -28,11 +30,23 @@ celery_app.conf.update(
     beat_schedule={
         "check-maintenance-daily": {
             "task": "tasks.check_preventive_maintenance",
-            "schedule": 86400.0,  # Once every 24 hours
+            "schedule": 86400.0,  # 24 h
         },
         "check-predictive-alerts": {
             "task": "tasks.check_predictive_alerts",
-            "schedule": 300.0,  # Every 15 minutes
+            "schedule": 300.0,  # 5 min
+        },
+        "release-expired-reservations": {
+            "task": "tasks.release_expired_reservations",
+            "schedule": 3600.0,  # 1 h
+        },
+        "archive-past-due-items": {
+            "task": "tasks.archive_past_due",
+            "schedule": 3600.0,  # 1 h
+        },
+        "purge-archive-weekly": {
+            "task": "tasks.purge_archive_old",
+            "schedule": 604800.0,  # 7 d
         },
     },
 )

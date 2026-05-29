@@ -25,16 +25,63 @@ except ImportError:
     _PINN_AVAILABLE = False
     get_pinn_estimator = None
 
-try:
-    from .moment_estimator import (
-        get_moment_anomaly_detector,
-        get_moment_rul_estimator,
-        MOMENT_AVAILABLE as _MOMENT_AVAILABLE,
-    )
-except ImportError:
-    _MOMENT_AVAILABLE = False
-    get_moment_anomaly_detector = None
-    get_moment_rul_estimator = None
+# TODO: MOMENT Foundation Model (model_m_anomaly, model_m_rul) is disabled.
+# momentfm is not installed — outputs are excluded from the response entirely.
+# To enable:
+#   1. Add `momentfm` to requirements-heavy.txt
+#   2. Rebuild the image: docker compose build ml-service
+# Warning: image will be ~2 GB heavier and startup will be slower.
+# Only worth enabling if MOMENT predictions are specifically needed.
+#
+# try:
+#     from .moment_estimator import (
+#         get_moment_anomaly_detector,
+#         get_moment_rul_estimator,
+#         MOMENT_AVAILABLE as _MOMENT_AVAILABLE,
+#     )
+# except ImportError:
+#     _MOMENT_AVAILABLE = False
+#     get_moment_anomaly_detector = None
+#     get_moment_rul_estimator = None
+_MOMENT_AVAILABLE = False
+get_moment_anomaly_detector = None
+get_moment_rul_estimator = None
+
+# Thresholds for maintenance event detection
+_WEAR_RESET_MAX_CURRENT = 10.0  # current wear must be < 10 to qualify as post-reset
+_WEAR_RESET_MIN_HISTORY = 30.0  # at least one log in the look-back window must have had wear > 30
+_WEAR_RESET_LOOKBACK    = 20    # how many recent logs to scan for prior high wear
+
+
+def _detect_maintenance_event(logs: list, current_wear: float) -> bool:
+    """
+    Detect a tool-replacement / maintenance event from the log sequence.
+
+    Returns True when:
+      - current tool_wear < _WEAR_RESET_MAX_CURRENT (near-zero, i.e. tool was replaced)
+      - AND any of the last _WEAR_RESET_LOOKBACK log entries had wear > _WEAR_RESET_MIN_HISTORY
+        (machine was meaningfully worn recently — this is a reset, not a new machine)
+
+    This catches both:
+      - The exact transition step (first 0-wear reading after worn readings)
+      - Subsequent 0-wear readings before the Mahal baseline adapts
+
+    When True, Mahalanobis HI is excluded from DST fusion for this step.
+    """
+    if current_wear >= _WEAR_RESET_MAX_CURRENT:
+        return False
+    if len(logs) < 2:
+        return False
+
+    # Scan recent history (excluding latest entry) for high-wear readings
+    lookback = logs[max(0, len(logs) - _WEAR_RESET_LOOKBACK - 1):-1]
+    for lg in lookback:
+        try:
+            if float(lg.get("tool_wear", 0)) > _WEAR_RESET_MIN_HISTORY:
+                return True
+        except (TypeError, ValueError):
+            continue
+    return False
 
 
 def failure_prob_to_risk(prob: float) -> str:
@@ -401,22 +448,42 @@ class MachineLearningService:
                 if pinn is not None and pinn._fitted:
                     model_a_out = pinn.predict(time_series)
 
-            # --- Model M: MOMENT Foundation Model ---
-            model_m_anomaly_out: Optional[Dict] = None
-            model_m_rul_out:     Optional[Dict] = None
-            if _MOMENT_AVAILABLE and len(logs) >= 3:
-                try:
-                    detector = get_moment_anomaly_detector()
-                    if detector is not None:
-                        model_m_anomaly_out = detector.predict(logs)
-                except Exception as _me:
-                    logger.warning(f"MOMENT anomaly failed: {_me}")
-                try:
-                    rul_est = get_moment_rul_estimator()
-                    if rul_est is not None:
-                        model_m_rul_out = rul_est.predict(logs)
-                except Exception as _me:
-                    logger.warning(f"MOMENT RUL failed: {_me}")
+            # --- Model M: MOMENT Foundation Model (DISABLED) ---
+            # momentfm not installed → outputs excluded from response.
+            # TODO: To enable MOMENT predictions:
+            #   1. Add `momentfm` to requirements-heavy.txt
+            #   2. Rebuild: docker compose build ml-service
+            #   3. Uncomment the import block at the top of this file
+            #   4. Remove the _MOMENT_AVAILABLE = False override
+            # Warning: ~2 GB heavier image, slower startup.
+            # Only worth it if MOMENT predictions are specifically needed.
+            #
+            # if _MOMENT_AVAILABLE and len(logs) >= 3:
+            #     try:
+            #         detector = get_moment_anomaly_detector()
+            #         if detector is not None:
+            #             model_m_anomaly_out = detector.predict(logs)
+            #     except Exception as _me:
+            #         logger.warning(f"MOMENT anomaly failed: {_me}")
+            #     try:
+            #         rul_est = get_moment_rul_estimator()
+            #         if rul_est is not None:
+            #             model_m_rul_out = rul_est.predict(logs)
+            #     except Exception as _me:
+            #         logger.warning(f"MOMENT RUL failed: {_me}")
+
+            # --- Maintenance event detection ---
+            # If tool_wear is near-zero AND recent history had high wear, this is a
+            # post-maintenance state (tool replaced). Mahalanobis distance will be
+            # extreme because the baseline was fitted on high-wear data.
+            # Exclude model_c_out from DST fusion until the baseline adapts.
+            maintenance_event = _detect_maintenance_event(logs, wear)
+            if maintenance_event:
+                logger.info(
+                    f"Maintenance event detected for machine {machine_id} "
+                    f"(tool_wear={wear:.1f}, recent history had high wear). "
+                    f"Excluding Mahalanobis HI + Anomaly CUSUM from DST fusion."
+                )
 
             # --- Kalman state update (fresh instance per request -- no shared state) ---
             # Default health scores when advanced models aren't fitted
@@ -484,21 +551,31 @@ class MachineLearningService:
                 kalman_state = kalman.update(kalman_obs)
 
             # --- DST Fusion ---
-            # Filter out None, NaN health_index, and Mahal placeholder outputs
+            # Filter out None, NaN health_index, and Mahal placeholder outputs.
             # (score_source "no_model"/"fallback" means <11 logs -- the returned
             # health_index=100 is a stub, not a real measurement; including it
             # would bias the fused score toward perfect health).
+            # On a maintenance event (tool replaced), both Mahal AND anomaly
+            # CUSUM are excluded from DST fusion:
+            #   - Mahal: dm2 spikes because baseline was fit on high-wear data
+            #   - Anomaly CUSUM: all channels alarm on wear-reset; this is an
+            #     artifact of the state change, not genuine degradation
             valid_outputs = []
-            for out in [model_a_out, model_b_out, model_c_out, model_e_out,
-                        model_m_anomaly_out, model_m_rul_out]:
-                if out is not None:
-                    # Skip placeholder Mahal results
-                    if out.get("score_source") in ("no_model", "fallback"):
-                        continue
-                    # Check for valid health_index (not NaN)
-                    hi = out.get("health_index")
-                    if hi is not None and not np.isnan(hi):
-                        valid_outputs.append(out)
+            for out in [model_a_out, model_b_out, model_c_out, model_e_out]:
+                if out is None:
+                    continue
+                # Skip placeholder Mahal results
+                if out.get("score_source") in ("no_model", "fallback"):
+                    continue
+                # Skip Mahal + CUSUM anomaly on maintenance event (post tool-wear reset)
+                if maintenance_event and out.get("model_id") in (
+                    "model_c_mahal_hi", "model_e_anomaly"
+                ):
+                    continue
+                # Check for valid health_index (not NaN)
+                hi = out.get("health_index")
+                if hi is not None and not np.isnan(hi):
+                    valid_outputs.append(out)
             model_outputs = valid_outputs
             fusion_result = get_dst_fusion().fuse(model_outputs, kalman_state)
 
@@ -511,6 +588,7 @@ class MachineLearningService:
                 "kalman_rul":                fusion_result["kalman_rul"],
                 "sensor_fault_flag":         fusion_result["sensor_fault_flag"],
                 "model_disagreement_alert":  fusion_result["model_disagreement_alert"],
+                "maintenance_event":         maintenance_event,
                 "bpa": {
                     "healthy":   fusion_result["bpa_healthy"],
                     "degrading": fusion_result["bpa_degrading"],
@@ -518,12 +596,12 @@ class MachineLearningService:
                     "unknown":   fusion_result["bpa_unknown"],
                 },
                 "model_outputs": {
-                    "pinn_rul":      model_a_out,
-                    "survival":      model_b_out,
-                    "mahal_hi":      model_c_out,
-                    "anomaly":       model_e_out,
-                    "moment_anomaly": model_m_anomaly_out,
-                    "moment_rul":    model_m_rul_out,
+                    "pinn_rul":  model_a_out,
+                    "survival":  model_b_out,
+                    "mahal_hi":  model_c_out,
+                    "anomaly":   model_e_out,
+                    # moment_anomaly and moment_rul omitted — momentfm not installed.
+                    # See TODO above to re-enable.
                 },
             })
         except Exception as _fusion_exc:

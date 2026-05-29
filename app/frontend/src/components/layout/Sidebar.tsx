@@ -21,6 +21,7 @@ import {
   ChevronLeft,
   ListChecks,
   Database,
+  PackageSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
@@ -46,6 +47,8 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Approbations ITV', href: '/admin/itv-approvals', icon: ClipboardList },
       { name: 'Gestion des OT', href: '/admin/work-orders-management', icon: FileText },
       { name: 'Machines', href: '/admin/machines', icon: Settings },
+      { name: 'Stocks / Pièces', href: '/admin/inventory', icon: Package },
+      { name: 'File pièces non-cat.', href: '/admin/pending-pieces', icon: PackageSearch },
       { name: 'ML & Prédictions', href: '/admin/ml', icon: BrainCircuit },
       { name: 'Dashboard IA Flotte', href: '/ml-dashboard', icon: BrainCircuit },
       { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
@@ -57,6 +60,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Rapports Planifiés', href: '/admin/report-scheduler', icon: FileText },
       { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
+      { name: 'Archive (Échéances)', href: '/admin/archive', icon: Archive },
       { name: 'Archives', href: '/archives', icon: Archive }
     ];
   }
@@ -68,8 +72,9 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Demandes Intervention', href: '/chetop/itv-requests', icon: ClipboardList },
       { name: 'Ordres de Travail', href: '/chetop/work-orders', icon: Wrench },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
+      { name: 'Archive', href: '/chetop/archive', icon: Archive },
       { name: 'Archives', href: '/archives', icon: Archive },
-      { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
+      { name: 'Base Documentaire', href: '/rag-documents', icon: Database }
     ];
   }
 
@@ -89,7 +94,8 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Historique (Audit)', href: '/audit-log', icon: History },
       { name: 'Télécharger Rapports', href: '/reports-download', icon: FileText },
       { name: 'PDCA Kanban', href: '/pdca', icon: Columns },
-      { name: 'Rapports', href: '/reports', icon: FileText }
+      { name: 'Rapports', href: '/reports', icon: FileText },
+      { name: 'Archive', href: '/cheftech/archive', icon: Archive }
     ];
   }
 
@@ -103,7 +109,8 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'Machines', href: '/technician/machines', icon: Settings },
       { name: 'Docs Techniques', href: '/technician/documents', icon: FileText },
       { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
-      { name: 'Stocks', href: '/technician/inventory', icon: Package }
+      { name: 'Stocks', href: '/technician/inventory', icon: Package },
+      { name: 'Archive', href: '/technician/archive', icon: Archive }
     ];
   }
 
@@ -115,6 +122,41 @@ const getNavigationItems = (role: string): NavigationItem[] => {
 export default function Sidebar() {
   const location = useLocation();
   const [navigation, setNavigation] = useState<NavigationItem[]>([]);
+  const [pendingPiecesCount, setPendingPiecesCount] = useState<number>(0);
+
+  // Poll pending-pieces count for ADMIN sidebar badge (every 60s)
+  useEffect(() => {
+    const role = (() => {
+      try {
+        const stored = localStorage.getItem('user');
+        if (stored) return (JSON.parse(stored).role || '').toUpperCase();
+      } catch { /* ignore */ }
+      return '';
+    })();
+    if (role !== 'ADMIN' && role !== 'CHEFTECH') return;
+
+    let cancelled = false;
+    const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+    const token = localStorage.getItem('access_token');
+    if (!token) return;
+
+    const tick = async () => {
+      try {
+        const resp = await fetch(`${apiBase}/api/v1/inventory/pending?status=PENDING_REVIEW&size=1`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (resp.ok && !cancelled) {
+          const body = await resp.json();
+          setPendingPiecesCount(body.total ?? 0);
+        }
+      } catch { /* silent — non-critical badge */ }
+    };
+
+    tick();
+    const handle = window.setInterval(tick, 60_000);
+    return () => { cancelled = true; window.clearInterval(handle); };
+  }, []);
+
   const { user } = useAuth();
   const { collapsed, toggle } = useSidebar();
 
@@ -199,6 +241,11 @@ export default function Sidebar() {
                   <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-1">
                     {item.name}
                   </span>
+                  {item.href === '/admin/pending-pieces' && pendingPiecesCount > 0 && (
+                    <span className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-amber-500/90 text-white text-[10px] font-bold tabular-nums shadow-md shadow-amber-500/40 animate-pulse">
+                      {pendingPiecesCount > 99 ? '99+' : pendingPiecesCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}

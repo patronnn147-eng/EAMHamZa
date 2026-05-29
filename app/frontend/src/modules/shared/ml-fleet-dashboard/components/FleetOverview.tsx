@@ -238,6 +238,14 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
                     <span>Anomalie détectée (score: {machine.anomaly_score?.toFixed(2)})</span>
                   </div>
                 )}
+
+                {/* Inventory parts readiness -- only shown when not OK */}
+                {machine.parts_ready && machine.parts_ready !== 'OK' && (
+                  <div className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded ${machine.parts_ready === 'CRITICAL' ? 'text-red-700 bg-red-50' : 'text-amber-700 bg-amber-50'}`}>
+                    <AlertTriangle className="h-3 w-3" />
+                    <span>{machine.parts_ready === 'CRITICAL' ? 'Pièces manquantes' : 'Stock faible'}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );

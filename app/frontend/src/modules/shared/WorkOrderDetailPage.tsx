@@ -17,11 +17,15 @@ import {
     MapPin,
     Wrench,
     RefreshCw,
+    TrendingUp,
+    TrendingDown,
+    Minus,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { OrdreTravail, Machine, Intervention } from '@/lib/types';
 import { CompleteWorkOrderModal } from './CompleteWorkOrderModal';
+import { InterventionPartsPanel } from '@/components/inventory/InterventionPartsPanel';
 
 export default function WorkOrderDetailPage() {
     const { id } = useParams<{ id: string }>();
@@ -32,6 +36,7 @@ export default function WorkOrderDetailPage() {
     const [interventions, setInterventions] = useState<Intervention[]>([]);
     const [loading, setLoading] = useState(true);
     const [completeModalOpen, setCompleteModalOpen] = useState(false);
+    const [currentHealthScore, setCurrentHealthScore] = useState<number | null>(null);
     const { user } = useAuth();
 
     useEffect(() => {
@@ -58,6 +63,24 @@ export default function WorkOrderDetailPage() {
                     limit: 10,
                 });
                 setInterventions(interventionsResponse.data.items || []);
+
+                // Fetch current unified_health_score for Health Impact row.
+                // Best-effort: silently null on failure (ML service may be down).
+                try {
+                    const token = localStorage.getItem('access_token');
+                    const apiBase = import.meta.env.VITE_API_BASE_URL || '';
+                    const hr = await fetch(
+                        `${apiBase}/api/v1/ml/machines/${ordreData.machine_id}/unified-health`,
+                        { headers: { Authorization: `Bearer ${token}` } },
+                    );
+                    if (hr.ok) {
+                        const hd = await hr.json();
+                        const live = hd?.unified_health_score ?? hd?.health_score ?? null;
+                        setCurrentHealthScore(typeof live === 'number' ? live : null);
+                    }
+                } catch {
+                    setCurrentHealthScore(null);
+                }
             }
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -244,6 +267,80 @@ export default function WorkOrderDetailPage() {
                         </CardContent>
                     </Card>
 
+                    {/* Post-Maintenance Health Impact — shown when at least the creation snapshot exists */}
+                    {(ordre.health_score_at_creation != null
+                        || ordre.health_score_at_completion != null) && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5 text-muted-foreground" />
+                                    Impact sur la Santé Machine
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {(() => {
+                                    const before = ordre.health_score_at_creation ?? null;
+                                    const atCompletion = ordre.health_score_at_completion ?? null;
+                                    const now = currentHealthScore;
+                                    const delta = (before != null && now != null) ? (now - before) : null;
+                                    const fmt = (v: number | null) => v == null ? '—' : v.toFixed(0);
+                                    const deltaColor = delta == null
+                                        ? 'text-muted-foreground'
+                                        : delta > 0 ? 'text-emerald-500'
+                                        : delta < 0 ? 'text-red-500'
+                                        : 'text-muted-foreground';
+                                    const DeltaIcon = delta == null
+                                        ? Minus
+                                        : delta > 0 ? TrendingUp
+                                        : delta < 0 ? TrendingDown
+                                        : Minus;
+
+                                    return (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                    Avant (OT ouvert)
+                                                </p>
+                                                <p className="text-2xl font-bold text-slate-300">{fmt(before)}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                    À la complétion
+                                                </p>
+                                                <p className="text-2xl font-bold text-slate-300">{fmt(atCompletion)}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                    Maintenant
+                                                </p>
+                                                <p className="text-2xl font-bold text-cyan-400">{fmt(now)}</p>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                                                    Amélioration nette
+                                                </p>
+                                                <p className={`text-2xl font-bold flex items-center gap-1 ${deltaColor}`}>
+                                                    <DeltaIcon className="h-5 w-5" />
+                                                    {delta == null
+                                                        ? '—'
+                                                        : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} pts`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
+                                <p className="text-xs text-muted-foreground mt-4 leading-relaxed">
+                                    Score de santé unifié (DST fusion P1-P6) capturé à trois moments : ouverture
+                                    de l'OT, complétion, et lecture actuelle de la télémétrie.
+                                </p>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {ordre?.id != null && (
+                        <InterventionPartsPanel workOrderId={ordre.id} />
+                    )}
+
                     <Tabs defaultValue="history">
                         <TabsList>
                             <TabsTrigger value="history" className="flex items-center gap-2">
@@ -427,6 +524,7 @@ export default function WorkOrderDetailPage() {
                 open={completeModalOpen}
                 onOpenChange={setCompleteModalOpen}
                 workOrderId={parseInt(id!)}
+                machineId={ordre?.machine_id ?? null}
                 onSuccess={fetchData}
             />
         </div>

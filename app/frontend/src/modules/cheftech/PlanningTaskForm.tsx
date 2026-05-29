@@ -86,10 +86,32 @@ export default function PlanningTaskForm() {
           method: 'GET',
         }),
       ]);
-      const machines = (machinesResponse?.data || machinesResponse) || [];
+      let machines = (machinesResponse?.data || machinesResponse) || [];
       const users = (usersResponse?.data || usersResponse) || [];
-      
-      setPlanning({ ...data, machines, assigned_users: users });
+
+      // Fallback: when planning has no machines assigned, surface ALL machines
+      // so cheftech can still create tasks (admin should later assign machines
+      // explicitly to the planning).
+      let isFallback = false;
+      if (!machines || machines.length === 0) {
+        try {
+          const allMachinesResp = await client.apiCall.invoke({
+            url: '/api/v1/entities/machines?size=500',
+            method: 'GET',
+          });
+          const all = (allMachinesResp?.data || allMachinesResp)?.items
+                    || (allMachinesResp?.data || allMachinesResp)
+                    || [];
+          if (Array.isArray(all) && all.length > 0) {
+            machines = all;
+            isFallback = true;
+          }
+        } catch (fallbackErr) {
+          console.warn('Fallback machine fetch failed', fallbackErr);
+        }
+      }
+
+      setPlanning({ ...data, machines, assigned_users: users, _machinesFallback: isFallback });
       
       const tasksResponse = await client.apiCall.invoke({
         url: `/api/v1/plannings/${planningId}/taches`,
@@ -317,14 +339,33 @@ export default function PlanningTaskForm() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label className="text-slate-300">Machine *</Label>
+                  <Label className="text-slate-300 flex items-center gap-2">
+                    Machine *
+                    {planning?._machinesFallback && (
+                      <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded border border-amber-400/40 bg-amber-500/10 text-amber-300 font-mono">
+                        ⚠ catalogue complet (planning sans machines)
+                      </span>
+                    )}
+                  </Label>
+                  {planning?._machinesFallback && (
+                    <p className="text-[11px] text-amber-300/70 leading-relaxed">
+                      Ce planning n'a aucune machine assignée — la liste affiche toutes les machines du parc.
+                      Demandez à l'admin de pré-assigner les machines au planning pour filtrer cette liste.
+                    </p>
+                  )}
                   <Select value={task.machine_id?.toString() || ''} onValueChange={(v) => updateTask(index, 'machine_id', parseInt(v))}>
                     <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
-                      <SelectValue placeholder="Select machine" />
+                      <SelectValue placeholder={(planning.machines || []).length === 0 ? "Aucune machine disponible" : "Sélectionner une machine"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {planning.machines?.map((mach: Machine) => (
-                        <SelectItem key={mach.id} value={mach.id.toString()}>{mach.nom} ({mach.reference})</SelectItem>
+                      {(planning.machines || []).length === 0 ? (
+                        <div className="px-3 py-4 text-center text-xs text-slate-400">
+                          Aucune machine — contactez l'admin
+                        </div>
+                      ) : (planning.machines || []).map((mach: Machine) => (
+                        <SelectItem key={mach.id} value={mach.id.toString()}>
+                          {mach.nom}{mach.reference ? ` (${mach.reference})` : ''}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

@@ -41,13 +41,13 @@ async def list_my_interventions(
     skip = (page - 1) * size
     
     # Count total
-    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technician_id == _current_user.id)
+    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technician_id == _current_user.id).where(Ordres_intervention.archived_at.is_(None))
     if statut:
         count_query = count_query.where(Ordres_intervention.statut == statut)
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    query = select(Ordres_intervention).where(Ordres_intervention.technician_id == _current_user.id)
+    query = select(Ordres_intervention).where(Ordres_intervention.technician_id == _current_user.id).where(Ordres_intervention.archived_at.is_(None))
     if statut:
         query = query.where(Ordres_intervention.statut == statut)
 

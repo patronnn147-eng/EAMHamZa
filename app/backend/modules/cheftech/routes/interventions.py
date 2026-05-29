@@ -32,7 +32,7 @@ async def get_interventions(
         skip = (page - 1) * size
         
         # Count total - show interventions where current user is involved OR pending approval
-        count_query = select(func.count(Ordres_intervention.id))\
+        count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.archived_at.is_(None))\
             .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
             .where(
                 or_(
@@ -46,7 +46,7 @@ async def get_interventions(
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(Ordres_intervention)\
+        query = select(Ordres_intervention).where(Ordres_intervention.archived_at.is_(None))\
             .outerjoin(Ordres_travail, Ordres_intervention.ordre_travail_id == Ordres_travail.id)\
             .where(
                 or_(

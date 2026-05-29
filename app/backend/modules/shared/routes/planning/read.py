@@ -66,7 +66,7 @@ async def list_plannings(
                 )
             
             # Get only the plannings where user is assigned
-            data_query = select(Plannings).where(Plannings.id.in_(planning_ids))
+            data_query = select(Plannings).where(Plannings.id.in_(planning_ids)).where(Plannings.archived_at.is_(None))
             
             # Eager load relationships to avoid N+1 in get_planning_with_users
             data_query = data_query.options(
@@ -85,7 +85,7 @@ async def list_plannings(
             plannings_objs = plannings_result.scalars().all()
             
             # Get total count
-            count_query = select(func.count(Plannings.id)).where(Plannings.id.in_(planning_ids))
+            count_query = select(func.count(Plannings.id)).where(Plannings.id.in_(planning_ids)).where(Plannings.archived_at.is_(None))
             count_result = await db.execute(count_query)
             total = count_result.scalar() or 0
             
@@ -132,10 +132,11 @@ async def list_plannings_with_tasks(
                 Planning_taches.planning_id,
                 func.count(Planning_taches.id).label('task_count')
             )
+            .where(Planning_taches.archived_at.is_(None))
             .group_by(Planning_taches.planning_id)
             .subquery()
         )
-        
+
         result = await db.execute(
             select(
                 Plannings.id,
@@ -146,6 +147,7 @@ async def list_plannings_with_tasks(
                 func.coalesce(tasks_subquery.c.task_count, 0).label('task_count')
             )
             .outerjoin(tasks_subquery, Plannings.id == tasks_subquery.c.planning_id)
+            .where(Plannings.archived_at.is_(None))
             .order_by(Plannings.date_debut.desc())
         )
         rows = result.all()

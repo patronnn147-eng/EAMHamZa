@@ -123,6 +123,56 @@ async def delete_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+
+# ---------- Operational scope: machines worth linking pieces to ----------
+@router.get("/scope/machines", tags=["inventory-pieces"])
+async def list_in_scope_machines(
+    days: int = Query(90, ge=1, le=365, description="Recency window (days) for WO inclusion"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return machines that are operationally relevant for piece linking.
+
+    A machine is "in scope" when at least one of:
+      - it appears in `planning_machines` (active planning), OR
+      - it has any `ordres_travail` row created within the last `days`.
+
+    Used by the admin link-piece-to-machine UI as the default filter — admins
+    can toggle to "all machines" if they need to link to one outside scope.
+    """
+    from sqlalchemy import or_, distinct, select
+    from datetime import datetime, timedelta
+    from models.machines import Machines
+    from models.planning_machines import Planning_machines
+    from models.ordres_travail import Ordres_travail
+
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    # Subquery 1: machines with active planning entries
+    planned = select(distinct(Planning_machines.machine_id))
+
+    # Subquery 2: machines with recent WO activity
+    recent_wo = select(distinct(Ordres_travail.machine_id)).where(
+        Ordres_travail.created_at >= cutoff
+    )
+
+    in_scope_ids = planned.union(recent_wo).subquery()
+
+    rows = (await db.execute(
+        select(Machines.id, Machines.nom, Machines.zone, Machines.statut)
+        .where(Machines.id.in_(select(in_scope_ids)))
+        .order_by(Machines.nom)
+    )).all()
+
+    return {
+        "items": [
+            {"id": r.id, "nom": r.nom, "zone": r.zone, "statut": r.statut}
+            for r in rows
+        ],
+        "scope_days": days,
+        "total": len(rows),
+    }
+
+
 # ---------- Machine Linking ----------
 @router.get("/{piece_id}/machines")
 async def get_piece_machines(piece_id: int, db: AsyncSession = Depends(get_db)):
@@ -166,3 +216,59 @@ async def unlink_piece_from_machine(
     except Exception as e:
         logger.error(f"Error unlinking piece {piece_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+# ---------- Smart-suggest + by-machine (for PiecePicker UI) ----------
+
+@router.get("/suggest/lookup", tags=["inventory-pieces"])
+async def suggest_pieces(
+    q: str = Query(..., min_length=1, max_length=200, description="Search text"),
+    machine_id: Optional[int] = Query(None, description="Boost pieces compatible with this machine"),
+    threshold_low: float = Query(0.40, ge=0.0, le=1.0),
+    threshold_high: float = Query(0.80, ge=0.0, le=1.0),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+):
+    """Fuzzy match a free-text query against the catalog (pg_trgm similarity).
+
+    Returns tier-classified suggestions for the pending-piece review UI and
+    the technician's PiecePicker.
+    """
+    service = PieceService(db)
+    try:
+        results = await service.suggest_matches(
+            query_text=q,
+            machine_id=machine_id,
+            threshold_low=threshold_low,
+            threshold_high=threshold_high,
+            limit=limit,
+        )
+        return {"query": q, "results": results}
+    except Exception as e:
+        logger.error(f"suggest_pieces failed: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+
+@router.get("/by-machine/{machine_id}", tags=["inventory-pieces"])
+async def list_pieces_by_machine(
+    machine_id: int,
+    include_consumables: bool = Query(True),
+    search: Optional[str] = Query(None, max_length=200),
+    db: AsyncSession = Depends(get_db),
+):
+    """Return pieces organized into picker-friendly sections for a machine.
+
+    - ``compatible``  pieces linked via piece_machine
+    - ``consumables`` (when ``include_consumables=true``)
+    - ``other``       full-catalog matches when ``search`` provided
+    """
+    service = PieceService(db)
+    try:
+        return await service.get_pieces_by_machine(
+            machine_id=machine_id,
+            include_consumables=include_consumables,
+            include_all_search=search,
+        )
+    except Exception as e:
+        logger.error(f"list_pieces_by_machine failed for machine {machine_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")

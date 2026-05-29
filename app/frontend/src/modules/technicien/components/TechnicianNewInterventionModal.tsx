@@ -20,8 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Paperclip, Loader2, AlertCircle, Zap, Activity, History, Brain } from 'lucide-react';
+import { Paperclip, Loader2, AlertCircle, Zap, Activity, History, Brain, ChevronLeft, ChevronRight, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface Machine {
@@ -54,6 +53,42 @@ interface Props {
   initialPlanningTacheId?: number | null;
 }
 
+const STEPS = [
+  { id: 1, label: 'Machine' },
+  { id: 2, label: 'Problème' },
+  { id: 3, label: 'Contexte' },
+];
+
+function StepIndicator({ current }: { current: number }) {
+  return (
+    <div className="flex items-center w-full mb-2 px-6">
+      {STEPS.map((s, i) => (
+        <React.Fragment key={s.id}>
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors ${
+              current > s.id
+                ? 'bg-green-600 border-green-600 text-white'
+                : current === s.id
+                ? 'bg-violet-600 border-violet-600 text-white'
+                : 'bg-transparent border-slate-600 text-slate-400'
+            }`}>
+              {current > s.id ? <Check className="h-3.5 w-3.5" /> : s.id}
+            </div>
+            <span className={`text-[10px] whitespace-nowrap ${current === s.id ? 'text-violet-400 font-medium' : 'text-slate-500'}`}>
+              {s.label}
+            </span>
+          </div>
+          {i < STEPS.length - 1 && (
+            <div className={`flex-1 h-0.5 mx-2 mb-4 transition-colors ${
+              current > s.id + 1 ? 'bg-green-600' : current > s.id ? 'bg-violet-600' : 'bg-slate-700'
+            }`} />
+          )}
+        </React.Fragment>
+      ))}
+    </div>
+  );
+}
+
 export const TechnicianNewInterventionModal: React.FC<Props> = ({
   open,
   onOpenChange,
@@ -69,6 +104,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
   const [machineHealth, setMachineHealth] = useState<MachineMLHealth | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
   const [priorityAISuggested, setPriorityAISuggested] = useState(false);
+  const [step, setStep] = useState(1);
 
   const [formData, setFormData] = useState({
     machine_id: '',
@@ -76,7 +112,6 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
     priority: 'MOYENNE',
     estimated_duration_minutes: '',
     required_materials: '',
-    // Enhanced Fields
     machine_category: 'Non-critique',
     symptoms: [] as string[],
     problem_start_time: '',
@@ -112,6 +147,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
       fetchMachines();
       setMachineHealth(null);
       setPriorityAISuggested(false);
+      setStep(1);
       setFormData({
         machine_id: initialMachineId != null ? initialMachineId.toString() : '',
         description: '',
@@ -166,39 +202,21 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-
       setUploadingField(field);
       try {
         const token = localStorage.getItem('access_token');
         const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-
         const fileName = `${Date.now()}_${file.name}`;
         const uploadRes = await fetch(`${apiBase}/api/v1/storage/upload-url`, {
           method: 'POST',
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            bucket_name: 'interventions',
-            object_key: fileName
-          })
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bucket_name: 'interventions', object_key: fileName })
         });
-
         if (!uploadRes.ok) throw new Error('Failed to get upload URL');
         const { upload_url } = await uploadRes.json();
-
-        await fetch(upload_url, {
-          method: 'PUT',
-          body: file
-        });
-
+        await fetch(upload_url, { method: 'PUT', body: file });
         const fileMarker = `\n[FILE:${fileName}|${file.name}]`;
-        setFormData(prev => ({
-          ...prev,
-          [field]: prev[field] ? `${prev[field]}${fileMarker}` : fileMarker
-        }));
-
+        setFormData(prev => ({ ...prev, [field]: prev[field] ? `${prev[field]}${fileMarker}` : fileMarker }));
         toast({ title: 'Fichier joint', description: file.name });
       } catch (err) {
         console.error('Upload error:', err);
@@ -210,17 +228,21 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
     input.click();
   };
 
+  const canProceed = () => {
+    if (step === 1) return !!formData.machine_id;
+    if (step === 2) return !!formData.description.trim();
+    return true;
+  };
+
   const handleSubmit = async () => {
     if (!formData.machine_id || !formData.description) {
       toast({ title: 'Erreur', description: 'Veuillez remplir les champs obligatoires (Machine et Description)', variant: 'destructive' });
       return;
     }
-
     setSubmitting(true);
     try {
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-
       const payload = {
         machine_id: parseInt(formData.machine_id),
         ...(initialPlanningTacheId != null && { planning_tache_id: initialPlanningTacheId }),
@@ -228,8 +250,6 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
         priority: formData.priority,
         estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,
         required_materials: formData.required_materials || null,
-
-        // Enhanced Fields
         machine_category: formData.machine_category,
         symptoms: formData.symptoms.join(', '),
         problem_start_time: formData.problem_start_time ? new Date(formData.problem_start_time).toISOString() : null,
@@ -240,16 +260,11 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
         estimated_loss: formData.estimated_loss,
         similar_issue_before: formData.similar_issue_before,
       };
-
       const response = await fetch(`${apiBase}/api/v1/technicien/interventions/request`, {
         method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       if (response.ok) {
         onSuccess();
         onOpenChange(false);
@@ -269,7 +284,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] bg-slate-800 dark:bg-slate-900 border-none shadow-2xl rounded-3xl overflow-hidden">
-        <DialogHeader className="px-6 pt-6">
+        <DialogHeader className="px-6 pt-6 pb-2">
           <DialogTitle className="text-2xl font-black tracking-tight flex items-center gap-2">
             <AlertCircle className="h-6 w-6 text-primary" />
             Nouvelle Demande d'Intervention (DI)
@@ -279,292 +294,270 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="px-6 max-h-[70vh]">
-          <div className="space-y-6 py-4">
-            {/* --- Section 1: Informations de Base --- */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Zap className="h-4 w-4" /> Informations de Base
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Machine</Label>
-                  <Select value={formData.machine_id} onValueChange={(v) => { setFormData({ ...formData, machine_id: v }); fetchMachineHealth(v); }} disabled={loadingMachines}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue placeholder={loadingMachines ? "Chargement..." : "Choisir une machine"} />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      {machines.map(m => (
-                        <SelectItem key={m.id} value={m.id.toString()} className="rounded-lg mb-1">
-                          {m.nom}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Catégorie Machine</Label>
-                  <Select onValueChange={(val) => setFormData({ ...formData, machine_category: val })} value={formData.machine_category}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      <SelectItem value="Critique" className="rounded-lg">Critique</SelectItem>
-                      <SelectItem value="Non-critique" className="rounded-lg">Non-critique</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        <StepIndicator current={step} />
 
-              {/* ML Health Card */}
-              {loadingHealth && (
-                <div className="flex items-center gap-2 text-xs text-violet-400 pl-1">
-                  <Loader2 className="w-3 h-3 animate-spin" /> Analyse IA en cours...
-                </div>
-              )}
-              {!loadingHealth && machineHealth && (
-                <div className="rounded-xl border border-violet-700/40 bg-violet-950/30 px-4 py-3 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-violet-300 uppercase tracking-wide">
-                    <Brain className="w-3.5 h-3.5" /> Santé IA — Machine sélectionnée
+        <ScrollArea className="px-6 max-h-[55vh]">
+          <div className="space-y-5 py-2">
+
+            {/* Step 1 — Machine */}
+            {step === 1 && (
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-sm ml-1">Machine *</Label>
+                    <Select
+                      value={formData.machine_id}
+                      onValueChange={(v) => { setFormData({ ...formData, machine_id: v }); fetchMachineHealth(v); }}
+                      disabled={loadingMachines}
+                    >
+                      <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
+                        <SelectValue placeholder={loadingMachines ? "Chargement..." : "Choisir une machine"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-blue-700/50">
+                        {machines.map(m => (
+                          <SelectItem key={m.id} value={m.id.toString()} className="rounded-lg mb-1">{m.nom}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                    <span>
-                      Score santé:{' '}
-                      <span className={`font-bold ${machineHealth.health_score >= 70 ? 'text-emerald-400' : machineHealth.health_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
-                        {machineHealth.health_score.toFixed(0)}%
-                      </span>
-                    </span>
-                    <span>
-                      Prob. panne:{' '}
-                      <span className="font-bold text-orange-300">{machineHealth.failure_probability.toFixed(0)}%</span>
-                    </span>
-                    <span>
-                      Risque:{' '}
-                      <span className={`font-bold ${machineHealth.risk_level === 'CRITICAL' ? 'text-red-400' : machineHealth.risk_level === 'HIGH' ? 'text-orange-400' : machineHealth.risk_level === 'MEDIUM' ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                        {machineHealth.risk_level}
-                      </span>
-                    </span>
-                    <span>RUL: <span className="font-bold text-blue-300">{machineHealth.rul_days}j</span></span>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-sm ml-1">Catégorie Machine</Label>
+                    <Select onValueChange={(val) => setFormData({ ...formData, machine_category: val })} value={formData.machine_category}>
+                      <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-blue-700/50">
+                        <SelectItem value="Critique" className="rounded-lg">Critique</SelectItem>
+                        <SelectItem value="Non-critique" className="rounded-lg">Non-critique</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="text-xs font-semibold text-violet-300">
-                    Priorité IA suggérée: <span className="text-violet-100">{ML_PRIORITY_MAP[machineHealth.predicted_priority] ?? machineHealth.predicted_priority}</span>
+                </div>
+
+                {loadingHealth && (
+                  <div className="flex items-center gap-2 text-xs text-violet-400 pl-1">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Analyse IA en cours...
                   </div>
-                  {machineHealth.suggested_cause && (
-                    <div className="text-xs italic text-slate-400">Cause probable: {machineHealth.suggested_cause}</div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            <Separator />
-
-            {/* --- Section 2: Description & Symptômes --- */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" /> Analyse du Problème
-              </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between ml-1">
-                  <Label className="font-bold text-sm">Description détaillée</Label>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleFileUpload('description')}
-                    disabled={!!uploadingField}
-                    className="text-violet-600 hover:text-violet-700 font-bold gap-1"
-                  >
-                    {uploadingField === 'description' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-                    Joindre
-                  </Button>
-                </div>
-                <Textarea
-                  placeholder="Expliquez ce qu'il se passe..."
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="rounded-2xl border-blue-700/50 min-h-[80px] bg-slate-800/50/50"
-                />
-              </div>
-
-              <div className="space-y-3">
-                <Label className="font-bold text-sm ml-1">Symptômes observés</Label>
-                <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 bg-muted/30 p-4 rounded-2xl border border-blue-800/50">
-                  {['Bruit anormal', 'Vibrations', 'Surchauffe', 'Fuite', 'Panne électrique', 'Baisse de performance'].map((symptom) => (
-                    <div key={symptom} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`symptom-${symptom}`}
-                        checked={formData.symptoms.includes(symptom)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setFormData({ ...formData, symptoms: [...formData.symptoms, symptom] });
-                          } else {
-                            setFormData({ ...formData, symptoms: formData.symptoms.filter(s => s !== symptom) });
-                          }
-                        }}
-                      />
-                      <label htmlFor={`symptom-${symptom}`} className="text-sm font-medium leading-none cursor-pointer">
-                        {symptom}
-                      </label>
+                )}
+                {!loadingHealth && machineHealth && (
+                  <div className="rounded-xl border border-violet-700/40 bg-violet-950/30 px-4 py-3 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-violet-300 uppercase tracking-wide">
+                      <Brain className="w-3.5 h-3.5" /> Santé IA — Machine sélectionnée
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Début de l'incident</Label>
-                  <Input
-                    type="datetime-local"
-                    value={formData.problem_start_time}
-                    onChange={(e) => setFormData({ ...formData, problem_start_time: e.target.value })}
-                    className="rounded-xl border-blue-700/50 py-6"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Fréquence du problème</Label>
-                  <Select onValueChange={(val) => setFormData({ ...formData, frequency: val })} value={formData.frequency}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      <SelectItem value="Première fois">Première fois</SelectItem>
-                      <SelectItem value="Occasionnel">Occasionnel</SelectItem>
-                      <SelectItem value="Récurrent">Récurrent</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* --- Section 3: État Machine --- */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <Activity className="h-4 w-4" /> État de la Machine
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">État opérationnel</Label>
-                  <Select onValueChange={(val) => setFormData({ ...formData, operating_state: val })} value={formData.operating_state}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      <SelectItem value="En marche">En marche</SelectItem>
-                      <SelectItem value="Au repos (Idle)">Au repos (Idle)</SelectItem>
-                      <SelectItem value="Démarrage">Démarrage</SelectItem>
-                      <SelectItem value="Arrêt">Arrêt</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Température (si connue)</Label>
-                  <Input
-                    placeholder="ex: 45°C"
-                    value={formData.temperature}
-                    onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
-                    className="rounded-xl border-blue-700/50 py-6"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="font-bold text-sm ml-1">Estimation de l'arrêt (Downtime) en minutes</Label>
-                <Input
-                  type="number"
-                  placeholder="ex: 60"
-                  value={formData.estimated_duration_minutes}
-                  onChange={(e) => setFormData(prev => ({ ...prev, estimated_duration_minutes: e.target.value }))}
-                  className="rounded-xl border-blue-700/50 py-6"
-                />
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* --- Section 4: Priorité & Impact --- */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-orange-500" /> Priorité & Impact Production
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 ml-1">
-                    <Label className="font-bold text-sm">Priorité d'intervention</Label>
-                    {priorityAISuggested && (
-                      <span className="text-xs text-violet-400 font-medium">(suggérée par IA)</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      <span>Score santé:{' '}
+                        <span className={`font-bold ${machineHealth.health_score >= 70 ? 'text-emerald-400' : machineHealth.health_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                          {machineHealth.health_score.toFixed(0)}%
+                        </span>
+                      </span>
+                      <span>Prob. panne:{' '}
+                        <span className="font-bold text-orange-300">{machineHealth.failure_probability.toFixed(0)}%</span>
+                      </span>
+                      <span>Risque:{' '}
+                        <span className={`font-bold ${machineHealth.risk_level === 'CRITICAL' ? 'text-red-400' : machineHealth.risk_level === 'HIGH' ? 'text-orange-400' : machineHealth.risk_level === 'MEDIUM' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                          {machineHealth.risk_level}
+                        </span>
+                      </span>
+                      <span>RUL: <span className="font-bold text-blue-300">{machineHealth.rul_days}j</span></span>
+                    </div>
+                    <div className="text-xs font-semibold text-violet-300">
+                      Priorité IA suggérée: <span className="text-violet-100">{ML_PRIORITY_MAP[machineHealth.predicted_priority] ?? machineHealth.predicted_priority}</span>
+                    </div>
+                    {machineHealth.suggested_cause && (
+                      <div className="text-xs italic text-slate-400">Cause probable: {machineHealth.suggested_cause}</div>
                     )}
                   </div>
-                  <Select onValueChange={(val) => { setFormData({ ...formData, priority: val }); setPriorityAISuggested(false); }} value={formData.priority}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      <SelectItem value="BASSE">BASSE</SelectItem>
-                      <SelectItem value="MOYENNE">MOYENNE</SelectItem>
-                      <SelectItem value="ÉLEVÉE">ÉLEVÉE</SelectItem>
-                      <SelectItem value="URGENTE" className="text-red-600 font-bold">URGENTE</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                )}
+              </>
+            )}
+
+            {/* Step 2 — Problème */}
+            {step === 2 && (
+              <>
                 <div className="space-y-2">
-                  <Label className="font-bold text-sm ml-1">Impact sur la production</Label>
-                  <Select onValueChange={(val) => setFormData({ ...formData, impact: val })} value={formData.impact}>
-                    <SelectTrigger className="rounded-xl border-blue-700/50 py-6">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-xl border-blue-700/50">
-                      <SelectItem value="Arrêt de production">Arrêt de production</SelectItem>
-                      <SelectItem value="Performance réduite">Performance réduite</SelectItem>
-                      <SelectItem value="Aucun impact pour le moment">Aucun impact pour le moment</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center justify-between ml-1">
+                    <Label className="font-bold text-sm">Description détaillée *</Label>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleFileUpload('description')}
+                      disabled={!!uploadingField}
+                      className="text-violet-600 hover:text-violet-700 font-bold gap-1"
+                    >
+                      {uploadingField === 'description' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                      Joindre
+                    </Button>
+                  </div>
+                  <Textarea
+                    placeholder="Expliquez ce qu'il se passe..."
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    className="rounded-2xl border-blue-700/50 min-h-[80px]"
+                    autoFocus
+                  />
                 </div>
-              </div>
-            </div>
 
-            <Separator />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="font-bold text-sm ml-1">Début de l'incident</Label>
+                    <Input
+                      type="datetime-local"
+                      value={formData.problem_start_time}
+                      onChange={(e) => setFormData({ ...formData, problem_start_time: e.target.value })}
+                      className="rounded-xl border-blue-700/50 py-6"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-sm ml-1">Fréquence du problème</Label>
+                    <Select onValueChange={(val) => setFormData({ ...formData, frequency: val })} value={formData.frequency}>
+                      <SelectTrigger className="rounded-xl border-blue-700/50 py-6"><SelectValue /></SelectTrigger>
+                      <SelectContent className="rounded-xl border-blue-700/50">
+                        <SelectItem value="Première fois">Première fois</SelectItem>
+                        <SelectItem value="Occasionnel">Occasionnel</SelectItem>
+                        <SelectItem value="Récurrent">Récurrent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </>
+            )}
 
-            {/* --- Section 5: Historique --- */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
-                <History className="h-4 w-4" /> Historique
-              </h3>
-              <div className="flex items-center space-x-2 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
-                <Checkbox
-                  id="similar"
-                  checked={formData.similar_issue_before}
-                  onCheckedChange={(checked) => setFormData({ ...formData, similar_issue_before: !!checked })}
-                />
-                <label htmlFor="similar" className="text-sm font-bold leading-none cursor-pointer text-blue-700">
-                  Problème déjà rencontré auparavant ?
-                </label>
-              </div>
-            </div>
+            {/* Step 3 — Contexte */}
+            {step === 3 && (
+              <>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Activity className="h-3.5 w-3.5" /> État de la Machine
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label className="font-bold text-sm ml-1">État opérationnel</Label>
+                      <Select onValueChange={(val) => setFormData({ ...formData, operating_state: val })} value={formData.operating_state}>
+                        <SelectTrigger className="rounded-xl border-blue-700/50 py-6"><SelectValue /></SelectTrigger>
+                        <SelectContent className="rounded-xl border-blue-700/50">
+                          <SelectItem value="En marche">En marche</SelectItem>
+                          <SelectItem value="Au repos (Idle)">Au repos (Idle)</SelectItem>
+                          <SelectItem value="Démarrage">Démarrage</SelectItem>
+                          <SelectItem value="Arrêt">Arrêt</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-sm ml-1">Température (si connue)</Label>
+                      <Input
+                        placeholder="ex: 45°C"
+                        value={formData.temperature}
+                        onChange={(e) => setFormData({ ...formData, temperature: e.target.value })}
+                        className="rounded-xl border-blue-700/50 py-6"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="font-bold text-sm ml-1">Estimation de l'arrêt (Downtime) en minutes</Label>
+                    <Input
+                      type="number"
+                      placeholder="ex: 60"
+                      value={formData.estimated_duration_minutes}
+                      onChange={(e) => setFormData(prev => ({ ...prev, estimated_duration_minutes: e.target.value }))}
+                      className="rounded-xl border-blue-700/50 py-6"
+                    />
+                  </div>
+                </div>
 
-            <div className="p-4 bg-emerald-50 border border-emerald-100 rounded-2xl space-y-2 shadow-inner">
-              <div className="flex items-center gap-2 text-emerald-700 font-bold text-sm">
-                <Zap className="h-4 w-4" /> IA - Aide au diagnostic automatique
-              </div>
-              <p className="text-xs text-emerald-600 italic">
-                L'IA analysera vos symptômes après la soumission pour suggérer une cause racine à l'équipe maintenance.
-              </p>
-            </div>
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-orange-500" /> Priorité & Impact
+                  </h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 ml-1">
+                        <Label className="font-bold text-sm">Priorité d'intervention</Label>
+                        {priorityAISuggested && <span className="text-xs text-violet-400 font-medium">(suggérée par IA)</span>}
+                      </div>
+                      <Select onValueChange={(val) => { setFormData({ ...formData, priority: val }); setPriorityAISuggested(false); }} value={formData.priority}>
+                        <SelectTrigger className="rounded-xl border-blue-700/50 py-6"><SelectValue /></SelectTrigger>
+                        <SelectContent className="rounded-xl border-blue-700/50">
+                          <SelectItem value="BASSE">BASSE</SelectItem>
+                          <SelectItem value="MOYENNE">MOYENNE</SelectItem>
+                          <SelectItem value="ÉLEVÉE">ÉLEVÉE</SelectItem>
+                          <SelectItem value="URGENTE" className="text-red-600 font-bold">URGENTE</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="font-bold text-sm ml-1">Impact sur la production</Label>
+                      <Select onValueChange={(val) => setFormData({ ...formData, impact: val })} value={formData.impact}>
+                        <SelectTrigger className="rounded-xl border-blue-700/50 py-6"><SelectValue /></SelectTrigger>
+                        <SelectContent className="rounded-xl border-blue-700/50">
+                          <SelectItem value="Arrêt de production">Arrêt de production</SelectItem>
+                          <SelectItem value="Performance réduite">Performance réduite</SelectItem>
+                          <SelectItem value="Aucun impact pour le moment">Aucun impact pour le moment</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <History className="h-3.5 w-3.5" /> Historique
+                  </h4>
+                  <div className="flex items-center space-x-2 bg-blue-50/10 p-4 rounded-2xl border border-blue-800/50">
+                    <Checkbox
+                      id="similar"
+                      checked={formData.similar_issue_before}
+                      onCheckedChange={(checked) => setFormData({ ...formData, similar_issue_before: !!checked })}
+                    />
+                    <label htmlFor="similar" className="text-sm font-bold leading-none cursor-pointer text-blue-300">
+                      Problème déjà rencontré auparavant ?
+                    </label>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-emerald-950/40 border border-emerald-800/50 rounded-2xl space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
+                    <Zap className="h-4 w-4" /> IA - Aide au diagnostic automatique
+                  </div>
+                  <p className="text-xs text-emerald-500 italic">
+                    L'IA analysera vos symptômes après la soumission pour suggérer une cause racine à l'équipe maintenance.
+                  </p>
+                </div>
+              </>
+            )}
+
           </div>
         </ScrollArea>
 
-        <DialogFooter className="px-6 py-4 bg-slate-800/50/80 mt-auto border-t">
-          <Button variant="ghost" onClick={() => onOpenChange(false)} className="rounded-xl font-bold px-6">
-            Annuler
-          </Button>
+        <DialogFooter className="px-6 py-4 bg-slate-800/50 mt-auto border-t flex items-center justify-between">
           <Button
-            onClick={handleSubmit}
-            disabled={submitting || !formData.machine_id || !formData.description}
-            className="bg-gradient-premium hover:opacity-90 rounded-xl font-bold px-8 shadow-lg shadow-violet-500/25 min-w-[160px]"
+            variant="ghost"
+            onClick={() => step === 1 ? onOpenChange(false) : setStep(s => s - 1)}
+            className="rounded-xl font-bold px-6"
           >
-            {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Envoyer la Demande
+            {step === 1 ? 'Annuler' : <><ChevronLeft className="h-4 w-4 mr-1" />Précédent</>}
           </Button>
+
+          <span className="text-xs text-slate-500">{step} / {STEPS.length}</span>
+
+          {step < STEPS.length ? (
+            <Button
+              onClick={() => setStep(s => s + 1)}
+              disabled={!canProceed()}
+              className="rounded-xl font-bold px-6"
+            >
+              Suivant <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={submitting || !formData.machine_id || !formData.description}
+              className="bg-gradient-premium hover:opacity-90 rounded-xl font-bold px-8 shadow-lg shadow-violet-500/25 min-w-[160px]"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Envoyer la Demande
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -315,3 +315,32 @@ body.is-scrolling {
   background: #33fff6;
   box-shadow: 0 0 20px rgba(0, 255, 242, 0.4);
 }
+
+@keyframes slide-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Workshop-precision inventory typography */
+.font-mono, .font-mono * {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+}
+
+.font-dm-sans {
+  font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+}

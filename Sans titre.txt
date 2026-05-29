@@ -1,0 +1,4 @@
+
+//TODO
+-the technician cant see the assigned task planning in http://localhost:3000/technician/planning-taches
+-verify the formulaires de ITV/WO check the piece and inventory part in the forums

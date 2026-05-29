@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import type { Intervention } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
 import { FinishInterventionDialog } from './components/FinishInterventionDialog';
+import { attachRequiredPieces, submitPendingPiece } from '@/hooks/useInventory';
+import type { PlannedRow, PendingDraft } from '@/components/inventory/PiecePicker';
 import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
 import { AppPagination } from '@/components/shared/AppPagination';
 import { client } from '@/lib/api';
@@ -204,14 +206,17 @@ export default function TechnicianInterventions() {
     }
   }, [searchTerm, interventions]);
 
-  const submitRequest = async (data: {
-    ordre_travail_id: number;
-    machine_id: number | null;
-    problem_description: string;
-    priority: string;
-    estimated_duration_minutes: number | null;
-    required_materials: string | null;
-  }) => {
+  const submitRequest = async (
+    data: {
+      ordre_travail_id: number;
+      machine_id: number | null;
+      problem_description: string;
+      priority: string;
+      estimated_duration_minutes: number | null;
+      required_materials: string | null;
+    },
+    extras?: { required_pieces: PlannedRow[]; pending_pieces: PendingDraft[] }
+  ) => {
     try {
       const token = localStorage.getItem('access_token');
       if (!token) return;
@@ -228,6 +233,46 @@ export default function TechnicianInterventions() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.detail || 'Échec de la demande');
+      }
+
+      // Parse newly created/returned intervention to get its ID
+      const itv = await res.json().catch(() => null);
+      const itvId: number | undefined = itv?.id;
+
+      // Attach required pieces (catalog) + pending pieces (uncatalogued)
+      if (itvId && extras) {
+        try {
+          if (extras.required_pieces.length > 0) {
+            await attachRequiredPieces(
+              itvId,
+              extras.required_pieces.map((r) => ({
+                piece_id: r.piece_id,
+                quantity_planned: r.quantity_planned,
+                unit: r.unit,
+              }))
+            );
+          }
+          for (const pd of extras.pending_pieces) {
+            if (!pd.name.trim()) continue;
+            await submitPendingPiece(
+              {
+                name: pd.name,
+                quantity: pd.quantity || 1,
+                unit: pd.unit || 'pcs',
+                category: pd.category || undefined,
+                notes: pd.notes || undefined,
+              },
+              itvId
+            );
+          }
+        } catch (attachErr) {
+          // Don't fail the whole flow — surface as a non-blocking toast
+          toast({
+            title: 'Pièces partiellement enregistrées',
+            description: attachErr instanceof Error ? attachErr.message : 'Erreur',
+            variant: 'destructive',
+          });
+        }
       }
 
       toast({

@@ -16,6 +16,9 @@ from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
+from services.inventory import InventoryReservationService
+from services.ml.recovery import PostMaintenanceRecoveryService
+from schemas.stock import ConsumedPieceItem
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
@@ -36,7 +39,7 @@ async def get_my_work_orders(
     try:
         skip = (page - 1) * size
 
-        count_query = select(sa_func.count(Ordres_travail.id))\
+        count_query = select(sa_func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None))\
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .where(Ordres_intervention.requested_by == current_user.id)
         total_result = await db.execute(count_query)
@@ -46,6 +49,7 @@ async def get_my_work_orders(
             .join(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
             .where(Ordres_intervention.requested_by == current_user.id)\
+            .where(Ordres_travail.archived_at.is_(None))\
             .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
 
         result = await db.execute(query)
@@ -154,6 +158,21 @@ async def complete_work_order(
             raise HTTPException(status_code=400, detail="Only 'EN_COURS' orders can be completed")
             
         now = datetime.utcnow()
+
+        # Post-maintenance recovery: capture pre-fix health state right before
+        # the WO is marked complete. Non-blocking — None if ML service is down.
+        try:
+            _pre_fix_score = await PostMaintenanceRecoveryService(db).snapshot_health(
+                wo.machine_id
+            )
+            if _pre_fix_score is not None:
+                wo.health_score_at_completion = _pre_fix_score
+        except Exception as _rec_exc:
+            logger.warning(
+                "Recovery completion snapshot failed for WO %s: %s",
+                order_id, _rec_exc,
+            )
+
         wo.statut = "TERMINÉ"
         wo.date_fin = now
         wo.rapport = payload.rapport
@@ -170,7 +189,7 @@ async def complete_work_order(
         intervention.root_cause_category = payload.root_cause_category
         intervention.root_cause_description = payload.root_cause_description
         intervention.actions_performed = payload.actions_performed
-        intervention.parts_replaced = payload.parts_replaced
+        intervention.legacy_parts_text = payload.parts_replaced
         intervention.tools_used = payload.tools_used
         intervention.machine_status_after = payload.machine_status_after
         
@@ -206,7 +225,33 @@ async def complete_work_order(
                 notes=f"Work order #{order_id} completion"
             )
             db.add(telemetry_log)
-        
+
+        # ── Atomic parts consumption ──────────────────────────────────────
+        if intervention and getattr(payload, "parts_consumed", None):
+            try:
+                reservation_svc = InventoryReservationService(db)
+                for raw_item in payload.parts_consumed:
+                    # Validate each item via Pydantic
+                    item = ConsumedPieceItem(**raw_item) if isinstance(raw_item, dict) else raw_item
+                    await reservation_svc.fulfill_reservation(
+                        required_piece_id=item.required_piece_id,
+                        quantity_used=item.quantity_used,
+                        quantity_returned=item.quantity_returned,
+                        quantity_wasted=item.quantity_wasted,
+                        disposition=item.disposition,
+                        notes=item.notes,
+                        auto_commit=False,
+                    )
+                try:
+                    from modules.ml.services.demand_forecast import invalidate_forecast_cache
+                    invalidate_forecast_cache()
+                except Exception:
+                    pass
+            except ValueError as ve:
+                await db.rollback()
+                logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
+                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+
         await db.commit()
 
         try:

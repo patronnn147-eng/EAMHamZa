@@ -50,7 +50,7 @@ async def list_tasks(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
     """List all tasks for a planning."""
-    result = await db.execute(select(Planning_taches).where(Planning_taches.planning_id == planning_id))
+    result = await db.execute(select(Planning_taches).where(Planning_taches.archived_at.is_(None)).where(Planning_taches.planning_id == planning_id))
     tasks = result.scalars().all()
     return {"items": tasks, "total": len(tasks)}
 
@@ -212,10 +212,11 @@ async def list_plannings_with_tasks(
             Planning_taches.planning_id,
             func.count(Planning_taches.id).label('task_count')
         )
+        .where(Planning_taches.archived_at.is_(None))
         .group_by(Planning_taches.planning_id)
         .subquery()
     )
-    
+
     result = await db.execute(
         select(
             Plannings.id,
@@ -226,6 +227,7 @@ async def list_plannings_with_tasks(
             func.coalesce(tasks_subquery.c.task_count, 0).label('task_count')
         )
         .outerjoin(tasks_subquery, Plannings.id == tasks_subquery.c.planning_id)
+        .where(Plannings.archived_at.is_(None))
         .order_by(Plannings.date_debut.desc())
     )
     rows = result.all()

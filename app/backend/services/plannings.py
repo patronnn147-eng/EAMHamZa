@@ -54,8 +54,8 @@ class PlanningsService:
     ) -> Dict[str, Any]:
         """Get paginated list of planningss"""
         try:
-            query = select(Plannings)
-            count_query = select(func.count(Plannings.id))
+            query = select(Plannings).where(Plannings.archived_at.is_(None))
+            count_query = select(func.count(Plannings.id)).where(Plannings.archived_at.is_(None))
             
             if query_dict:
                 for field, value in query_dict.items():

@@ -18,6 +18,9 @@ from models.ordres_intervention import Ordres_intervention
 from models.planning_taches import Planning_taches
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
+from services.inventory import InventoryReservationService
+from services.ml.recovery import PostMaintenanceRecoveryService
+from schemas.stock import ConsumedPieceItem, ConsumedPieceDirect, PendingPieceDirect
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
@@ -62,6 +65,17 @@ class WorkOrderCompletePayload(BaseModel):
     telemetry_notes: Optional[str] = None
     ml_prediction_matched: Optional[bool] = None
 
+    # ── NEW: structured parts consumption (replaces free-text parts_replaced) ──
+    # Each item links to a required_piece (reservation) and carries the split
+    # used/returned/wasted quantities. When present, the completion handler
+    # delegates to InventoryReservationService.fulfill_reservation to apply
+    # the stock movements atomically.
+    parts_consumed: Optional[List[ConsumedPieceItem]] = None
+    # NEW: ad-hoc consumption from catalog (not pre-reserved) — see ConsumedPieceDirect docstring
+    parts_consumed_direct: Optional[List[ConsumedPieceDirect]] = None
+    # NEW: uncatalogued pieces submitted at completion time
+    pending_pieces_direct: Optional[List[PendingPieceDirect]] = None
+
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_my_work_orders(
@@ -75,7 +89,7 @@ async def get_my_work_orders(
         skip = (page - 1) * size
 
         # Count total - also check Ordres_travail.utilisateur_id directly
-        count_query = select(func.count(Ordres_travail.id))\
+        count_query = select(func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None))\
             .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .where(
                 (Ordres_intervention.technician_id == current_user.id) |
@@ -84,7 +98,7 @@ async def get_my_work_orders(
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(Ordres_travail, Machines.nom.label("machine_nom"))\
+        query = select(Ordres_travail, Machines.nom.label("machine_nom")).where(Ordres_travail.archived_at.is_(None))\
             .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
             .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
             .where(
@@ -235,6 +249,21 @@ async def complete_work_order(
             raise HTTPException(status_code=400, detail="Only 'IN_PROGRESS' orders can be completed")
 
         now = datetime.utcnow()
+
+        # Post-maintenance recovery: snapshot pre-fix health before completing.
+        # Non-blocking — None silently if ML service is unavailable.
+        try:
+            _pre_fix_score = await PostMaintenanceRecoveryService(db).snapshot_health(
+                wo.machine_id
+            )
+            if _pre_fix_score is not None:
+                wo.health_score_at_completion = _pre_fix_score
+        except Exception as _rec_exc:
+            logger.warning(
+                "Recovery completion snapshot failed for WO %s: %s",
+                order_id, _rec_exc,
+            )
+
         wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
@@ -257,7 +286,7 @@ async def complete_work_order(
             intervention.root_cause_category = payload.root_cause_category
             intervention.root_cause_description = payload.root_cause_description
             intervention.actions_performed = payload.actions_performed
-            intervention.parts_replaced = payload.parts_replaced
+            intervention.legacy_parts_text = payload.parts_replaced  # legacy free-text fallback
             intervention.tools_used = payload.tools_used
             intervention.machine_status_after = payload.machine_status_after
             
@@ -297,7 +326,116 @@ async def complete_work_order(
                 notes=payload.telemetry_notes,
             )
             db.add(telemetry)
-        
+
+        # ── Ad-hoc consumption (no prior reservation) ─────────────────────
+        if intervention and payload.parts_consumed_direct:
+            try:
+                from models.required_pieces import RequiredPiece
+                from models.consumed_pieces import ConsumedPiece
+                from services.inventory import InventoryReservationService as _IRS
+                from services.inventory.stock import StockService as _Stock
+                from sqlalchemy import select as _select
+                from models.pieces import Piece as _Piece
+                from decimal import Decimal as _D
+                stock_svc = _Stock(db)
+                for di in payload.parts_consumed_direct:
+                    piece = await db.scalar(_select(_Piece).where(_Piece.id == di.piece_id))
+                    if piece is None:
+                        raise ValueError(f"Pièce {di.piece_id} introuvable")
+                    unit = di.unit or piece.default_unit or "pcs"
+                    qty = _D(str(di.quantity)).quantize(_D("0.01"))
+                    rp = RequiredPiece(
+                        intervention_id=intervention.id,
+                        piece_id=di.piece_id,
+                        quantity_planned=qty,
+                        unit=unit,
+                        quantity_reserved=_D("0"),
+                        approved=True,
+                    )
+                    db.add(rp)
+                    await db.flush()
+                    await stock_svc.consume_stock(
+                        piece_id=di.piece_id,
+                        quantity=qty,
+                        intervention_id=intervention.id,
+                        reference=f"OT-itv-{intervention.id}-direct",
+                        unit=unit,
+                        auto_commit=False,
+                    )
+                    cp = ConsumedPiece(
+                        intervention_id=intervention.id,
+                        required_piece_id=rp.id,
+                        piece_id=di.piece_id,
+                        quantity_used=qty,
+                        quantity_returned=_D("0"),
+                        quantity_wasted=_D("0"),
+                        unit=unit,
+                        disposition="used",
+                        notes=di.notes,
+                    )
+                    db.add(cp)
+                    await _IRS(db)._auto_link_piece_to_machine(
+                        piece_id=di.piece_id, intervention_id=intervention.id
+                    )
+                await db.flush()
+            except ValueError as ve:
+                await db.rollback()
+                logger.warning("Direct parts consumption failed for OT %s: %s", order_id, ve)
+                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+            except Exception as exc:
+                await db.rollback()
+                logger.error("Direct parts consumption error for OT %s: %s", order_id, exc, exc_info=True)
+                raise HTTPException(status_code=500, detail="Échec consommation directe")
+
+        # ── Pending pieces submitted at completion (uncatalogued) ─────────
+        if intervention and payload.pending_pieces_direct:
+            try:
+                from services.inventory import PendingPieceService as _PPS
+                pending_svc = _PPS(db)
+                for pp_item in payload.pending_pieces_direct:
+                    if not pp_item.name or not pp_item.name.strip():
+                        continue
+                    await pending_svc.create_with_placeholder(
+                        name=pp_item.name,
+                        quantity=pp_item.quantity,
+                        unit=pp_item.unit,
+                        category=pp_item.category,
+                        notes=pp_item.notes,
+                        intervention_id=intervention.id,
+                        submitted_by=current_user.id,
+                        auto_commit=False,
+                    )
+            except Exception as exc:
+                logger.warning(f"Pending direct submit failed for OT {order_id}: {exc}", exc_info=True)
+
+        # ── Atomic parts consumption (pre-reserved) ───────────────────────
+        # If the technician submitted parts_consumed, fulfill each reservation
+        # within the same transaction. Any insufficiency rolls back the entire
+        # work-order completion (no half-state).
+        if intervention and payload.parts_consumed:
+            try:
+                reservation_svc = InventoryReservationService(db)
+                for item in payload.parts_consumed:
+                    await reservation_svc.fulfill_reservation(
+                        required_piece_id=item.required_piece_id,
+                        quantity_used=item.quantity_used,
+                        quantity_returned=item.quantity_returned,
+                        quantity_wasted=item.quantity_wasted,
+                        disposition=item.disposition,
+                        notes=item.notes,
+                        auto_commit=False,
+                    )
+                # invalidate forecast cache after real consumption recorded
+                try:
+                    from modules.ml.services.demand_forecast import invalidate_forecast_cache
+                    invalidate_forecast_cache()
+                except Exception:
+                    pass
+            except ValueError as ve:
+                await db.rollback()
+                logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
+                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+
         await db.commit()
 
         try:

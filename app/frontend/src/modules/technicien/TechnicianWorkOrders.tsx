@@ -295,6 +295,7 @@ const TechnicianWorkOrders: React.FC = () => {
           workOrderId={completingWoId}
           workOrderTitle={workOrders.find(w => w.id === completingWoId)?.titre || ''}
           machineName={workOrders.find(w => w.id === completingWoId)?.machine_nom}
+          machineId={workOrders.find(w => w.id === completingWoId)?.machine_id ?? null}
           onConfirm={async (data: WorkOrderCompletePayload) => {
             try {
               const token = localStorage.getItem('access_token');

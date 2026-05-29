@@ -1,5 +1,5 @@
 # Models package
- 
+
 from . import utilisateurs
 from . import alertes_urgentes
 from . import archives
@@ -21,6 +21,10 @@ from . import pieces
 from . import piece_machine
 from . import stock
 from . import mouvement_stock
+# Inventory consumption workflow models — must load after pieces/mouvement_stock
+from . import pending_pieces
+from . import required_pieces
+from . import consumed_pieces
 from . import machine_telemetry
 from . import ai_memories
 from .ai_memories import AIMemories

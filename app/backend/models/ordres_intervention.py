@@ -29,6 +29,10 @@ class Ordres_intervention(Base):
     date_debut = Column(DateTime(timezone=True), nullable=True)
     date_fin = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    archive_reason = Column(String(50), nullable=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
 
     # PDCA Feedback Fields (Technician fills these out when closing an intervention)
@@ -46,7 +50,7 @@ class Ordres_intervention(Base):
     impact = Column(String(100), nullable=True)  # Production stopped, Reduced performance, No impact yet
     estimated_loss = Column(String(100), nullable=True)
     similar_issue_before = Column(Boolean, nullable=True)
-    
+
     # AI / Prediction fields
     suggested_cause = Column(String(255), nullable=True)
     suggested_priority = Column(String(50), nullable=True)
@@ -57,9 +61,14 @@ class Ordres_intervention(Base):
     root_cause_category = Column(String(50), nullable=True)  # Mechanical, Electrical, Software, Human error, Unknown
     root_cause_description = Column(Text, nullable=True)
     actions_performed = Column(Text, nullable=True)  # multi-select
-    parts_replaced = Column(Text, nullable=True) # JSON or descriptive text
+    # parts_replaced renamed to legacy_parts_text — kept for legacy records only.
+    # The current source of truth for consumed parts is the consumed_pieces table.
+    # The `parts_replaced` accessor below returns a JSON string aggregated from that table.
+    legacy_parts_text = Column(Text, nullable=True)
     tools_used = Column(Text, nullable=True)
     machine_status_after = Column(String(50), nullable=True)  # Operational, Limited, Stopped
+    # NEW: indicates CHEFTECH approved the required pieces (reservation already applied)
+    parts_approved = Column(Boolean, nullable=True)
 
     # PDCA Specific
     plan_hypothesis = Column(Text, nullable=True)
@@ -87,3 +96,42 @@ class Ordres_intervention(Base):
         lazy="noload",
         viewonly=True,
     )
+
+    # ── parts_replaced: computed, not persisted ──────────────────────────────
+    # Reads from consumed_pieces (single source of truth). Always returns a
+    # JSON string (or empty list) for backwards compatibility with reports
+    # that previously read the raw text column. The actual rows live in
+    # `consumed_pieces` and are reachable via `consumed_items` relationship.
+    consumed_items = relationship(
+        "ConsumedPiece",
+        primaryjoin="foreign(ConsumedPiece.intervention_id) == Ordres_intervention.id",
+        lazy="noload",
+        viewonly=True,
+    )
+
+    @property
+    def parts_replaced(self) -> str:
+        """Computed JSON summary of consumed pieces (single source of truth).
+
+        Falls back to legacy_parts_text for historical records that were
+        completed before the consumed_pieces table existed.
+        """
+        import json
+
+        # Use loaded consumed_items if available (selectinload pattern)
+        loaded = getattr(self, "__dict__", {}).get("consumed_items")
+        if loaded is not None and len(loaded) > 0:
+            return json.dumps([
+                {
+                    "piece_id":  ci.piece_id,
+                    "used":      float(ci.quantity_used or 0),
+                    "returned":  float(ci.quantity_returned or 0),
+                    "wasted":    float(ci.quantity_wasted or 0),
+                    "unit":      ci.unit,
+                    "disposition": ci.disposition,
+                }
+                for ci in loaded
+            ])
+
+        # Fallback for legacy records
+        return self.legacy_parts_text or ""

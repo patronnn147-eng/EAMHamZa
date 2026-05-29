@@ -45,6 +45,9 @@ export interface OrdreTravail {
   failure_type?: string;
   // CHETOP Admin Validation - Phase 3
   created_by_role?: 'ADMIN' | 'CHEFTECH' | 'CHETOP' | 'TECHNICIEN';
+  // Post-Maintenance Recovery snapshots
+  health_score_at_creation?: number | null;
+  health_score_at_completion?: number | null;
 }
 
 export interface WorkOrderTechnicien {
@@ -178,6 +181,18 @@ export interface SHAPExplanation {
   intensity: 'high' | 'medium' | 'low';
 }
 
+export interface RecoveryInfoApi {
+  work_order_id: number | null;
+  delta: number | null;
+  status: 'Recovered' | 'Recovering' | 'No improvement' | 'Monitoring' | 'No baseline';
+  score_before: number | null;
+  score_after_completion: number | null;
+  current_score: number | null;
+  days_since_completion: number | null;
+  within_recovery_window: boolean;
+  completion_date: string | null;
+}
+
 export interface MLPrediction {
   machine_id: number;
   machine_name: string;
@@ -195,6 +210,8 @@ export interface MLPrediction {
   mtbf_pred: number;
   mttr_pred: number;
   availability_pred: number;
+  unified_health_score?: number;
+  recovery?: RecoveryInfoApi | null;
   failure_type_predictions?: {
     TWF?: number;
     HDF?: number;
@@ -242,6 +259,8 @@ export interface FleetMachineCard {
     open_work_orders: number;
     recent_interventions: number;
   };
+  /** Inventory readiness: OK = all parts stocked, WARNING = low stock, CRITICAL = parts missing */
+  parts_ready?: 'OK' | 'WARNING' | 'CRITICAL';
 }
 
 export interface FleetDashboardResponse {

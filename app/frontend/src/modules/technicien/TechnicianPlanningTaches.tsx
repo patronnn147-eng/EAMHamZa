@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { X, Eye, Wrench, Calendar, ChevronRight } from 'lucide-react';
+import { X, Eye, Wrench, Calendar, ChevronRight, Archive, Inbox, RefreshCw, Loader2 } from 'lucide-react';
 import { client } from '@/lib/api';
 import { TechnicianNewInterventionModal } from './components/TechnicianNewInterventionModal';
 
@@ -50,6 +50,7 @@ function formatDate(iso: string) {
 
 export default function TechnicianPlanningTaches() {
   const [tasks, setTasks] = useState<PlanningTask[]>([]);
+  const [view, setView] = useState<'active' | 'archive'>('active');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<PlanningTask | null>(null);
@@ -82,11 +83,56 @@ export default function TechnicianPlanningTaches() {
     setInterventionTask(null);
   };
 
+  // Split tasks into active vs archive (COMPLETED)
+  const archivedTasks = tasks.filter((t) => t.statut === 'COMPLETED');
+  const activeTasks = tasks.filter((t) => t.statut !== 'COMPLETED');
+  const visibleTasks = view === 'archive' ? archivedTasks : activeTasks;
+
   return (
     <div className="min-h-screen bg-slate-950 p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-100">Tâches de Planning</h1>
-        <p className="text-slate-400 text-sm mt-1">Vos tâches assignées dans les plannings</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100">Tâches de Planning</h1>
+          <p className="text-slate-400 text-sm mt-1">Vos tâches assignées dans les plannings</p>
+        </div>
+        <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-1">
+          <button
+            type="button"
+            onClick={() => setView('active')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors ${
+              view === 'active'
+                ? 'bg-amber-500/20 text-amber-300'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Inbox className="h-3.5 w-3.5" />
+            Actifs
+            <span className="text-[10px] tabular-nums opacity-70">({activeTasks.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setView('archive')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider transition-colors ${
+              view === 'archive'
+                ? 'bg-emerald-500/20 text-emerald-300'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Archive className="h-3.5 w-3.5" />
+            Archive
+            <span className="text-[10px] tabular-nums opacity-70">({archivedTasks.length})</span>
+          </button>
+          <div className="w-px bg-slate-700 mx-1" aria-hidden="true" />
+          <button
+            type="button"
+            onClick={() => fetchTasks()}
+            disabled={loading}
+            title="Rafraîchir"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-mono uppercase tracking-wider text-slate-400 hover:text-slate-100 transition-colors disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          </button>
+        </div>
       </div>
 
       {loading && (
@@ -97,18 +143,18 @@ export default function TechnicianPlanningTaches() {
         <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-red-400 text-sm">{error}</div>
       )}
 
-      {!loading && !error && tasks.length === 0 && (
+      {!loading && !error && visibleTasks.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 text-slate-500">
-          <Calendar className="h-12 w-12 mb-3 opacity-30" />
-          <p>Aucune tâche assignée pour le moment.</p>
+          {view === 'archive' ? <Archive className="h-12 w-12 mb-3 opacity-30" /> : <Calendar className="h-12 w-12 mb-3 opacity-30" />}
+          <p>{view === 'archive' ? 'Aucune tâche archivée.' : 'Aucune tâche active.'}</p>
         </div>
       )}
 
-      {!loading && !error && tasks.length > 0 && (
+      {!loading && !error && visibleTasks.length > 0 && (
         <div className="flex gap-6">
           {/* Card list */}
           <div className="flex-1 min-w-0 space-y-3">
-            {tasks.map((task) => {
+            {visibleTasks.map((task) => {
               const typeStyle = TASK_TYPE_STYLE[task.task_type] ?? TASK_TYPE_STYLE.CORRECTION;
               const taskStatutStyle = TASK_STATUT_STYLE[task.statut] ?? TASK_STATUT_STYLE.DRAFT;
               const isSelected = selectedTask?.id === task.id;

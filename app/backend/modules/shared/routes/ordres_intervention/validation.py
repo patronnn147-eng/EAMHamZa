@@ -10,6 +10,7 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import OrdreStatut
 from services.audit import AuditService, AuditEntityType
 from services.ordres_intervention import Ordres_interventionService
+from services.inventory import InventoryReservationService
 from ..ordres_intervention.schemas import Ordres_interventionValidationData, Ordres_interventionResponse
 
 router = APIRouter(prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"])
@@ -73,6 +74,16 @@ async def validate_ordres_intervention(
         
     old_statut = intervention.statut
     result = await service.update(id, update_dict)
+
+    # Release reservations if intervention rejected (defensive — usually no rows match)
+    if data.action == "REJECT":
+        try:
+            await InventoryReservationService(db).release_all(
+                intervention_id=id, reason="rejected", auto_commit=True
+            )
+        except Exception as rls_exc:
+            logger.warning(f"release_all on intervention reject failed: {rls_exc}")
+
 
     try:
         await AuditService(db).log_update(

@@ -1,0 +1,156 @@
+<h2>What visual style for the 3D components?</h2>
+<p class="subtitle">Sets the aesthetic for hero banner, 3D tab, and ML mini-model — all three will match</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="holographic" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#030712;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;position:relative;overflow:hidden;">
+        <!-- Grid lines -->
+        <div style="position:absolute;inset:0;background-image:linear-gradient(rgba(59,130,246,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.08) 1px,transparent 1px);background-size:18px 18px;"></div>
+        <!-- Glowing wireframe machine shape -->
+        <div style="position:relative;z-index:1;text-align:center;">
+          <svg width="90" height="70" viewBox="0 0 90 70" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- machine body wireframe -->
+            <rect x="15" y="20" width="60" height="35" rx="3" stroke="#00d4ff" stroke-width="1.5" fill="none" opacity="0.9"/>
+            <rect x="25" y="10" width="40" height="15" rx="2" stroke="#00d4ff" stroke-width="1" fill="none" opacity="0.7"/>
+            <line x1="15" y1="30" x2="75" y2="30" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+            <line x1="15" y1="45" x2="75" y2="45" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+            <!-- rotating gears indicator -->
+            <circle cx="35" cy="38" r="8" stroke="#0ea5e9" stroke-width="1.2" fill="none" opacity="0.8"/>
+            <circle cx="55" cy="38" r="5" stroke="#0ea5e9" stroke-width="1" fill="none" opacity="0.7"/>
+            <!-- glow dots -->
+            <circle cx="15" cy="20" r="2" fill="#00d4ff" opacity="0.9"/>
+            <circle cx="75" cy="20" r="2" fill="#00d4ff" opacity="0.9"/>
+            <circle cx="15" cy="55" r="2" fill="#00d4ff" opacity="0.9"/>
+            <circle cx="75" cy="55" r="2" fill="#00d4ff" opacity="0.9"/>
+            <!-- scan line -->
+            <line x1="15" y1="33" x2="75" y2="33" stroke="#00d4ff" stroke-width="1.5" opacity="0.4"/>
+          </svg>
+          <div style="font-size:9px;color:#00d4ff;letter-spacing:2px;margin-top:4px;text-transform:uppercase;">HOLOGRAPHIC SCAN</div>
+          <div style="font-size:8px;color:#475569;margin-top:2px;">Fresnel shader · scan lines · glowing wireframe</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Holographic Wireframe</h3>
+      <p>Glowing cyan wireframe machine, scan-line shader, Fresnel rim glow, animated grid floor. Sci-fi industrial. Matches the dark blue EAM theme perfectly.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="metallic" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#111827;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;position:relative;overflow:hidden;">
+        <!-- studio gradient bg -->
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%, #1e3a5f 0%, #111827 70%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;">
+          <svg width="90" height="75" viewBox="0 0 90 75" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- metallic body with gradient -->
+            <defs>
+              <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#64748b"/>
+                <stop offset="40%" stop-color="#94a3b8"/>
+                <stop offset="100%" stop-color="#334155"/>
+              </linearGradient>
+              <linearGradient id="metal2" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#475569"/>
+                <stop offset="50%" stop-color="#94a3b8"/>
+                <stop offset="100%" stop-color="#1e293b"/>
+              </linearGradient>
+            </defs>
+            <rect x="10" y="22" width="70" height="38" rx="4" fill="url(#metal)" stroke="#64748b" stroke-width="0.5"/>
+            <rect x="20" y="10" width="50" height="18" rx="3" fill="url(#metal2)" stroke="#64748b" stroke-width="0.5"/>
+            <!-- bolts -->
+            <circle cx="18" cy="28" r="2.5" fill="#94a3b8"/>
+            <circle cx="72" cy="28" r="2.5" fill="#94a3b8"/>
+            <circle cx="18" cy="52" r="2.5" fill="#94a3b8"/>
+            <circle cx="72" cy="52" r="2.5" fill="#94a3b8"/>
+            <!-- panel lines -->
+            <line x1="10" y1="38" x2="80" y2="38" stroke="#475569" stroke-width="0.8"/>
+            <!-- shadow -->
+            <ellipse cx="45" cy="65" rx="30" ry="5" fill="black" opacity="0.4"/>
+          </svg>
+          <div style="font-size:9px;color:#94a3b8;letter-spacing:1px;margin-top:2px;text-transform:uppercase;">PBR METALLIC</div>
+          <div style="font-size:8px;color:#475569;margin-top:2px;">meshPhysicalMaterial · studio lighting · contact shadows</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Realistic Metallic PBR</h3>
+      <p>Physically-based rendering with studio three-point lighting, contact shadows, environment map reflections. Grounded, industrial, photorealistic feel.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="particles" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#030712;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%, #1e1b4b 0%, #030712 70%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;">
+          <!-- particle sphere / energy field -->
+          <svg width="90" height="80" viewBox="0 0 90 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- energy orb -->
+            <circle cx="45" cy="38" r="22" stroke="#7c3aed" stroke-width="0.5" fill="none" opacity="0.4"/>
+            <circle cx="45" cy="38" r="16" stroke="#a78bfa" stroke-width="0.8" fill="none" opacity="0.6"/>
+            <circle cx="45" cy="38" r="8" fill="rgba(124,58,237,0.3)" stroke="#c4b5fd" stroke-width="1"/>
+            <!-- particles -->
+            <circle cx="23" cy="22" r="1.5" fill="#a78bfa" opacity="0.9"/>
+            <circle cx="67" cy="18" r="1" fill="#60a5fa" opacity="0.8"/>
+            <circle cx="70" cy="50" r="2" fill="#a78bfa" opacity="0.7"/>
+            <circle cx="20" cy="55" r="1.5" fill="#60a5fa" opacity="0.8"/>
+            <circle cx="40" cy="8" r="1" fill="#c4b5fd" opacity="0.9"/>
+            <circle cx="55" cy="65" r="1.5" fill="#a78bfa" opacity="0.7"/>
+            <circle cx="75" cy="35" r="1" fill="#60a5fa" opacity="0.6"/>
+            <circle cx="12" cy="38" r="1.5" fill="#c4b5fd" opacity="0.8"/>
+            <!-- data streams -->
+            <line x1="45" y1="16" x2="45" y2="5" stroke="#7c3aed" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.6"/>
+            <line x1="63" y1="27" x2="72" y2="18" stroke="#7c3aed" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.5"/>
+            <line x1="63" y1="50" x2="74" y2="58" stroke="#7c3aed" stroke-width="0.5" stroke-dasharray="2 2" opacity="0.5"/>
+          </svg>
+          <div style="font-size:9px;color:#a78bfa;letter-spacing:2px;margin-top:2px;text-transform:uppercase;">DATA SPHERE</div>
+          <div style="font-size:8px;color:#475569;margin-top:2px;">particle system · noise shader · FBM distortion</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Abstract Data Sphere</h3>
+      <p>No literal machine model. Instead: animated particle field + FBM noise shader pulsing with health score. Color shifts red → green by risk level. Pure data art.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#030712;border-radius:8px;padding:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:130px;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 40% 40%, #1e3a5f 0%, #030712 65%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;">
+          <svg width="100" height="80" viewBox="0 0 100 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- machine silhouette with glow -->
+            <rect x="18" y="25" width="52" height="30" rx="3" fill="rgba(15,23,42,0.8)" stroke="#0ea5e9" stroke-width="1.5" opacity="0.9"/>
+            <rect x="28" y="14" width="32" height="14" rx="2" fill="rgba(15,23,42,0.8)" stroke="#0ea5e9" stroke-width="1" opacity="0.8"/>
+            <!-- gear details glowing -->
+            <circle cx="34" cy="40" r="7" stroke="#00d4ff" stroke-width="1.2" fill="none" opacity="0.8"/>
+            <circle cx="52" cy="40" r="4.5" stroke="#00d4ff" stroke-width="1" fill="none" opacity="0.7"/>
+            <!-- particle data streams shooting out -->
+            <circle cx="8" cy="20" r="1.5" fill="#a78bfa" opacity="0.9"/>
+            <circle cx="92" cy="28" r="1.2" fill="#60a5fa" opacity="0.8"/>
+            <circle cx="88" cy="55" r="1.8" fill="#a78bfa" opacity="0.7"/>
+            <circle cx="5" cy="50" r="1.2" fill="#60a5fa" opacity="0.8"/>
+            <circle cx="50" cy="3" r="1.5" fill="#c4b5fd" opacity="0.9"/>
+            <!-- stream lines from machine -->
+            <line x1="18" y1="35" x2="8" y2="20" stroke="#0ea5e9" stroke-width="0.5" stroke-dasharray="2 3" opacity="0.5"/>
+            <line x1="70" y1="35" x2="92" y2="28" stroke="#0ea5e9" stroke-width="0.5" stroke-dasharray="2 3" opacity="0.5"/>
+            <line x1="44" y1="14" x2="50" y2="3" stroke="#a78bfa" stroke-width="0.5" stroke-dasharray="2 3" opacity="0.5"/>
+            <!-- health arc -->
+            <path d="M 70 40 A 20 20 0 0 1 85 55" stroke="#22c55e" stroke-width="1.5" fill="none" opacity="0.7"/>
+          </svg>
+          <div style="font-size:9px;color:#00d4ff;letter-spacing:1px;margin-top:2px;text-transform:uppercase;">HYBRID</div>
+          <div style="font-size:8px;color:#475569;margin-top:2px;">wireframe machine + particle data streams + health arc</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D — Hybrid: Machine + Particles</h3>
+      <p>Holographic wireframe machine body with particle data streams emanating from it. Health score shown as glowing arc. Best of both — recognizable machine form + living data aesthetic.</p>
+    </div>
+  </div>
+
+</div>

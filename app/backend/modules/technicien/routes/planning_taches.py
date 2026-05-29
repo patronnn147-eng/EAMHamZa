@@ -40,7 +40,7 @@ async def get_my_planning_tasks(
     current_user=Depends(verify_technicien),
 ):
     result = await db.execute(
-        select(Planning_taches).where(Planning_taches.technicien_id == current_user.id)
+        select(Planning_taches).where(Planning_taches.technicien_id == current_user.id).where(Planning_taches.archived_at.is_(None))
     )
     tasks = result.scalars().all()
 

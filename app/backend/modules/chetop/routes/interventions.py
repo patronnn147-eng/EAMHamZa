@@ -100,6 +100,7 @@ async def get_my_intervention_requests(
         query = select(Ordres_intervention, Machines.nom.label("machine_nom"))\
             .outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)\
             .where(Ordres_intervention.requested_by == current_user.id)\
+            .where(Ordres_intervention.archived_at.is_(None))\
             .order_by(Ordres_intervention.requested_at.desc())
 
         result = await db.execute(query)

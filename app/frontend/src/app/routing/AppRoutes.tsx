@@ -42,6 +42,8 @@ import { SectionRedirect } from './SectionRedirect';
 import ChetopDashboard from '@/modules/chetop/ChetopDashboard';
 import PDCAPage from '@/modules/shared/PDCAPage';
 import InventoryPage from '@/modules/shared/InventoryPage';
+import ArchivePage from '@/modules/shared/ArchivePage';
+import AdminPendingPieces from '@/modules/admin/AdminPendingPieces';
 import AdminWorkOrdersList from '@/modules/admin/AdminWorkOrdersList';
 import AdminWorkOrdersTable from '@/modules/admin/AdminWorkOrdersTable';
 import AdminItvApprovals from '@/modules/admin/AdminItvApprovals';
@@ -639,6 +641,56 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN']}>
             <Layout>
               <InventoryPage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/archive"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <ArchivePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cheftech/archive"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <ArchivePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chetop/archive"
+        element={
+          <ProtectedRoute allowedRoles={['CHETOP']}>
+            <Layout>
+              <ArchivePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/technician/archive"
+        element={
+          <ProtectedRoute allowedRoles={['TECHNICIEN']}>
+            <Layout>
+              <ArchivePage />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/pending-pieces"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN']}>
+            <Layout>
+              <AdminPendingPieces />
             </Layout>
           </ProtectedRoute>
         }

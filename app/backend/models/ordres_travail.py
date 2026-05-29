@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, String, Text, Enum as SQLEnum
+from sqlalchemy import Column, DateTime, Float, Integer, String, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -42,7 +42,17 @@ class Ordres_travail(Base):
     cheftech_feedback = Column(Text, nullable=True)
     timer_started_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    archive_reason = Column(String(50), nullable=True)
     updated_at = Column(DateTime(timezone=True), onupdate=func.now(), nullable=True)
+
+    # Post-maintenance recovery snapshots — unified_health_score captured at
+    # WO creation (baseline) and just before completion (pre-fix state).
+    # Used to compute delta vs current health for recovery classification.
+    health_score_at_creation = Column(Float, nullable=True)
+    health_score_at_completion = Column(Float, nullable=True)
 
     # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
     machine = relationship(

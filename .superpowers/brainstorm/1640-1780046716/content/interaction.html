@@ -1,0 +1,129 @@
+<h2>How does the user interact with the 3D scene?</h2>
+<p class="subtitle">Sets behaviour for hero banner + 3D tab (mini ML model always auto-rotates)</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="auto" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:8px;padding:14px;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,#1e3a5f,#0f172a 70%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;">
+          <!-- auto-rotate indicator -->
+          <div style="width:70px;height:70px;border-radius:50%;border:2px dashed rgba(148,163,184,0.3);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;position:relative;">
+            <div style="font-size:26px;">⚙️</div>
+            <!-- rotation arrow -->
+            <div style="position:absolute;top:-6px;right:-6px;font-size:14px;color:#60a5fa;">↻</div>
+          </div>
+          <div style="font-size:9px;color:#94a3b8;letter-spacing:1px;text-transform:uppercase;">AUTO-ROTATE</div>
+          <div style="font-size:8px;color:#475569;margin-top:3px;">passive · always moving · zero clicks needed</div>
+          <div style="margin-top:8px;display:flex;gap:4px;justify-content:center;">
+            <div style="background:#1e3a5f;border:1px solid #334155;border-radius:4px;padding:2px 6px;font-size:8px;color:#94a3b8;">🚫 No drag</div>
+            <div style="background:#1e3a5f;border:1px solid #334155;border-radius:4px;padding:2px 6px;font-size:8px;color:#94a3b8;">🚫 No zoom</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Passive Auto-Rotate</h3>
+      <p>Machine rotates continuously on its own. No user controls. Works like an ambient display — machine always looks alive. Simplest implementation, best performance.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="orbit" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:8px;padding:14px;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,#1e3a5f,#0f172a 70%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;">
+          <div style="width:70px;height:70px;border-radius:50%;border:2px solid rgba(59,130,246,0.4);display:flex;align-items:center;justify-content:center;margin:0 auto 8px;position:relative;">
+            <div style="font-size:26px;">⚙️</div>
+            <!-- orbit arrows -->
+            <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);font-size:12px;color:#3b82f6;">↖ ↗</div>
+            <div style="position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);font-size:12px;color:#3b82f6;">↙ ↘</div>
+          </div>
+          <div style="font-size:9px;color:#60a5fa;letter-spacing:1px;text-transform:uppercase;">ORBIT CONTROLS</div>
+          <div style="font-size:8px;color:#475569;margin-top:3px;">drag to rotate · scroll to zoom · pan</div>
+          <div style="margin-top:8px;display:flex;gap:4px;justify-content:center;">
+            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:4px;padding:2px 6px;font-size:8px;color:#60a5fa;">✓ Drag</div>
+            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:4px;padding:2px 6px;font-size:8px;color:#60a5fa;">✓ Zoom</div>
+            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:4px;padding:2px 6px;font-size:8px;color:#60a5fa;">✓ Pan</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Full Orbit Controls</h3>
+      <p>User can drag to rotate, scroll to zoom, pan around the machine. Interactive inspection. Best for the dedicated 3D tab. OrbitControls from Drei — standard pattern.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="scroll" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:8px;padding:14px;min-height:130px;display:flex;flex-direction:column;align-items:center;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,#1e1b4b,#0f172a 70%);"></div>
+        <div style="position:relative;z-index:1;width:100%;">
+          <!-- scroll progress bar -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;justify-content:center;">
+            <div style="font-size:10px;color:#a78bfa;">scroll ↓</div>
+            <div style="flex:1;max-width:80px;background:#1e1b4b;border-radius:4px;height:4px;position:relative;">
+              <div style="background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:4px;height:4px;width:40%;"></div>
+            </div>
+          </div>
+          <!-- camera positions sequence -->
+          <div style="display:flex;gap:4px;justify-content:center;margin-bottom:6px;">
+            <div style="background:#1e1b4b;border:1px solid #7c3aed;border-radius:4px;padding:3px 6px;font-size:7px;color:#a78bfa;text-align:center;">
+              <div>📷 Front</div><div style="color:#475569;margin-top:1px;">0%</div>
+            </div>
+            <div style="font-size:10px;color:#475569;display:flex;align-items:center;">→</div>
+            <div style="background:#1e1b4b;border:1px solid #7c3aed;border-radius:4px;padding:3px 6px;font-size:7px;color:#a78bfa;text-align:center;">
+              <div>📷 Side</div><div style="color:#475569;margin-top:1px;">50%</div>
+            </div>
+            <div style="font-size:10px;color:#475569;display:flex;align-items:center;">→</div>
+            <div style="background:#1e1b4b;border:1px solid #7c3aed;border-radius:4px;padding:3px 6px;font-size:7px;color:#a78bfa;text-align:center;">
+              <div>📷 Top</div><div style="color:#475569;margin-top:1px;">100%</div>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:26px;">⚙️</div>
+            <div style="font-size:9px;color:#a78bfa;letter-spacing:1px;text-transform:uppercase;margin-top:4px;">SCROLL-DRIVEN</div>
+            <div style="font-size:8px;color:#475569;margin-top:2px;">GSAP ScrollTrigger + scrub</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Scroll-Driven Camera</h3>
+      <p>Camera orbits automatically as user scrolls through the page. GSAP ScrollTrigger scrubs the 3D camera position. Cinematic, guided experience — no manual controls.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="hybrid-interact" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="background:#0f172a;border-radius:8px;padding:14px;min-height:130px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden;">
+        <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 30% 30%,#1e3a5f,#0f172a 70%);"></div>
+        <div style="position:relative;z-index:1;text-align:center;width:100%;">
+          <!-- Hero section: auto -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;justify-content:center;">
+            <div style="background:#1e3a5f;border:1px solid #334155;border-radius:4px;padding:2px 8px;font-size:8px;color:#94a3b8;flex:1;text-align:center;">Hero: auto-rotate</div>
+            <div style="font-size:10px;color:#60a5fa;">↻</div>
+          </div>
+          <!-- 3D tab: orbit -->
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;justify-content:center;">
+            <div style="background:#1e3a5f;border:1px solid #3b82f6;border-radius:4px;padding:2px 8px;font-size:8px;color:#60a5fa;flex:1;text-align:center;">3D Tab: orbit controls</div>
+            <div style="font-size:10px;color:#3b82f6;">⊕</div>
+          </div>
+          <!-- ML mini: auto -->
+          <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+            <div style="background:#1e3a5f;border:1px solid #334155;border-radius:4px;padding:2px 8px;font-size:8px;color:#94a3b8;flex:1;text-align:center;">ML mini: float animation</div>
+            <div style="font-size:10px;color:#94a3b8;">〜</div>
+          </div>
+          <div style="font-size:9px;color:#60a5fa;letter-spacing:1px;text-transform:uppercase;margin-top:8px;">CONTEXT-AWARE</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>D — Context-Aware (Recommended)</h3>
+      <p>Hero: auto-rotate (ambient). 3D Tab: full orbit controls (exploration). ML mini: Float animation (decorative). Each component gets the right interaction for its context.</p>
+    </div>
+  </div>
+
+</div>

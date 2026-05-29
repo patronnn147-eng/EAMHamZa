@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
+import { PlanningMachinesDialog } from './PlanningMachinesDialog';
 import {
     format,
     startOfDay,
@@ -188,6 +189,7 @@ export default function PlanningCalendarView() {
     const { toast } = useToast();
     const [planning, setPlanning] = useState<Planning | null>(null);
     const [loading, setLoading] = useState(true);
+    const [machineDialogOpen, setMachineDialogOpen] = useState<boolean>(false);
     const [viewMonth, setViewMonth] = useState<Date>(new Date());
 
     useEffect(() => {
@@ -294,6 +296,7 @@ export default function PlanningCalendarView() {
     };
 
     return (
+        <>
         <div
             className="min-h-screen relative overflow-hidden"
             style={{ background: COLORS.bg, color: COLORS.onSurface }}
@@ -661,20 +664,33 @@ export default function PlanningCalendarView() {
                             className="rounded-2xl p-6"
                             style={glassPanelStyle}
                         >
-                            <h3
-                                className="font-bold text-lg mb-5"
-                                style={{ fontFamily: 'Manrope, sans-serif', color: COLORS.onSurface }}
-                            >
-                                Machines
-                            </h3>
+                            <div className="flex items-center justify-between mb-5">
+                                <h3
+                                    className="font-bold text-lg"
+                                    style={{ fontFamily: 'Manrope, sans-serif', color: COLORS.onSurface }}
+                                >
+                                    Machines
+                                </h3>
+                                <button
+                                    type="button"
+                                    onClick={() => setMachineDialogOpen(true)}
+                                    className="text-xs font-mono uppercase tracking-wider px-2.5 py-1 rounded border border-cyan-400/40 bg-cyan-400/10 text-cyan-300 hover:bg-cyan-400/20 transition-colors"
+                                >
+                                    + Assigner
+                                </button>
+                            </div>
                             <div className="flex flex-col gap-3">
                                 {planning.machine_ids?.length === 0 && (
-                                    <p
-                                        className="text-sm py-4 text-center"
-                                        style={{ color: COLORS.onSurfaceVariant }}
-                                    >
-                                        No machines assigned
-                                    </p>
+                                    <div className="text-sm py-4 text-center space-y-2">
+                                        <p style={{ color: COLORS.onSurfaceVariant }}>Aucune machine assignée</p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setMachineDialogOpen(true)}
+                                            className="text-xs font-mono uppercase tracking-wider underline text-cyan-300 hover:text-cyan-200"
+                                        >
+                                            + Cliquez pour assigner
+                                        </button>
+                                    </div>
                                 )}
                                 {planning.machine_ids?.map((machineId: number) => (
                                     <div
@@ -768,5 +784,15 @@ export default function PlanningCalendarView() {
                 </div>
             </div>
         </div>
+        {planning && (
+            <PlanningMachinesDialog
+                open={machineDialogOpen}
+                onOpenChange={setMachineDialogOpen}
+                planningId={planning.id}
+                initialMachineIds={planning.machine_ids || []}
+                onSaved={(newIds) => setPlanning({ ...planning, machine_ids: newIds })}
+            />
+        )}
+    </>
     );
 }

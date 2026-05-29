@@ -22,6 +22,7 @@ from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.plannings import Plannings
 from models.machines import Machines
 from services.audit import AuditService, AuditEntityType
+from services.ml.recovery import PostMaintenanceRecoveryService
 from .ordres_intervention.schemas import (
     Ordres_interventionResponse,
     Ordres_interventionValidationData,
@@ -366,11 +367,24 @@ async def create_work_order_from_intervention(
     
     db.add(work_order)
     await db.flush()
-    
+
     # Update intervention with work order reference
     intervention.ordre_travail_id = work_order.id
     intervention.statut = "CONVERTED_TO_WORKORDER"
-    
+
+    # Post-maintenance recovery: capture pre-maintenance baseline.
+    try:
+        _score = await PostMaintenanceRecoveryService(db).snapshot_health(
+            work_order.machine_id
+        )
+        if _score is not None:
+            work_order.health_score_at_creation = _score
+    except Exception as _rec_exc:
+        logger.warning(
+            "Recovery baseline snapshot failed for WO %s: %s",
+            work_order.id, _rec_exc,
+        )
+
     await db.commit()
     await db.refresh(work_order)
     

@@ -111,3 +111,6 @@ class WorkOrderCompletePayload(BaseModel):
     rotational_speed: Optional[int] = None  # RPM (e.g., 1450)
     torque: Optional[float] = None  # Newton-meters (e.g., 42.5)
     tool_wear: Optional[int] = None  # minutes (e.g., 15)
+
+    # ── NEW: structured parts consumption (replaces free-text parts_replaced) ──
+    parts_consumed: Optional[list] = None  # List[ConsumedPieceItem] — kept as list to avoid circular import

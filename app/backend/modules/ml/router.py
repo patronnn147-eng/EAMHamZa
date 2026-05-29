@@ -11,6 +11,7 @@ from .logging import ShadowLogger
 from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
 from core.ml_client import ml_client, is_ml_service_available, get_model_metrics
+from services.inventory.pieces import batch_get_parts_readiness, get_machine_parts_readiness
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
@@ -85,14 +86,15 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     Theory + Kalman smoothing into a single authoritative health verdict.
 
     Response:
-        unified_health_score: float [0-100] — the single authoritative score
+        unified_health_score: float [0-100] â the single authoritative score
         score_source: "dst_fusion" | "fallback_additive"
         dst_verdict: "Healthy" | "Degrading" | "Critical" | "Unknown"
-        conflict_factor_K: float [0-1] — model agreement (< 0.8 = good)
-        kalman_hi: float — Kalman-smoothed health index
-        kalman_rul: float — Kalman-smoothed RUL estimate (days)
+        conflict_factor_K: float [0-1] â model agreement (< 0.8 = good)
+        kalman_hi: float â Kalman-smoothed health index
+        kalman_rul: float â Kalman-smoothed RUL estimate (days)
         model_outputs: per-model health indices
-        rul_days, failure_probability, risk_level — standard prediction fields
+        rul_days, failure_probability, risk_level â standard prediction fields
+        maintenance_event: bool â true when tool_wear reset detected (Mahal excluded from DST)
     """
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
@@ -195,7 +197,28 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "rotational_speed": _rpm,
         "torque": _torq,
         "tool_wear": int(_wear),
+        # maintenance_event: true when tool_wear reset detected — Mahal excluded from DST that step
+        "maintenance_event": fusion_result.get("maintenance_event", False) if fusion_result else False,
     }
+
+    # Inventory: parts availability for this machine
+    try:
+        parts_readiness = await get_machine_parts_readiness(machine_id, db)
+    except Exception:
+        parts_readiness = {"status": "UNKNOWN", "error": "inventory_unavailable"}
+    response["parts_readiness"] = parts_readiness
+
+    # Post-maintenance recovery: compare current unified_health_score against
+    # the snapshot taken at the most recent work order's creation.
+    try:
+        from services.ml.recovery import PostMaintenanceRecoveryService
+        recovery = await PostMaintenanceRecoveryService(db).get_latest_recovery_for_machine(
+            machine_id=machine_id,
+            current_score=response.get("unified_health_score"),
+        )
+        response["recovery"] = recovery.to_dict() if recovery is not None else None
+    except Exception:
+        response["recovery"] = None
 
     return response
 
@@ -319,7 +342,7 @@ async def get_failure_probability(
 
     Returns:
         machine_id: int
-        failure_probability: float (0–100)
+        failure_probability: float (0-100)
         risk_level: "LOW_RISK" | "HIGH_RISK"
     """
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
@@ -423,13 +446,15 @@ async def _process_single_machine(
     interventions_by_machine: dict = None,
     latest_logs_by_machine: dict = None,
     latest_telemetry_by_machine: dict = None,
+    parts_readiness_map: dict = None,
 ) -> Dict:
     """Helper to process single machine prediction.
 
     Args:
         interventions_by_machine: pre-fetched dict {machine_id: [Ordres_intervention]}
         latest_logs_by_machine: pre-fetched dict {machine_id: MlPredictionLog} — latest log row per machine
-        latest_telemetry_by_machine: pre-fetched dict {machine_id: MachineTelemetry} — latest telemetry row per machine
+        latest_telemetry_by_machine: pre-fetched dict {machine_id: MachineTelemetry} -- latest telemetry row per machine
+        parts_readiness_map: pre-fetched dict {machine_id: status} -- inventory readiness per machine
     """
     if interventions_by_machine is not None:
         interventions = interventions_by_machine.get(machine.id, [])
@@ -441,7 +466,7 @@ async def _process_single_machine(
 
     # Build synthetic fusion_result from latest MlPredictionLog row.
     # Avoids per-machine ML microservice calls while giving realistic health scores.
-    # RULCalculator uses failure_probability → health = 100 - failure_prob.
+    # RULCalculator uses failure_probability — health = 100 - failure_prob.
     fusion_result = None
     if latest_logs_by_machine is not None:
         log = latest_logs_by_machine.get(machine.id)
@@ -471,6 +496,7 @@ async def _process_single_machine(
     pred["zone"] = machine.zone
     pred["sous_zone"] = machine.sous_zone
     pred["statut"] = machine.statut
+    pred["parts_ready"] = (parts_readiness_map or {}).get(machine.id, "OK")
     return pred
 
 
@@ -541,6 +567,12 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
         row.machine_id: row for row in _latest_telem_result.scalars().all()
     }
 
+    # Batch-fetch inventory parts readiness for all machines (single query).
+    try:
+        _parts_readiness_map = await batch_get_parts_readiness(db)
+    except Exception:
+        _parts_readiness_map = {}
+
     # Process all machines in parallel
     tasks = [
         _process_single_machine(
@@ -548,6 +580,7 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
             _interventions_by_machine,
             _latest_logs_by_machine,
             _latest_telem_by_machine,
+            _parts_readiness_map,
         )
         for m in machines
     ]
@@ -573,6 +606,28 @@ async def refresh_fleet_dashboard():
     _fleet_cache["data"] = None
     _fleet_cache["timestamp"] = None
     return {"status": "cache_cleared", "message": "Dashboard cache cleared. Next request will rebuild."}
+
+
+@router.get("/inventory/demand-forecast")
+async def get_demand_forecast(
+    horizon_days: int = Query(60, ge=7, le=180, description="Only include machines failing within this many days"),
+    limit: int = Query(20, ge=1, le=100, description="Max items to return"),
+    db: AsyncSession = Depends(get_db),
+) -> Dict:
+    """
+    Ranked spare parts reorder list based on RUL predictions x stock levels x consumption history.
+    Cached 1 hour. Use POST /inventory/demand-forecast/refresh to bust.
+    """
+    from .services.demand_forecast import compute_demand_forecast
+    return await compute_demand_forecast(db, horizon_days=horizon_days, limit=limit)
+
+
+@router.post("/inventory/demand-forecast/refresh")
+async def refresh_demand_forecast():
+    """Bust the demand forecast cache. Next GET will recompute."""
+    from .services.demand_forecast import invalidate_forecast_cache
+    invalidate_forecast_cache()
+    return {"status": "cache_cleared", "message": "Demand forecast cache cleared."}
 
 
 @router.get("/shadow-logs")

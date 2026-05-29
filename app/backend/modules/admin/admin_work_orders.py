@@ -7,7 +7,7 @@ import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, or_, func
+from sqlalchemy import select, and_, or_, func, text
 from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
@@ -36,7 +36,7 @@ async def list_work_orders(
         skip = (page - 1) * size
 
         # Base query structure for both count and select
-        base_query = select(Ordres_travail).outerjoin(
+        base_query = select(Ordres_travail).where(Ordres_travail.archived_at.is_(None)).outerjoin(
             Machines, Ordres_travail.machine_id == Machines.id
         ).outerjoin(
             Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
@@ -45,7 +45,7 @@ async def list_work_orders(
         )
 
         # Count total
-        total_result = await db.execute(select(func.count(Ordres_travail.id)))
+        total_result = await db.execute(select(func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None)))
         total = total_result.scalar() or 0
 
         # Detailed query with pagination
@@ -143,6 +143,27 @@ async def export_work_order_report(
         def itv_get(attr, default="N/A"):
             return getattr(itv, attr, None) or default if itv else default
 
+        # Fetch consumed-pieces summary from the canonical VIEW
+        consumed_summary = None
+        if itv is not None:
+            try:
+                _row = (await db.execute(
+                    text("SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"),
+                    {"iid": itv.id},
+                )).first()
+                if _row and _row[0]:
+                    import json as _json
+                    _data = _row[0] if isinstance(_row[0], list) else _json.loads(_row[0])
+                    consumed_summary = ", ".join(
+                        f"{x.get('piece_name','?')} ({x.get('used','0')}{x.get('unit','')}"
+                        + (f", retour={x.get('returned','0')}" if float(x.get('returned',0) or 0) else "")
+                        + (f", rebut={x.get('wasted','0')}" if float(x.get('wasted',0) or 0) else "")
+                        + ")"
+                        for x in _data
+                    )
+            except Exception:
+                logger.debug("intervention_consumption_summary view read failed", exc_info=True)
+
         # Duration
         duration_min = "N/A"
         if wo.date_fin and wo.date_debut:
@@ -182,7 +203,7 @@ async def export_work_order_report(
             "DO - Catégorie Cause Racine": itv_get("root_cause_category"),
             "DO - Description Cause Racine": itv_get("root_cause_description"),
             "DO - Rapport d'intervention": itv_get("actions_performed"),
-            "DO - Pièces Remplacées": itv_get("parts_replaced"),
+            "DO - Pièces Remplacées": (consumed_summary or itv_get("legacy_parts_text") or "N/A"),
             "DO - Outils Utilisés": itv_get("tools_used"),
 
             # --- CHECK ---

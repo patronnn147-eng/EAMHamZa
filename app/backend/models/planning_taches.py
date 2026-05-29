@@ -27,3 +27,7 @@ class Planning_taches(Base):
     statut = Column(String(20), nullable=False, default="DRAFT")
     created_by = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    archived_at = Column(DateTime(timezone=True), nullable=True)
+
+    archive_reason = Column(String(50), nullable=True)

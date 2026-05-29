@@ -1,6 +1,7 @@
 import React from 'react';
 import { useMLFleetData } from './ml-fleet-dashboard/hooks/useMLFleetData';
 import { FleetOverview } from './ml-fleet-dashboard/components/FleetOverview';
+import { DemandForecastPanel } from './ml-fleet-dashboard/components/DemandForecastPanel';
 import { Button } from '@/components/ui/button';
 import { BrainCircuit, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -62,6 +63,11 @@ export default function MLFleetDashboard() {
 
       {/* Fleet Overview */}
       <FleetOverview machines={machines} summary={summary} />
+
+      {/* Demand Forecast — Inventory x ML cross-signal */}
+      <div className="mt-8 border-t border-blue-900/40 pt-6">
+        <DemandForecastPanel />
+      </div>
     </div>
   );
 }

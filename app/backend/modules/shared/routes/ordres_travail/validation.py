@@ -9,6 +9,9 @@ from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import OrdreStatut
 from services.ordres_travail import Ordres_travailService
+from services.inventory import InventoryReservationService
+from models.ordres_intervention import Ordres_intervention
+from sqlalchemy import select
 from ..ordres_travail.schemas import Ordres_travailValidationData, Ordres_travailResponse
 
 router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_travail"])
@@ -53,6 +56,23 @@ async def validate_ordres_travail(
         raise HTTPException(status_code=400, detail="Invalid action")
         
     result = await service.update(id, update_dict)
+
+    # Release reservations for every linked intervention on REJECT
+    if data.action == "REJECT":
+        try:
+            linked = (await db.execute(
+                select(Ordres_intervention.id).where(Ordres_intervention.ordre_travail_id == id)
+            )).scalars().all()
+            for itv_id in linked:
+                try:
+                    await InventoryReservationService(db).release_all(
+                        intervention_id=itv_id, reason="wo-rejected", auto_commit=True
+                    )
+                except Exception as rls_exc:
+                    logger.warning(f"release_all on WO reject failed for itv {itv_id}: {rls_exc}")
+        except Exception as scan_exc:
+            logger.warning(f"Could not scan linked interventions for WO {id}: {scan_exc}")
+
     return result
 
 

@@ -20,6 +20,8 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Loader2 } from 'lucide-react';
 import type { Machine } from '@/lib/types';
+import { PiecePicker, PlannedRow, PendingDraft, hasValidationErrors } from '@/components/inventory/PiecePicker';
+import { SectionDivider } from '@/components/inventory/primitives';
 
 const getAuthToken = () => localStorage.getItem('access_token');
 
@@ -37,14 +39,20 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   initialOrdreTravailId: number;
   initialMachineId?: number | null;
-  onSubmit: (data: {
-    ordre_travail_id: number;
-    machine_id: number | null;
-    problem_description: string;
-    priority: string;
-    estimated_duration_minutes: number | null;
-    required_materials: string | null;
-  }) => void;
+  onSubmit: (
+    data: {
+      ordre_travail_id: number;
+      machine_id: number | null;
+      problem_description: string;
+      priority: string;
+      estimated_duration_minutes: number | null;
+      required_materials: string | null;
+    },
+    extras?: {
+      required_pieces: PlannedRow[];
+      pending_pieces: PendingDraft[];
+    }
+  ) => void;
 };
 
 export const InterventionRequestDialog: React.FC<Props> = ({
@@ -64,6 +72,8 @@ export const InterventionRequestDialog: React.FC<Props> = ({
   });
 
   const [machines, setMachines] = React.useState<Machine[]>([]);
+  const [plannedPieces, setPlannedPieces] = React.useState<PlannedRow[]>([]);
+  const [pendingDrafts, setPendingDrafts] = React.useState<PendingDraft[]>([]);
   const [uploadingField, setUploadingField] = React.useState<'required_materials' | 'problem_description' | null>(null);
 
   const fetchMachines = async () => {
@@ -217,11 +227,14 @@ export const InterventionRequestDialog: React.FC<Props> = ({
   }, [open, initialOrdreTravailId, initialMachineId]);
 
   const canSubmit =
-    form.problem_description.trim().length > 0 && form.priority.trim().length > 0 && Number.isFinite(form.ordre_travail_id);
+    form.problem_description.trim().length > 0 &&
+    form.priority.trim().length > 0 &&
+    Number.isFinite(form.ordre_travail_id) &&
+    !hasValidationErrors(plannedPieces);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Demande de démarrage d'intervention</DialogTitle>
           <DialogDescription>
@@ -284,8 +297,19 @@ export const InterventionRequestDialog: React.FC<Props> = ({
           </div>
 
           <div className="grid gap-2">
+            <SectionDivider label="Pièces requises" tone="success" />
+            <PiecePicker
+              machineId={form.machine_id}
+              selectedRows={plannedPieces}
+              pendingDrafts={pendingDrafts}
+              onSelectedChange={setPlannedPieces}
+              onPendingChange={setPendingDrafts}
+            />
+          </div>
+
+          <div className="grid gap-2">
             <div className="flex items-center justify-between">
-              <Label>Matériels requis</Label>
+              <Label className="text-blue-300 text-xs">Notes libres sur le matériel (optionnel)</Label>
               <Button
                 type="button"
                 variant="ghost"
@@ -299,14 +323,14 @@ export const InterventionRequestDialog: React.FC<Props> = ({
                 ) : (
                   <Paperclip className="h-4 w-4 mr-1" />
                 )}
-                Joindre un fichier
+                Joindre
               </Button>
             </div>
             <Textarea
               value={form.required_materials}
               onChange={(e) => setForm((prev) => ({ ...prev, required_materials: e.target.value }))}
-              rows={3}
-              placeholder="Liste des pièces/outils nécessaires"
+              rows={2}
+              placeholder="Notes complémentaires hors catalogue (outils, autorisations…)"
             />
           </div>
 
@@ -352,6 +376,9 @@ export const InterventionRequestDialog: React.FC<Props> = ({
                 priority: form.priority,
                 estimated_duration_minutes: est ? Number.parseInt(est) : null,
                 required_materials: form.required_materials.trim() ? form.required_materials.trim() : null,
+              }, {
+                required_pieces: plannedPieces,
+                pending_pieces: pendingDrafts,
               });
             }}
             disabled={!canSubmit}
