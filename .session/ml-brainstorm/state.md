@@ -1,7 +1,15 @@
 # SESSION STATE — ML Features Brainstorm / P7 build
 
 > Resume file. Read FIRST on new session. Caveman-compressed. Token-prudent.
-> Full plan: `~/.claude/plans/so-in-this-task-vast-orbit.md`. Spec: `docs/superpowers/specs/2026-05-29-p7-parts-coordination-design.md`.
+> Full plan: `~/.claude/plans/so-in-this-task-vast-orbit.md`. Spec: `docs/superpowers/specs/2026-05-29-p7-parts-coordination-design.md`. Impl plan: `docs/superpowers/plans/2026-05-29-p7-parts-coordination.md`.
+
+## ⏭ RESUME NEXT SESSION — START HERE
+1. Re-activate modes: caveman(full), brainstorming-done(skip), subagent-driven-development for exec. Comm to user = plain non-technical/sales (no ML jargon). Token-prudent.
+2. Read this whole file + impl plan. Branch = `clean_Phase_1`.
+3. Last done: P7.1 core module + load_p7 (committed). NEXT TASK = **T5: train P7 model** (see "NEXT ACTION" below).
+4. User chose to STOP after foundation (2026-05-29). User will pick training approach next session (had options: pause / write-train-code-only / full-train / fallback-first — UNRESOLVED, ask again).
+5. Apply skills at exec: senior-ml-engineer, senior-data-scientist, database-designer, tdd-guide. Use cheap models for mechanical tasks.
+6. git log to confirm commits: 59b06b1 spec, 162ba31 plan, c47d359 core, c356962 loader, 6a1f0f5 state.
 
 ## Active modes/skills (keep on)
 caveman(full) + caveman-stats + cavecrew(delegate) + brainstorming + using-superpowers + engineering-skills + engineering-advanced-skills + subagent-driven-development(exec).
