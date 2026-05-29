@@ -3,7 +3,7 @@ import joblib
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 from app.ml_microservice.src.core.model_loader import (
-    load_p1, load_p2, load_p3, load_p4, load_p5, load_p6,
+    load_p1, load_p2, load_p3, load_p4, load_p5, load_p6, load_p7,
     startup_check, _extract, _load,
 )
 
@@ -99,3 +99,25 @@ def test_startup_check_runs_without_exception():
         for fn in [load_p1, load_p2, load_p3, load_p4, load_p5, load_p6]:
             fn.cache_clear()
         startup_check()  # must not raise
+
+
+# ── load_p7 ──────────────────────────────────────────────────────────────────
+
+def test_load_p7_missing_returns_none():
+    with patch("app.ml_microservice.src.core.model_loader.config") as mock_cfg:
+        mock_cfg.models_dir = Path("/nonexistent/dir")
+        load_p7.cache_clear()
+        result = load_p7()
+    assert result is None
+
+
+def test_load_p7_present_returns_dict_with_required_keys(tmp_path):
+    payload = {"failure_part_map": {}, "consumable_params": {}, "meta": {}}
+    joblib.dump(payload, tmp_path / "ml_model_p7_parts_demand.pkl")
+    with patch("app.ml_microservice.src.core.model_loader.config") as mock_cfg:
+        mock_cfg.models_dir = tmp_path
+        load_p7.cache_clear()
+        result = load_p7()
+    assert result is not None
+    assert "failure_part_map" in result
+    assert "consumable_params" in result

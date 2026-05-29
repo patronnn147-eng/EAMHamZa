@@ -75,6 +75,13 @@ def load_p6():
     return _extract(data)
 
 
+@lru_cache(maxsize=1)
+def load_p7():
+    """P7 parts-demand model: dict {failure_part_map, consumable_params, meta}.
+    Returns the whole dict (NOT _extract). None if pkl missing."""
+    return _load(config.models_dir / "ml_model_p7_parts_demand.pkl", "P7")
+
+
 def get_all_models_status():
     """Get status of all models as dict."""
     return {
@@ -84,13 +91,15 @@ def get_all_models_status():
         "p4_anomaly":      {"loaded": load_p4() is not None},
         "p5_priority":     {"loaded": load_p5() is not None},
         "p6_schedule":     {"loaded": load_p6() is not None},
+        "p7_parts_demand": {"loaded": load_p7() is not None},
     }
 
 
 def startup_check():
     """Call at service startup. Logs OK/MISSING status of all models."""
     for name, fn in [("P1", load_p1), ("P2", load_p2), ("P3", load_p3),
-                     ("P4", load_p4), ("P5", load_p5), ("P6", load_p6)]:
+                     ("P4", load_p4), ("P5", load_p5), ("P6", load_p6),
+                     ("P7", load_p7)]:
         result = fn()
         status = "OK" if result is not None else "MISSING"
         logger.info(f"[{status}] {name} model")
