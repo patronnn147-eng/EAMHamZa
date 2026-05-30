@@ -42,6 +42,23 @@ interface MLPredictionFull {
         low_stock: { id: number; name: string; qty: number; min_stock: number }[];
         all_available: boolean;
     };
+    // P7: condition-aware parts demand forecast (injected by unified-health endpoint)
+    parts_demand?: {
+        horizon_days: number;
+        source: string;
+        items: {
+            piece_id: number;
+            reference: string;
+            name: string;
+            expected_qty: number;
+            on_hand: number;
+            min_stock: number;
+            shortfall: number;
+            urgency_score: number;
+            recommended_order_qty: number;
+            driver: 'condition' | 'consumption';
+        }[];
+    } | null;
     // Post-maintenance recovery (most recent completed WO within 7-day window)
     recovery?: RecoveryInfo | null;
 }
@@ -225,6 +242,116 @@ function PartsReadinessCard({ readiness }: { readiness: MLPredictionFull['parts_
             </div>
             <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
                 {readiness.parts_checked} part{readiness.parts_checked !== 1 ? 's' : ''} checked for this machine.
+            </p>
+        </div>
+    );
+}
+
+function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] }) {
+    if (!demand || demand.items.length === 0) {
+        // Render empty state only when source is known (model ran but found nothing)
+        if (demand && demand.source === 'p7_model') {
+            return (
+                <div style={{ ...glass, padding: '1.25rem', marginTop: '0.75rem' }}>
+                    <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.5rem' }}>
+                        Parts Needed · Next {demand.horizon_days} Days
+                    </h4>
+                    <p style={{ fontSize: '0.7rem', color: '#475569', fontFamily: 'Space Grotesk, monospace' }}>
+                        No parts needed in the next {demand.horizon_days} days.
+                    </p>
+                </div>
+            );
+        }
+        return null;
+    }
+
+    const hasShortfall = demand.items.some(i => i.shortfall > 0);
+    const accentColor  = hasShortfall ? '#f97316' : '#00f2ff';
+    const cardBorder   = hasShortfall
+        ? { border: '1px solid rgba(249,115,22,0.3)', boxShadow: '0 0 20px rgba(249,115,22,0.08)' }
+        : { border: '1px solid rgba(0,242,255,0.3)',  boxShadow: '0 0 20px rgba(0,242,255,0.08)' };
+    const topItems = demand.items.slice(0, 5);
+
+    return (
+        <div style={{ ...glass, ...cardBorder, padding: '1.25rem', marginTop: '0.75rem' }}>
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace' }}>
+                    Parts Needed · Next {demand.horizon_days} Days
+                </h4>
+                {hasShortfall && (
+                    <span style={{
+                        fontSize: '0.6rem', fontWeight: 700, color: accentColor,
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        fontFamily: 'Space Grotesk, monospace',
+                        background: `${accentColor}18`, padding: '0.2rem 0.6rem', borderRadius: 999,
+                    }}>
+                        Order Required
+                    </span>
+                )}
+            </div>
+
+            {/* Part rows */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {topItems.map((item) => {
+                    const needsOrder = item.shortfall > 0;
+                    return (
+                        <div key={item.piece_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {/* Urgency dot */}
+                            <span style={{
+                                flexShrink: 0, width: 6, height: 6, borderRadius: '50%',
+                                background: needsOrder ? '#f97316' : '#00f2ff',
+                            }} />
+                            {/* Name + detail */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <p style={{
+                                    fontSize: '0.7rem', color: '#e2e8f0',
+                                    fontFamily: 'Space Grotesk, monospace',
+                                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                                    textTransform: 'capitalize',
+                                }}>
+                                    {item.name}
+                                </p>
+                                <p style={{ fontSize: '0.6rem', color: '#475569', fontFamily: 'Space Grotesk, monospace' }}>
+                                    In stock: {item.on_hand} &nbsp;·&nbsp; Need: {item.expected_qty.toFixed(1)} &nbsp;·&nbsp;
+                                    {item.driver === 'condition' ? 'Condition-based' : 'Usage-based'}
+                                </p>
+                            </div>
+                            {/* Order badge */}
+                            {needsOrder ? (
+                                <span style={{
+                                    flexShrink: 0, fontSize: '0.6rem', fontWeight: 700,
+                                    color: '#f97316', fontFamily: 'Space Grotesk, monospace',
+                                    background: 'rgba(249,115,22,0.12)', padding: '0.15rem 0.5rem',
+                                    borderRadius: 999, border: '1px solid rgba(249,115,22,0.25)',
+                                }}>
+                                    Order {Math.ceil(item.recommended_order_qty)}
+                                </span>
+                            ) : (
+                                <span style={{
+                                    flexShrink: 0, fontSize: '0.6rem', fontWeight: 700,
+                                    color: '#00f2ff', fontFamily: 'Space Grotesk, monospace',
+                                    background: 'rgba(0,242,255,0.08)', padding: '0.15rem 0.5rem',
+                                    borderRadius: 999,
+                                }}>
+                                    In stock
+                                </span>
+                            )}
+                        </div>
+                    );
+                })}
+                {demand.items.length > 5 && (
+                    <p style={{ fontSize: '0.6rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginTop: '0.25rem' }}>
+                        +{demand.items.length - 5} more parts
+                    </p>
+                )}
+            </div>
+
+            {/* Footer */}
+            <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
+                {demand.source === 'p7_model'
+                    ? 'Forecast based on machine condition and failure pattern history.'
+                    : 'Standard maintenance estimate — condition data improves accuracy.'}
             </p>
         </div>
     );
@@ -543,6 +670,9 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
 
             {/* Parts Readiness */}
             <PartsReadinessCard readiness={p?.parts_readiness} />
+
+            {/* Parts Demand — condition-aware forecast for next 30 days */}
+            <PartsDemandCard demand={p?.parts_demand} />
 
             {/* BPA Beliefs (if available) */}
             {p?.bpa && (
