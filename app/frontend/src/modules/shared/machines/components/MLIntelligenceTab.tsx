@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { Machine, Intervention } from '@/lib/types';
 import { MachineMini3D } from './3d/MachineMini3D';
+import { ExplainabilityDrawer } from './ExplainabilityDrawer';
 
 interface MLPredictionFull {
     risk_level?: string;
@@ -247,8 +248,17 @@ function PartsReadinessCard({ readiness }: { readiness: MLPredictionFull['parts_
     );
 }
 
-function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] }) {
+function PartsDemandCard({
+    demand,
+    machine,
+    mlPrediction,
+}: {
+    demand: MLPredictionFull['parts_demand'];
+    machine?: Machine;
+    mlPrediction?: MLPredictionFull | null;
+}) {
     const [showAll, setShowAll] = useState(false);
+    const [drawerOpen, setDrawerOpen] = useState(false);
 
     if (!demand || demand.items.length === 0) {
         if (demand && demand.source === 'p7_model') {
@@ -284,17 +294,43 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
                     Parts Needed · Next {demand.horizon_days} Days
                     <span style={{ marginLeft: '0.5rem', color: '#475569', fontWeight: 400 }}>({demand.items.length})</span>
                 </h4>
-                {hasShortfall && (
-                    <span style={{
-                        fontSize: '0.6rem', fontWeight: 700, color: accentColor,
-                        textTransform: 'uppercase', letterSpacing: '0.08em',
-                        fontFamily: 'Space Grotesk, monospace',
-                        background: `${accentColor}18`, padding: '0.2rem 0.6rem', borderRadius: 999,
-                    }}>
-                        Order Required
-                    </span>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {/* Why? drawer trigger */}
+                    {machine && (
+                        <button
+                            onClick={() => setDrawerOpen(true)}
+                            style={{
+                                fontSize: '0.6rem', fontWeight: 600, color: '#00f2ff',
+                                background: 'rgba(0,242,255,0.08)', border: '1px solid rgba(0,242,255,0.2)',
+                                borderRadius: 999, padding: '0.15rem 0.6rem', cursor: 'pointer',
+                                fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.08em',
+                            }}
+                        >
+                            Why?
+                        </button>
+                    )}
+                    {hasShortfall && (
+                        <span style={{
+                            fontSize: '0.6rem', fontWeight: 700, color: accentColor,
+                            textTransform: 'uppercase', letterSpacing: '0.08em',
+                            fontFamily: 'Space Grotesk, monospace',
+                            background: `${accentColor}18`, padding: '0.2rem 0.6rem', borderRadius: 999,
+                        }}>
+                            Order Required
+                        </span>
+                    )}
+                </div>
             </div>
+            {/* Explainability Drawer */}
+            {machine && (
+                <ExplainabilityDrawer
+                    open={drawerOpen}
+                    onOpenChange={setDrawerOpen}
+                    machine={machine}
+                    parts_demand={demand}
+                    mlPrediction={mlPrediction}
+                />
+            )}
 
             {/* Part rows */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -695,7 +731,7 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
             <PartsReadinessCard readiness={p?.parts_readiness} />
 
             {/* Parts Demand — condition-aware forecast for next 30 days */}
-            <PartsDemandCard demand={p?.parts_demand} />
+            <PartsDemandCard demand={p?.parts_demand} machine={machine} mlPrediction={p} />
 
             {/* BPA Beliefs (if available) */}
             {p?.bpa && (

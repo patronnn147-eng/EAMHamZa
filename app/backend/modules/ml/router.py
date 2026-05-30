@@ -773,6 +773,43 @@ async def ml_service_status():
     }
 
 
+@router.get("/procurement/queue")
+async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
+    """
+    P7: List machines with active PARTS_SHORTAGE alerts.
+    Used by ADMIN procurement queue widget to review and act on shortfalls.
+    Returns: [{machine_id, machine_name, severity, message, created_at}]
+    """
+    from models.alertes import Alert, AlertType
+    from sqlalchemy import and_
+
+    result = await db.execute(
+        select(Alert, Machines)
+        .join(Machines, Alert.machine_id == Machines.id)
+        .where(
+            and_(
+                Alert.alert_type == AlertType.PARTS_SHORTAGE,
+                Alert.is_active == True,
+            )
+        )
+        .order_by(Alert.created_at.desc())
+    )
+    rows = result.all()
+
+    items = [
+        {
+            "alert_id":    row.Alert.alert_id,
+            "machine_id":  row.Alert.machine_id,
+            "machine_name": row.Machines.nom,
+            "severity":    row.Alert.severity.value,
+            "message":     row.Alert.message,
+            "created_at":  row.Alert.created_at.isoformat() if row.Alert.created_at else None,
+        }
+        for row in rows
+    ]
+    return {"success": True, "count": len(items), "items": items}
+
+
 @router.get("/model/metrics")
 async def get_ml_model_metrics():
     """
