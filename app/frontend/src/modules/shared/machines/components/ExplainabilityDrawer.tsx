@@ -4,7 +4,7 @@
  *
  * 4 sections: Why · What if ignored · What to prepare · Who acts (role-aware)
  */
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Sheet,
     SheetContent,
@@ -15,6 +15,7 @@ import {
 import { useUserRole, type UserRole } from '@/hooks/usePermission';
 import { useNavigate } from 'react-router-dom';
 import type { Machine } from '@/lib/types';
+import { ProcurementRecommendationModal } from './ProcurementRecommendationModal';
 
 // ── Local type mirrors for parts_demand contract ──────────────────────────
 interface DemandItem {
@@ -83,9 +84,9 @@ function whoActsContent(role: UserRole | null, machine: Machine, shortfallCount:
         case 'ADMIN':
             return {
                 title: 'Your action — Procurement approval',
-                body: `${shortfallCount} part${shortfallCount !== 1 ? 's are' : ' is'} below required stock. Review the procurement queue and approve purchase orders to ensure availability before the predicted maintenance window.`,
-                actionLabel: 'Go to Procurement Queue',
-                actionPath: '/admin/procurement-queue',
+                body: `${shortfallCount} part${shortfallCount !== 1 ? 's are' : ' is'} below required stock. Create a draft work order for procurement review — you can approve or reject it before anything is ordered.`,
+                actionLabel: 'Create Procurement Draft',
+                actionPath: null,  // handled by modal below
             };
         case 'CHEFTECH':
             return {
@@ -147,6 +148,7 @@ function BodyText({ children }: { children: React.ReactNode }) {
 export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand, mlPrediction }: Props) {
     const role = useUserRole();
     const navigate = useNavigate();
+    const [procModalOpen, setProcModalOpen] = useState(false);
 
     const items      = parts_demand?.items ?? [];
     const shortage   = items.filter(i => i.shortfall > 0);
@@ -223,9 +225,17 @@ export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand
                 {/* ── WHO ACTS ── */}
                 <Section icon="👤" title={whoActs.title}>
                     <BodyText>{whoActs.body}</BodyText>
-                    {whoActs.actionLabel && whoActs.actionPath && (
+                    {whoActs.actionLabel && (
                         <button
-                            onClick={() => { onOpenChange(false); navigate(whoActs.actionPath!); }}
+                            onClick={() => {
+                                if (whoActs.actionPath) {
+                                    onOpenChange(false);
+                                    navigate(whoActs.actionPath);
+                                } else {
+                                    // ADMIN → open procurement modal
+                                    setProcModalOpen(true);
+                                }
+                            }}
                             style={{
                                 marginTop: '0.75rem',
                                 display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
@@ -242,6 +252,14 @@ export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand
                             {whoActs.actionLabel} →
                         </button>
                     )}
+                    {/* Procurement draft modal (ADMIN only) */}
+                    <ProcurementRecommendationModal
+                        open={procModalOpen}
+                        onOpenChange={setProcModalOpen}
+                        machineId={machine.id}
+                        machineName={machine.nom}
+                        partsDemand={parts_demand as any}
+                    />
                 </Section>
 
                 {/* Source note */}

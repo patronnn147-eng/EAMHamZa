@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, asc, cast, String
 from core.database import get_db
+from core.auth import get_current_user
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail, OrdreStatut
@@ -808,6 +809,85 @@ async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
         for row in rows
     ]
     return {"success": True, "count": len(items), "items": items}
+
+
+@router.post("/procurement/draft/{machine_id}")
+async def create_procurement_draft_endpoint(
+    machine_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> Dict:
+    """
+    P7.4: Create a DRAFT work order from the latest parts_demand shortfall
+    for this machine. Deduped — one active draft per machine at a time.
+    Human must approve before any reservation commits.
+    """
+    from modules.ml.services.parts_drafts import create_procurement_draft
+    from modules.ml.services.parts_alerts import extract_shortage_items
+
+    # Re-fetch parts_demand from the active PARTS_SHORTAGE alert's context.
+    # Simplest approach: call unified-health and extract parts_demand.
+    # For now, require caller to pass parts_demand in body or derive from alert.
+    # We read the last alert message to confirm shortage exists.
+    from models.alertes import Alert, AlertType
+    from sqlalchemy import and_
+
+    alert_q = await db.execute(
+        select(Alert).where(
+            and_(
+                Alert.machine_id == machine_id,
+                Alert.alert_type == AlertType.PARTS_SHORTAGE,
+                Alert.is_active  == True,
+            )
+        )
+    )
+    alert = alert_q.scalar_one_or_none()
+    if not alert:
+        raise HTTPException(status_code=404, detail="No active PARTS_SHORTAGE alert for this machine")
+
+    if alert.work_order_id:
+        return {"success": False, "message": "Draft already exists", "wo_id": alert.work_order_id}
+
+    # Build minimal parts_demand from alert message (real data comes at T26 persistence)
+    # For now create draft with placeholder so the WO is created and linked
+    placeholder_demand = {
+        "horizon_days": 30,
+        "source": "p7_model",
+        "items": [{"piece_id": 0, "name": "see alert message", "expected_qty": 1.0,
+                   "on_hand": 0, "shortfall": 1.0, "driver": "condition"}],
+    }
+
+    wo_id = await create_procurement_draft(
+        machine_id=machine_id,
+        parts_demand=placeholder_demand,
+        created_by=current_user.id if current_user else None,
+        db=db,
+    )
+    if wo_id is None:
+        return {"success": False, "message": "Draft already exists or no items to draft"}
+    await db.commit()
+    return {"success": True, "wo_id": wo_id, "message": "Draft work order created — awaiting approval"}
+
+
+@router.patch("/procurement/draft/{wo_id}/approve")
+async def approve_procurement_draft_endpoint(
+    wo_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> Dict:
+    """P7.4: Approve draft → SUBMITTED. Enters normal WO workflow."""
+    from modules.ml.services.parts_drafts import approve_procurement_draft
+    return await approve_procurement_draft(wo_id, current_user.id if current_user else 0, db)
+
+
+@router.delete("/procurement/draft/{wo_id}")
+async def reject_procurement_draft_endpoint(
+    wo_id: int,
+    db: AsyncSession = Depends(get_db),
+) -> Dict:
+    """P7.4: Reject/discard draft → ANNULÉ. Unlinks from PARTS_SHORTAGE alert."""
+    from modules.ml.services.parts_drafts import reject_procurement_draft
+    return await reject_procurement_draft(wo_id, db)
 
 
 @router.get("/model/metrics")
