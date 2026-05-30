@@ -10,6 +10,7 @@ class AlertType(str, enum.Enum):
     RUL_WARNING = "RUL_WARNING"
     FAILURE_PREDICTED = "FAILURE_PREDICTED"
     ANOMALY_DETECTED = "ANOMALY_DETECTED"
+    PARTS_SHORTAGE = "PARTS_SHORTAGE"
 
 
 class AlertSeverity(str, enum.Enum):

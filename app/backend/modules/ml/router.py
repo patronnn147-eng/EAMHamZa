@@ -209,7 +209,15 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     response["parts_readiness"] = parts_readiness
 
     # P7: condition-aware parts demand forecast (from ml-microservice predict_all)
-    response["parts_demand"] = fusion_result.get("p7_parts_demand") if fusion_result else None
+    _parts_demand = fusion_result.get("p7_parts_demand") if fusion_result else None
+    response["parts_demand"] = _parts_demand
+
+    # P7: emit PARTS_SHORTAGE alert if shortfall detected (non-fatal, deduped)
+    try:
+        from modules.ml.services.parts_alerts import emit_shortfall_alert
+        await emit_shortfall_alert(machine_id, _parts_demand, db)
+    except Exception:
+        pass  # alert failure never breaks the response
 
     # Post-maintenance recovery: compare current unified_health_score against
     # the snapshot taken at the most recent work order's creation.

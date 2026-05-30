@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2, Cpu, Clock, Activity, TrendingDown } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2, Cpu, Clock, Activity, TrendingDown, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 
@@ -286,7 +286,13 @@ export const AlertsPanel: React.FC = () => {
             const failurePct = alert.failure_probability != null
               ? Math.round(alert.failure_probability * 100)
               : null;
-            const typeLabel = alert.alert_type.replace(/_/g, ' ');
+            const typeLabel = alert.alert_type === 'PARTS_SHORTAGE'
+              ? 'Parts Shortage'
+              : alert.alert_type.replace(/_/g, ' ');
+            // Override icon for PARTS_SHORTAGE regardless of severity
+            const rowIcon = alert.alert_type === 'PARTS_SHORTAGE'
+              ? <Package className="h-5 w-5 text-orange-400" />
+              : config.icon;
 
             return (
               <div
@@ -303,9 +309,9 @@ export const AlertsPanel: React.FC = () => {
                 <div className="flex items-start justify-between px-5 pt-4 pb-3">
                   {/* Left: icon + info */}
                   <div className="flex items-start gap-3">
-                    {/* Severity icon */}
+                    {/* Type/severity icon */}
                     <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.iconBg}`}>
-                      {config.icon}
+                      {rowIcon}
                     </div>
 
                     {/* Text block */}
