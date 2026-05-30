@@ -8,7 +8,8 @@ from typing import List, Dict, Optional
 
 from .core.config import config
 from .core.feature_pipeline import FeaturePipeline, SensorReading
-from .core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
+from .core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6, load_p7
+from .p7_parts_demand import survival_demand, croston_forecast, build_parts_demand
 from .feature_store import FeatureStore
 from .health_index import MahalanobisHealthIndex, get_health_index_model
 from .survival_model import SurvivalModel, get_survival_model
@@ -303,6 +304,54 @@ class MachineLearningService:
             logger.warning("P6 maintenance schedule prediction failed", exc_info=True)
             return 7.0
 
+    # ==================== P7: Parts Demand ====================
+    @staticmethod
+    def predict_parts_demand(
+        machine_id: int,
+        rul_days: float,
+        failure_type_probs: Dict[str, float],
+        horizon_days: int = 30,
+    ) -> Dict:
+        """
+        Predict parts needed within the next horizon_days.
+        Args:
+            machine_id: machine identifier (for logging, future DB stock lookup)
+            rul_days: remaining useful life estimate (days)
+            failure_type_probs: {failure_type: probability 0-1}
+            horizon_days: planning horizon (default 30 days)
+        Returns: parts_demand contract {horizon_days, source, items:[...]}
+        """
+        m = load_p7()
+        if m is None:
+            return {"horizon_days": horizon_days, "source": "deterministic_fallback", "items": []}
+        try:
+            failure_part_map = m.get("failure_part_map", {})
+            consumable_params = m.get("consumable_params", {})
+            parts_catalog     = m.get("parts_catalog", {})
+            theta             = m.get("meta", {}).get("theta", 0.05)
+
+            # Survival-path demand from condition signals
+            surv = survival_demand(
+                failure_type_probs, rul_days, float(horizon_days),
+                failure_part_map, theta=theta,
+            )
+
+            # Consumable-path demand from Croston forecasts (monthly series → horizon)
+            cons: Dict = {}
+            for pid, params in consumable_params.items():
+                series = params.get("series", [])
+                if series:
+                    rate = croston_forecast(series)          # units per period (monthly)
+                    cons[int(pid)] = rate * horizon_days / 30.0
+
+            # Use parts_catalog as stock proxy (on_hand=0 until DB lookup wired in T8)
+            stock = {pid: meta for pid, meta in parts_catalog.items()}
+
+            return build_parts_demand(surv, cons, stock, horizon_days, "p7_model")
+        except Exception:
+            logger.warning("P7 parts demand prediction failed", exc_info=True)
+            return {"horizon_days": horizon_days, "source": "deterministic_fallback", "items": []}
+
     # ==================== Unified Prediction ====================
     @staticmethod
     def predict_all(telemetry: Dict, include_shap: bool = False) -> Dict:
@@ -331,12 +380,24 @@ class MachineLearningService:
         features_7 = FeaturePipeline.build_7(reading)
 
         # Run all predictions
-        failure_prob = MachineLearningService.predict_failure_probability(features_7)
+        failure_prob  = MachineLearningService.predict_failure_probability(features_7)
         failure_types = MachineLearningService.predict_failure_type(features_7)
-        rul_days = MachineLearningService.predict_rul(features_7)
+        rul_days      = MachineLearningService.predict_rul(features_7)
         is_anomaly, anomaly_score = MachineLearningService.detect_anomaly(features_5)
-        priority = MachineLearningService.predict_priority(features_7)
+        priority      = MachineLearningService.predict_priority(features_7)
         schedule_days = MachineLearningService.predict_maintenance_schedule(features_7)
+
+        # P7: convert P2 probabilities (0-100) → 0-1 scale for survival math
+        ft_probs: Dict[str, float] = {
+            ft: v.get("probability", 0.0) / 100.0
+            for ft, v in failure_types.items()
+        } if failure_types else {}
+        parts_demand = MachineLearningService.predict_parts_demand(
+            machine_id=int(telemetry.get("machine_id", -1)),
+            rul_days=float(rul_days) if rul_days is not None else 365.0,
+            failure_type_probs=ft_probs,
+            horizon_days=30,
+        )
 
         risk_level = failure_prob_to_risk(failure_prob)
 
@@ -349,6 +410,7 @@ class MachineLearningService:
             "p4_anomaly_score": round(anomaly_score, 3),
             "p5_predicted_priority": priority,
             "p6_schedule_days": round(schedule_days, 1),
+            "p7_parts_demand": parts_demand,
         }
 
         # ==================== Wave 2: DST Fusion Pipeline ====================
