@@ -62,7 +62,7 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 - [x] writing-plans → impl plan: docs/superpowers/plans/2026-05-29-p7-parts-coordination.md (27 tasks)
 - [x] subagent-driven-development → execute P7.1..P7.6 — ALL 6 PHASES DONE
 - [x] P7.1 brain | [x] P7.2 alerts | [x] P7.3 UX | [x] P7.4 drafts | [x] P7.5 score/timeline | [x] P7.6 feedback
-- [ ] E2E verify ← REMAINING (run `make up` + alembic upgrade head)
+- [x] E2E verify — PASSED 2026-05-30 (all P7 features visible: Parts Demand card, ExplainabilityDrawer, PARTS_SHORTAGE alert, ReadinessScoreTile, MaintenanceTimeline, procurement draft flow)
 
 ## RESOLVED AT EXECUTION (corrections to plan — authoritative)
 - Real loader = `app/ml-microservice/src/core/model_loader.py` (lru_cache, config.models_dir, _load/_extract helpers, startup_check). `src/model_loader.py` = legacy dup, IGNORE. (CLAUDE.md stale.) → load_p7 goes in src/core/.
