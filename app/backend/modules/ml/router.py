@@ -774,6 +774,109 @@ async def ml_service_status():
     }
 
 
+@router.get("/machines/{machine_id}/readiness")
+async def get_machine_readiness(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
+    """
+    P7.5: 0-100 readiness score for a machine.
+    Blends health score + inventory coverage + shortage risk + maintenance recency.
+    """
+    from modules.ml.services.readiness import get_readiness_for_machine
+
+    # Re-use unified-health to get current score + parts_demand
+    result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    machine = result.scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail="Machine not found")
+
+    # Last ML prediction log for health score proxy
+    from models.ml_prediction_log import MlPredictionLog
+    pred_q = await db.execute(
+        select(MlPredictionLog)
+        .where(MlPredictionLog.machine_id == machine_id)
+        .order_by(MlPredictionLog.created_at.desc())
+        .limit(1)
+    )
+    pred = pred_q.scalar_one_or_none()
+    # health_score = invert failure_probability as rough proxy
+    health_proxy = max(0.0, 100.0 - (pred.failure_probability or 50.0)) if pred else 50.0
+
+    readiness = await get_readiness_for_machine(machine_id, health_proxy, None, db)
+    return {"success": True, "machine_id": machine_id, **readiness}
+
+
+@router.get("/machines/{machine_id}/timeline")
+async def get_machine_timeline(
+    machine_id: int,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> Dict:
+    """P7.5: Chronological maintenance event timeline for a machine."""
+    from modules.ml.services.readiness import get_timeline_for_machine
+
+    result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Machine not found")
+
+    events = await get_timeline_for_machine(machine_id, db, limit=limit)
+    return {"success": True, "machine_id": machine_id, "events": events, "count": len(events)}
+
+
+@router.get("/kpis")
+async def get_p7_kpis(db: AsyncSession = Depends(get_db)) -> Dict:
+    """
+    P7.5: Fleet-wide P7 KPIs derived from existing data.
+    - stock_readiness_rate: % machines without active PARTS_SHORTAGE alert
+    - adoption_rate: % machines with at least one ML prediction log
+    - active_shortages: count of active PARTS_SHORTAGE alerts
+    - draft_wos_pending: count of DRAFT work orders linked to P7 alerts
+    """
+    from models.alertes import Alert, AlertType
+    from models.ml_prediction_log import MlPredictionLog
+    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from sqlalchemy import func, distinct
+
+    # Total machine count
+    total_machines_q = await db.execute(select(func.count(Machines.id)))
+    total_machines = total_machines_q.scalar() or 1  # avoid div-by-zero
+
+    # Machines with active PARTS_SHORTAGE
+    shortage_q = await db.execute(
+        select(func.count(distinct(Alert.machine_id))).where(
+            and_(Alert.alert_type == AlertType.PARTS_SHORTAGE, Alert.is_active == True)
+        )
+    )
+    shortage_count = shortage_q.scalar() or 0
+
+    # Machines with at least one prediction log
+    pred_q = await db.execute(
+        select(func.count(distinct(MlPredictionLog.machine_id)))
+    )
+    predicted_machines = pred_q.scalar() or 0
+
+    # Draft WOs pending approval
+    draft_q = await db.execute(
+        select(func.count(Ordres_travail.id)).where(
+            Ordres_travail.statut == OrdreStatut.DRAFT
+        )
+    )
+    draft_count = draft_q.scalar() or 0
+
+    stock_readiness_rate = round(100.0 * (total_machines - shortage_count) / total_machines, 1)
+    adoption_rate        = round(100.0 * predicted_machines / total_machines, 1)
+
+    return {
+        "success": True,
+        "kpis": {
+            "stock_readiness_rate":  stock_readiness_rate,
+            "adoption_rate":         adoption_rate,
+            "active_shortages":      shortage_count,
+            "draft_wos_pending":     draft_count,
+            "total_machines":        total_machines,
+            "machines_with_predictions": predicted_machines,
+        }
+    }
+
+
 @router.get("/procurement/queue")
 async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
     """

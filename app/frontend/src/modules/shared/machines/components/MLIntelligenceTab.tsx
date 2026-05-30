@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import type { Machine, Intervention } from '@/lib/types';
 import { MachineMini3D } from './3d/MachineMini3D';
 import { ExplainabilityDrawer } from './ExplainabilityDrawer';
+import { ReadinessScoreTile } from './ReadinessScoreTile';
+import { MaintenanceTimeline } from './MaintenanceTimeline';
 
 interface MLPredictionFull {
     risk_level?: string;
@@ -732,6 +734,12 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
 
             {/* Parts Demand — condition-aware forecast for next 30 days */}
             <PartsDemandCard demand={p?.parts_demand} machine={machine} mlPrediction={p} />
+
+            {/* Maintenance Readiness Score — P7.5 */}
+            <ReadinessScoreTile machineId={machine.id} />
+
+            {/* Maintenance Timeline — P7.5 */}
+            <MaintenanceTimeline machineId={machine.id} />
 
             {/* BPA Beliefs (if available) */}
             {p?.bpa && (
