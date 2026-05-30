@@ -68,15 +68,20 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
                             </span>
                         </div>
                     )}
-                    <Button 
-                        size="sm" 
+                    <Button
+                        size="sm"
                         onClick={() => onAction(item)}
                         disabled={actionLoading === item.id.toString()}
                         className={`w-full text-[10px] h-7 ${item.type === 'PREDICTION' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
-                        {actionLoading === item.id.toString() 
-                            ? <RefreshCcw className="w-3 h-3 animate-spin" /> 
-                            : (item.type === 'PREDICTION' ? 'Créer OT' : 'Commencer Tâche')}
+                        {actionLoading === item.id.toString()
+                            ? <RefreshCcw className="w-3 h-3 animate-spin" />
+                            : item.type === 'PREDICTION'
+                                ? 'Create Work Order'
+                                : item.statut === 'DRAFT' ? 'Submit for approval'
+                                : item.statut === 'SUBMITTED' ? 'Approve (CHEFTECH)'
+                                : item.statut === 'APPROVED' ? 'Assign to technician'
+                                : 'Advance status'}
                     </Button>
                 </div>
             </motion.div>
@@ -90,8 +95,8 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
                 {predictions.length > 0 && (
                     <div className="flex items-center gap-2 px-1 mb-1">
                         <div className="h-px bg-red-200 flex-1"></div>
-                        <span className="text-[10px] font-bold text-red-600 uppercase tracking-wider">
-                            Priorités IA ({predictions.length})
+                        <span className="text-[10px] font-bold text-red-400 uppercase tracking-wider">
+                            AI Predictions ({predictions.length})
                         </span>
                         <div className="h-px bg-red-200 flex-1"></div>
                     </div>
@@ -106,8 +111,8 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
                 {workOrders.length > 0 && (
                     <div className="flex items-center gap-2 px-1 mb-1">
                         <div className="h-px bg-blue-200 flex-1"></div>
-                        <span className="text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                            Tâches Planifiées ({workOrders.length})
+                        <span className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">
+                            Work Orders ({workOrders.length})
                         </span>
                         <div className="h-px bg-blue-200 flex-1"></div>
                     </div>
@@ -118,18 +123,18 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
             </div>
             
             {items.length === 0 && (
-                <div className="h-24 mt-4 flex flex-col items-center justify-center border-2 border-dashed border-blue-800/50 rounded-lg text-blue-400 text-xs italic bg-slate-900/40">
-                    <span className="not-italic font-medium">Aucune tâche planifiée</span>
-                    <span className="not-italic text-[10px] opacity-70">
-                        Créez un OT ou attendez des alertes ML
+                <div className="h-auto mt-4 p-4 flex flex-col items-center justify-center border-2 border-dashed border-blue-800/50 rounded-lg text-blue-400 text-xs bg-slate-900/40">
+                    <span className="font-medium text-center">Nothing to plan right now</span>
+                    <span className="text-[10px] opacity-70 text-center mt-1 mb-2">
+                        AI alerts and draft work orders appear here.
                     </span>
-                    <Button 
-                        size="sm" 
+                    <Button
+                        size="sm"
                         variant="outline"
-                        className="mt-2 h-6 text-[10px] border-blue-600 text-blue-400 hover:bg-blue-900/30"
+                        className="mt-2 h-7 text-[10px] border-blue-600 text-blue-400 hover:bg-blue-900/30"
                         onClick={onCreateWorkOrder}
                     >
-                        + Créer OT
+                        + Create Work Order manually
                     </Button>
                 </div>
             )}

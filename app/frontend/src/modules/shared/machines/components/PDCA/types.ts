@@ -12,6 +12,9 @@ export interface KanbanItem {
     type: 'PREDICTION' | 'WORK_ORDER' | 'INTERVENTION';
     date: string;
     
+    // Real DB status (when type === WORK_ORDER or INTERVENTION)
+    statut?: string;
+
     // Enhanced PLAN fields
     riskScore?: number;
     confidence?: 'LOW' | 'MEDIUM' | 'HIGH';

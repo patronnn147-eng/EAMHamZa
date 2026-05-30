@@ -34,51 +34,49 @@ export const DoColumn: React.FC<DoColumnProps> = ({
                     <Badge className={`text-[10px] font-bold ${getPriorityColor(item.priority)}`}>
                         {item.priority}
                     </Badge>
-                    {item.isBlocked && (
-                        <Badge className="text-[10px] bg-red-900/50 text-red-300 animate-pulse border border-red-700/50">
-                            BLOQUÉ
-                        </Badge>
-                    )}
+                    <Badge className="text-[10px] bg-orange-900/40 text-orange-300 border border-orange-700/50">
+                        {item.statut === 'ASSIGNED' ? 'Assigned' : 'In Progress'}
+                    </Badge>
                 </div>
                 <p className="text-xs font-bold text-white line-clamp-2 leading-tight mb-1">{item.title}</p>
                 <p className="text-[10px] text-blue-300 flex items-center gap-1 mb-2">
                     <Wrench className="w-3 h-3" />
                     {item.machineName}
                 </p>
-                
+                {item.technician && (
+                    <p className="text-[10px] text-slate-400 mb-2">👤 {item.technician}</p>
+                )}
+
                 <div className="space-y-2 mt-auto pt-2 border-t border-blue-800/50">
                     <div className="w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
-                        <div 
-                            className={`h-1.5 rounded-full ${item.isBlocked ? 'bg-red-500' : 'bg-orange-500'}`} 
+                        <div
+                            className="h-1.5 rounded-full bg-orange-500 transition-all"
                             style={{ width: `${item.progress}%` }}
                         />
                     </div>
                     <div className="flex justify-between text-[10px] text-blue-300">
-                        <span>Elapsed: {item.timeElapsed}</span>
-                        <span>Est: {item.estimatedCompletion}</span>
+                        <span>{item.subtitle}</span>
                     </div>
-                    {item.isBlocked && (
-                        <p className="text-[10px] text-red-600 italic">⚠️ {item.blockingIssue}</p>
-                    )}
                     <div className="flex gap-2">
-                        <Button 
-                            size="sm" 
-                            variant="outline" 
+                        <Button
+                            size="sm"
+                            variant="outline"
                             onClick={() => onAction(item, 'BLOCK')}
-                            disabled={actionLoading === item.id.toString() || item.isBlocked}
-                            className={`flex-1 text-[10px] h-7 ${item.isBlocked ? 'text-blue-400' : 'text-red-600'}`}
+                            disabled={actionLoading === item.id.toString()}
+                            className="flex-1 text-[10px] h-7 text-red-400 border-red-800/50"
+                            title="Open technician interface to log a blocking reason"
                         >
-                            Signaler Blocage
+                            Report Block
                         </Button>
-                        <Button 
-                            size="sm" 
+                        <Button
+                            size="sm"
                             onClick={() => onAction(item, 'FINISH')}
                             disabled={actionLoading === item.id.toString()}
                             className="flex-1 text-[10px] h-7 bg-green-600 hover:bg-green-700"
                         >
-                            {actionLoading === item.id.toString() 
-                                ? <RefreshCcw className="w-3 h-3 animate-spin" /> 
-                                : 'Terminer'}
+                            {actionLoading === item.id.toString()
+                                ? <RefreshCcw className="w-3 h-3 animate-spin" />
+                                : 'Mark Complete'}
                         </Button>
                     </div>
                 </div>
@@ -93,10 +91,10 @@ export const DoColumn: React.FC<DoColumnProps> = ({
             </AnimatePresence>
 
             {items.length === 0 && (
-                <div className="h-24 mt-4 flex flex-col items-center justify-center border-2 border-dashed border-orange-800/50 rounded-lg text-orange-400 text-xs italic bg-slate-900/40">
-                    <span className="not-italic font-medium">Aucun élément</span>
-                    <span className="not-italic text-[10px] opacity-70">
-                        Démarrez un OT depuis PLAN
+                <div className="h-auto mt-4 p-4 flex flex-col items-center justify-center border-2 border-dashed border-orange-800/50 rounded-lg text-orange-400 text-xs bg-slate-900/40">
+                    <span className="font-medium text-center">No work in progress</span>
+                    <span className="text-[10px] opacity-70 text-center mt-1">
+                        Work orders move here once a CHEFTECH assigns them or a technician starts them.
                     </span>
                 </div>
             )}

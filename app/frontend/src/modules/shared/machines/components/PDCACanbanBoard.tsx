@@ -78,10 +78,14 @@ export const PDCACanbanBoard = () => {
             const allWOs = (woRes.data.items || []);
             console.log('[DEBUG] All Work Orders:', allWOs.length, allWOs.map(wo => ({ id: wo.id, titre: wo.titre, statut: wo.statut })));
 
-            const planWOs = allWOs.filter((wo: any) => ['EN_ATTENTE', 'ASSIGNÉ'].includes(wo.statut));
-            const activeWOs = allWOs.filter((wo: any) => ['EN_COURS', 'BLOqué'].includes(wo.statut));
+            // WO lifecycle: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
+            const planWOs = allWOs.filter((wo: any) => ['DRAFT', 'SUBMITTED', 'APPROVED'].includes(wo.statut));
+            const activeWOs = allWOs.filter((wo: any) => ['ASSIGNED', 'IN_PROGRESS'].includes(wo.statut));
+            // Also include COMPLETED WOs that haven't been validated yet in CHECK
+            const completedWOs = allWOs.filter((wo: any) => wo.statut === 'COMPLETED');
             console.log('[DEBUG] PLAN Work Orders:', planWOs.length);
             console.log('[DEBUG] DO Work Orders:', activeWOs.length);
+            console.log('[DEBUG] COMPLETED Work Orders (→CHECK):', completedWOs.length);
 
             // 3. Fetch Interventions
             const intRes = await client.entities.ordres_intervention.queryAll({
@@ -94,16 +98,19 @@ export const PDCACanbanBoard = () => {
 
             const kanbanItems: KanbanItem[] = [];
 
-            // Map Predictions to PLAN
+            // ── PLAN: ML predictions without active WO ──
+            const ACTIVE_STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED'];
             predictions.forEach((p: any) => {
-                const hasWO = allWOs.some((wo: any) => wo.machine_id === p.machine_id && wo.statut !== 'TERMINÉ' && wo.statut !== 'ANNULÉ');
-                if (!hasWO && (p.risk_level === 'CRITICAL' || p.risk_level === 'HIGH')) {
+                const hasActiveWO = allWOs.some((wo: any) =>
+                    wo.machine_id === p.machine_id && ACTIVE_STATUSES.includes(wo.statut)
+                );
+                if (!hasActiveWO && (p.risk_level === 'CRITICAL' || p.risk_level === 'HIGH')) {
                     kanbanItems.push({
                         id: `pred-${p.machine_id}`,
                         machineId: p.machine_id,
                         machineName: p.machine_name,
-                        title: `Alerte IA: ${p.predicted_priority}`,
-                        subtitle: `Probabilité de panne: ${p.failure_probability}%`,
+                        title: `AI Alert: ${p.predicted_priority || 'High Risk'}`,
+                        subtitle: `Failure probability: ${p.failure_probability}%`,
                         priority: p.predicted_priority || (p.risk_level === 'CRITICAL' ? 'CRITICAL' : 'HIGH'),
                         riskLevel: p.risk_level,
                         phase: 'PLAN',
@@ -114,81 +121,112 @@ export const PDCACanbanBoard = () => {
                 }
             });
 
-            // Map Pending/Assigned Work Orders to PLAN
+            // ── PLAN: Work orders awaiting assignment / start ──
             planWOs.forEach((wo: any) => {
+                const statusLabel = wo.statut === 'DRAFT' ? 'Draft — needs approval'
+                    : wo.statut === 'SUBMITTED' ? 'Awaiting CHEFTECH approval'
+                    : 'Approved — ready to assign';
                 kanbanItems.push({
                     id: `wo-${wo.id}`,
                     machineId: wo.machine_id,
                     machineName: wo.machine_nom || `Machine #${wo.machine_id}`,
                     title: wo.titre,
-                    subtitle: `Tâche Planifiée`,
+                    subtitle: statusLabel,
                     priority: wo.priorite,
                     phase: 'PLAN',
                     type: 'WORK_ORDER',
                     date: wo.created_at,
-                    technician: wo.technicien_id ? `Tech #${wo.technicien_id}` : 'Non assigné'
+                    technician: wo.utilisateur_id ? `Tech #${wo.utilisateur_id}` : 'Unassigned',
+                    statut: wo.statut,
                 });
             });
 
-            // Map In Progress Work Orders to DO
+            // ── DO: Work orders assigned / in progress ──
             activeWOs.forEach((wo: any) => {
                 kanbanItems.push({
                     id: `wo-active-${wo.id}`,
                     machineId: wo.machine_id,
                     machineName: wo.machine_nom || `Machine #${wo.machine_id}`,
                     title: wo.titre,
-                    subtitle: wo.statut === 'BLOQUÉ' ? `⚠️ En Blocage` : `En cours d'exécution`,
+                    subtitle: wo.statut === 'ASSIGNED'
+                        ? 'Assigned — technician to start'
+                        : 'In progress',
                     priority: wo.priorite,
                     phase: 'DO',
                     type: 'WORK_ORDER',
                     date: wo.created_at,
-                    progress: wo.statut === 'BLOQUÉ' ? 30 : Math.max(10, Math.floor(Math.random() * 80)),
-                    timeElapsed: '2h 15m',
-                    estimatedCompletion: '4h 00m',
-                    isBlocked: wo.statut === 'BLOqué',
-                    blockingIssue: wo.statut === 'BLOqué' ? "Attente validation/pièce" : undefined,
-                    technician: wo.technicien_id ? `Tech #${wo.technicien_id}` : 'En cours'
+                    progress: wo.statut === 'IN_PROGRESS' ? 50 : 10,
+                    timeElapsed: '—',
+                    estimatedCompletion: '—',
+                    technician: wo.utilisateur_id ? `Tech #${wo.utilisateur_id}` : 'Unassigned',
+                    statut: wo.statut,
                 });
             });
 
-            // Map Finished Interventions without feedback to CHECK
-            allInts.filter((i: any) => i.statut === 'TERMINÉ' && !i.actual_failure_type).forEach((i: any) => {
+            // ── CHECK: Completed WOs awaiting CHEFTECH validation ──
+            completedWOs.forEach((wo: any) => {
                 kanbanItems.push({
-                    id: `int-check-${i.id}`,
-                    machineId: i.machine_id,
-                    machineName: `Machine #${i.machine_id}`,
-                    title: `Intervention Terminée #${i.id}`,
-                    subtitle: 'Validation & Feedback requis',
-                    priority: i.priority || 'MEDIUM',
+                    id: `wo-check-${wo.id}`,
+                    machineId: wo.machine_id,
+                    machineName: wo.machine_nom || `Machine #${wo.machine_id}`,
+                    title: wo.titre,
+                    subtitle: 'Completed — needs CHEFTECH validation',
+                    priority: wo.priorite,
                     phase: 'CHECK',
-                    type: 'INTERVENTION',
-                    date: i.date_intervention,
+                    type: 'WORK_ORDER',
+                    date: wo.date_fin || wo.created_at,
                     hasDiagnostic: false,
                     hasValidation: false,
-                    qualityMetrics: { vibration: 1.2, temperature: 45 }
+                    statut: wo.statut,
                 });
             });
 
-            // Map Interventions with feedback to ACT
-            allInts.filter((i: any) => !!i.actual_failure_type).forEach((i: any) => {
-                kanbanItems.push({
-                    id: `int-act-${i.id}`,
-                    machineId: i.machine_id,
-                    machineName: `Machine #${i.machine_id}`,
-                    title: `Intervention #${i.id} Analysée`,
-                    subtitle: `Cause: ${i.actual_failure_type}`,
-                    priority: i.priority || 'MEDIUM',
-                    phase: 'ACT',
-                    type: 'INTERVENTION',
-                    date: i.date_intervention,
-                    effectiveness: {
-                        downtimeReduction: '85%',
-                        costSavings: '€1,200',
-                        recurrenceRate: '0%'
-                    },
-                    implementationStatus: 'PENDING'
+            // ── CHECK: Interventions completed but not yet validated by CHEFTECH ──
+            allInts
+                .filter((i: any) => i.statut === 'TERMINÉ')
+                .forEach((i: any) => {
+                    kanbanItems.push({
+                        id: `int-check-${i.id}`,
+                        machineId: i.machine_id,
+                        machineName: `Machine #${i.machine_id}`,
+                        title: `Intervention #${i.id}`,
+                        subtitle: i.actual_failure_type
+                            ? 'Diagnosis done — needs CHEFTECH validation'
+                            : 'Needs root-cause diagnosis + validation',
+                        priority: i.priority || 'MEDIUM',
+                        phase: 'CHECK',
+                        type: 'INTERVENTION',
+                        date: i.date_intervention,
+                        hasDiagnostic: !!i.actual_failure_type,
+                        hasValidation: false,
+                        statut: i.statut,
+                    });
                 });
-            });
+
+            // ── ACT: Validated interventions with diagnosis ──
+            // These feed the retrain queue and standardization
+            allInts
+                .filter((i: any) => i.statut === 'VALIDATED' && !!i.actual_failure_type)
+                .forEach((i: any) => {
+                    kanbanItems.push({
+                        id: `int-act-${i.id}`,
+                        machineId: i.machine_id,
+                        machineName: `Machine #${i.machine_id}`,
+                        title: `Intervention #${i.id} — Validated`,
+                        subtitle: `Root cause: ${i.actual_failure_type}`,
+                        priority: i.priority || 'MEDIUM',
+                        phase: 'ACT',
+                        type: 'INTERVENTION',
+                        date: i.date_intervention,
+                        effectiveness: {
+                            downtimeReduction: i.retrained ? '✓ Retrained' : 'Pending',
+                            costSavings: '—',
+                            recurrenceRate: '—',
+                        },
+                        implementationStatus: i.retrained ? 'RETRAINED' : 'PENDING',
+                        statut: i.statut,
+                    });
+                });
 
             setItems(kanbanItems);
         } catch (error) {
@@ -203,93 +241,249 @@ export const PDCACanbanBoard = () => {
         fetchPlannings();
     }, []);
 
-    // Actions
+    // ── Helpers ──
+    const userRole = user?.role;
+    const isCheftech = userRole === 'CHEFTECH';
+    const isAdmin    = userRole === 'ADMIN';
+    const isTech     = userRole === 'TECHNICIEN';
+
+    // Map WO lifecycle: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
+    const nextWOStatus = (current: string): string | null => {
+        const map: Record<string, string> = {
+            DRAFT: 'SUBMITTED',
+            SUBMITTED: 'APPROVED',
+            APPROVED: 'ASSIGNED',
+            ASSIGNED: 'IN_PROGRESS',
+            IN_PROGRESS: 'COMPLETED',
+            COMPLETED: 'VALIDATED',
+        };
+        return map[current] || null;
+    };
+
+    // ── PLAN actions ──
     const handlePlanAction = async (item: KanbanItem) => {
+        // Predictions: open WO creation form (re-use multi-section technician form)
         if (item.type === 'PREDICTION') {
+            if (!isCheftech && !isAdmin) {
+                toast({
+                    title: 'Action restricted',
+                    description: 'Only CHEFTECH or ADMIN can create a work order from an AI prediction.',
+                    variant: 'destructive',
+                });
+                return;
+            }
             setFormData({
                 ...formData,
                 machine_id: item.machineId,
-                titre: `[IA] ${item.title}`,
-                description: `Maintenance préventive suggérée par l'IA (Risque: ${item.riskScore}%).`,
-                priorite: item.priority === 'CRITICAL' ? 'URGENTE' : (item.priority === 'HIGH' ? 'ELEVEE' : 'MOYENNE'),
+                titre: `[AI] ${item.title}`,
+                description: `Preventive maintenance suggested by AI (Risk score: ${item.riskScore}%).`,
+                priorite: item.priority === 'CRITICAL' ? 'URGENTE'
+                    : item.priority === 'HIGH' ? 'ÉLEVÉE'
+                    : 'MOYENNE',
                 date_echeance: toDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
             });
             setDialogOpen(true);
-        } else if (item.type === 'WORK_ORDER') {
+            return;
+        }
+
+        // Work orders: advance through lifecycle
+        if (item.type === 'WORK_ORDER') {
+            const id = item.id.toString().replace('wo-', '');
+            const next = nextWOStatus(item.statut || 'DRAFT');
+            if (!next) {
+                toast({ title: 'No transition available', variant: 'destructive' });
+                return;
+            }
+            // Role checks for each transition
+            if (item.statut === 'DRAFT' && !isCheftech && !isAdmin) {
+                toast({ title: 'Only CHEFTECH/ADMIN can submit drafts', variant: 'destructive' });
+                return;
+            }
+            if (item.statut === 'SUBMITTED' && !isCheftech) {
+                toast({ title: 'Only CHEFTECH can approve work orders', variant: 'destructive' });
+                return;
+            }
             setActionLoading(item.id.toString());
             try {
-                await client.entities.ordres_travail.update({
-                    id: item.id.toString().replace('wo-', ''),
-                    data: { statut: 'EN_COURS' }
+                await client.entities.ordres_travail.update({ id, data: { statut: next } });
+                toast({
+                    title: 'Work order advanced',
+                    description: `Status: ${item.statut} → ${next}`,
                 });
-                toast({ title: "Tâche démarrée", description: "L'ordre de travail est maintenant en cours." });
                 fetchData();
-            } catch (error) {
-                toast({ title: "Erreur", description: "Impossible de démarrer la tâche.", variant: "destructive" });
+            } catch (error: any) {
+                toast({
+                    title: 'Action failed',
+                    description: error?.message || 'Could not advance work order.',
+                    variant: 'destructive',
+                });
             } finally {
                 setActionLoading(null);
             }
         }
     };
 
+    // ── DO actions ──
     const handleDoAction = async (item: KanbanItem, action: 'BLOCK' | 'FINISH') => {
+        if (!isTech && !isCheftech && !isAdmin) {
+            toast({
+                title: 'Action restricted',
+                description: 'Only the assigned technician can update work in progress.',
+                variant: 'destructive',
+            });
+            return;
+        }
         setActionLoading(item.id.toString());
         try {
             const id = item.id.toString().replace('wo-active-', '');
             if (action === 'BLOCK') {
-                await client.entities.ordres_travail.update({ id, data: { statut: 'BLOqué' } });
-                toast({ title: "Signalement effectué", description: "La tâche est maintenant bloquée." });
+                // No BLOCKED status in OrdreStatut — use REJECTED with a tag, or
+                // route to the dedicated blocking modal in the technician page.
+                navigate(`/work-orders/${id}?action=block`);
+                toast({
+                    title: 'Block flow opened',
+                    description: 'Use the technician interface to log the blocking reason.',
+                });
             } else {
-                await client.entities.ordres_travail.update({ id, data: { statut: 'TERMINÉ' } });
-                toast({ title: "Tâche terminée", description: "L'intervention est prête pour validation." });
+                // Tech completes WO — moves to COMPLETED (→ CHECK column)
+                await client.entities.ordres_travail.update({
+                    id,
+                    data: { statut: 'COMPLETED', date_fin: new Date().toISOString() },
+                });
+                toast({
+                    title: 'Work order completed',
+                    description: 'Now awaiting CHEFTECH validation in the CHECK column.',
+                });
+                fetchData();
             }
-            fetchData();
-        } catch (error) {
-            toast({ title: "Erreur", description: "Action impossible.", variant: "destructive" });
+        } catch (error: any) {
+            toast({
+                title: 'Action failed',
+                description: error?.message || 'Could not update work order.',
+                variant: 'destructive',
+            });
         } finally {
             setActionLoading(null);
         }
     };
 
+    // ── CHECK actions ──
+    // Uses POST /api/v1/entities/ordres_intervention/{id}/validate (CHEFTECH only)
     const handleCheckAction = async (item: KanbanItem, action: 'DIAG' | 'VALIDATE') => {
+        // DIAG: navigate to intervention detail to fill root cause
         if (action === 'DIAG') {
-            toast({ title: "Diagnostic", description: "Veuillez remplir le rapport d'intervention détaillé." });
-            navigate(`/interventions/${item.id.toString().replace('int-check-', '')}`);
-        } else {
-            setActionLoading(item.id.toString());
-            try {
-                const id = item.id.toString().replace('int-check-', '');
-                await client.entities.ordres_intervention.update({
-                    id,
-                    data: { statut: 'VALIDATED' }
-                });
-                toast({ title: "Validation réussie", description: "L'intervention a été validée par le Cheftech." });
-                fetchData();
-            } catch (error) {
-                toast({ title: "Erreur", description: "Validation impossible.", variant: "destructive" });
-            } finally {
-                setActionLoading(null);
+            const id = item.id.toString().replace('int-check-', '').replace('wo-check-', '');
+            if (item.type === 'INTERVENTION') {
+                navigate(`/interventions/${id}`);
+            } else {
+                navigate(`/work-orders/${id}`);
             }
+            toast({
+                title: 'Opening detail view',
+                description: 'Fill in the root-cause diagnosis before validating.',
+            });
+            return;
+        }
+
+        // VALIDATE: CHEFTECH-only validation
+        if (!isCheftech) {
+            toast({
+                title: 'Validation restricted',
+                description: 'Only CHEFTECH can validate. Ask your supervisor.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        // Block validation if diagnosis missing on an intervention
+        if (item.type === 'INTERVENTION' && !item.hasDiagnostic) {
+            toast({
+                title: 'Diagnosis required',
+                description: 'Add the root-cause diagnosis before validating.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setActionLoading(item.id.toString());
+        try {
+            if (item.type === 'INTERVENTION') {
+                const id = item.id.toString().replace('int-check-', '');
+                await client.apiCall.invoke({
+                    url: `/api/v1/entities/ordres_intervention/${id}/validate`,
+                    method: 'POST',
+                    data: { action: 'APPROVE' },
+                });
+                toast({
+                    title: 'Intervention validated',
+                    description: 'Moved to ACT — ready for standardization & retrain.',
+                });
+            } else {
+                // Work order completion → VALIDATED
+                const id = item.id.toString().replace('wo-check-', '');
+                await client.entities.ordres_travail.update({
+                    id,
+                    data: { statut: 'VALIDATED', date_validation: new Date().toISOString() },
+                });
+                toast({
+                    title: 'Work order validated',
+                    description: 'Work order closed and validated.',
+                });
+            }
+            fetchData();
+        } catch (error: any) {
+            toast({
+                title: 'Validation failed',
+                description: error?.response?.data?.detail || error?.message || 'Check permissions and required fields.',
+                variant: 'destructive',
+            });
+        } finally {
+            setActionLoading(null);
         }
     };
 
+    // ── ACT actions ──
     const handleActAction = async (item: KanbanItem, action: 'STD' | 'RETRAIN') => {
+        // STD: navigate to intervention detail to update standard procedure
         if (action === 'STD') {
-            toast({ title: "Standardisation", description: "La gamme de maintenance a été mise à jour." });
-        } else {
-            setActionLoading('retrain');
-            try {
-                await client.apiCall.invoke({
-                    url: '/api/v1/ml/retrain',
-                    method: 'POST'
-                });
-                toast({ title: "IA Ré-entraînée", description: "Le modèle a été mis à jour avec les nouveaux feedbacks." });
-                fetchData();
-            } catch (error) {
-                toast({ title: "Erreur ML", description: "Impossible de lancer le ré-entraînement.", variant: "destructive" });
-            } finally {
-                setActionLoading(null);
-            }
+            const id = item.id.toString().replace('int-act-', '');
+            navigate(`/interventions/${id}`);
+            toast({
+                title: 'Opening intervention',
+                description: 'Update the standard maintenance procedure based on this validated root cause.',
+            });
+            return;
+        }
+
+        // RETRAIN: trigger ML pipeline (ADMIN/CHEFTECH only)
+        if (!isAdmin && !isCheftech) {
+            toast({
+                title: 'Retrain restricted',
+                description: 'Only ADMIN or CHEFTECH can trigger model retraining.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        setActionLoading('retrain');
+        try {
+            await client.apiCall.invoke({
+                url: '/api/v1/ml/retrain',
+                method: 'POST',
+            });
+            toast({
+                title: 'AI retraining started',
+                description: 'Model is being updated with the latest validated feedback.',
+            });
+            fetchData();
+        } catch (error: any) {
+            toast({
+                title: 'Retrain failed',
+                description: error?.response?.data?.detail || error?.message || 'Could not start retraining.',
+                variant: 'destructive',
+            });
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -303,10 +497,38 @@ export const PDCACanbanBoard = () => {
     };
 
     const columns: KanbanColumn[] = [
-        { id: 'PLAN', label: 'PLAN', description: 'Prioriser alertes IA et planifier OT', icon: <Search className="w-5 h-5 text-blue-400" />, color: 'bg-slate-900/60', border: 'border-blue-800/50' },
-        { id: 'DO', label: 'DO', description: 'Exécuter OT et tracker les blocages', icon: <PlayCircle className="w-5 h-5 text-orange-400" />, color: 'bg-slate-900/60', border: 'border-orange-800/50' },
-        { id: 'CHECK', label: 'CHECK', description: 'Valider qualité et remplir feedback', icon: <ClipboardList className="w-5 h-5 text-green-400" />, color: 'bg-slate-900/60', border: 'border-green-800/50' },
-        { id: 'ACT', label: 'ACT', description: 'Standardiser solutions, MAJ IA', icon: <CheckCircle2 className="w-5 h-5 text-indigo-400" />, color: 'bg-slate-900/60', border: 'border-indigo-800/50' },
+        {
+            id: 'PLAN',
+            label: 'PLAN',
+            description: 'AI alerts + work orders being prepared',
+            icon: <Search className="w-5 h-5 text-blue-400" />,
+            color: 'bg-slate-900/60',
+            border: 'border-blue-800/50',
+        },
+        {
+            id: 'DO',
+            label: 'DO',
+            description: 'Work orders being executed by technicians',
+            icon: <PlayCircle className="w-5 h-5 text-orange-400" />,
+            color: 'bg-slate-900/60',
+            border: 'border-orange-800/50',
+        },
+        {
+            id: 'CHECK',
+            label: 'CHECK',
+            description: 'Completed work awaiting CHEFTECH validation',
+            icon: <ClipboardList className="w-5 h-5 text-green-400" />,
+            color: 'bg-slate-900/60',
+            border: 'border-green-800/50',
+        },
+        {
+            id: 'ACT',
+            label: 'ACT',
+            description: 'Validated work → standardize + retrain AI',
+            icon: <CheckCircle2 className="w-5 h-5 text-indigo-400" />,
+            color: 'bg-slate-900/60',
+            border: 'border-indigo-800/50',
+        },
     ];
 
     const getPriorityColor = (p: string) => {
@@ -333,7 +555,7 @@ export const PDCACanbanBoard = () => {
         return (
             <div className="flex flex-col items-center justify-center h-64 gap-3">
                 <RefreshCcw className="w-8 h-8 text-blue-600 animate-spin" />
-                <p className="text-sm text-blue-300 font-medium">Synchronisation du cycle PDCA...</p>
+                <p className="text-sm text-blue-300 font-medium">Loading PDCA workflow…</p>
             </div>
         );
     }
@@ -343,43 +565,72 @@ export const PDCACanbanBoard = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-bold text-white">Tableau Kanban PDCA</h2>
-                    <p className="text-sm text-blue-300">Visualisation et gestion du cycle d'amélioration continue</p>
+                    <h2 className="text-2xl font-bold text-white">PDCA Workflow Board</h2>
+                    <p className="text-sm text-blue-300">
+                        AI predictions → planned work → execution → validation → improvement
+                    </p>
                 </div>
                 
                 <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-blue-700/50 shadow-sm">
                     <Filter className="w-4 h-4 text-blue-400 ml-2" />
                     <div className="flex gap-1">
-                        <Button 
-                            variant={filterType === 'ALL' ? 'default' : 'ghost'} 
-                            size="sm" 
+                        <Button
+                            variant={filterType === 'ALL' ? 'default' : 'ghost'}
+                            size="sm"
                             onClick={() => setFilterType('ALL')}
                             className={`h-8 text-xs ${filterType === 'ALL' ? 'bg-slate-800 text-white' : 'text-blue-200'}`}
                         >
-                            Tout voir
+                            All
                         </Button>
-                        <Button 
-                            variant={filterType === 'HIGH_PRIORITY' ? 'default' : 'ghost'} 
-                            size="sm" 
+                        <Button
+                            variant={filterType === 'HIGH_PRIORITY' ? 'default' : 'ghost'}
+                            size="sm"
                             onClick={() => setFilterType('HIGH_PRIORITY')}
                             className={`h-8 text-xs ${filterType === 'HIGH_PRIORITY' ? 'bg-orange-600 text-white' : 'text-orange-400 hover:text-orange-300 hover:bg-orange-900/30'}`}
                         >
-                            Haute Priorité
+                            High Priority
                         </Button>
-                        <Button 
-                            variant={filterType === 'BLOCKED' ? 'default' : 'ghost'} 
-                            size="sm" 
+                        <Button
+                            variant={filterType === 'BLOCKED' ? 'default' : 'ghost'}
+                            size="sm"
                             onClick={() => setFilterType('BLOCKED')}
                             className={`h-8 text-xs ${filterType === 'BLOCKED' ? 'bg-red-600 text-white' : 'text-red-400 hover:text-red-300 hover:bg-red-900/30'}`}
                         >
-                            Bloqués Uniquement
+                            Blocked Only
                         </Button>
                     </div>
                 </div>
 
                 <Button variant="outline" size="sm" onClick={fetchData} className="gap-2 h-9">
-                    <RefreshCcw className="w-4 h-4" /> Actualiser
+                    <RefreshCcw className="w-4 h-4" /> Refresh
                 </Button>
+            </div>
+
+            {/* PDCA Flow Legend — helps non-technical users */}
+            <div className="bg-slate-900/60 border border-blue-800/30 rounded-lg p-3 text-xs">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <span className="font-bold text-blue-300">How it flows:</span>
+                    <span className="text-blue-200">
+                        <span className="text-blue-400 font-bold">PLAN</span> AI predicts failure → CHEFTECH creates work order
+                    </span>
+                    <span className="text-slate-500">→</span>
+                    <span className="text-blue-200">
+                        <span className="text-orange-400 font-bold">DO</span> Technician executes & completes
+                    </span>
+                    <span className="text-slate-500">→</span>
+                    <span className="text-blue-200">
+                        <span className="text-green-400 font-bold">CHECK</span> CHEFTECH validates root cause
+                    </span>
+                    <span className="text-slate-500">→</span>
+                    <span className="text-blue-200">
+                        <span className="text-indigo-400 font-bold">ACT</span> Standardize fix + retrain AI
+                    </span>
+                </div>
+                {user?.role && (
+                    <p className="text-[10px] text-slate-400 mt-2">
+                        Logged in as <strong className="text-blue-300">{user.role}</strong> — actions you can perform are highlighted; restricted actions will show an explanation.
+                    </p>
+                )}
             </div>
 
             {/* Kanban Columns */}
