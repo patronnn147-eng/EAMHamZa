@@ -104,3 +104,40 @@ Advanced models fused via Dempster-Shafer Theory:
   - `predictions.py` detect_anomaly() rewritten: 5-feature ensemble (IF + Z-score + Cluster + optional AE), score 0.0-1.0
   - `router.py` passes `p4_anomaly_score` to frontend
   - `MLIntelligenceTab.tsx`: MOMENT Anomaly card replaced with "Behavioral Anomaly" card (orange when flagged, shows Ensemble Score + Mahal. Distance)
+
+### 2026-05-30
+- P7 Predictive Parts Coordination System — ALL 6 PHASES COMPLETE (branch `clean_Phase_1`)
+- P7.1 ML engine:
+  - Training notebook `app/ml-microservice/ml_research/p7_parts_demand.ipynb` (7 cells, graduates vs naive baseline)
+  - `app/ml-microservice/src/p7_parts_demand.py` — p_fail_within, survival_demand, croston_forecast, build_parts_demand
+  - `load_p7()` in `app/ml-microservice/src/core/model_loader.py` (lru_cache, startup_check)
+  - `MachineLearningService.predict_parts_demand()` in `predictions.py` — survival+Croston+deterministic fallback
+  - `POST /predict/parts-demand` in ml-microservice router; `parts_demand` block in unified-health response
+  - `PartsDemandCard.tsx` in `MLIntelligenceTab.tsx` (expand/collapse, "Why?" button)
+- P7.2 Alert routing:
+  - `AlertType.PARTS_SHORTAGE` added to `models/alertes.py`
+  - `app/backend/modules/ml/services/parts_alerts.py` — emit_shortfall_alert (deduped, non-fatal)
+  - Wired into unified-health endpoint; Package icon in AlertsPanel for PARTS_SHORTAGE type
+- P7.3 Role UX + explainability:
+  - `ExplainabilityDrawer.tsx` — Sheet slide-in, 4 plain-language sections (Why/What if/Prepare/Who acts), role-aware via useUserRole()
+  - `GET /api/v1/ml/procurement/queue` — list machines with active PARTS_SHORTAGE alerts
+  - Jargon lint clean (no Weibull/Croston/ML terms in user-facing P7 UI)
+- P7.4 Guarded auto-draft:
+  - `app/backend/modules/ml/services/parts_drafts.py` — create_procurement_draft (DRAFT WO), approve (→SUBMITTED), reject (→ANNULÉ), deduped via alert.work_order_id
+  - `POST/PATCH/DELETE /api/v1/ml/procurement/draft/*` endpoints
+  - `ProcurementRecommendationModal.tsx` — 5-step guarded UI, nothing auto-commits
+- P7.5 Readiness score + timeline:
+  - `app/backend/modules/ml/services/readiness.py` — compute_readiness_score (4-signal blend: health 40% + inventory 30% + shortage 20% + recency 10%), build_timeline_events
+  - `GET /machines/:id/readiness`, `/machines/:id/timeline`, `/kpis` endpoints
+  - `ReadinessScoreTile.tsx` + `MaintenanceTimeline.tsx` mounted in MLIntelligenceTab
+- P7.6 Feedback closure:
+  - Alembic migration `p7_parts_demand_col` — adds `p7_parts_demand Text` column to `ml_prediction_logs`
+  - `MlPredictionLog` model + `ShadowLogger` updated to persist p7_parts_demand JSON on every unified-health call
+  - `app/backend/modules/ml/services/p7_feedback.py` — compare predicted vs actual parts, augments prediction log with _feedback, wired into technician intervention completion (TERMINÉ/VALIDATED)
+- Corrections discovered during execution:
+  - Real model loader = `app/ml-microservice/src/core/model_loader.py` (NOT `src/model_loader.py` which is legacy dup)
+  - `load_p7` returns WHOLE dict — do NOT use `_extract()` helper
+  - `tests/backend/conftest.py` added to fix backend model import path
+  - P7 pkl training source: `ordres_intervention.parts_replaced` text (mouvement_stock/pieces/stock CSVs empty)
+  - `ordres_intervention.parts_replaced` is a computed property — use `legacy_parts_text` for direct column access
+  - 99 tests pass (46 unit/core + 53 backend)

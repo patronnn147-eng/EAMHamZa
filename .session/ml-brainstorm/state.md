@@ -60,9 +60,9 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 - [x] Spec self-review (passed, no fixes)
 - [x] User review gate (spec) — GREEN-LIT
 - [x] writing-plans → impl plan: docs/superpowers/plans/2026-05-29-p7-parts-coordination.md (27 tasks)
-- [ ] subagent-driven-development → execute P7.1..P7.6 ← NEXT (start Task 1)
-- [ ] P7.1 brain | [ ] P7.2 alerts | [ ] P7.3 UX | [ ] P7.4 drafts | [ ] P7.5 score/timeline | [ ] P7.6 feedback
-- [ ] E2E verify
+- [x] subagent-driven-development → execute P7.1..P7.6 — ALL 6 PHASES DONE
+- [x] P7.1 brain | [x] P7.2 alerts | [x] P7.3 UX | [x] P7.4 drafts | [x] P7.5 score/timeline | [x] P7.6 feedback
+- [ ] E2E verify ← REMAINING (run `make up` + alembic upgrade head)
 
 ## RESOLVED AT EXECUTION (corrections to plan — authoritative)
 - Real loader = `app/ml-microservice/src/core/model_loader.py` (lru_cache, config.models_dir, _load/_extract helpers, startup_check). `src/model_loader.py` = legacy dup, IGNORE. (CLAUDE.md stale.) → load_p7 goes in src/core/.
@@ -72,29 +72,38 @@ parts_demand:{horizon_days, source:"p7_model"|"deterministic_fallback", items:[{
 - run tests from repo root: `pytest tests/unit/core/test_p7_parts_demand.py -v` (root conftest auto-loads).
 - Execution batching (token-prudent): P7.1 Tasks1-4 = ONE dispatch (single file p7_parts_demand.py, TDD). Tasks 5-9 separate.
 
-## EXEC PROGRESS (subagent-driven)
-- [x] P7.1-core (T1-4 bundled: p7_parts_demand.py) — commit c47d359, 10 tests pass, verified
-- [x] T6 load_p7 — commit c356962, 13 tests pass, verified
-- [~] T5 notebook written (p7_parts_demand.ipynb) — AWAITING user to run in Docker Jupyter | [ ] T7 predict_parts_demand | [ ] T8 routes+unified-health | [ ] T9 card
+## EXEC PROGRESS (subagent-driven) — ALL COMPLETE
+- [x] P7.1-core (T1-4 bundled: p7_parts_demand.py) — commit c47d359, 10 tests pass
+- [x] T6 load_p7 — commit c356962, 13 tests pass
+- [x] T5 notebook — commits 011049b+fixes (user ran in Docker Jupyter, graduated)
+- [x] T7 predict_parts_demand — commit addbf3f, 5 tests pass
+- [x] T8 routes+unified-health — commit cdd59e9, 50 tests pass
+- [x] T9 PartsDemandCard — commit 6ca143c + 3edbb60 (expand toggle fix)
+- [x] P7.2 (T10-12) — commit f35c485, PARTS_SHORTAGE alert + Package icon
+- [x] P7.3 (T13-17) — commit d664af9, ExplainabilityDrawer + procurement queue
+- [x] P7.4 (T18-20) — commit bfbf464, guarded draft WO + modal
+- [x] P7.5 (T21-24) — commit 8d9f0b2, readiness score + timeline + KPIs
+- [x] P7.6 (T25-27) — commit 2de2d43, migration + log persistence + feedback
+- [x] CLAUDE.md + state.md updated — 2026-05-30
+- [ ] E2E verify — run: `make up` + `alembic upgrade head` (in backend container)
 
-### More exec corrections
-- db_ml_training/ EXISTS but NO consumed_pieces.csv / required_pieces.csv / mouvement_stock rows. Task5 label source → ordres_intervention.parts_replaced text parsed to build failure_part_map. consumable_params={} (no mouvement_stock data).
-- load_p7 returns WHOLE dict (pkl = {failure_part_map, consumable_params, parts_catalog, meta}); do NOT _extract. Add to get_all_models_status + startup_check (model_loader.py:78-97).
-- T5 notebook written: app/ml-microservice/ml_research/p7_parts_demand.ipynb (7 code cells). User chosen Docker Jupyter.
-- pieces/stock/mouvement_stock CSVs are ALL EMPTY. Only ordres_intervention has data (4000 rows, 1000 per FT).
-- Graduate gate: P7 F1 > naive top-5-popularity baseline.
-- [ ] P7.2 (T10-12) | [ ] P7.3 (T13-17) | [ ] P7.4 (T18-20) | [ ] P7.5 (T21-24) | [ ] P7.6 (T25-27) | [ ] E2E
+### More exec corrections (authoritative)
+- Real loader = `app/ml-microservice/src/core/model_loader.py` (NOT legacy `src/model_loader.py`)
+- load_p7 returns WHOLE dict — do NOT use _extract()
+- tests/backend/conftest.py added (app/backend sys.path)
+- P7 pkl label source: ordres_intervention.parts_replaced text (mouvement_stock/pieces/stock CSVs empty)
+- ordres_intervention.parts_replaced = computed property (needs loaded relationship) → use legacy_parts_text for direct access
+- P7 parts_catalog uses SYNTHETIC piece_ids (not real DB pieces.id)
+- THETA lowered to 0.05, normalize_name strips size/model specs (SPEC_PAT regex)
+- [x] P7.2 (T10-12) | [x] P7.3 (T13-17) | [x] P7.4 (T18-20) | [x] P7.5 (T21-24) | [x] P7.6 (T25-27)
 
-## NEXT ACTION (resume here)
-USER MUST RUN T5 notebook:
-  1. `docker compose -f docker-compose.notebooks.yml up --build`
-  2. Open http://localhost:8888
-  3. Navigate to `app/ml-microservice/ml_research/p7_parts_demand.ipynb`
-  4. Run All Cells — verify "GRADUATE: YES ✓" and "pkl verified"
-  5. Confirm pkl saved to both model dirs
-Then continue in code: T7 predict_parts_demand (loads pkl, falls back if None) → T8 routes+unified-health → T9 card → P7.1 GATE.
-After P7.1: P7.2 alerts → P7.3 UX → P7.4 drafts → P7.5 score/timeline → P7.6 feedback → E2E.
-
-## DONE THIS SESSION
-brainstorm→spec(59b06b1)→plan(162ba31)→persistence+memory. Code: P7.1-core(c47d359), load_p7(c356962). Loader fully ready. p7_parts_demand.py pure module tested (10), loader tested (13).
-T5: p7_parts_demand.ipynb notebook written (2026-05-29 session 2). User to run in Docker Jupyter.
+## NEXT ACTION
+E2E verification:
+1. `make up` (all services)
+2. Inside backend container: `alembic upgrade head` (applies p7_parts_demand_col migration)
+3. Navigate to any machine → ML Intelligence tab → verify Parts Demand card renders
+4. Check "Why?" button opens ExplainabilityDrawer
+5. Check ADMIN role sees "Create Procurement Draft" action
+6. Check AlertsPanel shows PARTS_SHORTAGE alerts (Package icon)
+7. Check ReadinessScoreTile + MaintenanceTimeline render
+8. All pytest suites green
