@@ -208,6 +208,9 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         parts_readiness = {"status": "UNKNOWN", "error": "inventory_unavailable"}
     response["parts_readiness"] = parts_readiness
 
+    # P7: condition-aware parts demand forecast (from ml-microservice predict_all)
+    response["parts_demand"] = fusion_result.get("p7_parts_demand") if fusion_result else None
+
     # Post-maintenance recovery: compare current unified_health_score against
     # the snapshot taken at the most recent work order's creation.
     try:

@@ -491,6 +491,42 @@ async def predict_schedule_post(data: TelemetryInput):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
+# ==================== P7: Parts Demand ====================
+
+class PartsDemandeInput(BaseModel):
+    """Input for P7 parts demand prediction."""
+    machine_id:          Optional[int]         = -1
+    rul_days:            float                            # P3 output (days)
+    failure_type_probs:  Dict[str, float]                # {TWF: 0.85, HDF: 0.1, ...} (0-1 scale)
+    horizon_days:        Optional[int]         = 30
+
+
+@router.post("/predict/parts-demand")
+async def predict_parts_demand(
+    data: PartsDemandeInput,
+    request: Request,
+    _: str = Depends(check_rate_limit),
+):
+    """
+    P7: Predict parts needed in the next horizon_days.
+
+    Returns the parts_demand contract:
+        {horizon_days, source: "p7_model"|"deterministic_fallback", items:[...]}
+    Each item: piece_id, name, expected_qty, on_hand, shortfall,
+               urgency_score, recommended_order_qty, driver.
+    """
+    try:
+        result = MachineLearningService.predict_parts_demand(
+            machine_id=data.machine_id or -1,
+            rul_days=data.rul_days,
+            failure_type_probs=data.failure_type_probs,
+            horizon_days=data.horizon_days or 30,
+        )
+        return {"success": True, "parts_demand": _to_python(result)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Parts demand prediction error: {str(e)}")
+
+
 # ==================== Batch Predictions ====================
 
 class BatchTelemetryInput(BaseModel):
