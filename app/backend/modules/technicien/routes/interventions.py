@@ -154,6 +154,14 @@ async def update_intervention_status(
     await db.commit()
     await db.refresh(intervention)
 
+    # P7.6 feedback — compare predicted vs actual parts (non-fatal, async)
+    if data.statut in ("TERMINÉ", "VALIDATED") and intervention.legacy_parts_text:
+        try:
+            from modules.ml.services.p7_feedback import record_p7_feedback
+            await record_p7_feedback(intervention.id, db)
+        except Exception as _fb_err:
+            logger.debug(f"[P7-feedback] non-fatal error: {_fb_err}")
+
     # RabbitMQ event + Celery email for status change
     if data.statut != old_status:
         int_payload = {
