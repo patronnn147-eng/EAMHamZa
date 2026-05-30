@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { Machine, Intervention } from '@/lib/types';
 import { MachineMini3D } from './3d/MachineMini3D';
 
@@ -248,8 +248,9 @@ function PartsReadinessCard({ readiness }: { readiness: MLPredictionFull['parts_
 }
 
 function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] }) {
+    const [showAll, setShowAll] = useState(false);
+
     if (!demand || demand.items.length === 0) {
-        // Render empty state only when source is known (model ran but found nothing)
         if (demand && demand.source === 'p7_model') {
             return (
                 <div style={{ ...glass, padding: '1.25rem', marginTop: '0.75rem' }}>
@@ -270,7 +271,10 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
     const cardBorder   = hasShortfall
         ? { border: '1px solid rgba(249,115,22,0.3)', boxShadow: '0 0 20px rgba(249,115,22,0.08)' }
         : { border: '1px solid rgba(0,242,255,0.3)',  boxShadow: '0 0 20px rgba(0,242,255,0.08)' };
-    const topItems = demand.items.slice(0, 5);
+
+    const PREVIEW = 5;
+    const visibleItems = showAll ? demand.items : demand.items.slice(0, PREVIEW);
+    const hiddenCount  = demand.items.length - PREVIEW;
 
     return (
         <div style={{ ...glass, ...cardBorder, padding: '1.25rem', marginTop: '0.75rem' }}>
@@ -278,6 +282,7 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
                 <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace' }}>
                     Parts Needed · Next {demand.horizon_days} Days
+                    <span style={{ marginLeft: '0.5rem', color: '#475569', fontWeight: 400 }}>({demand.items.length})</span>
                 </h4>
                 {hasShortfall && (
                     <span style={{
@@ -293,16 +298,14 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
 
             {/* Part rows */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {topItems.map((item) => {
+                {visibleItems.map((item) => {
                     const needsOrder = item.shortfall > 0;
                     return (
                         <div key={item.piece_id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            {/* Urgency dot */}
                             <span style={{
                                 flexShrink: 0, width: 6, height: 6, borderRadius: '50%',
                                 background: needsOrder ? '#f97316' : '#00f2ff',
                             }} />
-                            {/* Name + detail */}
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <p style={{
                                     fontSize: '0.7rem', color: '#e2e8f0',
@@ -317,7 +320,6 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
                                     {item.driver === 'condition' ? 'Condition-based' : 'Usage-based'}
                                 </p>
                             </div>
-                            {/* Order badge */}
                             {needsOrder ? (
                                 <span style={{
                                     flexShrink: 0, fontSize: '0.6rem', fontWeight: 700,
@@ -340,12 +342,33 @@ function PartsDemandCard({ demand }: { demand: MLPredictionFull['parts_demand'] 
                         </div>
                     );
                 })}
-                {demand.items.length > 5 && (
-                    <p style={{ fontSize: '0.6rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginTop: '0.25rem' }}>
-                        +{demand.items.length - 5} more parts
-                    </p>
-                )}
             </div>
+
+            {/* Expand / collapse toggle */}
+            {demand.items.length > PREVIEW && (
+                <button
+                    onClick={() => setShowAll(v => !v)}
+                    style={{
+                        marginTop: '0.75rem',
+                        display: 'flex', alignItems: 'center', gap: '0.35rem',
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: '0.5rem',
+                        padding: '0.3rem 0.75rem',
+                        cursor: 'pointer',
+                        fontSize: '0.65rem', fontWeight: 600,
+                        color: accentColor,
+                        fontFamily: 'Space Grotesk, monospace',
+                        textTransform: 'uppercase', letterSpacing: '0.08em',
+                        width: '100%', justifyContent: 'center',
+                        transition: 'background 0.2s',
+                    }}
+                >
+                    {showAll
+                        ? '▲ Show less'
+                        : `▼ Show all ${demand.items.length} parts (+${hiddenCount} more)`}
+                </button>
+            )}
 
             {/* Footer */}
             <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
