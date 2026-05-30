@@ -242,7 +242,7 @@ export const PDCACanbanBoard = () => {
     }, []);
 
     // ── Helpers ──
-    const userRole = user?.role;
+    const userRole = (user?.role ?? '').toUpperCase();
     const isCheftech = userRole === 'CHEFTECH';
     const isAdmin    = userRole === 'ADMIN';
     const isTech     = userRole === 'TECHNICIEN';
