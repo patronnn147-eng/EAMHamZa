@@ -3,6 +3,18 @@
 > Resume file. Read FIRST on new session. Caveman-compressed. Token-prudent.
 > Full plan: `~/.claude/plans/so-in-this-task-vast-orbit.md`. Spec: `docs/superpowers/specs/2026-05-29-p7-parts-coordination-design.md`. Impl plan: `docs/superpowers/plans/2026-05-29-p7-parts-coordination.md`.
 
+## 🎯 RESUME TRIGGER
+User command: **`proceed ml work`** → resume ML work from last state.
+On trigger:
+1. Read this file fully.
+2. Summarize current status (P7 done, what's pending).
+3. Suggest next ML priority (P8 Energy / P9 Quality / P10 Cascade / P7 followups).
+4. Wait for user confirmation before starting new ML phase.
+
+ML work PAUSED 2026-05-30 (last commit 2e9d4f3).
+Pending P7 micro-bug: PDCA "Create Work Order" still restricted for CHEFTECH/ADMIN —
+debug log added, awaiting console output.
+
 ## ⏭ RESUME NEXT SESSION — START HERE
 1. Re-activate modes: caveman(full), brainstorming-done(skip), subagent-driven-development for exec. Comm to user = plain non-technical/sales (no ML jargon). Token-prudent.
 2. Read this whole file + impl plan. Branch = `clean_Phase_1`.
