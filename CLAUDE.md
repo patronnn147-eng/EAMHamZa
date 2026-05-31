@@ -141,3 +141,18 @@ Advanced models fused via Dempster-Shafer Theory:
   - P7 pkl training source: `ordres_intervention.parts_replaced` text (mouvement_stock/pieces/stock CSVs empty)
   - `ordres_intervention.parts_replaced` is a computed property — use `legacy_parts_text` for direct column access
   - 99 tests pass (46 unit/core + 53 backend)
+
+### 2026-05-30 (later)
+- RAG migrated from in-memory-only to S3-backed (MinIO bucket `rag-docs`):
+  - Alembic migration `rag_s3_storage` — adds `documents.s3_object_key` VARCHAR(512)
+  - `app/backend/services/rag_storage.py` — put/get/delete/presign helpers, lazy MinIO client
+  - `docker-compose.yml` minio_init now creates `rag-docs` bucket alongside `attachments`
+  - Backend routes rewritten in `app/backend/modules/shared/routes/rag_docs.py`:
+    * `POST /rag/documents` — single upload, S3 first then ingest, rollback on failure (ADMIN)
+    * `POST /rag/documents/bulk` — N files in parallel (max 4 concurrent, 50 total) (ADMIN)
+    * `GET  /rag/documents` — list, optional `include_download_url=true` for admin presigned URLs
+    * `GET  /rag/documents/{id}/download` — presigned URL (ADMIN)
+    * `PUT  /rag/documents/{id}` — replace file, delete old chunks + S3, re-ingest (ADMIN)
+    * `DELETE /rag/documents/{id}` — cascade chunks + S3 cleanup (ADMIN)
+  - ADMIN role guard enforced server-side; CHEFTECH/TECHNICIEN read-only
+  - Frontend `RAGDocuments.tsx` admin UI: drag-drop bulk import, replace, download, English labels
