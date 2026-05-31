@@ -264,10 +264,11 @@ export const PDCACanbanBoard = () => {
     const handlePlanAction = async (item: KanbanItem) => {
         // Predictions: open WO creation form (re-use multi-section technician form)
         if (item.type === 'PREDICTION') {
+            console.log('[PDCA DEBUG] user:', user, 'role:', user?.role, 'isCheftech:', isCheftech, 'isAdmin:', isAdmin);
             if (!isCheftech && !isAdmin) {
                 toast({
                     title: 'Action restricted',
-                    description: 'Only CHEFTECH or ADMIN can create a work order from an AI prediction.',
+                    description: `Only CHEFTECH or ADMIN can create a work order from an AI prediction. (Your role: ${user?.role || 'unknown'})`,
                     variant: 'destructive',
                 });
                 return;
