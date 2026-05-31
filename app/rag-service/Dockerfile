@@ -3,10 +3,13 @@ FROM python:3.11-slim
 WORKDIR /app
 
 # System deps:
-#   gcc  — needed only at pip-compile time (native extensions in asyncpg, etc.)
-#   curl — needed at runtime for HEALTHCHECK
+#   gcc          — pip-compile time (native extensions in asyncpg, etc.)
+#   curl         — runtime HEALTHCHECK
+#   tesseract-ocr + fra/eng — runtime OCR for scanned/image-only PDFs
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc curl && \
+    apt-get install -y --no-install-recommends \
+        gcc curl \
+        tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
