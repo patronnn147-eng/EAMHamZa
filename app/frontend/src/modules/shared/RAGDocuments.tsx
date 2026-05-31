@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,11 @@ import {
   User,
   Clock,
   Loader2,
+  Download,
+  RefreshCw,
+  FolderUp,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { getAPIBaseURL } from '@/lib/config';
 
@@ -45,6 +50,14 @@ interface RagDocument {
   uploaded_by?: number;
   uploader_name?: string;
   created_at?: string;
+  s3_object_key?: string;
+  download_url?: string;
+}
+
+interface BulkResult {
+  succeeded: RagDocument[];
+  failed: { filename: string; error: string }[];
+  total: number;
 }
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
@@ -68,17 +81,14 @@ function formatDate(iso?: string): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return d.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
   });
 }
 
 const DOC_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
   manual: { label: 'Manuel', className: 'bg-blue-100 text-blue-800 border-blue-200' },
-  sop: { label: 'SOP', className: 'bg-green-100 text-green-800 border-green-200' },
+  sop:    { label: 'SOP',    className: 'bg-green-100 text-green-800 border-green-200' },
   report: { label: 'Rapport', className: 'bg-orange-100 text-orange-800 border-orange-200' },
 };
 
@@ -87,7 +97,7 @@ const DOC_TYPE_CONFIG: Record<string, { label: string; className: string }> = {
 export default function RAGDocuments() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const isAdmin = user?.role?.toUpperCase() === 'ADMIN';
+  const isAdmin = (user?.role ?? '').toUpperCase() === 'ADMIN';
 
   // List state
   const [documents, setDocuments] = useState<RagDocument[]>([]);
@@ -95,7 +105,7 @@ export default function RAGDocuments() {
   const [searchTerm, setSearchTerm] = useState('');
   const [docTypeFilter, setDocTypeFilter] = useState('ALL');
 
-  // Upload modal state
+  // Single upload modal state
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
@@ -103,8 +113,24 @@ export default function RAGDocuments() {
   const [uploadMachineId, setUploadMachineId] = useState('');
   const [uploadDescription, setUploadDescription] = useState('');
 
+  // Bulk import modal state
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [bulkDocType, setBulkDocType] = useState<'manual' | 'sop' | 'report'>('manual');
+  const [bulkMachineId, setBulkMachineId] = useState('');
+  const [bulkUploading, setBulkUploading] = useState(false);
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const bulkFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Replace modal state
+  const [replaceTarget, setReplaceTarget] = useState<RagDocument | null>(null);
+  const [replaceFile, setReplaceFile] = useState<File | null>(null);
+  const [replacing, setReplacing] = useState(false);
+
   useEffect(() => {
     fetchDocuments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [docTypeFilter]);
 
   const fetchDocuments = async () => {
@@ -112,19 +138,22 @@ export default function RAGDocuments() {
     try {
       const params = new URLSearchParams();
       if (docTypeFilter !== 'ALL') params.set('doc_type', docTypeFilter);
+      // Admins get presigned download URLs in the list response
+      if (isAdmin) params.set('include_download_url', 'true');
       const res = await fetch(`${BASE()}/documents?${params.toString()}`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
-      if (!res.ok) throw new Error('Erreur chargement');
+      if (!res.ok) throw new Error('Failed to load documents');
       setDocuments(await res.json());
     } catch (e: any) {
-      toast({ title: 'Erreur', description: e.message, variant: 'destructive' });
+      toast({ title: 'Error', description: e.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
+  // ── Single upload ──
   const handleUpload = async () => {
     if (!uploadFile) return;
     setUploading(true);
@@ -137,17 +166,18 @@ export default function RAGDocuments() {
 
       const res = await fetch(`${BASE()}/documents`, {
         method: 'POST',
-        headers: getAuthHeaders(), // no Content-Type — browser sets multipart boundary
+        headers: getAuthHeaders(),
         credentials: 'include',
         body: fd,
       });
-
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Erreur ${res.status}`);
+        throw new Error(err.detail || `Error ${res.status}`);
       }
-
-      toast({ title: 'Document importé', description: `${uploadFile.name} ingéré avec succès.` });
+      toast({
+        title: 'Document imported',
+        description: `${uploadFile.name} ingested into AI knowledge base.`,
+      });
       setShowUploadModal(false);
       setUploadFile(null);
       setUploadMachineId('');
@@ -155,14 +185,117 @@ export default function RAGDocuments() {
       setUploadDocType('manual');
       fetchDocuments();
     } catch (e: any) {
-      toast({ title: 'Échec import', description: e.message, variant: 'destructive' });
+      toast({ title: 'Import failed', description: e.message, variant: 'destructive' });
     } finally {
       setUploading(false);
     }
   };
 
+  // ── Bulk upload ──
+  const handleBulkUpload = async () => {
+    if (!bulkFiles.length) return;
+    setBulkUploading(true);
+    setBulkResult(null);
+    try {
+      const fd = new FormData();
+      bulkFiles.forEach((f) => fd.append('files', f));
+      fd.append('doc_type', bulkDocType);
+      if (bulkMachineId.trim()) fd.append('machine_id', bulkMachineId.trim());
+
+      const res = await fetch(`${BASE()}/documents/bulk`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+      const result: BulkResult = await res.json();
+      setBulkResult(result);
+      toast({
+        title: 'Bulk import complete',
+        description: `${result.succeeded.length}/${result.total} ingested. ${result.failed.length} failed.`,
+        variant: result.failed.length ? 'destructive' : 'default',
+      });
+      fetchDocuments();
+    } catch (e: any) {
+      toast({ title: 'Bulk import failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setBulkUploading(false);
+    }
+  };
+
+  const onBulkDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = Array.from(e.dataTransfer.files || []).filter((f) =>
+      /\.(pdf|txt)$/i.test(f.name)
+    );
+    if (files.length === 0) {
+      toast({ title: 'No valid files', description: 'Only PDF/TXT allowed.', variant: 'destructive' });
+      return;
+    }
+    setBulkFiles((prev) => [...prev, ...files].slice(0, 50));
+  };
+
+  // ── Download ──
+  const handleDownload = async (doc: RagDocument) => {
+    try {
+      let url = doc.download_url;
+      if (!url) {
+        const res = await fetch(`${BASE()}/documents/${doc.id}/download`, {
+          headers: getAuthHeaders(),
+          credentials: 'include',
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Error ${res.status}`);
+        }
+        url = (await res.json()).download_url;
+      }
+      if (!url) throw new Error('No download URL available.');
+      window.open(url, '_blank');
+    } catch (e: any) {
+      toast({ title: 'Download failed', description: e.message, variant: 'destructive' });
+    }
+  };
+
+  // ── Replace ──
+  const handleReplace = async () => {
+    if (!replaceTarget || !replaceFile) return;
+    setReplacing(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', replaceFile);
+      const res = await fetch(`${BASE()}/documents/${replaceTarget.id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+      toast({
+        title: 'Document replaced',
+        description: `${replaceTarget.filename} replaced and re-ingested.`,
+      });
+      setReplaceTarget(null);
+      setReplaceFile(null);
+      fetchDocuments();
+    } catch (e: any) {
+      toast({ title: 'Replace failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setReplacing(false);
+    }
+  };
+
+  // ── Delete ──
   const handleDelete = async (doc: RagDocument) => {
-    if (!window.confirm(`Supprimer "${doc.filename}" et tous ses chunks vectoriels ?`)) return;
+    if (!window.confirm(`Delete "${doc.filename}" and all its vector chunks? File will also be removed from S3.`)) return;
     try {
       const res = await fetch(`${BASE()}/documents/${doc.id}`, {
         method: 'DELETE',
@@ -171,12 +304,12 @@ export default function RAGDocuments() {
       });
       if (!res.ok && res.status !== 204) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Erreur ${res.status}`);
+        throw new Error(err.detail || `Error ${res.status}`);
       }
-      toast({ title: 'Document supprimé', description: doc.filename });
+      toast({ title: 'Document deleted', description: doc.filename });
       setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
     } catch (e: any) {
-      toast({ title: 'Erreur suppression', description: e.message, variant: 'destructive' });
+      toast({ title: 'Delete failed', description: e.message, variant: 'destructive' });
     }
   };
 
@@ -191,24 +324,40 @@ export default function RAGDocuments() {
         <div className="flex items-center gap-3">
           <Database className="h-7 w-7 text-blue-500" />
           <div>
-            <h1 className="text-2xl font-bold">Base Documentaire RAG</h1>
+            <h1 className="text-2xl font-bold">RAG Knowledge Base</h1>
             <p className="text-sm text-muted-foreground">
-              Manuels, SOPs et rapports injectés dans l'IA
+              Manuals, SOPs and reports trained into the AI assistant — files stored in S3 bucket <code className="text-xs bg-muted px-1 rounded">rag-docs</code>
             </p>
           </div>
         </div>
-        <Button onClick={() => setShowUploadModal(true)} className="gap-2">
-          <Upload className="h-4 w-4" />
-          Importer un document
-        </Button>
+        {isAdmin && (
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setShowBulkModal(true)} className="gap-2">
+              <FolderUp className="h-4 w-4" />
+              Bulk Import
+            </Button>
+            <Button onClick={() => setShowUploadModal(true)} className="gap-2">
+              <Upload className="h-4 w-4" />
+              Import Document
+            </Button>
+          </div>
+        )}
       </div>
+
+      {/* Non-admin notice */}
+      {!isAdmin && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-900">
+          <AlertCircle className="h-4 w-4" />
+          Read-only view. Only ADMIN users can upload, replace, or delete documents.
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher par nom de fichier..."
+            placeholder="Search by filename…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-9"
@@ -216,13 +365,13 @@ export default function RAGDocuments() {
         </div>
         <Select value={docTypeFilter} onValueChange={setDocTypeFilter}>
           <SelectTrigger className="w-44">
-            <SelectValue placeholder="Type de document" />
+            <SelectValue placeholder="Document type" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="ALL">Tous les types</SelectItem>
-            <SelectItem value="manual">Manuel</SelectItem>
+            <SelectItem value="ALL">All types</SelectItem>
+            <SelectItem value="manual">Manual</SelectItem>
             <SelectItem value="sop">SOP</SelectItem>
-            <SelectItem value="report">Rapport</SelectItem>
+            <SelectItem value="report">Report</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -244,14 +393,20 @@ export default function RAGDocuments() {
               <Database className="h-12 w-12 opacity-20" />
               <p className="text-sm">
                 {searchTerm || docTypeFilter !== 'ALL'
-                  ? 'Aucun document correspondant.'
-                  : 'Aucun document. Importez votre premier fichier.'}
+                  ? 'No matching documents.'
+                  : 'No documents yet. Import your first file to train the AI.'}
               </p>
-              {!searchTerm && docTypeFilter === 'ALL' && (
-                <Button variant="outline" onClick={() => setShowUploadModal(true)} className="gap-2 mt-1">
-                  <Upload className="h-4 w-4" />
-                  Importer
-                </Button>
+              {isAdmin && !searchTerm && docTypeFilter === 'ALL' && (
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={() => setShowUploadModal(true)} className="gap-2 mt-1">
+                    <Upload className="h-4 w-4" />
+                    Import single
+                  </Button>
+                  <Button variant="outline" onClick={() => setShowBulkModal(true)} className="gap-2 mt-1">
+                    <FolderUp className="h-4 w-4" />
+                    Bulk import
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
@@ -259,18 +414,18 @@ export default function RAGDocuments() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b text-muted-foreground text-xs uppercase tracking-wider">
-                    <th className="text-left py-2 px-3 font-medium">Fichier</th>
+                    <th className="text-left py-2 px-3 font-medium">File</th>
                     <th className="text-left py-2 px-3 font-medium">Type</th>
                     <th className="text-left py-2 px-3 font-medium">Chunks</th>
-                    <th className="text-left py-2 px-3 font-medium">Taille</th>
+                    <th className="text-left py-2 px-3 font-medium">Size</th>
                     <th className="text-left py-2 px-3 font-medium">Machine</th>
                     {isAdmin && (
                       <>
-                        <th className="text-left py-2 px-3 font-medium">Importé par</th>
+                        <th className="text-left py-2 px-3 font-medium">Uploaded by</th>
                         <th className="text-left py-2 px-3 font-medium">Date</th>
                       </>
                     )}
-                    <th className="py-2 px-3" />
+                    <th className="py-2 px-3 text-right" />
                   </tr>
                 </thead>
                 <tbody>
@@ -291,6 +446,11 @@ export default function RAGDocuments() {
                           {doc.description && (
                             <p className="text-xs text-muted-foreground mt-0.5 ml-6 truncate max-w-xs">
                               {doc.description}
+                            </p>
+                          )}
+                          {!doc.s3_object_key && isAdmin && (
+                            <p className="text-xs text-orange-600 mt-0.5 ml-6">
+                              ⚠ Legacy doc (no S3 backup)
                             </p>
                           )}
                         </td>
@@ -331,15 +491,41 @@ export default function RAGDocuments() {
                           </>
                         )}
                         <td className="py-3 px-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
-                            onClick={() => handleDelete(doc)}
-                            title="Supprimer"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1 justify-end">
+                            {isAdmin && doc.s3_object_key && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
+                                onClick={() => handleDownload(doc)}
+                                title="Download original file"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0 text-amber-600 hover:bg-amber-50"
+                                onClick={() => { setReplaceTarget(doc); setReplaceFile(null); }}
+                                title="Replace file (re-ingest)"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                onClick={() => handleDelete(doc)}
+                                title="Delete document"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -351,20 +537,19 @@ export default function RAGDocuments() {
         </CardContent>
       </Card>
 
-      {/* Upload Modal */}
+      {/* ─── Single upload Modal ─── */}
       <Dialog open={showUploadModal} onOpenChange={setShowUploadModal}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Upload className="h-5 w-5 text-blue-500" />
-              Importer un document
+              Import a Document
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* File picker */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Fichier <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">File <span className="text-destructive">*</span></label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 cursor-pointer">
                   <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
@@ -377,7 +562,7 @@ export default function RAGDocuments() {
                     ) : (
                       <div className="text-muted-foreground text-sm">
                         <Upload className="h-6 w-6 mx-auto mb-1 opacity-40" />
-                        Cliquer pour sélectionner un fichier PDF ou TXT
+                        Click to select a PDF or TXT file
                       </div>
                     )}
                   </div>
@@ -391,44 +576,41 @@ export default function RAGDocuments() {
               </div>
             </div>
 
-            {/* Doc type */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Type de document <span className="text-destructive">*</span></label>
+              <label className="text-sm font-medium">Document type <span className="text-destructive">*</span></label>
               <Select value={uploadDocType} onValueChange={(v: any) => setUploadDocType(v)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="manual">Manuel technique</SelectItem>
-                  <SelectItem value="sop">SOP — Procédure opérationnelle</SelectItem>
-                  <SelectItem value="report">Rapport d'intervention</SelectItem>
+                  <SelectItem value="manual">Technical Manual</SelectItem>
+                  <SelectItem value="sop">SOP — Standard Operating Procedure</SelectItem>
+                  <SelectItem value="report">Intervention Report</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
-            {/* Machine ID */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                ID Machine <span className="text-muted-foreground text-xs">(optionnel)</span>
+                Machine ID <span className="text-muted-foreground text-xs">(optional)</span>
               </label>
               <Input
                 type="number"
-                placeholder="ex: 42"
+                placeholder="e.g. 42"
                 value={uploadMachineId}
                 onChange={(e) => setUploadMachineId(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                Lier ce document à une machine pour filtrage ciblé lors de la récupération.
+                Link this document to a specific machine for targeted retrieval.
               </p>
             </div>
 
-            {/* Description */}
             <div className="space-y-1.5">
               <label className="text-sm font-medium">
-                Description <span className="text-muted-foreground text-xs">(optionnelle)</span>
+                Description <span className="text-muted-foreground text-xs">(optional)</span>
               </label>
               <Textarea
-                placeholder="ex: Manuel de maintenance du compresseur Atlas Copco GA18"
+                placeholder="e.g. Maintenance manual for Atlas Copco GA18 compressor"
                 value={uploadDescription}
                 onChange={(e) => setUploadDescription(e.target.value)}
                 rows={2}
@@ -438,19 +620,193 @@ export default function RAGDocuments() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUploadModal(false)} disabled={uploading}>
-              Annuler
+              Cancel
             </Button>
             <Button onClick={handleUpload} disabled={!uploadFile || uploading} className="gap-2">
               {uploading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Ingestion en cours...
-                </>
+                <><Loader2 className="h-4 w-4 animate-spin" />Ingesting…</>
               ) : (
-                <>
-                  <Upload className="h-4 w-4" />
-                  Importer
-                </>
+                <><Upload className="h-4 w-4" />Import</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Bulk import Modal ─── */}
+      <Dialog open={showBulkModal} onOpenChange={(o) => { setShowBulkModal(o); if (!o) { setBulkFiles([]); setBulkResult(null); } }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderUp className="h-5 w-5 text-blue-500" />
+              Bulk Import — Train AI with Multiple Documents
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Drag-drop or select up to 50 PDF/TXT files. Each will be uploaded to S3 and ingested in parallel.
+            </p>
+
+            {/* Drop zone */}
+            <div
+              className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+                dragOver ? 'border-blue-500 bg-blue-50' : 'border-muted hover:border-primary/50'
+              }`}
+              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={onBulkDrop}
+              onClick={() => bulkFileInputRef.current?.click()}
+            >
+              <FolderUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+              <p className="text-sm font-medium">Drop files here or click to browse</p>
+              <p className="text-xs text-muted-foreground mt-1">PDF / TXT — max 50 files</p>
+              <input
+                ref={bulkFileInputRef}
+                type="file"
+                accept=".pdf,.txt"
+                multiple
+                className="sr-only"
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  setBulkFiles((prev) => [...prev, ...files].slice(0, 50));
+                }}
+              />
+            </div>
+
+            {/* File list */}
+            {bulkFiles.length > 0 && (
+              <div className="border rounded-lg max-h-40 overflow-y-auto">
+                <div className="p-2 border-b bg-muted/50 text-xs font-medium">
+                  {bulkFiles.length} file{bulkFiles.length !== 1 ? 's' : ''} ready
+                </div>
+                <ul className="text-xs divide-y">
+                  {bulkFiles.map((f, idx) => (
+                    <li key={idx} className="flex items-center justify-between p-2">
+                      <span className="truncate flex-1">{f.name}</span>
+                      <span className="text-muted-foreground ml-2">{formatFileSize(f.size)}</span>
+                      <button
+                        className="ml-2 text-destructive hover:underline"
+                        onClick={() => setBulkFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        disabled={bulkUploading}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Shared metadata */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Default type</label>
+                <Select value={bulkDocType} onValueChange={(v: any) => setBulkDocType(v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="manual">Manual</SelectItem>
+                    <SelectItem value="sop">SOP</SelectItem>
+                    <SelectItem value="report">Report</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Default machine ID</label>
+                <Input
+                  type="number"
+                  placeholder="(optional)"
+                  value={bulkMachineId}
+                  onChange={(e) => setBulkMachineId(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Result */}
+            {bulkResult && (
+              <div className="border rounded-lg p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  {bulkResult.succeeded.length} / {bulkResult.total} succeeded
+                </div>
+                {bulkResult.failed.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 text-sm font-medium text-destructive">
+                      <AlertCircle className="h-4 w-4" />
+                      {bulkResult.failed.length} failed
+                    </div>
+                    <ul className="text-xs mt-1 ml-6 list-disc text-muted-foreground">
+                      {bulkResult.failed.map((f, i) => (
+                        <li key={i}>{f.filename}: {f.error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkModal(false)} disabled={bulkUploading}>
+              Close
+            </Button>
+            <Button onClick={handleBulkUpload} disabled={!bulkFiles.length || bulkUploading} className="gap-2">
+              {bulkUploading ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Importing {bulkFiles.length} files…</>
+              ) : (
+                <><FolderUp className="h-4 w-4" />Import {bulkFiles.length} file{bulkFiles.length !== 1 ? 's' : ''}</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── Replace Modal ─── */}
+      <Dialog open={!!replaceTarget} onOpenChange={(o) => { if (!o) { setReplaceTarget(null); setReplaceFile(null); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-amber-500" />
+              Replace Document
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-sm text-muted-foreground">
+              Replace <strong>{replaceTarget?.filename}</strong>. All existing chunks will be deleted
+              and the new file will be re-ingested. The document ID stays the same.
+            </p>
+            <label className="cursor-pointer">
+              <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
+                {replaceFile ? (
+                  <div className="flex items-center justify-center gap-2 text-sm">
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium truncate max-w-xs">{replaceFile.name}</span>
+                    <span className="text-muted-foreground">({formatFileSize(replaceFile.size)})</span>
+                  </div>
+                ) : (
+                  <div className="text-muted-foreground text-sm">
+                    <Upload className="h-6 w-6 mx-auto mb-1 opacity-40" />
+                    Select replacement PDF / TXT file
+                  </div>
+                )}
+              </div>
+              <input
+                type="file"
+                accept=".pdf,.txt"
+                className="sr-only"
+                onChange={(e) => setReplaceFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setReplaceTarget(null); setReplaceFile(null); }} disabled={replacing}>
+              Cancel
+            </Button>
+            <Button onClick={handleReplace} disabled={!replaceFile || replacing} className="gap-2 bg-amber-600 hover:bg-amber-700">
+              {replacing ? (
+                <><Loader2 className="h-4 w-4 animate-spin" />Replacing…</>
+              ) : (
+                <><RefreshCw className="h-4 w-4" />Replace & Re-ingest</>
               )}
             </Button>
           </DialogFooter>
