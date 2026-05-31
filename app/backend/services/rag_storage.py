@@ -109,6 +109,28 @@ def delete_object(object_key: str) -> bool:
         return False
 
 
+def list_bucket_objects() -> list[dict]:
+    """List all objects in the rag-docs bucket. Returns [{key, size, last_modified}]."""
+    client = _get_minio_client()
+    if not client:
+        return []
+    try:
+        _ensure_bucket(client)
+        objects = client.list_objects(RAG_BUCKET, recursive=True)
+        return [
+            {
+                "key": o.object_name,
+                "size": o.size,
+                "last_modified": o.last_modified.isoformat() if o.last_modified else None,
+                "etag": o.etag,
+            }
+            for o in objects
+        ]
+    except S3Error as e:
+        logger.error(f"[rag_storage] List failed: {e}")
+        return []
+
+
 def get_object_bytes(object_key: str) -> Optional[bytes]:
     """Download object bytes (for re-ingest on replace)."""
     client = _get_minio_client()

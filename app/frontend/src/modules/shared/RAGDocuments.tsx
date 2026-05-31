@@ -34,6 +34,7 @@ import {
   FolderUp,
   AlertCircle,
   CheckCircle2,
+  CloudDownload,
 } from 'lucide-react';
 import { getAPIBaseURL } from '@/lib/config';
 
@@ -127,6 +128,9 @@ export default function RAGDocuments() {
   const [replaceTarget, setReplaceTarget] = useState<RagDocument | null>(null);
   const [replaceFile, setReplaceFile] = useState<File | null>(null);
   const [replacing, setReplacing] = useState(false);
+
+  // S3 sync state
+  const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     fetchDocuments();
@@ -240,6 +244,40 @@ export default function RAGDocuments() {
     setBulkFiles((prev) => [...prev, ...files].slice(0, 50));
   };
 
+  // ── Sync from MinIO/S3 ──
+  const handleSyncFromS3 = async () => {
+    setSyncing(true);
+    try {
+      const fd = new FormData();
+      fd.append('doc_type', 'manual');
+      const res = await fetch(`${BASE()}/documents/sync`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Error ${res.status}`);
+      }
+      const result: BulkResult = await res.json();
+      if (result.total === 0) {
+        toast({ title: 'Already in sync', description: 'No new files found in S3.' });
+      } else {
+        toast({
+          title: 'S3 sync complete',
+          description: `${result.succeeded.length}/${result.total} new files ingested. ${result.failed.length} failed.`,
+          variant: result.failed.length ? 'destructive' : 'default',
+        });
+      }
+      fetchDocuments();
+    } catch (e: any) {
+      toast({ title: 'Sync failed', description: e.message, variant: 'destructive' });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   // ── Download ──
   const handleDownload = async (doc: RagDocument) => {
     try {
@@ -332,6 +370,16 @@ export default function RAGDocuments() {
         </div>
         {isAdmin && (
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleSyncFromS3}
+              disabled={syncing}
+              className="gap-2"
+              title="Scan the rag-docs bucket for files uploaded directly to MinIO and ingest them"
+            >
+              {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CloudDownload className="h-4 w-4" />}
+              Sync from S3
+            </Button>
             <Button variant="outline" onClick={() => setShowBulkModal(true)} className="gap-2">
               <FolderUp className="h-4 w-4" />
               Bulk Import

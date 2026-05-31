@@ -196,6 +196,89 @@ async def upload_document(
     )
 
 
+@router.post("/documents/sync", response_model=BulkUploadResponse, status_code=200)
+async def sync_from_minio(
+    doc_type: str = Form(default="manual"),
+    current_user: Utilisateurs = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Scan the rag-docs bucket for files that aren't yet in the documents table
+    and ingest them. Useful when an admin uploads files directly into MinIO
+    via the console and wants them registered as RAG sources. ADMIN only.
+    """
+    _require_admin(current_user)
+
+    # 1. List S3 objects
+    objects = rag_storage.list_bucket_objects()
+    if not objects:
+        return BulkUploadResponse(succeeded=[], failed=[], total=0)
+
+    # 2. Get already-known keys from DB
+    rows = await db.execute(text("SELECT s3_object_key FROM documents WHERE s3_object_key IS NOT NULL"))
+    known_keys = {row[0] for row in rows.fetchall()}
+
+    # 3. Filter — keep only new objects, only PDF/TXT
+    new_objects = [
+        o for o in objects
+        if o["key"] not in known_keys
+        and os.path.splitext(o["key"])[1].lower() in ALLOWED_EXTENSIONS
+    ]
+
+    if not new_objects:
+        return BulkUploadResponse(succeeded=[], failed=[], total=0)
+
+    succeeded: List[DocumentResponse] = []
+    failed:    List[dict] = []
+
+    # 4. Sequential ingest (sync is rare, no need to parallelize and stress S3)
+    for obj in new_objects[:50]:  # cap at 50 per sync request
+        try:
+            file_bytes = rag_storage.get_object_bytes(obj["key"])
+            if file_bytes is None:
+                failed.append({"filename": obj["key"], "error": "S3 fetch failed"})
+                continue
+            if len(file_bytes) > MAX_FILE_SIZE_BYTES:
+                failed.append({"filename": obj["key"], "error": "File too large"})
+                continue
+
+            # Derive a friendly filename from the key (strip uuid prefix if present)
+            display_name = obj["key"].split("/")[-1]
+
+            # Inline a simplified _ingest_one: file is ALREADY in S3, do not re-upload
+            result = await rag_client.ingest_document(
+                file_bytes=file_bytes,
+                filename=display_name,
+                doc_type=doc_type,
+                machine_id=None,
+                uploaded_by=current_user.id,
+                description="Synced from S3",
+            )
+            doc_id = result["doc_id"]
+            await db.execute(
+                text("UPDATE documents SET s3_object_key = :k WHERE id = CAST(:id AS uuid)"),
+                {"k": obj["key"], "id": doc_id},
+            )
+            await db.commit()
+
+            succeeded.append(DocumentResponse(
+                id=doc_id,
+                filename=result["filename"],
+                doc_type=doc_type,
+                description="Synced from S3",
+                machine_id=None,
+                chunk_count=result["chunk_count"],
+                file_size_bytes=len(file_bytes),
+                uploaded_by=current_user.id,
+                s3_object_key=obj["key"],
+            ))
+        except Exception as e:
+            logger.error(f"Sync failed for {obj['key']}: {e}")
+            failed.append({"filename": obj["key"], "error": str(e)})
+
+    return BulkUploadResponse(succeeded=succeeded, failed=failed, total=len(new_objects))
+
+
 @router.post("/documents/bulk", response_model=BulkUploadResponse, status_code=201)
 async def bulk_upload_documents(
     files: List[UploadFile] = File(..., description="Multiple PDF/TXT files"),
