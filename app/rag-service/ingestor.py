@@ -3,6 +3,7 @@ Document ingestion pipeline.
 
 PDF → text extraction (PyMuPDF) → sentence-aware chunking → batch embed → pgvector store.
 """
+import io
 import logging
 import re
 import uuid
@@ -19,21 +20,76 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE = 200   # words  — smaller chunks = sharper per-topic embeddings
 CHUNK_OVERLAP = 20  # words
 
+# OCR settings
+OCR_LANG = "fra+eng"   # French + English — matches installed tesseract language packs
+OCR_ZOOM = 3.0         # render at 3x (≈216 DPI) for sharper OCR; higher = slower
+OCR_MIN_CHARS = 10     # a page must yield > this many chars to count as text
+
+# Lazy import — pytesseract/Pillow only needed when a PDF has no text layer
+try:
+    import pytesseract
+    from PIL import Image
+    _OCR_AVAILABLE = True
+except ImportError:
+    _OCR_AVAILABLE = False
+    logger.warning("pytesseract/Pillow not installed — OCR fallback disabled.")
+
 
 # ---------------------------------------------------------------------------
 # PDF + text extraction
 # ---------------------------------------------------------------------------
 
+def _ocr_page(page: "fitz.Page") -> str:
+    """Render a PDF page to an image and OCR it. Returns extracted text (may be empty)."""
+    if not _OCR_AVAILABLE:
+        return ""
+    try:
+        matrix = fitz.Matrix(OCR_ZOOM, OCR_ZOOM)
+        pix = page.get_pixmap(matrix=matrix)
+        img = Image.open(io.BytesIO(pix.tobytes("png")))
+        text_out = pytesseract.image_to_string(img, lang=OCR_LANG)
+        return text_out.strip()
+    except Exception as e:
+        logger.warning(f"OCR failed on page: {e}")
+        return ""
+
+
 def extract_pdf_text(file_bytes: bytes) -> list[tuple[int, str]]:
-    """Extract (page_num, text) pairs from PDF bytes. Skips blank pages."""
-    pages = []
+    """
+    Extract (page_num, text) pairs from PDF bytes.
+
+    Strategy per page:
+      1. Try native text layer (fast, accurate for digital PDFs).
+      2. If a page has no/too-little text, fall back to OCR (scanned/image PDFs).
+
+    Raises ValueError only if BOTH text extraction and OCR yield nothing.
+    """
+    pages: list[tuple[int, str]] = []
+    ocr_used = False
+
     with fitz.open(stream=file_bytes, filetype="pdf") as pdf:
         for page_num, page in enumerate(pdf, start=1):
-            text = page.get_text("text").strip()
-            if text:
-                pages.append((page_num, text))
+            native = page.get_text("text").strip()
+            if len(native) > OCR_MIN_CHARS:
+                pages.append((page_num, native))
+                continue
+
+            # Native extraction empty/weak → OCR fallback
+            ocr_text = _ocr_page(page)
+            if len(ocr_text) > OCR_MIN_CHARS:
+                ocr_used = True
+                pages.append((page_num, ocr_text))
+
     if not pages:
-        raise ValueError("PDF contains no extractable text (scanned image or empty).")
+        if not _OCR_AVAILABLE:
+            raise ValueError(
+                "PDF has no text layer and OCR is unavailable. "
+                "Install tesseract-ocr in the rag-service image."
+            )
+        raise ValueError("PDF contains no extractable text, even after OCR (blank or unreadable).")
+
+    if ocr_used:
+        logger.info("OCR fallback was used for at least one page of this PDF.")
     return pages
 
 
