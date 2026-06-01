@@ -3,17 +3,28 @@ Embedding model singleton.
 
 SentenceTransformer.encode() is synchronous — call via run_in_executor
 to avoid blocking the async event loop.
+
+Caching:
+  - Single-text embeddings (queries) are cached in a TTLCache for 1 hour.
+  - Batch embeddings (ingestion) bypass cache — each chunk is unique anyway.
 """
 import asyncio
 import logging
-from functools import partial
 
+from cachetools import TTLCache
 from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-EMBEDDING_DIM = 384
+MODEL_NAME = "BAAI/bge-m3"
+EMBEDDING_DIM = 1024
+
+# Query embedding cache — same question asked twice → skip embed compute
+EMBED_CACHE_SIZE = 1024
+EMBED_CACHE_TTL = 3600  # 1 hour
+_embed_cache: TTLCache = TTLCache(maxsize=EMBED_CACHE_SIZE, ttl=EMBED_CACHE_TTL)
+_embed_hits = 0
+_embed_misses = 0
 
 _model: SentenceTransformer | None = None
 
@@ -41,9 +52,37 @@ async def embed_batch(texts: list[str]) -> list[list[float]]:
 
 
 async def embed_text(text: str) -> list[float]:
-    """Async-safe single text embed."""
-    results = await embed_batch([text])
-    return results[0]
+    """
+    Async-safe single text embed with in-memory TTL cache.
+
+    Cache key = raw text string (post-strip). Cache reset on container restart.
+    """
+    global _embed_hits, _embed_misses
+    key = text.strip()
+    cached = _embed_cache.get(key)
+    if cached is not None:
+        _embed_hits += 1
+        return cached
+
+    _embed_misses += 1
+    results = await embed_batch([key])
+    vec = results[0]
+    _embed_cache[key] = vec
+    return vec
+
+
+def embed_cache_stats() -> dict:
+    """Return cache hit/miss counters for debug endpoint."""
+    total = _embed_hits + _embed_misses
+    hit_rate = (_embed_hits / total) if total else 0.0
+    return {
+        "size": len(_embed_cache),
+        "max_size": EMBED_CACHE_SIZE,
+        "ttl_seconds": EMBED_CACHE_TTL,
+        "hits": _embed_hits,
+        "misses": _embed_misses,
+        "hit_rate": round(hit_rate, 4),
+    }
 
 
 def vec_to_str(vector: list[float]) -> str:

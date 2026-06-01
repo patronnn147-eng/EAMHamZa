@@ -17,7 +17,7 @@ import services.rag_client as rag_client
 from services.ai_memory import AIMemoryService
 from services.chat_session_service import ChatSessionService
 from services.ai_agents import run_eam_analysis
-from core.groq_client import get_groq_client
+from core.groq_client import get_groq_client, groq_cache_stats, clear_groq_cache
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,29 @@ async def get_suggestions(
     """Role-based query suggestions."""
     role = current_user.role.value if current_user.role else ""
     return _SUGGESTIONS.get(role, _DEFAULT_SUGGESTIONS)
+
+
+# ---------------------------------------------------------------------------
+# Cache debug — ADMIN only
+# ---------------------------------------------------------------------------
+
+@router.get("/cache-stats")
+async def get_cache_stats(
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Return Groq LLM response cache hit/miss counters."""
+    return {"groq_cache": groq_cache_stats()}
+
+
+@router.post("/cache-clear", status_code=204)
+async def post_cache_clear(
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Force clear Groq response cache."""
+    if not current_user.role or current_user.role.value != "ADMIN":
+        raise HTTPException(status_code=403, detail="ADMIN role required.")
+    clear_groq_cache()
+    return None
 
 
 # ---------------------------------------------------------------------------

@@ -2,16 +2,47 @@
 Semantic retrieval via pgvector cosine similarity.
 
 Returns top-k chunks above similarity threshold for a given query.
+
+Caching: identical (query, machine_id, top_k, threshold) tuples are cached
+in-memory for 5 minutes. Reset on container restart and on any ingest/delete
+(see clear_retrieval_cache()).
 """
 import logging
 from typing import Optional
 
+from cachetools import TTLCache
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from embedder import embed_text, vec_to_str
 
 logger = logging.getLogger(__name__)
+
+# Retrieval result cache
+RETRIEVE_CACHE_SIZE = 512
+RETRIEVE_CACHE_TTL = 300  # 5 minutes
+_retrieve_cache: TTLCache = TTLCache(maxsize=RETRIEVE_CACHE_SIZE, ttl=RETRIEVE_CACHE_TTL)
+_retrieve_hits = 0
+_retrieve_misses = 0
+
+
+def clear_retrieval_cache() -> None:
+    """Invalidate the retrieval cache. Call after any ingest or delete."""
+    _retrieve_cache.clear()
+    logger.info("Retrieval cache cleared.")
+
+
+def retrieve_cache_stats() -> dict:
+    total = _retrieve_hits + _retrieve_misses
+    hit_rate = (_retrieve_hits / total) if total else 0.0
+    return {
+        "size": len(_retrieve_cache),
+        "max_size": RETRIEVE_CACHE_SIZE,
+        "ttl_seconds": RETRIEVE_CACHE_TTL,
+        "hits": _retrieve_hits,
+        "misses": _retrieve_misses,
+        "hit_rate": round(hit_rate, 4),
+    }
 
 
 async def retrieve_chunks(
@@ -34,6 +65,15 @@ async def retrieve_chunks(
     Returns:
         List of {content, metadata, similarity} dicts. Empty list if nothing above threshold.
     """
+    global _retrieve_hits, _retrieve_misses
+
+    cache_key = (query.strip(), machine_id, top_k, round(threshold, 4))
+    cached = _retrieve_cache.get(cache_key)
+    if cached is not None:
+        _retrieve_hits += 1
+        return cached
+    _retrieve_misses += 1
+
     try:
         query_vec = await embed_text(query)
         vec_str = vec_to_str(query_vec)
@@ -61,7 +101,7 @@ async def retrieve_chunks(
         })
         rows = result.fetchall()
 
-        return [
+        results = [
             {
                 "content": r.content,
                 "metadata": r.metadata,
@@ -69,6 +109,8 @@ async def retrieve_chunks(
             }
             for r in rows
         ]
+        _retrieve_cache[cache_key] = results
+        return results
     except Exception as e:
         logger.error(f"Retrieval SQL failed: {e}")
         return []

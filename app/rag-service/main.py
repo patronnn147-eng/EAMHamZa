@@ -21,15 +21,21 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
-from ingestor import ingest_document
-from retriever import retrieve_chunks
+from ingestor import ingest_document, extract_image_text
+from retriever import retrieve_chunks, clear_retrieval_cache, retrieve_cache_stats
+from embedder import embed_cache_stats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="EAM RAG Service", version="1.0.0")
 
-ALLOWED_EXTENSIONS = {".pdf", ".txt"}
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".txt",
+    ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp",
+    ".docx", ".xlsx",
+    ".html", ".htm",
+}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
 
@@ -84,6 +90,52 @@ async def retrieve(
 
 
 # ---------------------------------------------------------------------------
+# OCR test endpoint
+# ---------------------------------------------------------------------------
+
+IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp"}
+
+
+class OCRTestResponse(BaseModel):
+    filename: str
+    char_count: int
+    extracted_text: str
+
+
+@app.post("/ocr-test", response_model=OCRTestResponse)
+async def ocr_test(
+    file: UploadFile = File(..., description="Image file to OCR"),
+):
+    """
+    Debug endpoint — upload an image, get back the raw OCR text.
+    Does NOT store anything in the database.
+    """
+    import os as _os
+    ext = _os.path.splitext(file.filename or "")[1].lower()
+    if ext not in IMAGE_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Expected image file. Got '{ext}'. Allowed: {', '.join(sorted(IMAGE_EXTENSIONS))}",
+        )
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+
+    try:
+        pages, _ = extract_image_text(file_bytes)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+
+    extracted = pages[0][1]
+    return OCRTestResponse(
+        filename=file.filename or "unknown",
+        char_count=len(extracted),
+        extracted_text=extracted,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Ingestion
 # ---------------------------------------------------------------------------
 
@@ -91,6 +143,7 @@ class IngestResponse(BaseModel):
     doc_id: str
     chunk_count: int
     filename: str
+    ocr_used: bool = False
 
 
 @app.post("/ingest", response_model=IngestResponse, status_code=201)
@@ -108,7 +161,7 @@ async def ingest(
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"File type '{ext}' not supported. Allowed: {', '.join(ALLOWED_EXTENSIONS)}",
+            detail=f"File type '{ext}' not supported. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
     if doc_type not in ("manual", "sop", "report"):
@@ -149,6 +202,7 @@ async def ingest(
         doc_id=result["doc_id"],
         chunk_count=result["chunk_count"],
         filename=file.filename or "document",
+        ocr_used=result.get("ocr_used", False),
     )
 
 
@@ -234,4 +288,26 @@ async def delete_document(
 
     await db.execute(text("DELETE FROM documents WHERE id = :id"), {"id": doc_id})
     await db.commit()
+    # Stale retrieval results may reference deleted chunks
+    clear_retrieval_cache()
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Cache debug
+# ---------------------------------------------------------------------------
+
+@app.get("/cache-stats")
+async def cache_stats():
+    """Return embedding + retrieval cache hit/miss counters."""
+    return {
+        "embedding_cache": embed_cache_stats(),
+        "retrieval_cache": retrieve_cache_stats(),
+    }
+
+
+@app.post("/cache-clear", status_code=204)
+async def cache_clear():
+    """Force clear retrieval cache (embedding cache TTL is short — left as-is)."""
+    clear_retrieval_cache()
     return None

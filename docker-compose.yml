@@ -122,7 +122,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-REDACTED_JWT_SECRET}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       JWT_EXPIRE_MINUTES: ${JWT_EXPIRE_MINUTES:-1440}
-      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-REDACTED_GROQ_KEY}
       HOST: 0.0.0.0
       PORT: 8000
       ENVIRONMENT: ${ENVIRONMENT:-production}
@@ -231,6 +231,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-asset_management}
       PYTHONUNBUFFERED: 1
+    volumes:
+      - rag_model_cache:/app/.cache
     ports:
       - "8003:8003"
     depends_on:
@@ -241,7 +243,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 120s
     networks:
       - asset_management_network
 
@@ -293,6 +295,8 @@ volumes:
   pgadmin_data:
     driver: local
   minio_data:
+    driver: local
+  rag_model_cache:
     driver: local
 
 networks:

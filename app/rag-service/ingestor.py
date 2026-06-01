@@ -14,6 +14,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from embedder import embed_batch, vec_to_str
+from retriever import clear_retrieval_cache
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def _ocr_page(page: "fitz.Page") -> str:
         return ""
 
 
-def extract_pdf_text(file_bytes: bytes) -> list[tuple[int, str]]:
+def extract_pdf_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
     """
     Extract (page_num, text) pairs from PDF bytes.
 
@@ -90,15 +91,113 @@ def extract_pdf_text(file_bytes: bytes) -> list[tuple[int, str]]:
 
     if ocr_used:
         logger.info("OCR fallback was used for at least one page of this PDF.")
-    return pages
+    return pages, ocr_used
 
 
-def extract_txt_text(file_bytes: bytes) -> list[tuple[int, str]]:
+def extract_txt_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
     """Decode plain text file as single page."""
     text = file_bytes.decode("utf-8", errors="ignore").strip()
     if not text:
         raise ValueError("Text file is empty.")
-    return [(1, text)]
+    return [(1, text)], False
+
+
+def extract_image_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
+    """OCR an image file directly. Requires pytesseract + Pillow."""
+    if not _OCR_AVAILABLE:
+        raise ValueError("OCR unavailable — pytesseract/Pillow not installed.")
+    try:
+        img = Image.open(io.BytesIO(file_bytes))
+        extracted = pytesseract.image_to_string(img, lang=OCR_LANG).strip()
+    except Exception as e:
+        raise ValueError(f"Image OCR failed: {e}")
+    if len(extracted) <= OCR_MIN_CHARS:
+        raise ValueError("Image contains no readable text after OCR.")
+    return [(1, extracted)], True
+
+
+def extract_docx_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
+    """Extract text from .docx — paragraphs + table cells, one page per section break."""
+    try:
+        from docx import Document
+        from docx.oxml.ns import qn
+    except ImportError:
+        raise ValueError("python-docx not installed — DOCX ingestion unavailable.")
+
+    doc = Document(io.BytesIO(file_bytes))
+    pages: list[tuple[int, str]] = []
+    current_parts: list[str] = []
+    page_num = 1
+
+    for para in doc.paragraphs:
+        # Section/page break → flush current page
+        for run in para.runs:
+            br = run._r.find(qn("w:br"))
+            if br is not None and br.get(qn("w:type")) in ("page", "column"):
+                if current_parts:
+                    pages.append((page_num, "\n".join(current_parts)))
+                    page_num += 1
+                    current_parts = []
+        if para.text.strip():
+            current_parts.append(para.text.strip())
+
+    # Tables
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = " | ".join(c.text.strip() for c in row.cells if c.text.strip())
+            if row_text:
+                current_parts.append(row_text)
+
+    if current_parts:
+        pages.append((page_num, "\n".join(current_parts)))
+
+    if not pages:
+        raise ValueError("DOCX contains no extractable text.")
+    return pages, False
+
+
+def extract_xlsx_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
+    """Extract text from .xlsx — one page per worksheet."""
+    try:
+        import openpyxl
+    except ImportError:
+        raise ValueError("openpyxl not installed — XLSX ingestion unavailable.")
+
+    wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+    pages: list[tuple[int, str]] = []
+
+    for sheet_num, sheet in enumerate(wb.worksheets, start=1):
+        rows: list[str] = []
+        for row in sheet.iter_rows(values_only=True):
+            cells = [str(c) for c in row if c is not None and str(c).strip()]
+            if cells:
+                rows.append(" | ".join(cells))
+        if rows:
+            header = f"[Sheet: {sheet.title}]\n"
+            pages.append((sheet_num, header + "\n".join(rows)))
+
+    wb.close()
+    if not pages:
+        raise ValueError("XLSX contains no extractable text.")
+    return pages, False
+
+
+def extract_html_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
+    """Strip HTML tags and return visible text as single page."""
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        raise ValueError("beautifulsoup4 not installed — HTML ingestion unavailable.")
+
+    soup = BeautifulSoup(file_bytes.decode("utf-8", errors="ignore"), "lxml")
+    for tag in soup(["script", "style", "head", "meta", "noscript"]):
+        tag.decompose()
+    extracted = soup.get_text(separator="\n").strip()
+    extracted = re.sub(r"\n{3,}", "\n\n", extracted)
+
+    if len(extracted) <= OCR_MIN_CHARS:
+        raise ValueError("HTML contains no readable text.")
+    return [(1, extracted)], False
 
 
 # ---------------------------------------------------------------------------
@@ -166,12 +265,24 @@ async def ingest_document(
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
     # 1. Extract text
-    if ext == "pdf":
-        text_pages = extract_pdf_text(file_bytes)
-    elif ext == "txt":
-        text_pages = extract_txt_text(file_bytes)
-    else:
+    _extractors = {
+        "pdf":  extract_pdf_text,
+        "txt":  extract_txt_text,
+        "png":  extract_image_text,
+        "jpg":  extract_image_text,
+        "jpeg": extract_image_text,
+        "tiff": extract_image_text,
+        "tif":  extract_image_text,
+        "bmp":  extract_image_text,
+        "webp": extract_image_text,
+        "docx": extract_docx_text,
+        "xlsx": extract_xlsx_text,
+        "html": extract_html_text,
+        "htm":  extract_html_text,
+    }
+    if ext not in _extractors:
         raise ValueError(f"Unsupported file type: .{ext}")
+    text_pages, ocr_used = _extractors[ext](file_bytes)
 
     # 2. Insert document record (raw SQL — no ORM models in this service)
     doc_id = str(uuid.uuid4())
@@ -222,7 +333,7 @@ async def ingest_document(
             text("""
                 INSERT INTO doc_chunks (id, doc_id, chunk_index, content, embedding, metadata)
                 VALUES (:id, :doc_id, :chunk_index, :content,
-                        CAST(:embedding AS vector(384)), :metadata)
+                        CAST(:embedding AS vector(1024)), :metadata)
             """),
             {
                 "id": str(uuid.uuid4()),
@@ -243,6 +354,8 @@ async def ingest_document(
     )
 
     await db.commit()
-    logger.info(f"Ingested doc={doc_id} filename={filename} chunks={chunk_count}")
+    # Invalidate retrieval cache — new chunks may match existing queries
+    clear_retrieval_cache()
+    logger.info(f"Ingested doc={doc_id} filename={filename} chunks={chunk_count} ocr={ocr_used}")
 
-    return {"doc_id": doc_id, "chunk_count": chunk_count}
+    return {"doc_id": doc_id, "chunk_count": chunk_count, "ocr_used": ocr_used}

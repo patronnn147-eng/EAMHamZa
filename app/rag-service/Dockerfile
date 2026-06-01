@@ -24,20 +24,11 @@ RUN pip install --no-cache-dir --upgrade pip && \
     apt-get purge -y --auto-remove gcc && \
     rm -rf /var/lib/apt/lists/*
 
-# Point HF/ST caches into /app so they survive the upcoming chown.
-# Default paths (/root/.cache) would be inaccessible after USER switch.
+# Point HF/ST caches to a directory that will be mounted as a named volume.
+# BAAI/bge-m3 is public — no HF_TOKEN needed. Model downloads on first start,
+# then served from the volume on every subsequent start (no re-download).
 ENV HF_HOME=/app/.cache/huggingface
 ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
-
-# HF_TOKEN passed at build time only — ARG not promoted to ENV so never baked into image.
-# Usage: docker compose build --build-arg HF_TOKEN=hf_xxx rag-service
-ARG HF_TOKEN
-
-# Bake model into image (~120 MB) — multilingual, handles French/Arabic/EN.
-# paraphrase-multilingual-MiniLM-L12-v2: 384 dims, same as all-MiniLM-L6-v2.
-# HF_TOKEN injected inline so it never persists in any layer.
-RUN HF_TOKEN=${HF_TOKEN} python -c "from sentence_transformers import SentenceTransformer; \
-    SentenceTransformer('sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2')"
 
 COPY . .
 
