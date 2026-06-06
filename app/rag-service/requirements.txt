@@ -24,3 +24,7 @@ cachetools>=5.3.0
 
 # Env
 python-dotenv>=1.0.0
+
+# Test (used by tests/test_hybrid_rrf.py + test_retriever_hybrid_toggle.py)
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

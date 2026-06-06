@@ -15,7 +15,8 @@ __pycache__/
 .git/
 .gitignore
 
-# Test artifacts
-tests/
+# Test artifacts -- tests/ IS shipped in the image so `docker compose run --rm
+# rag-service pytest tests/...` works for hybrid + RRF unit tests (Phase 13).
+# Only ephemeral pytest artifacts are excluded.
 pytest.ini
 .pytest_cache/
