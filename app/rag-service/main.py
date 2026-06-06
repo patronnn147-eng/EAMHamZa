@@ -24,6 +24,15 @@ from database import get_db
 from ingestor import ingest_document, extract_image_text
 from retriever import retrieve_chunks, clear_retrieval_cache, retrieve_cache_stats
 from embedder import embed_cache_stats
+from reranker import rerank_stats, rerank_enabled, MODEL_NAME as RERANK_MODEL, OVERFETCH
+from hybrid import (
+    FTS_CONFIGS,
+    HYBRID_OVERFETCH,
+    HYBRID_RRF_K,
+    TIE_BREAK,
+    hybrid_enabled,
+    hybrid_stats,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -299,10 +308,35 @@ async def delete_document(
 
 @app.get("/cache-stats")
 async def cache_stats():
-    """Return embedding + retrieval cache hit/miss counters."""
+    """Return embedding + retrieval cache hit/miss counters + reranker + hybrid stats."""
     return {
         "embedding_cache": embed_cache_stats(),
         "retrieval_cache": retrieve_cache_stats(),
+        "reranker": rerank_stats(),
+        "hybrid": hybrid_stats(),
+    }
+
+
+@app.get("/rerank-info")
+async def rerank_info():
+    """Reranker status for ops visibility."""
+    return {
+        "enabled": rerank_enabled(),
+        "model": RERANK_MODEL,
+        "overfetch": OVERFETCH,
+    }
+
+
+@app.get("/hybrid-info")
+async def hybrid_info():
+    """Hybrid retrieval status for ops visibility."""
+    return {
+        "enabled": hybrid_enabled(),
+        "fusion": "rrf",
+        "k": HYBRID_RRF_K,
+        "overfetch": HYBRID_OVERFETCH,
+        "fts_configs": list(FTS_CONFIGS),
+        "tie_break": TIE_BREAK,
     }
 
 
