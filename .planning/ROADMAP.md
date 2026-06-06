@@ -30,3 +30,18 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd:plan-phase 12.1 to break down)
+
+### Phase 13: Add hybrid search (BM25 + vector) phase — Phase 1 Postgres-native, Phase 2 Elasticsearch
+
+**Goal:** Phase 13.1 — Add Postgres-native BM25-style keyword retrieval alongside the existing pgvector cosine path in `rag-service`. Fuse the two via Reciprocal Rank Fusion (k=60), feed the fused list to the existing cross-encoder reranker, and surface observability + a runtime toggle. Phase 13.2 (Elasticsearch) is deferred per CONTEXT.md.
+
+**Requirements:** [HYB-01, HYB-02, HYB-03, HYB-04, HYB-05, HYB-06, HYB-07, HYB-08, HYB-09]
+
+**Depends on:** Phase 12
+
+**Plans:** 1/3 plans executed
+
+**Plan list:**
+- [ ] 13-01-migration-tsvector-gin-PLAN.md — Alembic migration adding 2 GENERATED tsvector cols (FR + EN) + 2 GIN indexes on `doc_chunks`
+- [ ] 13-02-hybrid-module-and-retriever-PLAN.md — New `app/rag-service/hybrid.py` (RRF + keyword SQL + env toggle + stats) + retriever fan-out + `/cache-stats` + `/hybrid-info` + `HYBRID_ENABLED` env wiring
+- [ ] 13-03-smoke-toggle-observability-PLAN.md — Smoke verification (exact-ID + NL queries), toggle-off A/B regression, fail-loud BM25, user checkpoint
