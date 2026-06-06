@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+stopped_at: Completed 13-02-PLAN.md
+last_updated: "2026-06-06T16:32:46.068Z"
+progress:
+  total_phases: 19
+  completed_phases: 6
+  total_plans: 37
+  completed_plans: 19
+---
+
 # Project State
 
 **Project:** Backend Optimization
@@ -14,7 +28,7 @@
 | 04-connection-pooling | ✅ Complete | Connection pooling configured and tested |
 | 05-ml-training | ✅ Complete | All 6 models retrained, 100% TestSprite tests passed |
 | 06-ml-dashboard | ✅ Complete | Dashboard implemented, API fixed, manual verification passed |
-| 13-add-hybrid-search-bm25-vector | 🔄 In Progress | 1/3 plans complete — 13-01 migration tsvector + GIN landed |
+| 13-add-hybrid-search-bm25-vector | 🔄 In Progress | 2/3 plans complete — 13-02 hybrid module + retriever fan-out landed |
 
 ## Session Notes
 
@@ -47,16 +61,26 @@
 - `SET lock_timeout = '30s'` guard added to ALTER TABLE DDL so future runs fail loud rather than block writers.
 - Per CONTEXT.md, two language configs (french + english) as separate tsvector columns + separate GIN indexes; query side will use `GREATEST(rank_fr, rank_en)`.
 
+### Phase 13 Decisions (13-02 executed 2026-06-06)
+- Vector branch SQL kept verbatim except additive `dc.id AS chunk_id` projection so `rrf_fuse()` can dedupe by stable PK.
+- Retrieval cache key widened atomically to 5-tuple `(query, machine_id, top_k, threshold, hybrid_enabled)` so toggling does not return stale results.
+- BM25 errors re-raised (fail-loud per CONTEXT.md); embedding failure in hybrid mode still lets keyword branch contribute; in vector-only mode preserves pre-13 `[]` return.
+- `tests/` removed from rag-service `.dockerignore` so verify command `docker compose run --rm rag-service pytest tests/...` works as written (Rule 3 blocking-issue auto-fix).
+- `pytest` + `pytest-asyncio` added to rag-service `requirements.txt` (image lacked them).
+- 37 unit tests (25 RRF + 12 retriever toggle) all green inside the rag-service container.
+
 ## Blocker / Issues
 
 - Backend container has no source volume mount — new alembic revisions must be `docker cp`'d into the container OR the image rebuilt before `alembic upgrade head`. Flag for Plan 13-03 preflight.
+- rag-service container also has no source volume mount — any new source change requires a full `docker compose build rag-service` + restart before curl-based verifications. Flag for Plan 13-03.
+- Git Bash on Windows host path-mangles `/app/...` in `docker compose exec` — prefix shell-outs with `MSYS_NO_PATHCONV=1`. Flag for Plan 13-03.
 
 ## Session Continuity
 
-- **Last session:** 2026-06-06 — completed `13-01-migration-tsvector-gin-PLAN.md`. Migration head advanced to `hybrid_search_tsvector`.
-- **Stopped at:** Completed 13-01-PLAN.md
-- **Resume with:** `/gsd:execute-phase 13` (next: Plan 13-02 hybrid module + retriever)
+- **Last session:** 2026-06-06 — completed `13-02-hybrid-module-and-retriever-PLAN.md`. RAG hybrid path live at default `HYBRID_ENABLED=true`.
+- **Stopped at:** Completed 13-02-PLAN.md
+- **Resume with:** `/gsd:execute-phase 13` (next: Plan 13-03 smoke + toggle + observability)
 
 ---
 
-*State recorded: 2026-06-06 after phase 13 plan 01 execution*
+*State recorded: 2026-06-06 after phase 13 plan 02 execution*
