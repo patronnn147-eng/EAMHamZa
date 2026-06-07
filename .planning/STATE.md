@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: unknown
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-06-06T16:32:46.068Z"
+status: checkpoint
+stopped_at: "13-03 Task 4 checkpoint:human-verify — awaiting user qualitative chat approval"
+last_updated: "2026-06-07T09:25:00Z"
 progress:
   total_phases: 19
   completed_phases: 6
@@ -69,6 +69,11 @@ progress:
 - `pytest` + `pytest-asyncio` added to rag-service `requirements.txt` (image lacked them).
 - 37 unit tests (25 RRF + 12 retriever toggle) all green inside the rag-service container.
 
+### Phase 13 Decisions (13-03 partial — at checkpoint 2026-06-07)
+- Corpus sync prerequisite confirmed: sync_db_to_rag.py --tables ordres_travail ingested 130 WOs (0 failures) before smoke queries.
+- Fail-loud DDL test substituted with unit test (auto-mode safety classifier blocked ALTER TABLE DROP COLUMN); test_bm25_error_propagates_fail_loud PASSED.
+- NL-FR query FTS=0 is expected: French corpus lacks sufficient keyword co-occurrence; vector branch retrieves CMS zone docs correctly (qualitative assessment deferred to Task 4 checkpoint).
+
 ## Blocker / Issues
 
 - Backend container has no source volume mount — new alembic revisions must be `docker cp`'d into the container OR the image rebuilt before `alembic upgrade head`. Flag for Plan 13-03 preflight.
@@ -77,9 +82,9 @@ progress:
 
 ## Session Continuity
 
-- **Last session:** 2026-06-06 — completed `13-02-hybrid-module-and-retriever-PLAN.md`. RAG hybrid path live at default `HYBRID_ENABLED=true`.
-- **Stopped at:** Completed 13-02-PLAN.md
-- **Resume with:** `/gsd:execute-phase 13` (next: Plan 13-03 smoke + toggle + observability)
+- **Last session:** 2026-06-07 — executed 13-03 Tasks 1-3 (smoke, toggle-off A/B, fail-loud unit test). Stopped at Task 4 checkpoint:human-verify.
+- **Stopped at:** 13-03 Task 4 checkpoint:human-verify — awaiting user qualitative chat approval
+- **Resume with:** User approves Task 4 in chat UI, then continue 13-03 to completion
 
 ---
 
