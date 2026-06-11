@@ -8,6 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from ingestor import _compute_hash, ingest_document
+from fastapi.testclient import TestClient
+from main import app
+
+client = TestClient(app)
 
 
 def test_compute_hash_deterministic():
@@ -53,3 +57,27 @@ async def test_ingest_document_returns_duplicate_flag_when_hash_exists():
     assert result["duplicate"] is True
     assert result["doc_id"] == existing_id
     assert mock_db.execute.call_count == 1
+
+
+def test_ingest_returns_409_when_duplicate():
+    """POST /ingest returns 409 with existing_doc_id when ingest_document detects duplicate."""
+    existing_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+    async def mock_ingest(*args, **kwargs):
+        return {"duplicate": True, "doc_id": existing_id, "chunk_count": 0, "ocr_used": False}
+
+    async def mock_db():
+        return None
+
+    with patch("main.ingest_document", side_effect=mock_ingest), \
+         patch("main.get_db", return_value=mock_db()):
+        response = client.post(
+            "/ingest",
+            files={"file": ("test.pdf", b"%PDF-1.4 fake", "application/pdf")},
+            data={"doc_type": "manual"},
+        )
+
+    assert response.status_code == 409
+    body = response.json()
+    assert body["detail"]["existing_doc_id"] == existing_id
+    assert "duplicate" in body["detail"]["message"].lower()

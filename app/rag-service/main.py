@@ -207,6 +207,15 @@ async def ingest(
             detail="Ingestion failed. Check RAG service logs.",
         )
 
+    if result.get("duplicate"):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Duplicate: identical file already ingested.",
+                "existing_doc_id": result["doc_id"],
+            },
+        )
+
     return IngestResponse(
         doc_id=result["doc_id"],
         chunk_count=result["chunk_count"],
