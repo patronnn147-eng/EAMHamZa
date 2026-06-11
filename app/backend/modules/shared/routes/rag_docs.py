@@ -55,6 +55,8 @@ class DocumentResponse(BaseModel):
     created_at: Optional[str] = None
     s3_object_key: Optional[str] = None
     download_url: Optional[str] = None
+    version: int = 1
+    content_hash: Optional[str] = None
 
 
 class BulkUploadResponse(BaseModel):
@@ -445,10 +447,10 @@ async def replace_document(
     """
     _require_admin(current_user)
 
-    # Load existing metadata (doc_type/description/machine_id)
+    # Load existing metadata (doc_type/description/machine_id/version)
     row = await db.execute(
         text("""
-            SELECT doc_type, description, machine_id, s3_object_key
+            SELECT doc_type, description, machine_id, s3_object_key, COALESCE(version, 1) AS version
             FROM documents WHERE id = CAST(:id AS uuid)
         """),
         {"id": doc_id},
@@ -457,7 +459,7 @@ async def replace_document(
     if not record:
         raise HTTPException(status_code=404, detail="Document not found.")
 
-    doc_type, description, machine_id, old_key = record
+    doc_type, description, machine_id, old_key, current_version = record
 
     file_bytes = await file.read()
     _validate_file(file.filename or "", len(file_bytes))
@@ -482,6 +484,17 @@ async def replace_document(
         uploaded_by=current_user.id,
         db=db,
     )
+
+    # Stamp new document row with version = old_version + 1
+    try:
+        await db.execute(
+            text("UPDATE documents SET version = :v WHERE id = CAST(:id AS uuid)"),
+            {"v": current_version + 1, "id": new_doc.id},
+        )
+        await db.commit()
+    except Exception as e:
+        logger.warning(f"Failed to set version for {new_doc.id}: {e}")
+
     return new_doc
 
 
