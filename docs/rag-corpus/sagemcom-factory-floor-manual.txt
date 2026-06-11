@@ -1,0 +1,1583 @@
+================================================================================
+SAGEMCOM TUNIS — MANUEL D'EXPLOITATION ET DE MAINTENANCE
+SAGEMCOM TUNIS — FACTORY OPERATIONS AND MAINTENANCE MANUAL
+================================================================================
+Document Reference / Reference Document: SAG-MNT-001
+Version: 1.0
+Date: 2026-06-11
+Language / Langue: Bilingual FR/EN
+Applicable Zones / Zones Applicables: CMS1, CMS2
+
+================================================================================
+SECTION 1 — VUE D'ENSEMBLE DE L'USINE / FACTORY OVERVIEW
+================================================================================
+
+1.1 DESCRIPTION DU SITE / SITE DESCRIPTION
+-------------------------------------------
+
+FR:
+L'usine SagemCom Tunis est un site de fabrication electronique produisant deux
+familles de produits : les produits large bande (BBS — Broadband Products) tels
+que les modems et routeurs, et les produits audio/video (AVS — Audio/Video
+Products). La production est organisee en deux zones principales :
+- ZONE CMS1 : Montage en surface (SMT — Surface Mount Technology)
+- ZONE CMS2 : Zone de test (tests fonctionnels, in-situ et WiFi/RF)
+
+EN:
+SagemCom Tunis is an electronics manufacturing site producing two product
+families: broadband products (BBS) such as modems and routers, and audio/video
+products (AVS). Production is organized into two main zones:
+- ZONE CMS1: Surface Mount Technology (SMT) assembly
+- ZONE CMS2: Test zone (functional, in-circuit, and WiFi/RF testing)
+
+1.2 FLUX DE PRODUCTION CMS1 / CMS1 PRODUCTION FLOW
+----------------------------------------------------
+
+FR:
+Le flux de production SMT suit l'ordre suivant de gauche a droite :
+Depileur -> Serigraphie -> Machine de Pose -> Inspection SPI/2D ->
+Four de Refusion -> AOI 3D -> (Insertion Manuelle THT) -> Brassage a la Vague
+
+EN:
+The SMT production flow runs left-to-right as follows:
+Card Loader -> Stencil Printer -> Pick & Place -> SPI/2D Inspection ->
+Reflow Oven -> AOI 3D -> (Manual THT Insertion) -> Wave Soldering
+
+Deux lignes paralleles / Two parallel lines:
+- LINE 1 (BBS): Machines ID 1, 2, 5, 8, 9, 7, 25, 24
+- LINE 2 (AVS): Machines ID 10, 11, 12, 6, 13, 15, 14, 16, 17
+
+1.3 INVENTAIRE DES MACHINES / MACHINE INVENTORY
+-------------------------------------------------
+
+ID  | NOM COURT / SHORT NAME                    | ZONE | LIGNE/LINE | STATUT
+----|-------------------------------------------|------|------------|--------
+1   | Depileur / Card Loader BBS                | CMS1 | BBS Line 1 | MAINTENANCE
+2   | Serigraphie DEK/MPM BBS                   | CMS1 | BBS Line 1 | OPERATIONNELLE
+3   | Test In-Situ / Bed of Nails               | CMS2 | Test       | OPERATIONNELLE
+4   | Banc Test Fonctionnel TF                  | CMS2 | Test       | OPERATIONNELLE
+5   | Pick & Place BBS                          | CMS1 | BBS Line 1 | OPERATIONNELLE
+6   | SPI (Inspection Pate a Souder) AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+7   | AOI 3D Inspection Finale BBS              | CMS1 | BBS Line 1 | OPERATIONNELLE
+8   | Scanner 2D Inspection Composants BBS      | CMS1 | BBS Line 1 | OPERATIONNELLE
+9   | Four de Refusion / Reflow Oven BBS        | CMS1 | BBS Line 1 | OPERATIONNELLE
+10  | Depileur AVS                              | CMS1 | AVS Line 2 | OPERATIONNELLE
+11  | Serigraphie AVS                           | CMS1 | AVS Line 2 | OPERATIONNELLE
+12  | Pick & Place AVS                          | CMS1 | AVS Line 2 | OPERATIONNELLE
+13  | Scanner 2D AVS                            | CMS1 | AVS Line 2 | OPERATIONNELLE
+14  | AOI 3D AVS                                | CMS1 | AVS Line 2 | OPERATIONNELLE
+15  | Four de Refusion / Reflow Oven AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+16  | Poste Insertion Manuelle AVS              | CMS1 | AVS Line 2 | OPERATIONNELLE
+17  | Machine de Brassage a la Vague AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+18  | Banc Test Front-End BFE                   | CMS2 | Test       | OPERATIONNELLE
+19  | Banc Test Audio/Video BAV                 | CMS2 | Test       | OPERATIONNELLE
+20  | Banc Test Routeur                         | CMS2 | Test       | OPERATIONNELLE
+21  | PC Test WiFi (avec logiciels de test)     | CMS2 | WiFi Test  | OPERATIONNELLE
+22  | Caisson Faraday / Shielding Box           | CMS2 | WiFi Test  | OPERATIONNELLE
+23  | Analyseur IQFlex RF                       | CMS2 | WiFi Test  | OPERATIONNELLE
+24  | Machine Brassage a la Vague BBS           | CMS1 | BBS Line 1 | OPERATIONNELLE
+25  | Poste Insertion Manuelle THT BBS          | CMS1 | BBS Line 1 | OPERATIONNELLE
+
+1.4 ROLES ET RESPONSABILITES / ROLES AND RESPONSIBILITIES
+----------------------------------------------------------
+
+FR:
+- TECHNICIEN: Effectue les interventions de maintenance, renseigne les rapports
+- CHEFTECH: Supervise les techniciens, approuve les interventions et pieces
+- CHEFOP: Signale les anomalies, demande les interventions d'urgence
+- ADMIN: Acces complet au systeme EAM
+
+EN:
+- TECHNICIAN: Performs maintenance interventions, fills intervention reports
+- CHEFTECH: Supervises technicians, approves interventions and spare parts
+- CHEFOP: Reports anomalies, requests emergency interventions
+- ADMIN: Full EAM system access
+
+1.5 SURVEILLANCE ML / ML MONITORING
+-------------------------------------
+
+FR:
+Chaque machine est surveillee par 7 modeles ML (P1-P7) utilisant 5 capteurs
+de telemetrie en temps reel :
+- Temperature de l'air (air_temperature, Kelvin)
+- Temperature de processus (process_temperature, Kelvin)
+- Vitesse de rotation (rotational_speed, RPM)
+- Couple (torque, Newton-metre Nm)
+- Usure de l'outil (tool_wear, minutes d'utilisation cumulees)
+
+EN:
+Each machine is monitored by 7 ML models (P1-P7) using 5 real-time telemetry
+sensors:
+- Air temperature (air_temperature, Kelvin)
+- Process temperature (process_temperature, Kelvin)
+- Rotational speed (rotational_speed, RPM)
+- Torque (torque, Newton-metres Nm)
+- Tool wear (tool_wear, cumulative minutes of use)
+
+Types de defaillance identifies par les modeles ML / ML-identified failure types:
+- TWF : Tool Wear Failure — defaillance par usure d'outil
+- HDF : Heat Dissipation Failure — defaillance thermique
+- PWF : Power/Pressure Failure — defaillance alimentation ou pression
+- OSF : Overstrain Failure — defaillance par surcharge mecanique
+- RNF : Random No Failure — pas de cause racine identifiee
+
+================================================================================
+SECTION 2 — SPECIFICATIONS MACHINES / MACHINE SPECIFICATIONS
+================================================================================
+
+FR: Cette section decrit les parametres d'exploitation normaux de chaque
+categorie de machine. Les plages de capteurs sont basees sur le jeu de donnees
+de reference ai4i2020 calibre sur le type d'equipement.
+
+EN: This section describes the normal operating parameters for each machine
+category. Sensor ranges are based on the ai4i2020 reference dataset calibrated
+to equipment type.
+
+--------------------------------------------------------------------------------
+2.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Alimenter la ligne SMT en cartes PCB vierges depuis un magasin
+empile. Le depileur saisit les cartes une a une et les transmet au convoyeur.
+Capacite : 200 cartes/magazine. Vitesse nominale : 600 cartes/heure.
+Entrainement par courroies crantees et pignons (source d'usure principale).
+
+EN: Function — Feed bare PCB boards from a stacked magazine onto the SMT line
+conveyor. The card loader picks boards one at a time and transfers them to the
+conveyor. Capacity: 200 boards/magazine. Nominal speed: 600 boards/hour.
+Drive: toothed belts and sprockets (primary wear source).
+
+Machines en DB / In DB: ID 1 (BBS Line 1), ID 10 (AVS Line 2)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)   — ambient workshop
+  Process temperature   : 296-303 K  (23-30 deg C)   — same as air, no heating
+  Rotational speed      : 800-1200 RPM               — belt drive motor
+  Torque                : 5-18 Nm                    — board-feed servo
+  Tool wear             : 0-180 min  WARNING >180  CRITICAL >220
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 20 Nm : bourrage carte (card jam), verifier convoyeur
+  - RPM < 600      : glissement courroie, tension insuffisante
+  - Tool wear > 220: remplacement courroie imminent
+
+--------------------------------------------------------------------------------
+2.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Deposer la pate a souder sur les pastilles du PCB a travers un
+pochoir metallique par raclage (squeegee). Critique : une mauvaise application
+cause 60% des defauts de soudure. Pression de raclage : 8-12 kg. Vitesse de
+raclage : 20-80 mm/s selon la conception du pochoir.
+
+EN: Function — Deposit solder paste onto PCB pads through a metal stencil using
+a squeegee blade. Critical: improper application causes 60% of solder defects.
+Squeegee pressure: 8-12 kg. Squeegee speed: 20-80 mm/s depending on stencil
+design.
+
+Machines en DB / In DB: ID 2 (Serigraphie DEK/MPM BBS), ID 6 (SPI AVS),
+                         ID 11 (Serigraphie AVS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)   — paste must stay 20-25 deg C
+  Rotational speed      : 200-600 RPM                — squeegee drive
+  Torque                : 8-22 Nm                    — squeegee pressure servo
+  Tool wear             : 0-200 min  WARNING >200  CRITICAL >240
+
+Note: La pate a souder doit etre stockee a 4 deg C et ramenee a 25 deg C avant usage.
+Note: Solder paste must be stored at 4 deg C and brought to 25 deg C before use.
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 25 Nm  : pression raclette excessive, risque endommagement pochoir
+  - Temp > 305 K    : temperature ambiante trop elevee, pate trop fluide
+  - Tool wear > 240 : remplacer raclette (squeegee blade)
+
+--------------------------------------------------------------------------------
+2.3 MACHINE DE POSE / PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Prelever les composants electroniques des bobines/bacs et les
+placer sur le PCB avec precision (+-25 microm). Vitesse : 20000-50000 cph
+(composants par heure). Axes X/Y haute precision, tete rotative multi-buses.
+
+EN: Function — Pick electronic components from reels/trays and place them on
+the PCB with precision (+-25 microm). Speed: 20,000-50,000 cph (components/hour).
+High-precision X/Y gantry axes, multi-nozzle rotating head.
+
+Machines en DB / In DB: ID 5 (Pick & Place BBS), ID 12 (Pick & Place AVS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)
+  Rotational speed      : 1200-2200 RPM              — servo axis drives
+  Torque                : 3-15 Nm                    — precision servo (low)
+  Tool wear             : 0-180 min  WARNING >180  CRITICAL >220
+
+Note: Les buses (nozzles) necessitent un nettoyage quotidien a l'alcool IPA.
+Note: Nozzles require daily cleaning with IPA alcohol.
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 18 Nm   : blocage mecanique axe X/Y ou tete, arret immediat
+  - RPM > 2500       : survitesse servo, verifier parametrage
+  - Tool wear > 220  : remplacement buses et inspection courroies axes
+
+--------------------------------------------------------------------------------
+2.4 INSPECTION — SPI / 2D SCANNER / AOI 3D (IDs: 6, 7, 8, 13, 14)
+--------------------------------------------------------------------------------
+
+FR: Fonction —
+  SPI (Solder Paste Inspection, ID 6) : controle volumetrique 3D de la pate.
+  Scanner 2D (IDs 8, 13) : verification presence/polarite composants.
+  AOI 3D finale (IDs 7, 14) : inspection soudures apres refusion.
+Ces machines sont optiques — pas de rotation mecanique significative.
+
+EN: Function —
+  SPI (ID 6): 3D volumetric solder paste inspection.
+  2D Scanner (IDs 8, 13): component presence and polarity verification.
+  AOI 3D Final (IDs 7, 14): solder joint inspection after reflow.
+These are optical machines — no significant mechanical rotation.
+
+Machines en DB / In DB: ID 6, 7, 8, 13, 14
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)
+  Rotational speed      : 100-400 RPM  — scanner drive motor only
+  Torque                : 2-8 Nm       — gantry positioning
+  Tool wear             : 0-240 min  WARNING >240  CRITICAL >280
+
+Conditions anormales / Abnormal conditions:
+  - Taux faux positifs > 5% : recalibrer camera ou nettoyer optique
+  - Tool wear > 280 : maintenance preventive eclairage LED et lentilles
+
+--------------------------------------------------------------------------------
+2.5 FOUR DE REFUSION / REFLOW OVEN (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Souder les composants CMS par fusion controlee de la pate a
+souder selon un profil thermique precis. Le profil comprend :
+  Zone de prechauffage : montee 1-3 deg C/s jusqu'a 150 deg C
+  Zone de trempage    : maintien 150-180 deg C pendant 60-120 s
+  Zone de refusion    : pic 230-250 deg C pendant 20-40 s (soudure sans plomb)
+  Zone de refroidissement : descente < 6 deg C/s
+Convoyeur a vitesse variable (50-120 cm/min selon profil).
+
+EN: Function — Solder SMT components by controlled melting of solder paste
+according to a precise thermal profile. Profile comprises:
+  Preheat zone     : ramp 1-3 deg C/s to 150 deg C
+  Soak zone        : hold 150-180 deg C for 60-120 s
+  Reflow zone      : peak 230-250 deg C for 20-40 s (lead-free)
+  Cooling zone     : cool < 6 deg C/s
+Variable-speed conveyor (50-120 cm/min depending on profile).
+
+Machines en DB / In DB: ID 9 (Reflow Oven BBS), ID 15 (Reflow Oven AVS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)   — ambient at entry/exit
+  Process temperature   : 493-523 K  (220-250 deg C) — peak reflow zone
+  Rotational speed      : 600-1200 RPM               — conveyor drive motor
+  Torque                : 10-25 Nm                   — conveyor load
+  Tool wear             : 0-200 min  WARNING >200  CRITICAL >240
+
+AVERTISSEMENT / WARNING:
+FR: Le four atteint 250 deg C en zone de refusion. Ne jamais ouvrir le capot
+superieur pendant le fonctionnement. EPI obligatoires : gants thermiques,
+lunettes de protection.
+EN: Oven reaches 250 deg C in reflow zone. Never open the top cover during
+operation. Required PPE: thermal gloves, safety glasses.
+
+Conditions anormales / Abnormal conditions:
+  - Temp zone refusion < 225 deg C : soudures froides (cold joints), regler profil
+  - Temp zone refusion > 255 deg C : composants brules, arret et verification
+  - RPM < 500                      : glissement convoyeur, bourrage possible
+  - Torque > 30 Nm                 : blocage convoyeur, arret immediat
+
+--------------------------------------------------------------------------------
+2.6 MACHINE DE BRASSAGE A LA VAGUE / WAVE SOLDERING (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Souder les composants traversants (THT) par passage de la carte
+sur une vague de solder fondue a 250-260 deg C. Flux applique avant entree.
+Prechauffage a 100-130 deg C par le bas avant la vague principale.
+
+EN: Function — Solder through-hole (THT) components by passing the board over
+a wave of molten solder at 250-260 deg C. Flux applied before entry.
+Underside preheating at 100-130 deg C before the main wave.
+
+Machines en DB / In DB: ID 17 (Wave Soldering AVS), ID 24 (Wave Soldering BBS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 518-533 K  (245-260 deg C) — solder pot temperature
+  Rotational speed      : 800-1500 RPM               — pump and conveyor drive
+  Torque                : 15-35 Nm                   — pump motor + conveyor
+  Tool wear             : 0-200 min  WARNING >200  CRITICAL >240
+
+AVERTISSEMENT / WARNING:
+FR: Solder fondu a 255 deg C. Risque de brulures graves. EPI : tablier thermique,
+gants calorifuges, visiere. Ventilation obligatoire (vapeurs de flux).
+EN: Molten solder at 255 deg C. Severe burn risk. Required PPE: thermal apron,
+heat-resistant gloves, face shield. Ventilation mandatory (flux fumes).
+
+Conditions anormales / Abnormal conditions:
+  - Temp solder < 245 deg C  : soudures incompletes (cold joints)
+  - Temp solder > 265 deg C  : oxydation excessive solder, vidange pot necessaire
+  - Torque > 40 Nm           : pompe obstruee par dross (scories), nettoyage
+
+--------------------------------------------------------------------------------
+2.7 POSTE INSERTION MANUELLE / MANUAL INSERTION POST (IDs: 16, 25)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Poste de travail operateur pour l'insertion manuelle des
+composants traversants (THT) qui ne peuvent pas etre inseres automatiquement
+(connecteurs, composants volumineux). Pas de motorisation — outils manuels.
+
+EN: Function — Operator workstation for manual insertion of through-hole (THT)
+components that cannot be inserted automatically (connectors, bulky components).
+No motorization — manual tools only.
+
+Machines en DB / In DB: ID 16 (Poste Insertion AVS), ID 25 (Poste THT BBS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)   — ambient, no heating
+  Rotational speed      : 0 RPM                      — N/A (no rotating parts)
+  Torque                : 0-5 Nm                     — tool torque only
+  Tool wear             : 0-180 min  WARNING >180  CRITICAL >220
+
+Note: L'usure de l'outil ici correspond a la duree de cycle de l'operateur et
+a l'usure des outils manuels (tournevis, pinces).
+Note: Tool wear here corresponds to operator cycle time and manual tool wear.
+
+--------------------------------------------------------------------------------
+2.8 BANCS DE TEST / TEST BENCHES (IDs: 3, 4, 18, 19, 20, 21, 22, 23)
+--------------------------------------------------------------------------------
+
+FR: Fonction —
+  Bed of Nails (ID 3)    : Test in-situ des composants (ICT) via sondes
+  Banc TF (ID 4)         : Test fonctionnel complet de la carte
+  Banc BFE (ID 18)       : Test signal front-end broadband (DSL, fibre)
+  Banc BAV (ID 19)       : Test audio et video produits AVS
+  Banc Routeur (ID 20)   : Test LAN/WAN/firmware routeur
+  PC Test WiFi (ID 21)   : Controle logiciels de test WiFi 2.4/5 GHz
+  Caisson Faraday (ID 22): Isolation RF pour tests sans fil
+  Analyseur IQFlex (ID 23): Analyse spectrale RF, mesure RSSI, SNR
+
+EN: Function —
+  Bed of Nails (ID 3)    : In-circuit component testing (ICT) via probes
+  Functional Bench TF(4) : Complete functional board test
+  Front-End Bench BFE(18): Broadband front-end signal test (DSL, fibre)
+  Audio/Video Bench (19) : Audio and video product testing
+  Router Bench (ID 20)   : LAN/WAN/firmware router testing
+  WiFi Test PC (ID 21)   : WiFi 2.4/5 GHz test software control
+  Faraday Cage (ID 22)   : RF isolation for wireless tests
+  IQFlex Analyzer (ID 23): RF spectrum analysis, RSSI, SNR measurement
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)
+  Rotational speed      : 0 RPM      — N/A (no rotating parts)
+  Torque                : 0-3 Nm     — probe contact pressure (bed of nails)
+  Tool wear             : 0-200 min  WARNING >200  CRITICAL >240
+
+Note: Pour le caisson Faraday (ID 22), s'assurer que le joint d'etancheite RF
+est intact avant chaque session de test. Remplacer si resistance > 0.1 Ohm.
+Note: For the Faraday cage (ID 22), verify RF seal integrity before each test
+session. Replace if contact resistance > 0.1 Ohm.
+
+================================================================================
+SECTION 3 — PLANNINGS DE MAINTENANCE PREVENTIVE / PREVENTIVE MAINTENANCE
+================================================================================
+
+FR: Les intervalles suivants sont obligatoires. En cas de depassement, creer
+un ordre d'intervention de type PREVENTIVE dans le systeme EAM.
+EN: The following intervals are mandatory. If exceeded, create a PREVENTIVE
+intervention order in the EAM system.
+
+--------------------------------------------------------------------------------
+3.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier visuellement l'etat des courroies d'alimentation (craquelures, usure)
+      EN: Visually inspect feed belts for cracks or wear
+  [ ] FR: Nettoyer les capteurs de presence carte (depoussierage air comprime)
+      EN: Clean board presence sensors (compressed air blow-out)
+  [ ] FR: Verifier la hauteur du magasin et l'alignement des rails
+      EN: Check magazine height and rail alignment
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Controler la tension des courroies crantees (deflexion max 3mm sous 1 kg)
+      EN: Check toothed belt tension (max 3mm deflection under 1 kg)
+  [ ] FR: Graisser les rails de guidage (graisse NLGI 2, 2-3 points par rail)
+      EN: Lubricate guide rails (NLGI 2 grease, 2-3 points per rail)
+  [ ] FR: Verifier les pignons d'entrainement (pas de dents manquantes)
+      EN: Inspect drive sprockets (no missing teeth)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les courroies si usure > 15% ou craquelures visibles
+      EN: Replace belts if wear > 15% or visible cracking
+  [ ] FR: Inspecter les roulements de l'axe d'entrainement (bruit, jeu)
+      EN: Inspect drive axis bearings (noise, play)
+  [ ] FR: Calibrer les capteurs de hauteur magasin
+      EN: Calibrate magazine height sensors
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet des courroies et roulements
+      EN: Full replacement of belts and bearings
+  [ ] FR: Revision generale mecanique et electrique
+      EN: Full mechanical and electrical overhaul
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Courroie d'entrainement (type HTD 5M) — reference selon fabricant
+  - Roulement SKF 6205 (TEST-001, REF-002) — remplacement annuel
+  - Graisse NLGI 2 (GREASE-A) — application hebdomadaire
+
+--------------------------------------------------------------------------------
+3.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Nettoyer le pochoir a l'alcool IPA apres chaque production
+      EN: Clean stencil with IPA alcohol after each production run
+  [ ] FR: Verifier l'etat des raclettes (squeegees) — pas d'ebrechures
+      EN: Inspect squeegee blades — no chipping or deformation
+  [ ] FR: Controler le niveau de pate a souder dans le distributeur
+      EN: Check solder paste level in dispenser
+  [ ] FR: Nettoyer les dessous-de-carte (undersupports)
+      EN: Clean PCB undersupports
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Calibration de la pression raclette (cible : 10 +/- 1 kg)
+      EN: Squeegee pressure calibration (target: 10 +/- 1 kg)
+  [ ] FR: Verifier l'alignement optique camera de reconnaissance PCB
+      EN: Check optical alignment of PCB recognition camera
+  [ ] FR: Lubrifier les axes de deplacement (huile legere ISO VG 32)
+      EN: Lubricate travel axes (light oil ISO VG 32)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les raclettes si usure > 10% ou deformation visible
+      EN: Replace squeegees if wear > 10% or visible deformation
+  [ ] FR: Nettoyage complet du systeme d'essuyage automatique (wiping)
+      EN: Full cleaning of automatic wiping system
+  [ ] FR: Verifier les joints du systeme de nettoyage pochoir
+      EN: Inspect seals of stencil cleaning system
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet des systemes d'axes (vis a billes, guidages)
+      EN: Full replacement of axis systems (ball screws, linear guides)
+  [ ] FR: Revision du systeme de vision (nettoyage et recalibration cameras)
+      EN: Vision system overhaul (clean and recalibrate cameras)
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Raclettes metal 60 deg et 45 deg — remplacement mensuel ou selon usure
+  - Joint torique 10mm (REF-001) — joints systeme nettoyage
+  - Huile ISO VG 32 (OIL-B2 REF-003) — axes
+
+--------------------------------------------------------------------------------
+3.3 PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Nettoyer les buses (nozzles) a l'alcool IPA — verifier l'absence d'obturation
+      EN: Clean nozzles with IPA alcohol — check for blockage
+  [ ] FR: Inspecter visuellement les buses pour fissures ou deformation
+      EN: Visually inspect nozzles for cracks or deformation
+  [ ] FR: Verifier la proprete des miroirs et capteurs de vision
+      EN: Check cleanliness of vision mirrors and sensors
+  [ ] FR: Controler la pression pneumatique (cible : 0.5 MPa +/- 0.05)
+      EN: Check pneumatic pressure (target: 0.5 MPa +/- 0.05)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Lubrifier les axes X/Y (graisse EP NLGI 2, points prevus sur le guide)
+      EN: Lubricate X/Y axes (EP grease NLGI 2, designated points on guide)
+  [ ] FR: Controler la tension des courroies d'axes
+      EN: Check axis belt tension
+  [ ] FR: Effectuer une prise d'origine (home) et verifier la repetabilite
+      EN: Perform home position reference and verify repeatability
+  [ ] FR: Inspecter les feeders (chargeurs de bobines) — avance correcte
+      EN: Inspect feeders (reel changers) — correct component advance
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacement des buses avec taux de pick error > 0.5%
+      EN: Replace nozzles with pick error rate > 0.5%
+  [ ] FR: Controle complet du systeme de vision (calibration, eclairage)
+      EN: Full vision system check (calibration, lighting)
+  [ ] FR: Verifier les filtres des aspirateurs de dechets
+      EN: Check waste vacuum filters
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement des roulements d'axes X/Y et Z
+      EN: Replace X/Y/Z axis bearings
+  [ ] FR: Revision complete du systeme de convoyeur integre
+      EN: Full revision of integrated conveyor system
+  [ ] FR: Mise a jour du logiciel et sauvegarde des programmes de placement
+      EN: Software update and backup of placement programs
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Buses universelles DN 0.4, 0.7, 1.0, 1.3 mm — selon composants produits
+  - Courroie d'axe (serie HTD 3M) — remplacement annuel
+  - Graisse EP NLGI 2 (GREASE-A) — axes hebdomadaire
+
+--------------------------------------------------------------------------------
+3.4 REFLOW OVEN / FOUR DE REFUSION (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier le profil thermique affiche (comparer mesure vs. consigne)
+      EN: Verify displayed thermal profile (compare reading vs. setpoint)
+  [ ] FR: Inspecter l'etat du convoyeur a l'entree et a la sortie
+      EN: Inspect conveyor condition at entry and exit
+  [ ] FR: Controler la ventilation (pas d'obstruction des sorties d'air)
+      EN: Check ventilation (no obstruction to air outlets)
+  [ ] FR: Verifier la proprete du tunnel (pas de residus de flux carbonises)
+      EN: Check tunnel cleanliness (no carbonized flux residues)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Calibration thermocouple de chaque zone (validation profil)
+      EN: Calibrate thermocouple in each zone (profile validation)
+  [ ] FR: Nettoyer les filtres de recyclage d'air froid (zone refroidissement)
+      EN: Clean cold air recirculation filters (cooling zone)
+  [ ] FR: Lubrifier la chaine de convoyeur (huile chaine haute temperature)
+      EN: Lubricate conveyor chain (high-temperature chain oil)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Nettoyage complet du tunnel (residus flux sur parois et IR)
+      EN: Full tunnel cleaning (flux residues on walls and IR elements)
+  [ ] FR: Controler les resistances de chauffage (mesure Ohmmetre)
+      EN: Check heating resistors (ohmmeter measurement)
+  [ ] FR: Verifier les joints thermiques du tunnel
+      EN: Inspect thermal seals on the tunnel
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement des resistances de chauffage si resistance hors tolerance
+      EN: Replace heating resistors if resistance out of tolerance
+  [ ] FR: Remplacement du convoyeur complet (chaine + rails)
+      EN: Full conveyor replacement (chain + rails)
+  [ ] FR: Revision du systeme de controle PID des zones thermiques
+      EN: Overhaul of PID thermal zone control system
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Resistance chauffage IR (selon modele four) — remplacement annuel
+  - Chaine convoyeur haute temperature — remplacement annuel
+  - Joint torique 10mm (REF-001) — joints tunnel
+  - Huile chaine HT (OIL-B2 REF-003)
+
+--------------------------------------------------------------------------------
+3.5 WAVE SOLDERING (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Controler le niveau de solder dans le pot (maintenir niveau nominal)
+      EN: Check solder level in pot (maintain nominal level)
+  [ ] FR: Ecumer les scories (dross) en surface de la vague — matin et soir
+      EN: Skim dross from wave surface — morning and evening
+  [ ] FR: Verifier la hauteur et la forme de la vague principale
+      EN: Check wave height and shape of main wave
+  [ ] FR: Controler l'application du flux (debit, couverture uniforme)
+      EN: Check flux application (flow rate, uniform coverage)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Analyser la composition du solder (taux d'impuretes Cu, Ag, Bi)
+      EN: Analyze solder composition (Cu, Ag, Bi impurity levels)
+  [ ] FR: Nettoyer les buses de flux (degorgement)
+      EN: Clean flux nozzles (purge)
+  [ ] FR: Lubrifier les roulements de la pompe de vague
+      EN: Lubricate wave pump bearings
+
+MENSUEL / MONTHLY:
+  [ ] FR: Vidanger et recharger le pot si taux de contamination > 0.3% Cu
+      EN: Drain and refill pot if contamination > 0.3% Cu
+  [ ] FR: Remplacer les filtres du systeme de ventilation flux
+      EN: Replace flux ventilation system filters
+  [ ] FR: Controler l'etat des broches de convoyeur (usure, deformation)
+      EN: Check conveyor pins condition (wear, deformation)
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet du solder du pot et nettoyage chimique
+      EN: Full solder pot drain and chemical cleaning
+  [ ] FR: Revision pompe de vague (joints mecaniques, turbine)
+      EN: Wave pump overhaul (mechanical seals, impeller)
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Solder sans plomb SAC305 (Sn96.5/Ag3/Cu0.5) — appoint mensuel
+  - Joint torique 10mm (REF-001) — joints pompe
+  - Roulement SKF 6205 (REF-002) — pompe vague annuel
+  - OIL-B2 (REF-003) — lubrification pompe
+
+--------------------------------------------------------------------------------
+3.6 BANCS DE TEST (IDs: 3, 4, 18, 19, 20, 21, 22, 23)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier la connectique des sondes ICT (bed of nails ID 3)
+      EN: Check ICT probe connections (bed of nails ID 3)
+  [ ] FR: Tester avec une carte de reference (golden board) en debut de poste
+      EN: Run golden board test at start of shift
+  [ ] FR: Verifier l'integrite du joint RF du caisson Faraday (ID 22)
+      EN: Check Faraday cage RF seal integrity (ID 22)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Nettoyer les pointes de contact ICT (Bed of Nails ID 3) a l'IPA
+      EN: Clean ICT contact pins (ID 3) with IPA
+  [ ] FR: Verifier la calibration de l'analyseur IQFlex (ID 23) avec source RF etalon
+      EN: Calibrate IQFlex analyzer (ID 23) against RF reference source
+  [ ] FR: Mettre a jour les logiciels de test si nouvelle version disponible
+      EN: Update test software if new version available
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les pointes ICT usees (resistance de contact > 0.5 Ohm)
+      EN: Replace worn ICT probes (contact resistance > 0.5 Ohm)
+  [ ] FR: Verifier les limites de test contre le fichier de reference produit
+      EN: Verify test limits against product reference file
+  [ ] FR: Inspecter les connecteurs RF de l'analyseur IQFlex (ID 23)
+      EN: Inspect RF connectors of IQFlex analyzer (ID 23)
+
+ANNUEL / ANNUAL:
+  [ ] FR: Etalonnage metrologique complet de l'analyseur IQFlex (labo exterieur)
+      EN: Full metrological calibration of IQFlex analyzer (external lab)
+  [ ] FR: Remplacement des joints d'etancheite RF du caisson Faraday
+      EN: Replace Faraday cage RF sealing gaskets
+
+================================================================================
+SECTION 4 — CODES DEFAUT ET ALARMES / FAULT CODES AND ALARMS
+================================================================================
+
+FR: Les codes de defaillance ci-dessous correspondent aux types utilises dans
+le systeme EAM (champ actual_failure_type des ordres d'intervention).
+EN: The fault codes below correspond to the types used in the EAM system
+(actual_failure_type field in intervention orders).
+
+--------------------------------------------------------------------------------
+4.1 TWF — TOOL WEAR FAILURE / DEFAILLANCE PAR USURE D'OUTIL
+--------------------------------------------------------------------------------
+
+FR: Cause : Usure progressive des composants mecaniques en contact direct avec
+la production (buses, raclettes, courroies, chaines, broches).
+EN: Cause: Progressive wear of mechanical components in direct contact with
+production (nozzles, squeegees, belts, chains, pins).
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12) : buses usees, courroies axes
+  - Serigraphie (IDs 2, 11)  : raclettes usees
+  - Depileur (IDs 1, 10)     : courroies d'alimentation
+  - Wave Soldering (IDs 17, 24): broches convoyeur
+
+Symptomes / Symptoms:
+  - Pick & Place : taux de pose manquee > 0.5%, composants mal positionnes
+  - Serigraphie  : epaisseur pate irreguliere, bridging sur pochoir
+  - Depileur     : alimentation irreguliere, coincements cartes
+  - Wave         : dross excessif, irregularite de vague
+
+Seuil capteur / Sensor threshold:
+  tool_wear > 200 min -> WARNING
+  tool_wear > 240 min -> CRITICAL (TWF probable)
+
+Actions immediates / Immediate actions:
+  1. Arreter la production sur la machine concernee
+  2. Creer un ordre d'intervention type CORRECTIVE dans EAM
+  3. Identifier et remplacer le composant use
+  4. Remettre a zero le compteur tool_wear dans le systeme
+  5. Reprendre la production et monitorer pendant 30 min
+
+--------------------------------------------------------------------------------
+4.2 HDF — HEAT DISSIPATION FAILURE / DEFAILLANCE THERMIQUE
+--------------------------------------------------------------------------------
+
+FR: Cause : Dissipation thermique insuffisante ou chauffage anormal. Affecte
+principalement les equipements thermiques (four, wave soldering) mais peut
+survenir sur tout moteur en surchauffe.
+EN: Cause: Insufficient heat dissipation or abnormal heating. Primarily affects
+thermal equipment (oven, wave soldering) but can occur on any overheating motor.
+
+Machines principalement affectees / Primarily affected machines:
+  - Four de Refusion (IDs 9, 15) : profil thermique incorrect
+  - Wave Soldering (IDs 17, 24)  : temperature solder anormale
+  - Pick & Place (IDs 5, 12)     : moteurs servo en surchauffe
+  - Depileur (IDs 1, 10)         : moteur ventilateur hors service
+
+Symptomes / Symptoms:
+  - Four  : ecart temperature mesuree vs consigne > 5 deg C, alarme zone
+  - Wave  : solder trop chaud (> 265 deg C) ou trop froid (< 245 deg C)
+  - Servo : temperature_process anormalement haute, odeur de brule
+
+Seuil capteur / Sensor threshold:
+  Four de refusion : process_temperature < 493 K ou > 528 K -> ALARME HDF
+  Wave soldering   : process_temperature < 518 K ou > 538 K -> ALARME HDF
+  Autres machines  : process_temperature > air_temperature + 15 K -> WARNING
+
+Actions immediates / Immediate actions:
+  1. Pour four/wave : verifier consignes de zone et thermocouple de reference
+  2. Verifier les filtres de ventilation (colmatage frequent)
+  3. Controler les resistances de chauffage (pour four)
+  4. Si temperature > seuil critique : arret d'urgence, refroidissement
+
+--------------------------------------------------------------------------------
+4.3 PWF — POWER/PRESSURE FAILURE / DEFAILLANCE ALIMENTATION/PRESSION
+--------------------------------------------------------------------------------
+
+FR: Cause : Defaillance de l'alimentation electrique ou pneumatique.
+EN: Cause: Electrical power supply or pneumatic pressure failure.
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12)    : pression pneumatique buses
+  - Serigraphie (IDs 2, 11)     : verins pneumatiques
+  - Four de Refusion (IDs 9, 15): alimentation chauffage
+  - Depileur (IDs 1, 10)        : alimentation moteur
+
+Symptomes / Symptoms:
+  - Pression pneumatique < 0.45 MPa : alarme "LOW PRESSURE" sur IHM
+  - Alimentation : baisse RPM soudaine, arret inopiné
+  - Process_temperature chute anormale (sur four)
+
+Seuil capteur / Sensor threshold:
+  rotational_speed < 60% de la valeur nominale -> PWF suspect
+  torque < 2 Nm sur machine normalement chargee -> PWF suspect
+
+Actions immediates / Immediate actions:
+  1. Verifier la centrale air comprime (pression reseau > 0.6 MPa)
+  2. Controler le regulateur de pression machine (filtre colmate ?)
+  3. Verifier les fusibles et disjoncteurs en armoire electrique
+  4. Controler l'onduleur si disponible
+
+--------------------------------------------------------------------------------
+4.4 OSF — OVERSTRAIN FAILURE / DEFAILLANCE PAR SURCHARGE
+--------------------------------------------------------------------------------
+
+FR: Cause : Contrainte mecanique excessive — blocage, collision, surcharge.
+EN: Cause: Excessive mechanical stress — jam, collision, overload.
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12)    : collision tete avec composant/PCB
+  - Depileur (IDs 1, 10)        : bourrage cartes
+  - Wave Soldering (IDs 17, 24) : blocage convoyeur par corps etranger
+  - Serigraphie (IDs 2, 11)     : coincement pochoir
+
+Symptomes / Symptoms:
+  - torque > 150% de la valeur nominale -> arret servo par surintensité
+  - Alarme "COLLISION DETECTED" ou "SERVO ERROR" sur IHM
+  - Bruit anormal (choc, grincement)
+
+Seuil capteur / Sensor threshold:
+  Pick & Place    : torque > 20 Nm -> OSF alarme
+  Wave Soldering  : torque > 45 Nm -> OSF alarme
+  Serigraphie     : torque > 28 Nm -> OSF alarme
+
+Actions immediates / Immediate actions:
+  1. ARRET D'URGENCE immediat (bouton rouge sur machine)
+  2. Ne jamais forcer mecaniquement — risque de dommages aggraves
+  3. Identifier et degager l'obstacle avec outil approprie
+  4. Verifier l'absence de dommages (axe tordu, buse cassee)
+  5. Test de deplacement lent avant reprise production
+
+--------------------------------------------------------------------------------
+4.5 RNF — RANDOM NO FAILURE / ABSENCE DE CAUSE IDENTIFIEE
+--------------------------------------------------------------------------------
+
+FR: Classification utilisee lorsque l'intervention n'a pas identifie de cause
+racine. Peut indiquer un faux positif ML ou une cause intermittente.
+EN: Classification used when intervention identified no root cause. May indicate
+an ML false positive or intermittent cause.
+
+Actions recommandees / Recommended actions:
+  1. Augmenter la frequence de surveillance (polling) pendant 48h
+  2. Comparer les 5 valeurs de capteurs avec les historiques de la machine
+  3. Documenter precisement dans le rapport d'intervention
+  4. Si 3 RNF consecutifs sur la meme machine : inspection approfondie requise
+
+================================================================================
+SECTION 5 — GUIDE DE DEPANNAGE / TROUBLESHOOTING GUIDE
+================================================================================
+
+FR: Pour chaque symptome, la cause probable et l'action recommandee sont
+indiquees avec les capteurs a surveiller en priorite.
+EN: For each symptom, probable cause and recommended action are given with
+priority sensors to monitor.
+
+FORMAT: SYMPTOME/SYMPTOM | CAUSE PROBABLE | ACTION | CAPTEURS | PIECES
+
+--------------------------------------------------------------------------------
+5.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Alimentation irreguliere — cartes coincees en sortie magasin
+SYMPTOM  : Irregular feed — boards jamming at magazine exit
+CAUSE    : Courroies d'alimentation usees ou mal tendues / Worn or slack feed belts
+ACTION   :
+  1. Arreter la machine (bouton STOP)
+  2. Retirer manuellement les cartes coincees
+  3. Verifier la tension courroie (deflexion < 3mm sous 1kg)
+  4. Si tension OK : inspecter l'etat des courroies (craquelures, usure)
+  5. Remplacer courroies si usure > 15%
+CAPTEURS : tool_wear (> 180 min = suspect), torque (> 20 Nm = blocage)
+PIECES   : Courroie HTD 5M, Graisse NLGI 2 (GREASE-A)
+
+---
+
+SYMPTOME : Vitesse de sortie cartes reduite, RPM moteur bas
+SYMPTOM  : Reduced board output speed, low motor RPM
+CAUSE    : Glissement courroie ou probleme alimentation moteur (PWF)
+ACTION   :
+  1. Controler la tension courroie
+  2. Verifier la pression pneumatique reseau (> 0.5 MPa)
+  3. Controler l'alimentation moteur (voltmetre sur bornier)
+  4. Si alimentation OK : remplacement courroie
+CAPTEURS : rotational_speed (< 700 RPM = anomalie), torque
+PIECES   : Courroie HTD 5M
+
+---
+
+SYMPTOME : Bruit de craquement lors de l'avance carte
+SYMPTOM  : Cracking noise during board advance
+CAUSE    : Pignon endommage ou corps etranger dans le mecanisme
+ACTION   :
+  1. Arret immediat
+  2. Inspection visuelle du pignon (dents manquantes, fissures)
+  3. Retirer tout corps etranger (fragment PCB, vis)
+  4. Remplacer le pignon si endommage
+CAPTEURS : torque (> 20 Nm = OSF), rotational_speed
+PIECES   : Pignon HTD compatible fabricant
+
+---
+
+SYMPTOME : Magasin ne se souleve plus automatiquement
+SYMPTOM  : Magazine no longer auto-lifts
+CAUSE    : Capteur de hauteur derive ou verin pneumatique defaillant
+ACTION   :
+  1. Verifier l'alarme sur l'IHM (message erreur capteur ou pression)
+  2. Inspecter visuellement la position du verin (completement rentre ?)
+  3. Controler la pression pneumatique (> 0.5 MPa)
+  4. Recalibrer le capteur de hauteur (procedure menu Maintenance)
+CAPTEURS : torque, rotational_speed (indirectement)
+PIECES   : Pas de piece — recalibration ou remplacement capteur
+
+---
+
+SYMPTOME : Cartes tombent du convoyeur en sortie
+SYMPTOM  : Boards fall off conveyor at exit
+CAUSE    : Largeur de rail mal reglee ou carte hors dimension
+ACTION   :
+  1. Mesurer la largeur de la carte a traiter
+  2. Ajuster la largeur des rails (largeur carte + 0.5 mm de jeu)
+  3. Verifier l'ejecteur de sortie (positionne correctement)
+CAPTEURS : Pas de capteur direct — controle dimensionnel
+PIECES   : Pas de piece — reglage mecanique
+
+--------------------------------------------------------------------------------
+5.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Pate insuffisante sur PCB — depots incomplets
+SYMPTOM  : Insufficient paste on PCB — incomplete deposits
+CAUSE    : Pression raclette insuffisante ou raclette usee
+ACTION   :
+  1. Verifier la pression raclette dans les parametres (cible : 10 kg)
+  2. Augmenter la pression de 1 kg et re-tester
+  3. Si pas d'amelioration : inspecter la raclette (remplacement si usure visible)
+  4. Controler l'ouverture des apertures du pochoir (obstruction pate seche)
+CAPTEURS : torque (< 8 Nm = pression insuffisante), tool_wear
+PIECES   : Raclette metal 60 deg, Raclette metal 45 deg
+
+---
+
+SYMPTOME : Debordement pate sur PCB — bridging entre pastilles
+SYMPTOM  : Paste overflow on PCB — bridging between pads
+CAUSE    : Pression raclette excessive ou pochoir encrase
+ACTION   :
+  1. Reduire la pression raclette de 1 kg et re-tester
+  2. Nettoyer le pochoir (nettoyage automatique 3 cycles IPA + essuyage)
+  3. Verifier l'alignement PCB/pochoir (offset < 25 microm)
+  4. Controler le temps de sechage du pochoir entre cycles
+CAPTEURS : torque (> 25 Nm = pression excessive), process_temperature
+PIECES   : Tissu essuyage non-tisse, Alcool IPA
+
+---
+
+SYMPTOME : Alignement pochoir incorrect — depots decales
+SYMPTOM  : Stencil misalignment — offset deposits
+CAUSE    : Calibration camera derivee ou dommage mecanique axe
+ACTION   :
+  1. Lancer la procedure de calibration automatique (menu Maintenance)
+  2. Verifier la position des butees mecaniques
+  3. Si calibration echoue : verifier les vis de bridage du pochoir
+CAPTEURS : Pas de capteur direct — controle visuel SPI ID 6
+PIECES   : Aucune (recalibration logicielle)
+
+---
+
+SYMPTOME : Impression irreguliere entre passages (variation d'epaisseur)
+SYMPTOM  : Irregular printing between passes (thickness variation)
+CAUSE    : Temperature pate trop haute (> 25 deg C) ou vieillie
+ACTION   :
+  1. Mesurer la temperature de la pate avec thermometre contact
+  2. Si > 26 deg C : mettre la pate dans un bac refroidissant 30 min
+  3. Verifier la date de sortie du refrigerateur (max 8h a temperature ambiante)
+  4. Remplacer la pate si > 8h hors frigo ou temperature depassee
+CAPTEURS : air_temperature (> 305 K = risque), process_temperature
+PIECES   : Pate a souder sans plomb (consommable)
+
+---
+
+SYMPTOME : Le systeme d'essuyage automatique laisse des traces sur le pochoir
+SYMPTOM  : Automatic wiping system leaves residues on the stencil
+CAUSE    : Tissu essuyage epuise ou IPA en fin de bidon
+ACTION   :
+  1. Verifier le niveau d'IPA dans le systeme d'essuyage
+  2. Verifier l'avance du tissu d'essuyage (longueur restante > 10 m)
+  3. Remplacer le rouleau de tissu si < 5 m restant
+  4. Remplir le reservoir IPA
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Rouleau tissu non-tisse, IPA (consommables)
+
+--------------------------------------------------------------------------------
+5.3 PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Composants manquants ou mal poses — taux erreur > 0.5%
+SYMPTOM  : Missing or misplaced components — error rate > 0.5%
+CAUSE    : Buses obstruees ou usees, vacuum insuffisant
+ACTION   :
+  1. Identifier les buses en erreur depuis le log de la machine
+  2. Retirer et nettoyer les buses a l'IPA (bain ultrason 5 min)
+  3. Tester le vacuum sur chaque buse (cible : -70 kPa mini)
+  4. Remplacer les buses dont vacuum < -60 kPa apres nettoyage
+CAPTEURS : torque (< 3 Nm sur axe Z = vacuum faible), tool_wear
+PIECES   : Buses DN 0.4, 0.7, 1.0 selon composants
+
+---
+
+SYMPTOME : Alarme SERVO ERROR axe X ou Y — arret machine
+SYMPTOM  : SERVO ERROR alarm on X or Y axis — machine stop
+CAUSE    : Blocage mecanique ou surintensité servo (OSF ou PWF)
+ACTION   :
+  1. NE PAS FORCER — verifier visuellement la position de la tete
+  2. Verifier l'absence de corps etranger sur les rails X/Y
+  3. Deplacer manuellement la tete (mode jog a vitesse minimale)
+  4. Si deplacement libre : reinitialiser l'alarme et retourner en origine
+  5. Si resistance mecanique : inspection courroies et guidages
+CAPTEURS : torque (> 18 Nm = OSF), rotational_speed
+PIECES   : Courroie d'axe HTD 3M, Roulement axe
+
+---
+
+SYMPTOME : Refus de composants eleve depuis un feeder particulier
+SYMPTOM  : High component rejection from one specific feeder
+CAUSE    : Avance feeder incorrecte ou bobine endommagee
+ACTION   :
+  1. Retirer et reinstaller le feeder (nettoyage des contacts)
+  2. Verifier le pas d'avance feeder (doit correspondre au pas de la bande)
+  3. Inspecter la bande composants (humidite, deformation)
+  4. Remplacer la bobine si bande endommagee
+CAPTEURS : Pas de capteur direct — statistiques machine
+PIECES   : Feeder de remplacement
+
+---
+
+SYMPTOME : Vision system ne reconnait pas le PCB — pas de fiducial
+SYMPTOM  : Vision system does not recognize PCB — no fiducial detected
+CAUSE    : Salissure sur la camera ou eclairage defaillant
+ACTION   :
+  1. Nettoyer la lentille de la camera d'alignement (IPA + coton)
+  2. Verifier l'eclairage LED (LED hors service = eclairage insuffisant)
+  3. Si eclairage OK : ajuster les parametres de contraste dans le programme
+  4. Si camera HS : remplacement module camera
+CAPTEURS : Pas de capteur EAM direct — retour machine
+PIECES   : Module camera de remplacement (selon modele)
+
+---
+
+SYMPTOME : RPM axes tres eleve — machine vibre anormalement
+SYMPTOM  : Very high axis RPM — machine vibrates abnormally
+CAUSE    : Roulement axe defaillant ou courroie usee
+ACTION   :
+  1. Inspecter les roulements des axes X/Y (jeu, bruit au mouvement manuel)
+  2. Verifier l'etat des courroies (usure, dents manquantes)
+  3. Remplacer roulement si jeu detecte, courroie si usure visible
+CAPTEURS : rotational_speed (> 2500 RPM = suspect), torque
+PIECES   : Roulement axe, Courroie HTD 3M
+
+--------------------------------------------------------------------------------
+5.4 REFLOW OVEN / FOUR DE REFUSION (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Soudures froides (cold joints) — aspect terne, non mouille
+SYMPTOM  : Cold solder joints — dull, non-wetted appearance
+CAUSE    : Temperature de pic insuffisante (< 228 deg C pour SAC305)
+ACTION   :
+  1. Verifier le profil thermique actif (comparer avec profil qualifie)
+  2. Mesurer la temperature reelle avec thermocouple de reference
+  3. Augmenter la temperature de zone de refusion de 3-5 deg C
+  4. Reduire la vitesse convoyeur de 5 cm/min
+  5. Revalider le profil avec test board
+CAPTEURS : process_temperature (< 493 K = HDF alerte)
+PIECES   : Pas de piece — reglage parametrique
+
+---
+
+SYMPTOME : Composants brules ou PCB deforme apres four
+SYMPTOM  : Burned components or warped PCB after oven
+CAUSE    : Temperature de pic excessive (> 255 deg C) ou profil trop lent
+ACTION   :
+  1. ARRET IMMEDIAT de la production — inspection de toutes les cartes
+  2. Verifier les consignes de zone dans le controleur
+  3. Controler les thermocouples (derive possible)
+  4. Recalibrer les thermocouples avec sonde de reference
+  5. Ne reprendre qu'apres validation profil correct
+CAPTEURS : process_temperature (> 528 K = CRITIQUE HDF)
+PIECES   : Thermocouple de remplacement (type K, longueur selon modele)
+
+---
+
+SYMPTOME : Variation de temperature entre passages (instabilite profil)
+SYMPTOM  : Temperature variation between runs (unstable profile)
+CAUSE    : Resistance de chauffage degradee ou filtre colmate
+ACTION   :
+  1. Nettoyer les filtres de la zone de convection (air comprime)
+  2. Mesurer la resistance des elements chauffants (valeur nominale +/- 10%)
+  3. Remplacer l'element defaillant
+  4. Revérifier la calibration PID de la zone apres remplacement
+CAPTEURS : process_temperature (fluctuations > 3 K entre cycles)
+PIECES   : Resistance chauffage IR/convection selon modele four
+
+---
+
+SYMPTOME : Blocage convoyeur — alarme CONVEYOR JAM
+SYMPTOM  : Conveyor jam — CONVEYOR JAM alarm
+CAUSE    : Corps etranger sur les rails ou chaine debloquee
+ACTION   :
+  1. STOP machine, attendre refroidissement zone sortie (< 80 deg C)
+  2. Ouvrir les panneaux lateraux d'acces convoyeur
+  3. Identifier et retirer le corps etranger (fragment PCB, composant)
+  4. Verifier l'etat de la chaine (maillon deforme ?)
+  5. Redemarrer en mode lent (50%) et surveiller
+CAPTEURS : torque (> 30 Nm = OSF), rotational_speed (< 400 RPM = blocage)
+PIECES   : Maillon chaine convoyeur HT (selon modele)
+
+---
+
+SYMPTOME : Fumee visible a la sortie du four
+SYMPTOM  : Smoke visible at oven exit
+CAUSE    : Accumulation residus flux ou composant mal place a l'entree
+ACTION   :
+  1. ARRET D'URGENCE — ventiler le local
+  2. Ne pas ouvrir le four avant 15 min de refroidissement
+  3. Inspecter le tunnel : rechercher carte coincee ou fragment brule
+  4. Nettoyer le tunnel complet avant redemarrage
+CAPTEURS : process_temperature (valeur au moment alarme), air_temperature
+PIECES   : Pas de piece — intervention nettoyage
+
+--------------------------------------------------------------------------------
+5.5 WAVE SOLDERING (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Ponts de soudure (bridging) entre broches composants
+SYMPTOM  : Solder bridging between component leads
+CAUSE    : Temperature solder trop haute ou vitesse convoyeur trop lente
+ACTION   :
+  1. Verifier la temperature du solder (cible : 255 +/- 3 deg C)
+  2. Si temperature > 260 deg C : reduire de 3 deg C et re-tester
+  3. Augmenter la vitesse convoyeur de 5 cm/min
+  4. Verifier le niveau de flux (sous-dosage favorise le bridging)
+CAPTEURS : process_temperature (> 533 K = HDF alerte), torque
+PIECES   : Flux sans plomb (reapprovisionnement si debit anormal)
+
+---
+
+SYMPTOME : Soudures insuffisantes — trous non remplis (blow holes)
+SYMPTOM  : Insufficient solder — unfilled holes (blow holes)
+CAUSE    : Prechauffage insuffisant ou humidite dans le PCB
+ACTION   :
+  1. Verifier la temperature de prechauffage (cible : 110-120 deg C)
+  2. Augmenter le temps de prechauffage (reduire vitesse convoyeur)
+  3. Verifier l'age des PCBs (stockage humide degrade l'imbibition flux)
+  4. Controler le taux d'alcool dans le flux (minimum 80%)
+CAPTEURS : process_temperature (prechauffage), air_temperature
+PIECES   : Flux sans plomb, Prechauffeur infra-rouge
+
+---
+
+SYMPTOME : Dross excessif — vague irreguliere
+SYMPTOM  : Excessive dross — irregular wave
+CAUSE    : Contamination solder ou oxydation excessive (air dans le pot)
+ACTION   :
+  1. Ecumer le dross (surface du solder)
+  2. Analyser la composition (Cu > 0.3% -> vidange necessaire)
+  3. Si OK : ajouter lingots neufs SAC305 pour diluer
+  4. Verifier le debit d'azote si machine equipee (N2 reduit l'oxydation)
+CAPTEURS : torque (pompe : > 40 Nm si dross obstruant)
+PIECES   : Solder SAC305, Lingots
+
+---
+
+SYMPTOME : Alarme PUMP FAULT — pompe de vague arretee
+SYMPTOM  : PUMP FAULT alarm — wave pump stopped
+CAUSE    : Surcharge moteur pompe (dross bloquant) ou roulement defaillant
+ACTION   :
+  1. STOP machine, verifier temperature pot (ne pas travailler si > 270 deg C)
+  2. Ecumer le dross — verifier si turbine accessible et libre
+  3. Redemarrer la pompe en mode manuel a vitesse reduite (50%)
+  4. Si redemarrage echoue : refroidissement complet, inspection roulement pompe
+CAPTEURS : torque (> 45 Nm = OSF sur pompe), rotational_speed
+PIECES   : Roulement SKF 6205 (REF-002), Joint torique 10mm (REF-001)
+
+---
+
+SYMPTOME : Application de flux irreguliere — zones sans flux
+SYMPTOM  : Irregular flux application — areas without flux
+CAUSE    : Buse flux obstruee ou pression flux trop basse
+ACTION   :
+  1. Inspecter visuellement les buses flux (residus secs)
+  2. Lancer le cycle de purge automatique flux (menu maintenance)
+  3. Si purge insuffisante : demonter et nettoyer buses manuellement a l'IPA
+  4. Verifier la pression du circuit flux (cible > 0.3 MPa)
+CAPTEURS : air_temperature (indirect — vapeurs flux augmentent si mauvaise application)
+PIECES   : Buses flux de remplacement (selon modele)
+
+--------------------------------------------------------------------------------
+5.6 BANCS DE TEST (IDs: 3, 4, 18, 19, 20, 21, 22, 23)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Taux de faux rejet eleve — golden board echoue au test
+SYMPTOM  : High false reject rate — golden board fails test
+CAUSE    : Sondes ICT usees ou parametres de test mal cales
+ACTION   :
+  1. Tester la golden board sur un autre banc (ID 4 vs ID 3)
+  2. Si golden board passe : probleme isole a ce banc -> verifier sondes
+  3. Mesurer la resistance de contact des sondes (cible < 0.3 Ohm)
+  4. Remplacer les sondes > 0.5 Ohm
+  5. Si golden board echoue partout : verifier le fichier de reference
+CAPTEURS : torque (pression de contact sondes ICT)
+PIECES   : Sondes ICT de remplacement (contact spring probes)
+
+---
+
+SYMPTOME : Resultats WiFi instables — RSSI fluctuant dans caisson Faraday
+SYMPTOM  : Unstable WiFi results — RSSI fluctuating in Faraday cage
+CAUSE    : Joint RF endommage ou contamination RF externe
+ACTION   :
+  1. Verifier la resistance du joint de porte (cible < 0.1 Ohm)
+  2. Inspecter la porte du caisson (deformation, saletés sur joint)
+  3. Mesurer l'isolation RF du caisson (attenuation cible > 60 dB a 5.8 GHz)
+  4. Remplacer le joint si resistance > 0.2 Ohm
+CAPTEURS : Pas de capteur EAM direct — mesures IQFlex ID 23
+PIECES   : Joint d'etancheite RF caisson Faraday
+
+---
+
+SYMPTOME : Test fonctionnel (ID 4) echoue sur connexion LAN systematiquement
+SYMPTOM  : Functional test (ID 4) fails on LAN connection systematically
+CAUSE    : Cable de test defectueux ou port switch du banc defaillant
+ACTION   :
+  1. Remplacer le cable RJ45 de test (cable de reference)
+  2. Tester sur un autre port du switch du banc
+  3. Verifier la carte reseau du banc (ping vers serveur test)
+  4. Si probleme persiste : contacter l'IT pour diagnostic reseau banc
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Cable RJ45 CAT6 de reference
+
+---
+
+SYMPTOME : Analyseur IQFlex (ID 23) ne detecte pas le signal WiFi
+SYMPTOM  : IQFlex analyzer (ID 23) does not detect WiFi signal
+CAUSE    : Cable RF desserre ou profil test non charge
+ACTION   :
+  1. Verifier la connexion SMA/N entre antenne et analyseur (tourner jusqu'au clic)
+  2. Verifier que le profil de test est charge dans le logiciel IQFlex
+  3. Faire un auto-zero sur l'analyseur (menu Calibration)
+  4. Si probleme persiste : tester avec source RF externe connue
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Connecteur SMA de remplacement si connecteur endommage
+
+================================================================================
+SECTION 6 — TABLEAU DE SEUILS CAPTEURS / SENSOR THRESHOLDS REFERENCE TABLE
+================================================================================
+
+FR: Ce tableau est la reference maitre pour tous les seuils d'alerte. Les
+valeurs NORMAL correspondent au fonctionnement attendu. WARNING = investigation
+requise. CRITICAL = arret production recommande, creation OI immediate.
+
+EN: This table is the master reference for all alert thresholds. NORMAL values
+correspond to expected operation. WARNING = investigation required.
+CRITICAL = production stop recommended, immediate intervention order creation.
+
+Les seuils correspondent aux modeles ML P1-P7 entraines sur ai4i2020.
+Thresholds correspond to ML models P1-P7 trained on ai4i2020 dataset.
+
+MACHINE CATEGORY   | SENSOR              | NORMAL RANGE        | WARNING        | CRITICAL
+-------------------|---------------------|---------------------|----------------|----------
+Depileur           | air_temperature (K) | 296 - 303           | > 305          | > 310
+Depileur           | process_temp (K)    | 296 - 303           | > 305          | > 310
+Depileur           | rotational_speed    | 800 - 1200 RPM      | <700 or >1400  | <500 or >1600
+Depileur           | torque (Nm)         | 5 - 18              | > 20           | > 25
+Depileur           | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Serigraphie        | air_temperature (K) | 296 - 303           | > 305          | > 310
+Serigraphie        | process_temp (K)    | 296 - 303           | > 305          | > 308
+Serigraphie        | rotational_speed    | 200 - 600 RPM       | <150 or >700   | <100 or >800
+Serigraphie        | torque (Nm)         | 8 - 22              | > 25           | > 30
+Serigraphie        | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Pick and Place     | air_temperature (K) | 296 - 303           | > 305          | > 310
+Pick and Place     | process_temp (K)    | 296 - 303           | > 305          | > 308
+Pick and Place     | rotational_speed    | 1200 - 2200 RPM     | > 2400         | > 2600
+Pick and Place     | torque (Nm)         | 3 - 15              | > 18           | > 22
+Pick and Place     | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Inspection AOI SPI | air_temperature (K) | 296 - 303           | > 305          | > 310
+Inspection AOI SPI | process_temp (K)    | 296 - 303           | > 305          | > 310
+Inspection AOI SPI | rotational_speed    | 100 - 400 RPM       | > 450          | > 500
+Inspection AOI SPI | torque (Nm)         | 2 - 8               | > 10           | > 12
+Inspection AOI SPI | tool_wear (min)     | 0 - 240             | > 240          | > 280
+-------------------|---------------------|---------------------|----------------|----------
+Reflow Oven        | air_temperature (K) | 296 - 303           | > 306          | > 310
+Reflow Oven        | process_temp (K)    | 493 - 523           | <490 or >525   | <485 or >530
+Reflow Oven        | rotational_speed    | 600 - 1200 RPM      | <500 or >1400  | <400 or >1600
+Reflow Oven        | torque (Nm)         | 10 - 25             | > 28           | > 35
+Reflow Oven        | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Wave Soldering     | air_temperature (K) | 296 - 303           | > 306          | > 310
+Wave Soldering     | process_temp (K)    | 518 - 533           | <515 or >536   | <510 or >540
+Wave Soldering     | rotational_speed    | 800 - 1500 RPM      | <700 or >1700  | <600 or >1800
+Wave Soldering     | torque (Nm)         | 15 - 35             | > 40           | > 48
+Wave Soldering     | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Manual Post        | air_temperature (K) | 296 - 303           | > 305          | > 310
+Manual Post        | process_temp (K)    | 296 - 303           | > 305          | > 310
+Manual Post        | rotational_speed    | 0 RPM (N/A)         | N/A            | N/A
+Manual Post        | torque (Nm)         | 0 - 5               | > 6            | > 8
+Manual Post        | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Test Bench         | air_temperature (K) | 296 - 303           | > 305          | > 310
+Test Bench         | process_temp (K)    | 296 - 303           | > 305          | > 310
+Test Bench         | rotational_speed    | 0 RPM (N/A)         | N/A            | N/A
+Test Bench         | torque (Nm)         | 0 - 3               | > 4            | > 6
+Test Bench         | tool_wear (min)     | 0 - 200             | > 200          | > 240
+
+NOTES:
+  - Kelvin vers Celsius / Kelvin to Celsius : T(deg C) = T(K) - 273.15
+  - 300 K = 26.85 deg C (temperature ambiante nominale)
+  - Pour le four de refusion : process_temp = temperature mesuree zone de pic
+  - Pour wave soldering : process_temp = temperature du pot de solder
+  - N/A = capteur non applicable pour ce type de machine
+  - Les seuils P1/P7 ML utilisent ces memes plages comme features d'entree
+  - Valeurs hors plage NORMAL declenchent une alerte dans EAM meme sans panne visible
+
+================================================================================
+SECTION 7 — REFERENCE CROISEE PIECES / SPARE PARTS CROSS-REFERENCE
+================================================================================
+
+FR: Catalogue des pieces de rechange homologuees et leur compatibilite machine.
+EN: Approved spare parts catalog and machine compatibility.
+
+--------------------------------------------------------------------------------
+7.1 PIECES MECANIQUES / MECHANICAL PARTS
+--------------------------------------------------------------------------------
+
+Reference : REF-001 — Joint torique 10mm (O-Ring 10mm)
+  Categorie : Mecanique
+  Description : Joint d'etancheite 10mm diametre interieur, matiere NBR
+  Machines compatibles :
+    - Four de Refusion (IDs 9, 15) : joints portes inspection et tunnel
+    - Wave Soldering (IDs 17, 24) : joints pompe et cuve solder
+    - Serigraphie (IDs 2, 11)     : joints systeme nettoyage pochoir
+  Intervalle de remplacement : Annuel ou si fuite constatee
+  Stock minimum recommande : 20 unites
+
+Reference : TEST-001 / REF-002 — Roulement SKF 6205 / BEARING-A1
+  Categorie : Mecanique
+  Description : Roulement a billes 25x52x15mm, simple rangee
+  Machines compatibles :
+    - Depileur (IDs 1, 10)           : axe d'entrainement principal
+    - Pick & Place (IDs 5, 12)       : axes X/Y si modele compatible
+    - Wave Soldering (IDs 17, 24)    : pompe de vague principale
+  Intervalle de remplacement : Annuel ou si bruit/jeu detecte
+  Stock minimum recommande : 10 unites (5 par ligne)
+
+Reference : REF-005 — Vis (Vises)
+  Categorie : Mecanique
+  Description : Visserie standard maintenance
+  Usage : Fixation capots, rails, composants lors des interventions
+  Stock minimum recommande : Assortiment M3/M4/M5/M6
+
+Reference : REF-006 — Tournevis (Tournivuse)
+  Categorie : Outil maintenance
+  Description : Outil de service maintenance
+  Usage : Interventions mecaniques generales
+
+--------------------------------------------------------------------------------
+7.2 LUBRIFIANTS ET CONSOMMABLES / LUBRICANTS AND CONSUMABLES
+--------------------------------------------------------------------------------
+
+Reference : GREASE-A — Graisse A 250g / Grease A 250g
+  Categorie : Consommable
+  Description : Graisse NLGI 2 usage general mecanique
+  Machines compatibles :
+    - Depileur (IDs 1, 10)      : rails guidage, pignons (hebdomadaire)
+    - Pick & Place (IDs 5, 12)  : axes X/Y (hebdomadaire)
+  Quantite par application : 2-3 g par point de graissage
+  Frequence : Hebdomadaire sur points designes
+  Stock minimum recommande : 4 tubes x 250g
+
+Reference : GREASE-W1 — Graisse haute temperature / High-temp grease
+  Categorie : Consommable
+  Description : Graisse haute temperature pour convoyeurs four et wave
+  Machines compatibles :
+    - Reflow Oven (IDs 9, 15) : chaine convoyeur
+    - Wave Soldering (IDs 17, 24) : chaine convoyeur
+  Stock minimum recommande : 2 tubes
+
+Reference : REF-003 — OIL-B2
+  Categorie : Consommable
+  Description : Huile legere ISO VG 32 pour axes de precision
+  Machines compatibles :
+    - Serigraphie (IDs 2, 11) : axes de deplacement
+    - Four de Refusion (IDs 9, 15) : guidages convoyeur
+    - Wave Soldering (IDs 17, 24) : roulements pompe
+  Frequence : Mensuel sur points designes
+  Stock minimum recommande : 1 litre
+
+Consommables production / Production consumables:
+  - Pate a souder SAC305 sans plomb : stock 2 boites min, sortir 4h avant usage
+  - Flux sans plomb IPA-based : stock 5 litres min
+  - Solder SAC305 (lingots) : stock 10 kg min pour appoint pot wave
+  - Alcool IPA (isopropanol) : stock 5 litres min (nettoyage buses, pochoirs)
+  - Buses nozzle DN 0.4/0.7/1.0/1.3 mm : 2 jeux de rechange min par pick&place
+  - Raclettes metal 60 deg et 45 deg : 2 paires de rechange min par serigraphie
+
+--------------------------------------------------------------------------------
+7.3 COMPATIBILITE MACHINE X PIECE / MACHINE X PART COMPATIBILITY MATRIX
+--------------------------------------------------------------------------------
+
+MACHINE ID  | REF-001 | TEST-001/REF-002 | GREASE-A | GREASE-W1 | REF-003
+------------|---------|-----------------|----------|-----------|--------
+1  Depileur BBS     |    -    |       OUI       |   OUI    |     -     |   -
+2  Serigraphie BBS  |   OUI   |        -        |    -     |     -     |  OUI
+5  Pick&Place BBS   |    -    |       OUI       |   OUI    |     -     |   -
+6  SPI AVS          |    -    |        -        |    -     |     -     |   -
+7  AOI 3D BBS       |    -    |        -        |    -     |     -     |   -
+8  2D Scanner BBS   |    -    |        -        |    -     |     -     |   -
+9  Reflow Oven BBS  |   OUI   |        -        |    -     |    OUI    |  OUI
+10 Depileur AVS     |    -    |       OUI       |   OUI    |     -     |   -
+11 Serigraphie AVS  |   OUI   |        -        |    -     |     -     |  OUI
+12 Pick&Place AVS   |    -    |       OUI       |   OUI    |     -     |   -
+13 2D Scanner AVS   |    -    |        -        |    -     |     -     |   -
+14 AOI 3D AVS       |    -    |        -        |    -     |     -     |   -
+15 Reflow Oven AVS  |   OUI   |        -        |    -     |    OUI    |  OUI
+16 Post Insert AVS  |    -    |        -        |    -     |     -     |   -
+17 Wave Solder AVS  |   OUI   |       OUI       |    -     |    OUI    |  OUI
+18 Banc BFE         |    -    |        -        |    -     |     -     |   -
+19 Banc BAV         |    -    |        -        |    -     |     -     |   -
+20 Banc Routeur     |    -    |        -        |    -     |     -     |   -
+21 PC Test WiFi     |    -    |        -        |    -     |     -     |   -
+22 Caisson Faraday  |    -    |        -        |    -     |     -     |   -
+23 Analyseur IQFlex |    -    |        -        |    -     |     -     |   -
+24 Wave Solder BBS  |   OUI   |       OUI       |    -     |    OUI    |  OUI
+25 Post THT BBS     |    -    |        -        |    -     |     -     |   -
+
+================================================================================
+SECTION 8 — PROCEDURES DE SECURITE / SAFETY PROCEDURES
+================================================================================
+
+FR: Ces procedures sont OBLIGATOIRES. Toute intervention sans respect des
+consignes de securite constitue une faute grave. En cas d'accident, appeler
+le responsable securite immediatement.
+EN: These procedures are MANDATORY. Any intervention without following safety
+instructions constitutes a serious breach. In case of accident, call the safety
+officer immediately.
+
+--------------------------------------------------------------------------------
+8.1 EPI OBLIGATOIRES / MANDATORY PPE
+--------------------------------------------------------------------------------
+
+ZONE CMS1 — Machines thermiques (Four, Wave Soldering) IDs 9, 15, 17, 24:
+  - Gants thermiques resistants 300 deg C minimum
+  - Lunettes de protection anti-projections
+  - Tablier thermique (pour wave soldering)
+  - Visiere de protection (pour wave soldering)
+  - Chaussures de securite antistatiques ESD
+
+ZONE CMS1 — Autres machines SMT (Depileur, Serigraphie, Pick&Place, AOI, SPI):
+  - Lunettes de protection (projection pneumatique)
+  - Chaussures de securite antistatiques ESD
+  - Bracelet antistatique obligatoire lors de manipulation PCB
+
+ZONE CMS2 — Bancs de test (IDs 3, 4, 18, 19, 20, 21, 22, 23):
+  - Lunettes de protection (test sous tension)
+  - Bracelet antistatique ESD obligatoire
+  - Chaussures de securite antistatiques
+  - Protection RF (ne pas rester expose a < 30 cm de l'antenne test)
+
+--------------------------------------------------------------------------------
+8.2 CONSIGNATION / LOCKOUT-TAGOUT (LOTO)
+--------------------------------------------------------------------------------
+
+FR: Avant toute intervention mecanique ou electrique :
+EN: Before any mechanical or electrical intervention:
+
+ETAPES LOTO / LOTO STEPS:
+  1. Informer le chef d'equipe de l'arret machine
+  2. Appuyer sur le bouton ARRET D'URGENCE (rouge, coupure rapide)
+  3. Mettre le sectionneur principal sur position 0 (OFF)
+  4. Poser un cadenas personnel LOTO sur le sectionneur (1 cadenas = 1 technicien)
+  5. Accrocher l'etiquette LOTO avec nom, date, heure, nature de l'intervention
+  6. Tester l'absence de tension au voltmetre (L1/L2/L3 vs PE = 0V)
+  7. Attendre le refroidissement si machine thermique (attendre < 50 deg C)
+  8. Effectuer l'intervention
+  9. Retirer le cadenas et l'etiquette APRES controle complet
+  10. Remettre sous tension et tester
+
+AVERTISSEMENT CRITIQUE / CRITICAL WARNING:
+FR: Ne jamais retirer le cadenas d'un autre technicien. Si necessaire, contacter
+le responsable maintenance. Violation = arret de travail immediat.
+EN: Never remove another technician's padlock. If needed, contact the maintenance
+supervisor. Violation = immediate work stoppage.
+
+--------------------------------------------------------------------------------
+8.3 SECURITE FOUR DE REFUSION / REFLOW OVEN SAFETY (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+FR:
+- Temperature maximale zone refusion : 260 deg C — brulure grave au contact
+- Ne jamais ouvrir le tunnel en cours de cycle thermique
+- Attendre 15 minutes apres arret avant ouverture du capot superieur
+- Port des gants thermiques obligatoire meme apres refroidissement partiel
+- En cas de fumee anormale : arret d'urgence + ventilation du local
+- Les residus de flux carbonises sont irritants — masque FFP2 lors du nettoyage
+
+EN:
+- Maximum reflow zone temperature: 260 deg C — severe burn on contact
+- Never open the tunnel during thermal cycle
+- Wait 15 minutes after shutdown before opening top cover
+- Thermal gloves mandatory even during partial cool-down
+- If abnormal smoke: emergency stop + ventilate the room
+- Carbonized flux residues are irritants — wear FFP2 mask during cleaning
+
+Temperatures zones / Zone temperatures reference:
+  Zone entree : ambiante (25-30 deg C)
+  Zone prechauffage : 100-150 deg C
+  Zone trempage : 150-180 deg C
+  Zone refusion : 230-250 deg C  *** DANGER BRULURE ***
+  Zone refroidissement : 50-120 deg C
+
+--------------------------------------------------------------------------------
+8.4 SECURITE WAVE SOLDERING / WAVE SOLDERING SAFETY (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+FR:
+- Solder fondu a 255 deg C dans le pot — risque de brulures graves par projection
+- Ne jamais plonger d'objet humide dans le pot (explosion de vapeur)
+- Ventilation obligatoire — les vapeurs de flux sont nocives (VOC)
+- Utiliser le pistolet a scories avec gants et visiere uniquement
+- Stocker le flux loin des sources de chaleur (inflammable, point eclair < 40 deg C)
+- En cas de deversement solder : ne pas toucher, laisser refroidir, appeler responsable
+
+EN:
+- Molten solder at 255 deg C in the pot — severe burn risk from splashes
+- Never immerse a wet object in the solder pot (steam explosion risk)
+- Mandatory ventilation — flux fumes are harmful (VOC)
+- Use dross removal tool with gloves and face shield only
+- Store flux away from heat sources (flammable, flash point < 40 deg C)
+- In case of solder spill: do not touch, let cool, call supervisor
+
+Zone de protection autour du pot de solder / Protection zone around solder pot:
+  - Perimetre de 1 m a maintenir libre devant le pot
+  - EPI thermiques obligatoires dans la zone de 2 m autour de la machine
+  - EPI zone / Zone PPE: tablier HT + gants HT + visiere + chaussures ESD
+
+--------------------------------------------------------------------------------
+8.5 SECURITE ZONE TEST RF / RF TEST ZONE SAFETY (CMS2 IDs: 21, 22, 23)
+--------------------------------------------------------------------------------
+
+FR:
+- Le caisson Faraday (ID 22) doit etre ferme pendant tout test WiFi/RF
+- Ne pas rester a moins de 30 cm de l'antenne de test (PC WiFi ID 21)
+- L'analyseur IQFlex (ID 23) : ne pas connecter/deconnecter sous RF actif
+- Proteger les connecteurs RF SMA/N contre les chocs mecaniques
+- Etiqueter clairement "TEST RF EN COURS" pendant les sessions
+- Affichage de la puissance RF maximale emise : < 100 mW (20 dBm) — conforme CE
+
+EN:
+- Faraday cage (ID 22) must be closed during all WiFi/RF tests
+- Do not remain within 30 cm of the test antenna (WiFi PC ID 21)
+- IQFlex analyzer (ID 23): do not connect/disconnect while RF active
+- Protect SMA/N RF connectors against mechanical shocks
+- Label clearly "RF TEST IN PROGRESS" during test sessions
+- Maximum emitted RF power: < 100 mW (20 dBm) — CE compliant
+
+--------------------------------------------------------------------------------
+8.6 GESTION DES PRODUITS CHIMIQUES / CHEMICAL HANDLING
+--------------------------------------------------------------------------------
+
+FR:
+  Pate a souder (solder paste) :
+    - Stocker a 4 deg C, retirer 4h avant usage pour acclimatation a 25 deg C
+    - Porter des gants nitrile — la pate contient etain/argent/cuivre
+    - Ne pas ingerer — se laver les mains apres manipulation
+    - Eliminer les restes de pate selon les procedures dechets electroniques
+
+  Flux de soudure :
+    - Inflammable (point eclair < 40 deg C pour flux IPA-based)
+    - Stocker en armoire coupe-feu, loin des fours et sources d'ignition
+    - Utiliser uniquement avec ventilation active
+    - EPI : lunettes + gants nitrile
+
+  Alcool IPA (isopropanol) :
+    - Inflammable — stocker en petites quantites sur le poste (< 500 ml)
+    - Ventilation obligatoire lors du nettoyage des pochoirs et buses
+    - Eviter le contact prolonge avec la peau (degraissant cutane)
+    - Stocker a l'ecart des sources de chaleur et flammes nues
+
+EN:
+  Solder paste:
+    - Store at 4 deg C, remove 4h before use for acclimatization to 25 deg C
+    - Wear nitrile gloves — paste contains tin/silver/copper
+    - Do not ingest — wash hands after handling
+    - Dispose of paste remnants per electronic waste procedures
+
+  Solder flux:
+    - Flammable (flash point < 40 deg C for IPA-based flux)
+    - Store in fire-proof cabinet, away from ovens and ignition sources
+    - Use only with active ventilation
+    - PPE: safety glasses + nitrile gloves
+
+  IPA alcohol (isopropanol):
+    - Flammable — keep small quantities at workstation (< 500 ml)
+    - Mandatory ventilation when cleaning stencils and nozzles
+    - Avoid prolonged skin contact (defatting agent)
+    - Store away from heat sources and open flames
+
+--------------------------------------------------------------------------------
+8.7 PROCEDURE D'URGENCE / EMERGENCY PROCEDURE
+--------------------------------------------------------------------------------
+
+FR: En cas d'accident, blessure ou incident grave :
+  1. APPUYER sur le bouton d'arret d'urgence le plus proche
+  2. ALERTER le responsable de zone (CHEFTECH ou CHEFOP)
+  3. APPELER les secours si blessure : numero interne urgence usine
+  4. NE PAS DEPLACER une personne blessee (sauf danger immediat)
+  5. DOCUMENTER l'incident dans le systeme EAM (type: SECURITE)
+
+EN: In case of accident, injury, or serious incident:
+  1. PRESS the nearest emergency stop button
+  2. ALERT the zone supervisor (CHEFTECH or CHEFOP)
+  3. CALL emergency services if injury: internal factory emergency number
+  4. DO NOT MOVE an injured person (unless in immediate danger)
+  5. DOCUMENT the incident in EAM system (type: SECURITE)
+
+Emplacements boutons d'arret d'urgence / Emergency stop button locations:
+  - CMS1 : 1 bouton par machine + 1 bouton en bout de chaque ligne
+  - CMS2 : 1 bouton par banc de test + 1 bouton central zone
+  - Couleur : rouge sur fond jaune — acces libre, jamais obstrues
+
+================================================================================
+FIN DU DOCUMENT / END OF DOCUMENT
+================================================================================
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual
+Sections: 8 | Bilingual FR/EN | Generated: 2026-06-11
+Applicable machines: IDs 1-25 (ZONE CMS1 + ZONE CMS2)
+Machine categories: Depileur, Serigraphie, Pick&Place, Inspection, Reflow Oven,
+                    Wave Soldering, Manual Post, Test Benches
+Failure types covered: TWF, HDF, PWF, OSF, RNF
+RAG corpus document — Upload as doc_type=manual
+================================================================================
