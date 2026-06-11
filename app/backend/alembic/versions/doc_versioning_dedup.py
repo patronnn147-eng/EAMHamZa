@@ -55,6 +55,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("uq_documents_content_hash", table_name="documents")
+    op.drop_index("uq_documents_content_hash", table_name="documents", if_exists=True)
     op.drop_column("documents", "content_hash")
     op.drop_column("documents", "version")
