@@ -442,8 +442,8 @@ async def replace_document(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Replace a document's file: deletes old chunks + old S3 object,
-    uploads new file, re-ingests. Keeps the SAME doc_id. ADMIN only.
+    Replace a document's file: deletes old doc + chunks + old S3 object,
+    uploads new file, re-ingests as new doc_id. Version counter incremented. ADMIN only.
     """
     _require_admin(current_user)
 
