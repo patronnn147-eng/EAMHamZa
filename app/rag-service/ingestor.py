@@ -3,6 +3,7 @@ Document ingestion pipeline.
 
 PDF → text extraction (PyMuPDF) → sentence-aware chunking → batch embed → pgvector store.
 """
+import hashlib
 import io
 import logging
 import re
@@ -34,6 +35,11 @@ try:
 except ImportError:
     _OCR_AVAILABLE = False
     logger.warning("pytesseract/Pillow not installed — OCR fallback disabled.")
+
+
+def _compute_hash(file_bytes: bytes) -> str:
+    """Return sha256 hex digest of raw file bytes. Used for exact-duplicate detection."""
+    return hashlib.sha256(file_bytes).hexdigest()
 
 
 # ---------------------------------------------------------------------------
