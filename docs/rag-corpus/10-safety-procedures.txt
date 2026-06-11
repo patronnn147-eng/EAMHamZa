@@ -1,0 +1,209 @@
+[SAG-MNT-001] Section 8: Safety Procedures (PPE, LOTO, Thermal, RF, Chemicals, Emergency)
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 8 — PROCEDURES DE SECURITE / SAFETY PROCEDURES
+================================================================================
+
+FR: Ces procedures sont OBLIGATOIRES. Toute intervention sans respect des
+consignes de securite constitue une faute grave. En cas d'accident, appeler
+le responsable securite immediatement.
+EN: These procedures are MANDATORY. Any intervention without following safety
+instructions constitutes a serious breach. In case of accident, call the safety
+officer immediately.
+
+--------------------------------------------------------------------------------
+8.1 EPI OBLIGATOIRES / MANDATORY PPE
+--------------------------------------------------------------------------------
+
+ZONE CMS1 — Machines thermiques (Four, Wave Soldering) IDs 9, 15, 17, 24:
+  - Gants thermiques resistants 300 deg C minimum
+  - Lunettes de protection anti-projections
+  - Tablier thermique (pour wave soldering)
+  - Visiere de protection (pour wave soldering)
+  - Chaussures de securite antistatiques ESD
+
+ZONE CMS1 — Autres machines SMT (Depileur, Serigraphie, Pick&Place, AOI, SPI):
+  - Lunettes de protection (projection pneumatique)
+  - Chaussures de securite antistatiques ESD
+  - Bracelet antistatique obligatoire lors de manipulation PCB
+
+ZONE CMS2 — Bancs de test (IDs 3, 4, 18, 19, 20, 21, 22, 23):
+  - Lunettes de protection (test sous tension)
+  - Bracelet antistatique ESD obligatoire
+  - Chaussures de securite antistatiques
+  - Protection RF (ne pas rester expose a < 30 cm de l'antenne test)
+
+--------------------------------------------------------------------------------
+8.2 CONSIGNATION / LOCKOUT-TAGOUT (LOTO)
+--------------------------------------------------------------------------------
+
+FR: Avant toute intervention mecanique ou electrique :
+EN: Before any mechanical or electrical intervention:
+
+ETAPES LOTO / LOTO STEPS:
+  1. Informer le chef d'equipe de l'arret machine
+  2. Appuyer sur le bouton ARRET D'URGENCE (rouge, coupure rapide)
+  3. Mettre le sectionneur principal sur position 0 (OFF)
+  4. Poser un cadenas personnel LOTO sur le sectionneur (1 cadenas = 1 technicien)
+  5. Accrocher l'etiquette LOTO avec nom, date, heure, nature de l'intervention
+  6. Tester l'absence de tension au voltmetre (L1/L2/L3 vs PE = 0V)
+  7. Attendre le refroidissement si machine thermique (attendre < 50 deg C)
+  8. Effectuer l'intervention
+  9. Retirer le cadenas et l'etiquette APRES controle complet
+  10. Remettre sous tension et tester
+
+AVERTISSEMENT CRITIQUE / CRITICAL WARNING:
+FR: Ne jamais retirer le cadenas d'un autre technicien. Si necessaire, contacter
+le responsable maintenance. Violation = arret de travail immediat.
+EN: Never remove another technician's padlock. If needed, contact the maintenance
+supervisor. Violation = immediate work stoppage.
+
+--------------------------------------------------------------------------------
+8.3 SECURITE FOUR DE REFUSION / REFLOW OVEN SAFETY (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+FR:
+- Temperature maximale zone refusion : 260 deg C — brulure grave au contact
+- Ne jamais ouvrir le tunnel en cours de cycle thermique
+- Attendre 15 minutes apres arret avant ouverture du capot superieur
+- Port des gants thermiques obligatoire meme apres refroidissement partiel
+- En cas de fumee anormale : arret d'urgence + ventilation du local
+- Les residus de flux carbonises sont irritants — masque FFP2 lors du nettoyage
+
+EN:
+- Maximum reflow zone temperature: 260 deg C — severe burn on contact
+- Never open the tunnel during thermal cycle
+- Wait 15 minutes after shutdown before opening top cover
+- Thermal gloves mandatory even during partial cool-down
+- If abnormal smoke: emergency stop + ventilate the room
+- Carbonized flux residues are irritants — wear FFP2 mask during cleaning
+
+Temperatures zones / Zone temperatures reference:
+  Zone entree : ambiante (25-30 deg C)
+  Zone prechauffage : 100-150 deg C
+  Zone trempage : 150-180 deg C
+  Zone refusion : 230-250 deg C  *** DANGER BRULURE ***
+  Zone refroidissement : 50-120 deg C
+
+--------------------------------------------------------------------------------
+8.4 SECURITE WAVE SOLDERING / WAVE SOLDERING SAFETY (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+FR:
+- Solder fondu a 255 deg C dans le pot — risque de brulures graves par projection
+- Ne jamais plonger d'objet humide dans le pot (explosion de vapeur)
+- Ventilation obligatoire — les vapeurs de flux sont nocives (VOC)
+- Utiliser le pistolet a scories avec gants et visiere uniquement
+- Stocker le flux loin des sources de chaleur (inflammable, point eclair < 40 deg C)
+- En cas de deversement solder : ne pas toucher, laisser refroidir, appeler responsable
+
+EN:
+- Molten solder at 255 deg C in the pot — severe burn risk from splashes
+- Never immerse a wet object in the solder pot (steam explosion risk)
+- Mandatory ventilation — flux fumes are harmful (VOC)
+- Use dross removal tool with gloves and face shield only
+- Store flux away from heat sources (flammable, flash point < 40 deg C)
+- In case of solder spill: do not touch, let cool, call supervisor
+
+Zone de protection autour du pot de solder / Protection zone around solder pot:
+  - Perimetre de 1 m a maintenir libre devant le pot
+  - EPI thermiques obligatoires dans la zone de 2 m autour de la machine
+  - EPI zone / Zone PPE: tablier HT + gants HT + visiere + chaussures ESD
+
+--------------------------------------------------------------------------------
+8.5 SECURITE ZONE TEST RF / RF TEST ZONE SAFETY (CMS2 IDs: 21, 22, 23)
+--------------------------------------------------------------------------------
+
+FR:
+- Le caisson Faraday (ID 22) doit etre ferme pendant tout test WiFi/RF
+- Ne pas rester a moins de 30 cm de l'antenne de test (PC WiFi ID 21)
+- L'analyseur IQFlex (ID 23) : ne pas connecter/deconnecter sous RF actif
+- Proteger les connecteurs RF SMA/N contre les chocs mecaniques
+- Etiqueter clairement "TEST RF EN COURS" pendant les sessions
+- Affichage de la puissance RF maximale emise : < 100 mW (20 dBm) — conforme CE
+
+EN:
+- Faraday cage (ID 22) must be closed during all WiFi/RF tests
+- Do not remain within 30 cm of the test antenna (WiFi PC ID 21)
+- IQFlex analyzer (ID 23): do not connect/disconnect while RF active
+- Protect SMA/N RF connectors against mechanical shocks
+- Label clearly "RF TEST IN PROGRESS" during test sessions
+- Maximum emitted RF power: < 100 mW (20 dBm) — CE compliant
+
+--------------------------------------------------------------------------------
+8.6 GESTION DES PRODUITS CHIMIQUES / CHEMICAL HANDLING
+--------------------------------------------------------------------------------
+
+FR:
+  Pate a souder (solder paste) :
+    - Stocker a 4 deg C, retirer 4h avant usage pour acclimatation a 25 deg C
+    - Porter des gants nitrile — la pate contient etain/argent/cuivre
+    - Ne pas ingerer — se laver les mains apres manipulation
+    - Eliminer les restes de pate selon les procedures dechets electroniques
+
+  Flux de soudure :
+    - Inflammable (point eclair < 40 deg C pour flux IPA-based)
+    - Stocker en armoire coupe-feu, loin des fours et sources d'ignition
+    - Utiliser uniquement avec ventilation active
+    - EPI : lunettes + gants nitrile
+
+  Alcool IPA (isopropanol) :
+    - Inflammable — stocker en petites quantites sur le poste (< 500 ml)
+    - Ventilation obligatoire lors du nettoyage des pochoirs et buses
+    - Eviter le contact prolonge avec la peau (degraissant cutane)
+    - Stocker a l'ecart des sources de chaleur et flammes nues
+
+EN:
+  Solder paste:
+    - Store at 4 deg C, remove 4h before use for acclimatization to 25 deg C
+    - Wear nitrile gloves — paste contains tin/silver/copper
+    - Do not ingest — wash hands after handling
+    - Dispose of paste remnants per electronic waste procedures
+
+  Solder flux:
+    - Flammable (flash point < 40 deg C for IPA-based flux)
+    - Store in fire-proof cabinet, away from ovens and ignition sources
+    - Use only with active ventilation
+    - PPE: safety glasses + nitrile gloves
+
+  IPA alcohol (isopropanol):
+    - Flammable — keep small quantities at workstation (< 500 ml)
+    - Mandatory ventilation when cleaning stencils and nozzles
+    - Avoid prolonged skin contact (defatting agent)
+    - Store away from heat sources and open flames
+
+--------------------------------------------------------------------------------
+8.7 PROCEDURE D'URGENCE / EMERGENCY PROCEDURE
+--------------------------------------------------------------------------------
+
+FR: En cas d'accident, blessure ou incident grave :
+  1. APPUYER sur le bouton d'arret d'urgence le plus proche
+  2. ALERTER le responsable de zone (CHEFTECH ou CHEFOP)
+  3. APPELER les secours si blessure : numero interne urgence usine
+  4. NE PAS DEPLACER une personne blessee (sauf danger immediat)
+  5. DOCUMENTER l'incident dans le systeme EAM (type: SECURITE)
+
+EN: In case of accident, injury, or serious incident:
+  1. PRESS the nearest emergency stop button
+  2. ALERT the zone supervisor (CHEFTECH or CHEFOP)
+  3. CALL emergency services if injury: internal factory emergency number
+  4. DO NOT MOVE an injured person (unless in immediate danger)
+  5. DOCUMENT the incident in EAM system (type: SECURITE)
+
+Emplacements boutons d'arret d'urgence / Emergency stop button locations:
+  - CMS1 : 1 bouton par machine + 1 bouton en bout de chaque ligne
+  - CMS2 : 1 bouton par banc de test + 1 bouton central zone
+  - Couleur : rouge sur fond jaune — acces libre, jamais obstrues
+
+================================================================================
+FIN DU DOCUMENT / END OF DOCUMENT
+================================================================================
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual
+Sections: 8 | Bilingual FR/EN | Generated: 2026-06-11
+Applicable machines: IDs 1-25 (ZONE CMS1 + ZONE CMS2)
+Machine categories: Depileur, Serigraphie, Pick&Place, Inspection, Reflow Oven,
+                    Wave Soldering, Manual Post, Test Benches
+Failure types covered: TWF, HDF, PWF, OSF, RNF
+RAG corpus document — Upload as doc_type=manual
+================================================================================

@@ -1,0 +1,140 @@
+[SAG-MNT-001] Section 5 (part 2): Troubleshooting — Reflow Oven, Wave Soldering
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+--------------------------------------------------------------------------------
+5.3 PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Composants manquants ou mal poses — taux erreur > 0.5%
+SYMPTOM  : Missing or misplaced components — error rate > 0.5%
+CAUSE    : Buses obstruees ou usees, vacuum insuffisant
+ACTION   :
+  1. Identifier les buses en erreur depuis le log de la machine
+  2. Retirer et nettoyer les buses a l'IPA (bain ultrason 5 min)
+  3. Tester le vacuum sur chaque buse (cible : -70 kPa mini)
+  4. Remplacer les buses dont vacuum < -60 kPa apres nettoyage
+CAPTEURS : torque (< 3 Nm sur axe Z = vacuum faible), tool_wear
+PIECES   : Buses DN 0.4, 0.7, 1.0 selon composants
+
+---
+
+SYMPTOME : Alarme SERVO ERROR axe X ou Y — arret machine
+SYMPTOM  : SERVO ERROR alarm on X or Y axis — machine stop
+CAUSE    : Blocage mecanique ou surintensité servo (OSF ou PWF)
+ACTION   :
+  1. NE PAS FORCER — verifier visuellement la position de la tete
+  2. Verifier l'absence de corps etranger sur les rails X/Y
+  3. Deplacer manuellement la tete (mode jog a vitesse minimale)
+  4. Si deplacement libre : reinitialiser l'alarme et retourner en origine
+  5. Si resistance mecanique : inspection courroies et guidages
+CAPTEURS : torque (> 18 Nm = OSF), rotational_speed
+PIECES   : Courroie d'axe HTD 3M, Roulement axe
+
+---
+
+SYMPTOME : Refus de composants eleve depuis un feeder particulier
+SYMPTOM  : High component rejection from one specific feeder
+CAUSE    : Avance feeder incorrecte ou bobine endommagee
+ACTION   :
+  1. Retirer et reinstaller le feeder (nettoyage des contacts)
+  2. Verifier le pas d'avance feeder (doit correspondre au pas de la bande)
+  3. Inspecter la bande composants (humidite, deformation)
+  4. Remplacer la bobine si bande endommagee
+CAPTEURS : Pas de capteur direct — statistiques machine
+PIECES   : Feeder de remplacement
+
+---
+
+SYMPTOME : Vision system ne reconnait pas le PCB — pas de fiducial
+SYMPTOM  : Vision system does not recognize PCB — no fiducial detected
+CAUSE    : Salissure sur la camera ou eclairage defaillant
+ACTION   :
+  1. Nettoyer la lentille de la camera d'alignement (IPA + coton)
+  2. Verifier l'eclairage LED (LED hors service = eclairage insuffisant)
+  3. Si eclairage OK : ajuster les parametres de contraste dans le programme
+  4. Si camera HS : remplacement module camera
+CAPTEURS : Pas de capteur EAM direct — retour machine
+PIECES   : Module camera de remplacement (selon modele)
+
+---
+
+SYMPTOME : RPM axes tres eleve — machine vibre anormalement
+SYMPTOM  : Very high axis RPM — machine vibrates abnormally
+CAUSE    : Roulement axe defaillant ou courroie usee
+ACTION   :
+  1. Inspecter les roulements des axes X/Y (jeu, bruit au mouvement manuel)
+  2. Verifier l'etat des courroies (usure, dents manquantes)
+  3. Remplacer roulement si jeu detecte, courroie si usure visible
+CAPTEURS : rotational_speed (> 2500 RPM = suspect), torque
+PIECES   : Roulement axe, Courroie HTD 3M
+
+--------------------------------------------------------------------------------
+5.4 REFLOW OVEN / FOUR DE REFUSION (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Soudures froides (cold joints) — aspect terne, non mouille
+SYMPTOM  : Cold solder joints — dull, non-wetted appearance
+CAUSE    : Temperature de pic insuffisante (< 228 deg C pour SAC305)
+ACTION   :
+  1. Verifier le profil thermique actif (comparer avec profil qualifie)
+  2. Mesurer la temperature reelle avec thermocouple de reference
+  3. Augmenter la temperature de zone de refusion de 3-5 deg C
+  4. Reduire la vitesse convoyeur de 5 cm/min
+  5. Revalider le profil avec test board
+CAPTEURS : process_temperature (< 493 K = HDF alerte)
+PIECES   : Pas de piece — reglage parametrique
+
+---
+
+SYMPTOME : Composants brules ou PCB deforme apres four
+SYMPTOM  : Burned components or warped PCB after oven
+CAUSE    : Temperature de pic excessive (> 255 deg C) ou profil trop lent
+ACTION   :
+  1. ARRET IMMEDIAT de la production — inspection de toutes les cartes
+  2. Verifier les consignes de zone dans le controleur
+  3. Controler les thermocouples (derive possible)
+  4. Recalibrer les thermocouples avec sonde de reference
+  5. Ne reprendre qu'apres validation profil correct
+CAPTEURS : process_temperature (> 528 K = CRITIQUE HDF)
+PIECES   : Thermocouple de remplacement (type K, longueur selon modele)
+
+---
+
+SYMPTOME : Variation de temperature entre passages (instabilite profil)
+SYMPTOM  : Temperature variation between runs (unstable profile)
+CAUSE    : Resistance de chauffage degradee ou filtre colmate
+ACTION   :
+  1. Nettoyer les filtres de la zone de convection (air comprime)
+  2. Mesurer la resistance des elements chauffants (valeur nominale +/- 10%)
+  3. Remplacer l'element defaillant
+  4. Revérifier la calibration PID de la zone apres remplacement
+CAPTEURS : process_temperature (fluctuations > 3 K entre cycles)
+PIECES   : Resistance chauffage IR/convection selon modele four
+
+---
+
+SYMPTOME : Blocage convoyeur — alarme CONVEYOR JAM
+SYMPTOM  : Conveyor jam — CONVEYOR JAM alarm
+CAUSE    : Corps etranger sur les rails ou chaine debloquee
+ACTION   :
+  1. STOP machine, attendre refroidissement zone sortie (< 80 deg C)
+  2. Ouvrir les panneaux lateraux d'acces convoyeur
+  3. Identifier et retirer le corps etranger (fragment PCB, composant)
+  4. Verifier l'etat de la chaine (maillon deforme ?)
+  5. Redemarrer en mode lent (50%) et surveiller
+CAPTEURS : torque (> 30 Nm = OSF), rotational_speed (< 400 RPM = blocage)
+PIECES   : Maillon chaine convoyeur HT (selon modele)
+
+---
+
+SYMPTOME : Fumee visible a la sortie du four
+SYMPTOM  : Smoke visible at oven exit
+CAUSE    : Accumulation residus flux ou composant mal place a l'entree
+ACTION   :
+  1. ARRET D'URGENCE — ventiler le local
+  2. Ne pas ouvrir le four avant 15 min de refroidissement
+  3. Inspecter le tunnel : rechercher carte coincee ou fragment brule
+  4. Nettoyer le tunnel complet avant redemarrage
+CAPTEURS : process_temperature (valeur au moment alarme), air_temperature
+PIECES   : Pas de piece — intervention nettoyage
+

@@ -1,0 +1,125 @@
+[SAG-MNT-001] Section 5 (part 3): Troubleshooting — Test Benches (ICT, Functional, WiFi/RF)
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+--------------------------------------------------------------------------------
+5.5 WAVE SOLDERING (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Ponts de soudure (bridging) entre broches composants
+SYMPTOM  : Solder bridging between component leads
+CAUSE    : Temperature solder trop haute ou vitesse convoyeur trop lente
+ACTION   :
+  1. Verifier la temperature du solder (cible : 255 +/- 3 deg C)
+  2. Si temperature > 260 deg C : reduire de 3 deg C et re-tester
+  3. Augmenter la vitesse convoyeur de 5 cm/min
+  4. Verifier le niveau de flux (sous-dosage favorise le bridging)
+CAPTEURS : process_temperature (> 533 K = HDF alerte), torque
+PIECES   : Flux sans plomb (reapprovisionnement si debit anormal)
+
+---
+
+SYMPTOME : Soudures insuffisantes — trous non remplis (blow holes)
+SYMPTOM  : Insufficient solder — unfilled holes (blow holes)
+CAUSE    : Prechauffage insuffisant ou humidite dans le PCB
+ACTION   :
+  1. Verifier la temperature de prechauffage (cible : 110-120 deg C)
+  2. Augmenter le temps de prechauffage (reduire vitesse convoyeur)
+  3. Verifier l'age des PCBs (stockage humide degrade l'imbibition flux)
+  4. Controler le taux d'alcool dans le flux (minimum 80%)
+CAPTEURS : process_temperature (prechauffage), air_temperature
+PIECES   : Flux sans plomb, Prechauffeur infra-rouge
+
+---
+
+SYMPTOME : Dross excessif — vague irreguliere
+SYMPTOM  : Excessive dross — irregular wave
+CAUSE    : Contamination solder ou oxydation excessive (air dans le pot)
+ACTION   :
+  1. Ecumer le dross (surface du solder)
+  2. Analyser la composition (Cu > 0.3% -> vidange necessaire)
+  3. Si OK : ajouter lingots neufs SAC305 pour diluer
+  4. Verifier le debit d'azote si machine equipee (N2 reduit l'oxydation)
+CAPTEURS : torque (pompe : > 40 Nm si dross obstruant)
+PIECES   : Solder SAC305, Lingots
+
+---
+
+SYMPTOME : Alarme PUMP FAULT — pompe de vague arretee
+SYMPTOM  : PUMP FAULT alarm — wave pump stopped
+CAUSE    : Surcharge moteur pompe (dross bloquant) ou roulement defaillant
+ACTION   :
+  1. STOP machine, verifier temperature pot (ne pas travailler si > 270 deg C)
+  2. Ecumer le dross — verifier si turbine accessible et libre
+  3. Redemarrer la pompe en mode manuel a vitesse reduite (50%)
+  4. Si redemarrage echoue : refroidissement complet, inspection roulement pompe
+CAPTEURS : torque (> 45 Nm = OSF sur pompe), rotational_speed
+PIECES   : Roulement SKF 6205 (REF-002), Joint torique 10mm (REF-001)
+
+---
+
+SYMPTOME : Application de flux irreguliere — zones sans flux
+SYMPTOM  : Irregular flux application — areas without flux
+CAUSE    : Buse flux obstruee ou pression flux trop basse
+ACTION   :
+  1. Inspecter visuellement les buses flux (residus secs)
+  2. Lancer le cycle de purge automatique flux (menu maintenance)
+  3. Si purge insuffisante : demonter et nettoyer buses manuellement a l'IPA
+  4. Verifier la pression du circuit flux (cible > 0.3 MPa)
+CAPTEURS : air_temperature (indirect — vapeurs flux augmentent si mauvaise application)
+PIECES   : Buses flux de remplacement (selon modele)
+
+--------------------------------------------------------------------------------
+5.6 BANCS DE TEST (IDs: 3, 4, 18, 19, 20, 21, 22, 23)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Taux de faux rejet eleve — golden board echoue au test
+SYMPTOM  : High false reject rate — golden board fails test
+CAUSE    : Sondes ICT usees ou parametres de test mal cales
+ACTION   :
+  1. Tester la golden board sur un autre banc (ID 4 vs ID 3)
+  2. Si golden board passe : probleme isole a ce banc -> verifier sondes
+  3. Mesurer la resistance de contact des sondes (cible < 0.3 Ohm)
+  4. Remplacer les sondes > 0.5 Ohm
+  5. Si golden board echoue partout : verifier le fichier de reference
+CAPTEURS : torque (pression de contact sondes ICT)
+PIECES   : Sondes ICT de remplacement (contact spring probes)
+
+---
+
+SYMPTOME : Resultats WiFi instables — RSSI fluctuant dans caisson Faraday
+SYMPTOM  : Unstable WiFi results — RSSI fluctuating in Faraday cage
+CAUSE    : Joint RF endommage ou contamination RF externe
+ACTION   :
+  1. Verifier la resistance du joint de porte (cible < 0.1 Ohm)
+  2. Inspecter la porte du caisson (deformation, saletés sur joint)
+  3. Mesurer l'isolation RF du caisson (attenuation cible > 60 dB a 5.8 GHz)
+  4. Remplacer le joint si resistance > 0.2 Ohm
+CAPTEURS : Pas de capteur EAM direct — mesures IQFlex ID 23
+PIECES   : Joint d'etancheite RF caisson Faraday
+
+---
+
+SYMPTOME : Test fonctionnel (ID 4) echoue sur connexion LAN systematiquement
+SYMPTOM  : Functional test (ID 4) fails on LAN connection systematically
+CAUSE    : Cable de test defectueux ou port switch du banc defaillant
+ACTION   :
+  1. Remplacer le cable RJ45 de test (cable de reference)
+  2. Tester sur un autre port du switch du banc
+  3. Verifier la carte reseau du banc (ping vers serveur test)
+  4. Si probleme persiste : contacter l'IT pour diagnostic reseau banc
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Cable RJ45 CAT6 de reference
+
+---
+
+SYMPTOME : Analyseur IQFlex (ID 23) ne detecte pas le signal WiFi
+SYMPTOM  : IQFlex analyzer (ID 23) does not detect WiFi signal
+CAUSE    : Cable RF desserre ou profil test non charge
+ACTION   :
+  1. Verifier la connexion SMA/N entre antenne et analyseur (tourner jusqu'au clic)
+  2. Verifier que le profil de test est charge dans le logiciel IQFlex
+  3. Faire un auto-zero sur l'analyseur (menu Calibration)
+  4. Si probleme persiste : tester avec source RF externe connue
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Connecteur SMA de remplacement si connecteur endommage
+

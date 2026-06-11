@@ -1,0 +1,147 @@
+[SAG-MNT-001] Section 5 (part 1): Troubleshooting — Card Loader, Stencil Printer, Pick&Place
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 5 — GUIDE DE DEPANNAGE / TROUBLESHOOTING GUIDE
+================================================================================
+
+FR: Pour chaque symptome, la cause probable et l'action recommandee sont
+indiquees avec les capteurs a surveiller en priorite.
+EN: For each symptom, probable cause and recommended action are given with
+priority sensors to monitor.
+
+FORMAT: SYMPTOME/SYMPTOM | CAUSE PROBABLE | ACTION | CAPTEURS | PIECES
+
+--------------------------------------------------------------------------------
+5.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Alimentation irreguliere — cartes coincees en sortie magasin
+SYMPTOM  : Irregular feed — boards jamming at magazine exit
+CAUSE    : Courroies d'alimentation usees ou mal tendues / Worn or slack feed belts
+ACTION   :
+  1. Arreter la machine (bouton STOP)
+  2. Retirer manuellement les cartes coincees
+  3. Verifier la tension courroie (deflexion < 3mm sous 1kg)
+  4. Si tension OK : inspecter l'etat des courroies (craquelures, usure)
+  5. Remplacer courroies si usure > 15%
+CAPTEURS : tool_wear (> 180 min = suspect), torque (> 20 Nm = blocage)
+PIECES   : Courroie HTD 5M, Graisse NLGI 2 (GREASE-A)
+
+---
+
+SYMPTOME : Vitesse de sortie cartes reduite, RPM moteur bas
+SYMPTOM  : Reduced board output speed, low motor RPM
+CAUSE    : Glissement courroie ou probleme alimentation moteur (PWF)
+ACTION   :
+  1. Controler la tension courroie
+  2. Verifier la pression pneumatique reseau (> 0.5 MPa)
+  3. Controler l'alimentation moteur (voltmetre sur bornier)
+  4. Si alimentation OK : remplacement courroie
+CAPTEURS : rotational_speed (< 700 RPM = anomalie), torque
+PIECES   : Courroie HTD 5M
+
+---
+
+SYMPTOME : Bruit de craquement lors de l'avance carte
+SYMPTOM  : Cracking noise during board advance
+CAUSE    : Pignon endommage ou corps etranger dans le mecanisme
+ACTION   :
+  1. Arret immediat
+  2. Inspection visuelle du pignon (dents manquantes, fissures)
+  3. Retirer tout corps etranger (fragment PCB, vis)
+  4. Remplacer le pignon si endommage
+CAPTEURS : torque (> 20 Nm = OSF), rotational_speed
+PIECES   : Pignon HTD compatible fabricant
+
+---
+
+SYMPTOME : Magasin ne se souleve plus automatiquement
+SYMPTOM  : Magazine no longer auto-lifts
+CAUSE    : Capteur de hauteur derive ou verin pneumatique defaillant
+ACTION   :
+  1. Verifier l'alarme sur l'IHM (message erreur capteur ou pression)
+  2. Inspecter visuellement la position du verin (completement rentre ?)
+  3. Controler la pression pneumatique (> 0.5 MPa)
+  4. Recalibrer le capteur de hauteur (procedure menu Maintenance)
+CAPTEURS : torque, rotational_speed (indirectement)
+PIECES   : Pas de piece — recalibration ou remplacement capteur
+
+---
+
+SYMPTOME : Cartes tombent du convoyeur en sortie
+SYMPTOM  : Boards fall off conveyor at exit
+CAUSE    : Largeur de rail mal reglee ou carte hors dimension
+ACTION   :
+  1. Mesurer la largeur de la carte a traiter
+  2. Ajuster la largeur des rails (largeur carte + 0.5 mm de jeu)
+  3. Verifier l'ejecteur de sortie (positionne correctement)
+CAPTEURS : Pas de capteur direct — controle dimensionnel
+PIECES   : Pas de piece — reglage mecanique
+
+--------------------------------------------------------------------------------
+5.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+SYMPTOME : Pate insuffisante sur PCB — depots incomplets
+SYMPTOM  : Insufficient paste on PCB — incomplete deposits
+CAUSE    : Pression raclette insuffisante ou raclette usee
+ACTION   :
+  1. Verifier la pression raclette dans les parametres (cible : 10 kg)
+  2. Augmenter la pression de 1 kg et re-tester
+  3. Si pas d'amelioration : inspecter la raclette (remplacement si usure visible)
+  4. Controler l'ouverture des apertures du pochoir (obstruction pate seche)
+CAPTEURS : torque (< 8 Nm = pression insuffisante), tool_wear
+PIECES   : Raclette metal 60 deg, Raclette metal 45 deg
+
+---
+
+SYMPTOME : Debordement pate sur PCB — bridging entre pastilles
+SYMPTOM  : Paste overflow on PCB — bridging between pads
+CAUSE    : Pression raclette excessive ou pochoir encrase
+ACTION   :
+  1. Reduire la pression raclette de 1 kg et re-tester
+  2. Nettoyer le pochoir (nettoyage automatique 3 cycles IPA + essuyage)
+  3. Verifier l'alignement PCB/pochoir (offset < 25 microm)
+  4. Controler le temps de sechage du pochoir entre cycles
+CAPTEURS : torque (> 25 Nm = pression excessive), process_temperature
+PIECES   : Tissu essuyage non-tisse, Alcool IPA
+
+---
+
+SYMPTOME : Alignement pochoir incorrect — depots decales
+SYMPTOM  : Stencil misalignment — offset deposits
+CAUSE    : Calibration camera derivee ou dommage mecanique axe
+ACTION   :
+  1. Lancer la procedure de calibration automatique (menu Maintenance)
+  2. Verifier la position des butees mecaniques
+  3. Si calibration echoue : verifier les vis de bridage du pochoir
+CAPTEURS : Pas de capteur direct — controle visuel SPI ID 6
+PIECES   : Aucune (recalibration logicielle)
+
+---
+
+SYMPTOME : Impression irreguliere entre passages (variation d'epaisseur)
+SYMPTOM  : Irregular printing between passes (thickness variation)
+CAUSE    : Temperature pate trop haute (> 25 deg C) ou vieillie
+ACTION   :
+  1. Mesurer la temperature de la pate avec thermometre contact
+  2. Si > 26 deg C : mettre la pate dans un bac refroidissant 30 min
+  3. Verifier la date de sortie du refrigerateur (max 8h a temperature ambiante)
+  4. Remplacer la pate si > 8h hors frigo ou temperature depassee
+CAPTEURS : air_temperature (> 305 K = risque), process_temperature
+PIECES   : Pate a souder sans plomb (consommable)
+
+---
+
+SYMPTOME : Le systeme d'essuyage automatique laisse des traces sur le pochoir
+SYMPTOM  : Automatic wiping system leaves residues on the stencil
+CAUSE    : Tissu essuyage epuise ou IPA en fin de bidon
+ACTION   :
+  1. Verifier le niveau d'IPA dans le systeme d'essuyage
+  2. Verifier l'avance du tissu d'essuyage (longueur restante > 10 m)
+  3. Remplacer le rouleau de tissu si < 5 m restant
+  4. Remplir le reservoir IPA
+CAPTEURS : Pas de capteur EAM direct
+PIECES   : Rouleau tissu non-tisse, IPA (consommables)
+

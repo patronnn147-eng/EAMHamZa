@@ -1,0 +1,133 @@
+[SAG-MNT-001] Section 2 (part 1): Machine Specs — Depileur, Serigraphie, Pick&Place, Inspection/AOI/SPI
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 2 — SPECIFICATIONS MACHINES / MACHINE SPECIFICATIONS
+================================================================================
+
+FR: Cette section decrit les parametres d'exploitation normaux de chaque
+categorie de machine. Les plages de capteurs sont basees sur le jeu de donnees
+de reference ai4i2020 calibre sur le type d'equipement.
+
+EN: This section describes the normal operating parameters for each machine
+category. Sensor ranges are based on the ai4i2020 reference dataset calibrated
+to equipment type.
+
+--------------------------------------------------------------------------------
+2.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Alimenter la ligne SMT en cartes PCB vierges depuis un magasin
+empile. Le depileur saisit les cartes une a une et les transmet au convoyeur.
+Capacite : 200 cartes/magazine. Vitesse nominale : 600 cartes/heure.
+Entrainement par courroies crantees et pignons (source d'usure principale).
+
+EN: Function — Feed bare PCB boards from a stacked magazine onto the SMT line
+conveyor. The card loader picks boards one at a time and transfers them to the
+conveyor. Capacity: 200 boards/magazine. Nominal speed: 600 boards/hour.
+Drive: toothed belts and sprockets (primary wear source).
+
+Machines en DB / In DB: ID 1 (BBS Line 1), ID 10 (AVS Line 2)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)   — ambient workshop
+  Process temperature   : 296-303 K  (23-30 deg C)   — same as air, no heating
+  Rotational speed      : 800-1200 RPM               — belt drive motor
+  Torque                : 5-18 Nm                    — board-feed servo
+  Tool wear             : 0-180 min  WARNING >180  CRITICAL >220
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 20 Nm : bourrage carte (card jam), verifier convoyeur
+  - RPM < 600      : glissement courroie, tension insuffisante
+  - Tool wear > 220: remplacement courroie imminent
+
+--------------------------------------------------------------------------------
+2.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Deposer la pate a souder sur les pastilles du PCB a travers un
+pochoir metallique par raclage (squeegee). Critique : une mauvaise application
+cause 60% des defauts de soudure. Pression de raclage : 8-12 kg. Vitesse de
+raclage : 20-80 mm/s selon la conception du pochoir.
+
+EN: Function — Deposit solder paste onto PCB pads through a metal stencil using
+a squeegee blade. Critical: improper application causes 60% of solder defects.
+Squeegee pressure: 8-12 kg. Squeegee speed: 20-80 mm/s depending on stencil
+design.
+
+Machines en DB / In DB: ID 2 (Serigraphie DEK/MPM BBS), ID 6 (SPI AVS),
+                         ID 11 (Serigraphie AVS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)   — paste must stay 20-25 deg C
+  Rotational speed      : 200-600 RPM                — squeegee drive
+  Torque                : 8-22 Nm                    — squeegee pressure servo
+  Tool wear             : 0-200 min  WARNING >200  CRITICAL >240
+
+Note: La pate a souder doit etre stockee a 4 deg C et ramenee a 25 deg C avant usage.
+Note: Solder paste must be stored at 4 deg C and brought to 25 deg C before use.
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 25 Nm  : pression raclette excessive, risque endommagement pochoir
+  - Temp > 305 K    : temperature ambiante trop elevee, pate trop fluide
+  - Tool wear > 240 : remplacer raclette (squeegee blade)
+
+--------------------------------------------------------------------------------
+2.3 MACHINE DE POSE / PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+FR: Fonction — Prelever les composants electroniques des bobines/bacs et les
+placer sur le PCB avec precision (+-25 microm). Vitesse : 20000-50000 cph
+(composants par heure). Axes X/Y haute precision, tete rotative multi-buses.
+
+EN: Function — Pick electronic components from reels/trays and place them on
+the PCB with precision (+-25 microm). Speed: 20,000-50,000 cph (components/hour).
+High-precision X/Y gantry axes, multi-nozzle rotating head.
+
+Machines en DB / In DB: ID 5 (Pick & Place BBS), ID 12 (Pick & Place AVS)
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)
+  Rotational speed      : 1200-2200 RPM              — servo axis drives
+  Torque                : 3-15 Nm                    — precision servo (low)
+  Tool wear             : 0-180 min  WARNING >180  CRITICAL >220
+
+Note: Les buses (nozzles) necessitent un nettoyage quotidien a l'alcool IPA.
+Note: Nozzles require daily cleaning with IPA alcohol.
+
+Conditions anormales / Abnormal conditions:
+  - Torque > 18 Nm   : blocage mecanique axe X/Y ou tete, arret immediat
+  - RPM > 2500       : survitesse servo, verifier parametrage
+  - Tool wear > 220  : remplacement buses et inspection courroies axes
+
+--------------------------------------------------------------------------------
+2.4 INSPECTION — SPI / 2D SCANNER / AOI 3D (IDs: 6, 7, 8, 13, 14)
+--------------------------------------------------------------------------------
+
+FR: Fonction —
+  SPI (Solder Paste Inspection, ID 6) : controle volumetrique 3D de la pate.
+  Scanner 2D (IDs 8, 13) : verification presence/polarite composants.
+  AOI 3D finale (IDs 7, 14) : inspection soudures apres refusion.
+Ces machines sont optiques — pas de rotation mecanique significative.
+
+EN: Function —
+  SPI (ID 6): 3D volumetric solder paste inspection.
+  2D Scanner (IDs 8, 13): component presence and polarity verification.
+  AOI 3D Final (IDs 7, 14): solder joint inspection after reflow.
+These are optical machines — no significant mechanical rotation.
+
+Machines en DB / In DB: ID 6, 7, 8, 13, 14
+
+Parametres normaux de fonctionnement / Normal operating parameters:
+  Air temperature       : 296-303 K  (23-30 deg C)
+  Process temperature   : 296-303 K  (23-30 deg C)
+  Rotational speed      : 100-400 RPM  — scanner drive motor only
+  Torque                : 2-8 Nm       — gantry positioning
+  Tool wear             : 0-240 min  WARNING >240  CRITICAL >280
+
+Conditions anormales / Abnormal conditions:
+  - Taux faux positifs > 5% : recalibrer camera ou nettoyer optique
+  - Tool wear > 280 : maintenance preventive eclairage LED et lentilles
+

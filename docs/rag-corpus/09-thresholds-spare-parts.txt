@@ -1,0 +1,189 @@
+[SAG-MNT-001] Section 6: Sensor Threshold Master Table | Section 7: Spare Parts Cross-Reference
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 6 — TABLEAU DE SEUILS CAPTEURS / SENSOR THRESHOLDS REFERENCE TABLE
+================================================================================
+
+FR: Ce tableau est la reference maitre pour tous les seuils d'alerte. Les
+valeurs NORMAL correspondent au fonctionnement attendu. WARNING = investigation
+requise. CRITICAL = arret production recommande, creation OI immediate.
+
+EN: This table is the master reference for all alert thresholds. NORMAL values
+correspond to expected operation. WARNING = investigation required.
+CRITICAL = production stop recommended, immediate intervention order creation.
+
+Les seuils correspondent aux modeles ML P1-P7 entraines sur ai4i2020.
+Thresholds correspond to ML models P1-P7 trained on ai4i2020 dataset.
+
+MACHINE CATEGORY   | SENSOR              | NORMAL RANGE        | WARNING        | CRITICAL
+-------------------|---------------------|---------------------|----------------|----------
+Depileur           | air_temperature (K) | 296 - 303           | > 305          | > 310
+Depileur           | process_temp (K)    | 296 - 303           | > 305          | > 310
+Depileur           | rotational_speed    | 800 - 1200 RPM      | <700 or >1400  | <500 or >1600
+Depileur           | torque (Nm)         | 5 - 18              | > 20           | > 25
+Depileur           | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Serigraphie        | air_temperature (K) | 296 - 303           | > 305          | > 310
+Serigraphie        | process_temp (K)    | 296 - 303           | > 305          | > 308
+Serigraphie        | rotational_speed    | 200 - 600 RPM       | <150 or >700   | <100 or >800
+Serigraphie        | torque (Nm)         | 8 - 22              | > 25           | > 30
+Serigraphie        | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Pick and Place     | air_temperature (K) | 296 - 303           | > 305          | > 310
+Pick and Place     | process_temp (K)    | 296 - 303           | > 305          | > 308
+Pick and Place     | rotational_speed    | 1200 - 2200 RPM     | > 2400         | > 2600
+Pick and Place     | torque (Nm)         | 3 - 15              | > 18           | > 22
+Pick and Place     | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Inspection AOI SPI | air_temperature (K) | 296 - 303           | > 305          | > 310
+Inspection AOI SPI | process_temp (K)    | 296 - 303           | > 305          | > 310
+Inspection AOI SPI | rotational_speed    | 100 - 400 RPM       | > 450          | > 500
+Inspection AOI SPI | torque (Nm)         | 2 - 8               | > 10           | > 12
+Inspection AOI SPI | tool_wear (min)     | 0 - 240             | > 240          | > 280
+-------------------|---------------------|---------------------|----------------|----------
+Reflow Oven        | air_temperature (K) | 296 - 303           | > 306          | > 310
+Reflow Oven        | process_temp (K)    | 493 - 523           | <490 or >525   | <485 or >530
+Reflow Oven        | rotational_speed    | 600 - 1200 RPM      | <500 or >1400  | <400 or >1600
+Reflow Oven        | torque (Nm)         | 10 - 25             | > 28           | > 35
+Reflow Oven        | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Wave Soldering     | air_temperature (K) | 296 - 303           | > 306          | > 310
+Wave Soldering     | process_temp (K)    | 518 - 533           | <515 or >536   | <510 or >540
+Wave Soldering     | rotational_speed    | 800 - 1500 RPM      | <700 or >1700  | <600 or >1800
+Wave Soldering     | torque (Nm)         | 15 - 35             | > 40           | > 48
+Wave Soldering     | tool_wear (min)     | 0 - 200             | > 200          | > 240
+-------------------|---------------------|---------------------|----------------|----------
+Manual Post        | air_temperature (K) | 296 - 303           | > 305          | > 310
+Manual Post        | process_temp (K)    | 296 - 303           | > 305          | > 310
+Manual Post        | rotational_speed    | 0 RPM (N/A)         | N/A            | N/A
+Manual Post        | torque (Nm)         | 0 - 5               | > 6            | > 8
+Manual Post        | tool_wear (min)     | 0 - 180             | > 180          | > 220
+-------------------|---------------------|---------------------|----------------|----------
+Test Bench         | air_temperature (K) | 296 - 303           | > 305          | > 310
+Test Bench         | process_temp (K)    | 296 - 303           | > 305          | > 310
+Test Bench         | rotational_speed    | 0 RPM (N/A)         | N/A            | N/A
+Test Bench         | torque (Nm)         | 0 - 3               | > 4            | > 6
+Test Bench         | tool_wear (min)     | 0 - 200             | > 200          | > 240
+
+NOTES:
+  - Kelvin vers Celsius / Kelvin to Celsius : T(deg C) = T(K) - 273.15
+  - 300 K = 26.85 deg C (temperature ambiante nominale)
+  - Pour le four de refusion : process_temp = temperature mesuree zone de pic
+  - Pour wave soldering : process_temp = temperature du pot de solder
+  - N/A = capteur non applicable pour ce type de machine
+  - Les seuils P1/P7 ML utilisent ces memes plages comme features d'entree
+  - Valeurs hors plage NORMAL declenchent une alerte dans EAM meme sans panne visible
+
+================================================================================
+SECTION 7 — REFERENCE CROISEE PIECES / SPARE PARTS CROSS-REFERENCE
+================================================================================
+
+FR: Catalogue des pieces de rechange homologuees et leur compatibilite machine.
+EN: Approved spare parts catalog and machine compatibility.
+
+--------------------------------------------------------------------------------
+7.1 PIECES MECANIQUES / MECHANICAL PARTS
+--------------------------------------------------------------------------------
+
+Reference : REF-001 — Joint torique 10mm (O-Ring 10mm)
+  Categorie : Mecanique
+  Description : Joint d'etancheite 10mm diametre interieur, matiere NBR
+  Machines compatibles :
+    - Four de Refusion (IDs 9, 15) : joints portes inspection et tunnel
+    - Wave Soldering (IDs 17, 24) : joints pompe et cuve solder
+    - Serigraphie (IDs 2, 11)     : joints systeme nettoyage pochoir
+  Intervalle de remplacement : Annuel ou si fuite constatee
+  Stock minimum recommande : 20 unites
+
+Reference : TEST-001 / REF-002 — Roulement SKF 6205 / BEARING-A1
+  Categorie : Mecanique
+  Description : Roulement a billes 25x52x15mm, simple rangee
+  Machines compatibles :
+    - Depileur (IDs 1, 10)           : axe d'entrainement principal
+    - Pick & Place (IDs 5, 12)       : axes X/Y si modele compatible
+    - Wave Soldering (IDs 17, 24)    : pompe de vague principale
+  Intervalle de remplacement : Annuel ou si bruit/jeu detecte
+  Stock minimum recommande : 10 unites (5 par ligne)
+
+Reference : REF-005 — Vis (Vises)
+  Categorie : Mecanique
+  Description : Visserie standard maintenance
+  Usage : Fixation capots, rails, composants lors des interventions
+  Stock minimum recommande : Assortiment M3/M4/M5/M6
+
+Reference : REF-006 — Tournevis (Tournivuse)
+  Categorie : Outil maintenance
+  Description : Outil de service maintenance
+  Usage : Interventions mecaniques generales
+
+--------------------------------------------------------------------------------
+7.2 LUBRIFIANTS ET CONSOMMABLES / LUBRICANTS AND CONSUMABLES
+--------------------------------------------------------------------------------
+
+Reference : GREASE-A — Graisse A 250g / Grease A 250g
+  Categorie : Consommable
+  Description : Graisse NLGI 2 usage general mecanique
+  Machines compatibles :
+    - Depileur (IDs 1, 10)      : rails guidage, pignons (hebdomadaire)
+    - Pick & Place (IDs 5, 12)  : axes X/Y (hebdomadaire)
+  Quantite par application : 2-3 g par point de graissage
+  Frequence : Hebdomadaire sur points designes
+  Stock minimum recommande : 4 tubes x 250g
+
+Reference : GREASE-W1 — Graisse haute temperature / High-temp grease
+  Categorie : Consommable
+  Description : Graisse haute temperature pour convoyeurs four et wave
+  Machines compatibles :
+    - Reflow Oven (IDs 9, 15) : chaine convoyeur
+    - Wave Soldering (IDs 17, 24) : chaine convoyeur
+  Stock minimum recommande : 2 tubes
+
+Reference : REF-003 — OIL-B2
+  Categorie : Consommable
+  Description : Huile legere ISO VG 32 pour axes de precision
+  Machines compatibles :
+    - Serigraphie (IDs 2, 11) : axes de deplacement
+    - Four de Refusion (IDs 9, 15) : guidages convoyeur
+    - Wave Soldering (IDs 17, 24) : roulements pompe
+  Frequence : Mensuel sur points designes
+  Stock minimum recommande : 1 litre
+
+Consommables production / Production consumables:
+  - Pate a souder SAC305 sans plomb : stock 2 boites min, sortir 4h avant usage
+  - Flux sans plomb IPA-based : stock 5 litres min
+  - Solder SAC305 (lingots) : stock 10 kg min pour appoint pot wave
+  - Alcool IPA (isopropanol) : stock 5 litres min (nettoyage buses, pochoirs)
+  - Buses nozzle DN 0.4/0.7/1.0/1.3 mm : 2 jeux de rechange min par pick&place
+  - Raclettes metal 60 deg et 45 deg : 2 paires de rechange min par serigraphie
+
+--------------------------------------------------------------------------------
+7.3 COMPATIBILITE MACHINE X PIECE / MACHINE X PART COMPATIBILITY MATRIX
+--------------------------------------------------------------------------------
+
+MACHINE ID  | REF-001 | TEST-001/REF-002 | GREASE-A | GREASE-W1 | REF-003
+------------|---------|-----------------|----------|-----------|--------
+1  Depileur BBS     |    -    |       OUI       |   OUI    |     -     |   -
+2  Serigraphie BBS  |   OUI   |        -        |    -     |     -     |  OUI
+5  Pick&Place BBS   |    -    |       OUI       |   OUI    |     -     |   -
+6  SPI AVS          |    -    |        -        |    -     |     -     |   -
+7  AOI 3D BBS       |    -    |        -        |    -     |     -     |   -
+8  2D Scanner BBS   |    -    |        -        |    -     |     -     |   -
+9  Reflow Oven BBS  |   OUI   |        -        |    -     |    OUI    |  OUI
+10 Depileur AVS     |    -    |       OUI       |   OUI    |     -     |   -
+11 Serigraphie AVS  |   OUI   |        -        |    -     |     -     |  OUI
+12 Pick&Place AVS   |    -    |       OUI       |   OUI    |     -     |   -
+13 2D Scanner AVS   |    -    |        -        |    -     |     -     |   -
+14 AOI 3D AVS       |    -    |        -        |    -     |     -     |   -
+15 Reflow Oven AVS  |   OUI   |        -        |    -     |    OUI    |  OUI
+16 Post Insert AVS  |    -    |        -        |    -     |     -     |   -
+17 Wave Solder AVS  |   OUI   |       OUI       |    -     |    OUI    |  OUI
+18 Banc BFE         |    -    |        -        |    -     |     -     |   -
+19 Banc BAV         |    -    |        -        |    -     |     -     |   -
+20 Banc Routeur     |    -    |        -        |    -     |     -     |   -
+21 PC Test WiFi     |    -    |        -        |    -     |     -     |   -
+22 Caisson Faraday  |    -    |        -        |    -     |     -     |   -
+23 Analyseur IQFlex |    -    |        -        |    -     |     -     |   -
+24 Wave Solder BBS  |   OUI   |       OUI       |    -     |    OUI    |  OUI
+25 Post THT BBS     |    -    |        -        |    -     |     -     |   -
+

@@ -1,0 +1,257 @@
+[SAG-MNT-001] Section 3: Preventive Maintenance Schedules
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 3 — PLANNINGS DE MAINTENANCE PREVENTIVE / PREVENTIVE MAINTENANCE
+================================================================================
+
+FR: Les intervalles suivants sont obligatoires. En cas de depassement, creer
+un ordre d'intervention de type PREVENTIVE dans le systeme EAM.
+EN: The following intervals are mandatory. If exceeded, create a PREVENTIVE
+intervention order in the EAM system.
+
+--------------------------------------------------------------------------------
+3.1 DEPILEUR / CARD LOADER (IDs: 1, 10)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier visuellement l'etat des courroies d'alimentation (craquelures, usure)
+      EN: Visually inspect feed belts for cracks or wear
+  [ ] FR: Nettoyer les capteurs de presence carte (depoussierage air comprime)
+      EN: Clean board presence sensors (compressed air blow-out)
+  [ ] FR: Verifier la hauteur du magasin et l'alignement des rails
+      EN: Check magazine height and rail alignment
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Controler la tension des courroies crantees (deflexion max 3mm sous 1 kg)
+      EN: Check toothed belt tension (max 3mm deflection under 1 kg)
+  [ ] FR: Graisser les rails de guidage (graisse NLGI 2, 2-3 points par rail)
+      EN: Lubricate guide rails (NLGI 2 grease, 2-3 points per rail)
+  [ ] FR: Verifier les pignons d'entrainement (pas de dents manquantes)
+      EN: Inspect drive sprockets (no missing teeth)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les courroies si usure > 15% ou craquelures visibles
+      EN: Replace belts if wear > 15% or visible cracking
+  [ ] FR: Inspecter les roulements de l'axe d'entrainement (bruit, jeu)
+      EN: Inspect drive axis bearings (noise, play)
+  [ ] FR: Calibrer les capteurs de hauteur magasin
+      EN: Calibrate magazine height sensors
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet des courroies et roulements
+      EN: Full replacement of belts and bearings
+  [ ] FR: Revision generale mecanique et electrique
+      EN: Full mechanical and electrical overhaul
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Courroie d'entrainement (type HTD 5M) — reference selon fabricant
+  - Roulement SKF 6205 (TEST-001, REF-002) — remplacement annuel
+  - Graisse NLGI 2 (GREASE-A) — application hebdomadaire
+
+--------------------------------------------------------------------------------
+3.2 SERIGRAPHIE / STENCIL PRINTER (IDs: 2, 6, 11)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Nettoyer le pochoir a l'alcool IPA apres chaque production
+      EN: Clean stencil with IPA alcohol after each production run
+  [ ] FR: Verifier l'etat des raclettes (squeegees) — pas d'ebrechures
+      EN: Inspect squeegee blades — no chipping or deformation
+  [ ] FR: Controler le niveau de pate a souder dans le distributeur
+      EN: Check solder paste level in dispenser
+  [ ] FR: Nettoyer les dessous-de-carte (undersupports)
+      EN: Clean PCB undersupports
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Calibration de la pression raclette (cible : 10 +/- 1 kg)
+      EN: Squeegee pressure calibration (target: 10 +/- 1 kg)
+  [ ] FR: Verifier l'alignement optique camera de reconnaissance PCB
+      EN: Check optical alignment of PCB recognition camera
+  [ ] FR: Lubrifier les axes de deplacement (huile legere ISO VG 32)
+      EN: Lubricate travel axes (light oil ISO VG 32)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les raclettes si usure > 10% ou deformation visible
+      EN: Replace squeegees if wear > 10% or visible deformation
+  [ ] FR: Nettoyage complet du systeme d'essuyage automatique (wiping)
+      EN: Full cleaning of automatic wiping system
+  [ ] FR: Verifier les joints du systeme de nettoyage pochoir
+      EN: Inspect seals of stencil cleaning system
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet des systemes d'axes (vis a billes, guidages)
+      EN: Full replacement of axis systems (ball screws, linear guides)
+  [ ] FR: Revision du systeme de vision (nettoyage et recalibration cameras)
+      EN: Vision system overhaul (clean and recalibrate cameras)
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Raclettes metal 60 deg et 45 deg — remplacement mensuel ou selon usure
+  - Joint torique 10mm (REF-001) — joints systeme nettoyage
+  - Huile ISO VG 32 (OIL-B2 REF-003) — axes
+
+--------------------------------------------------------------------------------
+3.3 PICK AND PLACE (IDs: 5, 12)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Nettoyer les buses (nozzles) a l'alcool IPA — verifier l'absence d'obturation
+      EN: Clean nozzles with IPA alcohol — check for blockage
+  [ ] FR: Inspecter visuellement les buses pour fissures ou deformation
+      EN: Visually inspect nozzles for cracks or deformation
+  [ ] FR: Verifier la proprete des miroirs et capteurs de vision
+      EN: Check cleanliness of vision mirrors and sensors
+  [ ] FR: Controler la pression pneumatique (cible : 0.5 MPa +/- 0.05)
+      EN: Check pneumatic pressure (target: 0.5 MPa +/- 0.05)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Lubrifier les axes X/Y (graisse EP NLGI 2, points prevus sur le guide)
+      EN: Lubricate X/Y axes (EP grease NLGI 2, designated points on guide)
+  [ ] FR: Controler la tension des courroies d'axes
+      EN: Check axis belt tension
+  [ ] FR: Effectuer une prise d'origine (home) et verifier la repetabilite
+      EN: Perform home position reference and verify repeatability
+  [ ] FR: Inspecter les feeders (chargeurs de bobines) — avance correcte
+      EN: Inspect feeders (reel changers) — correct component advance
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacement des buses avec taux de pick error > 0.5%
+      EN: Replace nozzles with pick error rate > 0.5%
+  [ ] FR: Controle complet du systeme de vision (calibration, eclairage)
+      EN: Full vision system check (calibration, lighting)
+  [ ] FR: Verifier les filtres des aspirateurs de dechets
+      EN: Check waste vacuum filters
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement des roulements d'axes X/Y et Z
+      EN: Replace X/Y/Z axis bearings
+  [ ] FR: Revision complete du systeme de convoyeur integre
+      EN: Full revision of integrated conveyor system
+  [ ] FR: Mise a jour du logiciel et sauvegarde des programmes de placement
+      EN: Software update and backup of placement programs
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Buses universelles DN 0.4, 0.7, 1.0, 1.3 mm — selon composants produits
+  - Courroie d'axe (serie HTD 3M) — remplacement annuel
+  - Graisse EP NLGI 2 (GREASE-A) — axes hebdomadaire
+
+--------------------------------------------------------------------------------
+3.4 REFLOW OVEN / FOUR DE REFUSION (IDs: 9, 15)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier le profil thermique affiche (comparer mesure vs. consigne)
+      EN: Verify displayed thermal profile (compare reading vs. setpoint)
+  [ ] FR: Inspecter l'etat du convoyeur a l'entree et a la sortie
+      EN: Inspect conveyor condition at entry and exit
+  [ ] FR: Controler la ventilation (pas d'obstruction des sorties d'air)
+      EN: Check ventilation (no obstruction to air outlets)
+  [ ] FR: Verifier la proprete du tunnel (pas de residus de flux carbonises)
+      EN: Check tunnel cleanliness (no carbonized flux residues)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Calibration thermocouple de chaque zone (validation profil)
+      EN: Calibrate thermocouple in each zone (profile validation)
+  [ ] FR: Nettoyer les filtres de recyclage d'air froid (zone refroidissement)
+      EN: Clean cold air recirculation filters (cooling zone)
+  [ ] FR: Lubrifier la chaine de convoyeur (huile chaine haute temperature)
+      EN: Lubricate conveyor chain (high-temperature chain oil)
+
+MENSUEL / MONTHLY:
+  [ ] FR: Nettoyage complet du tunnel (residus flux sur parois et IR)
+      EN: Full tunnel cleaning (flux residues on walls and IR elements)
+  [ ] FR: Controler les resistances de chauffage (mesure Ohmmetre)
+      EN: Check heating resistors (ohmmeter measurement)
+  [ ] FR: Verifier les joints thermiques du tunnel
+      EN: Inspect thermal seals on the tunnel
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement des resistances de chauffage si resistance hors tolerance
+      EN: Replace heating resistors if resistance out of tolerance
+  [ ] FR: Remplacement du convoyeur complet (chaine + rails)
+      EN: Full conveyor replacement (chain + rails)
+  [ ] FR: Revision du systeme de controle PID des zones thermiques
+      EN: Overhaul of PID thermal zone control system
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Resistance chauffage IR (selon modele four) — remplacement annuel
+  - Chaine convoyeur haute temperature — remplacement annuel
+  - Joint torique 10mm (REF-001) — joints tunnel
+  - Huile chaine HT (OIL-B2 REF-003)
+
+--------------------------------------------------------------------------------
+3.5 WAVE SOLDERING (IDs: 17, 24)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Controler le niveau de solder dans le pot (maintenir niveau nominal)
+      EN: Check solder level in pot (maintain nominal level)
+  [ ] FR: Ecumer les scories (dross) en surface de la vague — matin et soir
+      EN: Skim dross from wave surface — morning and evening
+  [ ] FR: Verifier la hauteur et la forme de la vague principale
+      EN: Check wave height and shape of main wave
+  [ ] FR: Controler l'application du flux (debit, couverture uniforme)
+      EN: Check flux application (flow rate, uniform coverage)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Analyser la composition du solder (taux d'impuretes Cu, Ag, Bi)
+      EN: Analyze solder composition (Cu, Ag, Bi impurity levels)
+  [ ] FR: Nettoyer les buses de flux (degorgement)
+      EN: Clean flux nozzles (purge)
+  [ ] FR: Lubrifier les roulements de la pompe de vague
+      EN: Lubricate wave pump bearings
+
+MENSUEL / MONTHLY:
+  [ ] FR: Vidanger et recharger le pot si taux de contamination > 0.3% Cu
+      EN: Drain and refill pot if contamination > 0.3% Cu
+  [ ] FR: Remplacer les filtres du systeme de ventilation flux
+      EN: Replace flux ventilation system filters
+  [ ] FR: Controler l'etat des broches de convoyeur (usure, deformation)
+      EN: Check conveyor pins condition (wear, deformation)
+
+ANNUEL / ANNUAL:
+  [ ] FR: Remplacement complet du solder du pot et nettoyage chimique
+      EN: Full solder pot drain and chemical cleaning
+  [ ] FR: Revision pompe de vague (joints mecaniques, turbine)
+      EN: Wave pump overhaul (mechanical seals, impeller)
+
+Pieces de rechange recommandees / Recommended spare parts:
+  - Solder sans plomb SAC305 (Sn96.5/Ag3/Cu0.5) — appoint mensuel
+  - Joint torique 10mm (REF-001) — joints pompe
+  - Roulement SKF 6205 (REF-002) — pompe vague annuel
+  - OIL-B2 (REF-003) — lubrification pompe
+
+--------------------------------------------------------------------------------
+3.6 BANCS DE TEST (IDs: 3, 4, 18, 19, 20, 21, 22, 23)
+--------------------------------------------------------------------------------
+
+QUOTIDIEN / DAILY:
+  [ ] FR: Verifier la connectique des sondes ICT (bed of nails ID 3)
+      EN: Check ICT probe connections (bed of nails ID 3)
+  [ ] FR: Tester avec une carte de reference (golden board) en debut de poste
+      EN: Run golden board test at start of shift
+  [ ] FR: Verifier l'integrite du joint RF du caisson Faraday (ID 22)
+      EN: Check Faraday cage RF seal integrity (ID 22)
+
+HEBDOMADAIRE / WEEKLY:
+  [ ] FR: Nettoyer les pointes de contact ICT (Bed of Nails ID 3) a l'IPA
+      EN: Clean ICT contact pins (ID 3) with IPA
+  [ ] FR: Verifier la calibration de l'analyseur IQFlex (ID 23) avec source RF etalon
+      EN: Calibrate IQFlex analyzer (ID 23) against RF reference source
+  [ ] FR: Mettre a jour les logiciels de test si nouvelle version disponible
+      EN: Update test software if new version available
+
+MENSUEL / MONTHLY:
+  [ ] FR: Remplacer les pointes ICT usees (resistance de contact > 0.5 Ohm)
+      EN: Replace worn ICT probes (contact resistance > 0.5 Ohm)
+  [ ] FR: Verifier les limites de test contre le fichier de reference produit
+      EN: Verify test limits against product reference file
+  [ ] FR: Inspecter les connecteurs RF de l'analyseur IQFlex (ID 23)
+      EN: Inspect RF connectors of IQFlex analyzer (ID 23)
+
+ANNUEL / ANNUAL:
+  [ ] FR: Etalonnage metrologique complet de l'analyseur IQFlex (labo exterieur)
+      EN: Full metrological calibration of IQFlex analyzer (external lab)
+  [ ] FR: Remplacement des joints d'etancheite RF du caisson Faraday
+      EN: Replace Faraday cage RF sealing gaskets
+

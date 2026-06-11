@@ -1,0 +1,149 @@
+[SAG-MNT-001] Section 4: Fault Codes & Alarms (TWF/HDF/PWF/OSF/RNF)
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SECTION 4 — CODES DEFAUT ET ALARMES / FAULT CODES AND ALARMS
+================================================================================
+
+FR: Les codes de defaillance ci-dessous correspondent aux types utilises dans
+le systeme EAM (champ actual_failure_type des ordres d'intervention).
+EN: The fault codes below correspond to the types used in the EAM system
+(actual_failure_type field in intervention orders).
+
+--------------------------------------------------------------------------------
+4.1 TWF — TOOL WEAR FAILURE / DEFAILLANCE PAR USURE D'OUTIL
+--------------------------------------------------------------------------------
+
+FR: Cause : Usure progressive des composants mecaniques en contact direct avec
+la production (buses, raclettes, courroies, chaines, broches).
+EN: Cause: Progressive wear of mechanical components in direct contact with
+production (nozzles, squeegees, belts, chains, pins).
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12) : buses usees, courroies axes
+  - Serigraphie (IDs 2, 11)  : raclettes usees
+  - Depileur (IDs 1, 10)     : courroies d'alimentation
+  - Wave Soldering (IDs 17, 24): broches convoyeur
+
+Symptomes / Symptoms:
+  - Pick & Place : taux de pose manquee > 0.5%, composants mal positionnes
+  - Serigraphie  : epaisseur pate irreguliere, bridging sur pochoir
+  - Depileur     : alimentation irreguliere, coincements cartes
+  - Wave         : dross excessif, irregularite de vague
+
+Seuil capteur / Sensor threshold:
+  tool_wear > 200 min -> WARNING
+  tool_wear > 240 min -> CRITICAL (TWF probable)
+
+Actions immediates / Immediate actions:
+  1. Arreter la production sur la machine concernee
+  2. Creer un ordre d'intervention type CORRECTIVE dans EAM
+  3. Identifier et remplacer le composant use
+  4. Remettre a zero le compteur tool_wear dans le systeme
+  5. Reprendre la production et monitorer pendant 30 min
+
+--------------------------------------------------------------------------------
+4.2 HDF — HEAT DISSIPATION FAILURE / DEFAILLANCE THERMIQUE
+--------------------------------------------------------------------------------
+
+FR: Cause : Dissipation thermique insuffisante ou chauffage anormal. Affecte
+principalement les equipements thermiques (four, wave soldering) mais peut
+survenir sur tout moteur en surchauffe.
+EN: Cause: Insufficient heat dissipation or abnormal heating. Primarily affects
+thermal equipment (oven, wave soldering) but can occur on any overheating motor.
+
+Machines principalement affectees / Primarily affected machines:
+  - Four de Refusion (IDs 9, 15) : profil thermique incorrect
+  - Wave Soldering (IDs 17, 24)  : temperature solder anormale
+  - Pick & Place (IDs 5, 12)     : moteurs servo en surchauffe
+  - Depileur (IDs 1, 10)         : moteur ventilateur hors service
+
+Symptomes / Symptoms:
+  - Four  : ecart temperature mesuree vs consigne > 5 deg C, alarme zone
+  - Wave  : solder trop chaud (> 265 deg C) ou trop froid (< 245 deg C)
+  - Servo : temperature_process anormalement haute, odeur de brule
+
+Seuil capteur / Sensor threshold:
+  Four de refusion : process_temperature < 493 K ou > 528 K -> ALARME HDF
+  Wave soldering   : process_temperature < 518 K ou > 538 K -> ALARME HDF
+  Autres machines  : process_temperature > air_temperature + 15 K -> WARNING
+
+Actions immediates / Immediate actions:
+  1. Pour four/wave : verifier consignes de zone et thermocouple de reference
+  2. Verifier les filtres de ventilation (colmatage frequent)
+  3. Controler les resistances de chauffage (pour four)
+  4. Si temperature > seuil critique : arret d'urgence, refroidissement
+
+--------------------------------------------------------------------------------
+4.3 PWF — POWER/PRESSURE FAILURE / DEFAILLANCE ALIMENTATION/PRESSION
+--------------------------------------------------------------------------------
+
+FR: Cause : Defaillance de l'alimentation electrique ou pneumatique.
+EN: Cause: Electrical power supply or pneumatic pressure failure.
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12)    : pression pneumatique buses
+  - Serigraphie (IDs 2, 11)     : verins pneumatiques
+  - Four de Refusion (IDs 9, 15): alimentation chauffage
+  - Depileur (IDs 1, 10)        : alimentation moteur
+
+Symptomes / Symptoms:
+  - Pression pneumatique < 0.45 MPa : alarme "LOW PRESSURE" sur IHM
+  - Alimentation : baisse RPM soudaine, arret inopiné
+  - Process_temperature chute anormale (sur four)
+
+Seuil capteur / Sensor threshold:
+  rotational_speed < 60% de la valeur nominale -> PWF suspect
+  torque < 2 Nm sur machine normalement chargee -> PWF suspect
+
+Actions immediates / Immediate actions:
+  1. Verifier la centrale air comprime (pression reseau > 0.6 MPa)
+  2. Controler le regulateur de pression machine (filtre colmate ?)
+  3. Verifier les fusibles et disjoncteurs en armoire electrique
+  4. Controler l'onduleur si disponible
+
+--------------------------------------------------------------------------------
+4.4 OSF — OVERSTRAIN FAILURE / DEFAILLANCE PAR SURCHARGE
+--------------------------------------------------------------------------------
+
+FR: Cause : Contrainte mecanique excessive — blocage, collision, surcharge.
+EN: Cause: Excessive mechanical stress — jam, collision, overload.
+
+Machines principalement affectees / Primarily affected machines:
+  - Pick & Place (IDs 5, 12)    : collision tete avec composant/PCB
+  - Depileur (IDs 1, 10)        : bourrage cartes
+  - Wave Soldering (IDs 17, 24) : blocage convoyeur par corps etranger
+  - Serigraphie (IDs 2, 11)     : coincement pochoir
+
+Symptomes / Symptoms:
+  - torque > 150% de la valeur nominale -> arret servo par surintensité
+  - Alarme "COLLISION DETECTED" ou "SERVO ERROR" sur IHM
+  - Bruit anormal (choc, grincement)
+
+Seuil capteur / Sensor threshold:
+  Pick & Place    : torque > 20 Nm -> OSF alarme
+  Wave Soldering  : torque > 45 Nm -> OSF alarme
+  Serigraphie     : torque > 28 Nm -> OSF alarme
+
+Actions immediates / Immediate actions:
+  1. ARRET D'URGENCE immediat (bouton rouge sur machine)
+  2. Ne jamais forcer mecaniquement — risque de dommages aggraves
+  3. Identifier et degager l'obstacle avec outil approprie
+  4. Verifier l'absence de dommages (axe tordu, buse cassee)
+  5. Test de deplacement lent avant reprise production
+
+--------------------------------------------------------------------------------
+4.5 RNF — RANDOM NO FAILURE / ABSENCE DE CAUSE IDENTIFIEE
+--------------------------------------------------------------------------------
+
+FR: Classification utilisee lorsque l'intervention n'a pas identifie de cause
+racine. Peut indiquer un faux positif ML ou une cause intermittente.
+EN: Classification used when intervention identified no root cause. May indicate
+an ML false positive or intermittent cause.
+
+Actions recommandees / Recommended actions:
+  1. Augmenter la frequence de surveillance (polling) pendant 48h
+  2. Comparer les 5 valeurs de capteurs avec les historiques de la machine
+  3. Documenter precisement dans le rapport d'intervention
+  4. Si 3 RNF consecutifs sur la meme machine : inspection approfondie requise
+

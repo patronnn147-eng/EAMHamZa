@@ -1,0 +1,126 @@
+[SAG-MNT-001] Section 1: Factory Overview / Machine Inventory
+Document: SAG-MNT-001 v1.0 — SagemCom Tunis Factory Maintenance Manual (bilingual FR/EN)
+
+================================================================================
+SAGEMCOM TUNIS — MANUEL D'EXPLOITATION ET DE MAINTENANCE
+SAGEMCOM TUNIS — FACTORY OPERATIONS AND MAINTENANCE MANUAL
+================================================================================
+Document Reference / Reference Document: SAG-MNT-001
+Version: 1.0
+Date: 2026-06-11
+Language / Langue: Bilingual FR/EN
+Applicable Zones / Zones Applicables: CMS1, CMS2
+
+================================================================================
+SECTION 1 — VUE D'ENSEMBLE DE L'USINE / FACTORY OVERVIEW
+================================================================================
+
+1.1 DESCRIPTION DU SITE / SITE DESCRIPTION
+-------------------------------------------
+
+FR:
+L'usine SagemCom Tunis est un site de fabrication electronique produisant deux
+familles de produits : les produits large bande (BBS — Broadband Products) tels
+que les modems et routeurs, et les produits audio/video (AVS — Audio/Video
+Products). La production est organisee en deux zones principales :
+- ZONE CMS1 : Montage en surface (SMT — Surface Mount Technology)
+- ZONE CMS2 : Zone de test (tests fonctionnels, in-situ et WiFi/RF)
+
+EN:
+SagemCom Tunis is an electronics manufacturing site producing two product
+families: broadband products (BBS) such as modems and routers, and audio/video
+products (AVS). Production is organized into two main zones:
+- ZONE CMS1: Surface Mount Technology (SMT) assembly
+- ZONE CMS2: Test zone (functional, in-circuit, and WiFi/RF testing)
+
+1.2 FLUX DE PRODUCTION CMS1 / CMS1 PRODUCTION FLOW
+----------------------------------------------------
+
+FR:
+Le flux de production SMT suit l'ordre suivant de gauche a droite :
+Depileur -> Serigraphie -> Machine de Pose -> Inspection SPI/2D ->
+Four de Refusion -> AOI 3D -> (Insertion Manuelle THT) -> Brassage a la Vague
+
+EN:
+The SMT production flow runs left-to-right as follows:
+Card Loader -> Stencil Printer -> Pick & Place -> SPI/2D Inspection ->
+Reflow Oven -> AOI 3D -> (Manual THT Insertion) -> Wave Soldering
+
+Deux lignes paralleles / Two parallel lines:
+- LINE 1 (BBS): Machines ID 1, 2, 5, 8, 9, 7, 25, 24
+- LINE 2 (AVS): Machines ID 10, 11, 12, 6, 13, 15, 14, 16, 17
+
+1.3 INVENTAIRE DES MACHINES / MACHINE INVENTORY
+-------------------------------------------------
+
+ID  | NOM COURT / SHORT NAME                    | ZONE | LIGNE/LINE | STATUT
+----|-------------------------------------------|------|------------|--------
+1   | Depileur / Card Loader BBS                | CMS1 | BBS Line 1 | MAINTENANCE
+2   | Serigraphie DEK/MPM BBS                   | CMS1 | BBS Line 1 | OPERATIONNELLE
+3   | Test In-Situ / Bed of Nails               | CMS2 | Test       | OPERATIONNELLE
+4   | Banc Test Fonctionnel TF                  | CMS2 | Test       | OPERATIONNELLE
+5   | Pick & Place BBS                          | CMS1 | BBS Line 1 | OPERATIONNELLE
+6   | SPI (Inspection Pate a Souder) AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+7   | AOI 3D Inspection Finale BBS              | CMS1 | BBS Line 1 | OPERATIONNELLE
+8   | Scanner 2D Inspection Composants BBS      | CMS1 | BBS Line 1 | OPERATIONNELLE
+9   | Four de Refusion / Reflow Oven BBS        | CMS1 | BBS Line 1 | OPERATIONNELLE
+10  | Depileur AVS                              | CMS1 | AVS Line 2 | OPERATIONNELLE
+11  | Serigraphie AVS                           | CMS1 | AVS Line 2 | OPERATIONNELLE
+12  | Pick & Place AVS                          | CMS1 | AVS Line 2 | OPERATIONNELLE
+13  | Scanner 2D AVS                            | CMS1 | AVS Line 2 | OPERATIONNELLE
+14  | AOI 3D AVS                                | CMS1 | AVS Line 2 | OPERATIONNELLE
+15  | Four de Refusion / Reflow Oven AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+16  | Poste Insertion Manuelle AVS              | CMS1 | AVS Line 2 | OPERATIONNELLE
+17  | Machine de Brassage a la Vague AVS        | CMS1 | AVS Line 2 | OPERATIONNELLE
+18  | Banc Test Front-End BFE                   | CMS2 | Test       | OPERATIONNELLE
+19  | Banc Test Audio/Video BAV                 | CMS2 | Test       | OPERATIONNELLE
+20  | Banc Test Routeur                         | CMS2 | Test       | OPERATIONNELLE
+21  | PC Test WiFi (avec logiciels de test)     | CMS2 | WiFi Test  | OPERATIONNELLE
+22  | Caisson Faraday / Shielding Box           | CMS2 | WiFi Test  | OPERATIONNELLE
+23  | Analyseur IQFlex RF                       | CMS2 | WiFi Test  | OPERATIONNELLE
+24  | Machine Brassage a la Vague BBS           | CMS1 | BBS Line 1 | OPERATIONNELLE
+25  | Poste Insertion Manuelle THT BBS          | CMS1 | BBS Line 1 | OPERATIONNELLE
+
+1.4 ROLES ET RESPONSABILITES / ROLES AND RESPONSIBILITIES
+----------------------------------------------------------
+
+FR:
+- TECHNICIEN: Effectue les interventions de maintenance, renseigne les rapports
+- CHEFTECH: Supervise les techniciens, approuve les interventions et pieces
+- CHEFOP: Signale les anomalies, demande les interventions d'urgence
+- ADMIN: Acces complet au systeme EAM
+
+EN:
+- TECHNICIAN: Performs maintenance interventions, fills intervention reports
+- CHEFTECH: Supervises technicians, approves interventions and spare parts
+- CHEFOP: Reports anomalies, requests emergency interventions
+- ADMIN: Full EAM system access
+
+1.5 SURVEILLANCE ML / ML MONITORING
+-------------------------------------
+
+FR:
+Chaque machine est surveillee par 7 modeles ML (P1-P7) utilisant 5 capteurs
+de telemetrie en temps reel :
+- Temperature de l'air (air_temperature, Kelvin)
+- Temperature de processus (process_temperature, Kelvin)
+- Vitesse de rotation (rotational_speed, RPM)
+- Couple (torque, Newton-metre Nm)
+- Usure de l'outil (tool_wear, minutes d'utilisation cumulees)
+
+EN:
+Each machine is monitored by 7 ML models (P1-P7) using 5 real-time telemetry
+sensors:
+- Air temperature (air_temperature, Kelvin)
+- Process temperature (process_temperature, Kelvin)
+- Rotational speed (rotational_speed, RPM)
+- Torque (torque, Newton-metres Nm)
+- Tool wear (tool_wear, cumulative minutes of use)
+
+Types de defaillance identifies par les modeles ML / ML-identified failure types:
+- TWF : Tool Wear Failure — defaillance par usure d'outil
+- HDF : Heat Dissipation Failure — defaillance thermique
+- PWF : Power/Pressure Failure — defaillance alimentation ou pression
+- OSF : Overstrain Failure — defaillance par surcharge mecanique
+- RNF : Random No Failure — pas de cause racine identifiee
+
