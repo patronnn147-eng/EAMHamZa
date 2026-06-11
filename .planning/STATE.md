@@ -2,12 +2,12 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: active
-stopped_at: "Completed 13-03-smoke-toggle-observability-PLAN.md"
-last_updated: "2026-06-11"
+status: unknown
+stopped_at: Completed 13-03-smoke-toggle-observability-PLAN.md
+last_updated: "2026-06-11T07:43:13.077Z"
 progress:
   total_phases: 19
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 37
   completed_plans: 20
 ---
