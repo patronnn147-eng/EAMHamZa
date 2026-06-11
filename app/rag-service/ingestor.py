@@ -270,6 +270,19 @@ async def ingest_document(
     """
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
 
+    # 0. Compute content hash for dedup
+    content_hash = _compute_hash(file_bytes)
+
+    # Race-condition guard: check if this exact file was already ingested
+    existing = await db.execute(
+        text("SELECT id FROM documents WHERE content_hash = :h LIMIT 1"),
+        {"h": content_hash},
+    )
+    dup_row = existing.first()
+    if dup_row:
+        logger.info(f"Duplicate detected hash={content_hash[:12]}… existing_id={dup_row[0]}")
+        return {"duplicate": True, "doc_id": str(dup_row[0]), "chunk_count": 0, "ocr_used": False}
+
     # 1. Extract text
     _extractors = {
         "pdf":  extract_pdf_text,
@@ -295,9 +308,9 @@ async def ingest_document(
     await db.execute(
         text("""
             INSERT INTO documents (id, filename, doc_type, description, machine_id,
-                                   uploaded_by, file_size_bytes)
+                                   uploaded_by, file_size_bytes, content_hash, version)
             VALUES (:id, :filename, :doc_type, :description, :machine_id,
-                    :uploaded_by, :file_size_bytes)
+                    :uploaded_by, :file_size_bytes, :content_hash, :version)
         """),
         {
             "id": doc_id,
@@ -307,6 +320,8 @@ async def ingest_document(
             "machine_id": machine_id,
             "uploaded_by": uploaded_by,
             "file_size_bytes": len(file_bytes),
+            "content_hash": content_hash,
+            "version": 1,
         },
     )
 
