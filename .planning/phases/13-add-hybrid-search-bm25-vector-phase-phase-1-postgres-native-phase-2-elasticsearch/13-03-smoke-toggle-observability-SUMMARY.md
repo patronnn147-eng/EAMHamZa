@@ -50,16 +50,16 @@ duration: 75min
 completed: 2026-06-07
 ---
 
-# Phase 13 Plan 03: Smoke + Toggle + Observability Summary (partial — at checkpoint)
+# Phase 13 Plan 03: Smoke + Toggle + Observability Summary
 
-**Postgres-native hybrid search (BM25+vector RRF) smoke-verified: exact-ID query OT-SEED-C49-M20 at top-1, toggle-off changes top-5 ordering, per-query INFO logs confirmed with source_mix, fail-loud BM25 contract validated via unit test**
+**Postgres-native hybrid search (BM25+vector RRF) smoke-verified: exact-ID query OT-SEED-C49-M20 at top-1, toggle-off changes top-5 ordering, per-query INFO logs confirmed with source_mix, fail-loud BM25 contract validated via unit test. User qualitative chat improvement confirmed: approved.**
 
 ## Performance
 
 - **Duration:** ~75 min
 - **Started:** 2026-06-07T08:09:35Z
-- **Completed (at checkpoint):** 2026-06-07T09:25:00Z
-- **Tasks completed:** 3 of 4 (Task 4 is checkpoint:human-verify)
+- **Completed:** 2026-06-11
+- **Tasks completed:** 4 of 4
 - **Files modified:** 0 (smoke-only plan — no code changes)
 
 ## Accomplishments
@@ -75,8 +75,7 @@ completed: 2026-06-07
 1. **Task 1: Smoke queries HYBRID_ENABLED=true** - `2659286` (test)
 2. **Task 2: Toggle-off A/B ordering diff** - `d65a2ed` (test)
 3. **Task 3: Fail-loud BM25 unit test** - `a23283f` (test)
-
-_Task 4 (checkpoint:human-verify) not yet committed — awaiting user approval_
+4. **Task 4: User qualitative chat approval** - see final docs commit (docs)
 
 ## Files Created/Modified
 
@@ -280,6 +279,23 @@ content_tsv_en  -- present
 
 Both tsvector columns and GIN indexes intact. No schema change occurred.
 
+## Task 4: User Qualitative Chat Verification — APPROVED
+
+**Status:** APPROVED
+
+**Checkpoint type:** checkpoint:human-verify (blocking gate for Phase 13.1 sign-off)
+
+**User response (verbatim):** "approved"
+
+**What was verified:**
+- Exact-ID queries (work-order codes) now hit reliably via BM25 GIN branch — the hybrid retriever surfaces exact matches at top-1 that vector-only would rank lower or miss entirely.
+- Natural-language queries (e.g., "Quelles machines de la zone CMS sont tombées en panne récemment?") return at least the same quality as the pre-Phase-13 vector-only baseline.
+- The rag-service logs confirm one `hybrid query=…` INFO line per chat message with `source_mix` breakdown.
+
+**Outcome:** Phase 13.1 (Postgres-native hybrid search) is fully signed off.
+
+---
+
 ## Decisions Made
 
 1. **Corpus sync prerequisite added:** The plan specified checking for OT-SEED-C49-M20 in doc_chunks and running sync if missing. Zero rows found → ran `sync_db_to_rag.py --tables ordres_travail` (130 WOs ingested, 0 failures). This is expected first-run behavior; the sync is idempotent.
@@ -323,16 +339,16 @@ None — this plan only verifies existing behavior.
 
 ## Next Phase Readiness
 
-**Pending Task 4 (checkpoint:human-verify):**
-- User needs to open the chat UI at `http://localhost:3000`
-- Ask 2-3 questions including one with an exact work-order code (e.g., "What happened on OT-SEED-C49-M20?")
-- Confirm rag-service logs show `hybrid query=...` INFO line per chat message
-- Signal: "approved" or "regression: <description>"
+**Phase 13.1 (Postgres-native hybrid search) is fully signed off.**
 
-**After Task 4 approval:**
-- Phase 13.1 (Postgres-native hybrid search) is fully signed off
-- Phase 13.2 (Elasticsearch) can proceed per ROADMAP
+All 4 tasks complete, all locked truths verified:
+- Exact-ID smoke: OT-SEED-C49-M20 at top-1 with HYBRID_ENABLED=true
+- Toggle-off A/B: top-5 ordering changes confirmed
+- Fail-loud contract: unit test PASSED, BM25 errors propagate as HTTP 500
+- Qualitative chat improvement: user approved
+
+**Phase 13.2 (Elasticsearch) can proceed per ROADMAP.**
 
 ---
 *Phase: 13-add-hybrid-search-bm25-vector-phase-phase-1-postgres-native-phase-2-elasticsearch*
-*Partial summary at checkpoint: 2026-06-07 (Task 4 pending user verification)*
+*Completed: 2026-06-11*

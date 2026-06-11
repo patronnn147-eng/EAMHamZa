@@ -39,7 +39,7 @@ Plans:
 
 **Depends on:** Phase 12
 
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 **Plan list:**
 - [ ] 13-01-migration-tsvector-gin-PLAN.md — Alembic migration adding 2 GENERATED tsvector cols (FR + EN) + 2 GIN indexes on `doc_chunks`

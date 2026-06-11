@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: checkpoint
-stopped_at: "13-03 Task 4 checkpoint:human-verify — awaiting user qualitative chat approval"
-last_updated: "2026-06-07T09:25:00Z"
+status: active
+stopped_at: "Completed 13-03-smoke-toggle-observability-PLAN.md"
+last_updated: "2026-06-11"
 progress:
   total_phases: 19
   completed_phases: 6
   total_plans: 37
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -28,7 +28,7 @@ progress:
 | 04-connection-pooling | ✅ Complete | Connection pooling configured and tested |
 | 05-ml-training | ✅ Complete | All 6 models retrained, 100% TestSprite tests passed |
 | 06-ml-dashboard | ✅ Complete | Dashboard implemented, API fixed, manual verification passed |
-| 13-add-hybrid-search-bm25-vector | 🔄 In Progress | 2/3 plans complete — 13-02 hybrid module + retriever fan-out landed |
+| 13-add-hybrid-search-bm25-vector | ✅ Complete | 3/3 plans complete — Phase 13.1 Postgres-native hybrid search fully signed off |
 
 ## Session Notes
 
@@ -69,10 +69,12 @@ progress:
 - `pytest` + `pytest-asyncio` added to rag-service `requirements.txt` (image lacked them).
 - 37 unit tests (25 RRF + 12 retriever toggle) all green inside the rag-service container.
 
-### Phase 13 Decisions (13-03 partial — at checkpoint 2026-06-07)
+### Phase 13 Decisions (13-03 completed 2026-06-11)
 - Corpus sync prerequisite confirmed: sync_db_to_rag.py --tables ordres_travail ingested 130 WOs (0 failures) before smoke queries.
 - Fail-loud DDL test substituted with unit test (auto-mode safety classifier blocked ALTER TABLE DROP COLUMN); test_bm25_error_propagates_fail_loud PASSED.
-- NL-FR query FTS=0 is expected: French corpus lacks sufficient keyword co-occurrence; vector branch retrieves CMS zone docs correctly (qualitative assessment deferred to Task 4 checkpoint).
+- NL-FR query FTS=0 is expected: French corpus lacks sufficient keyword co-occurrence; vector branch retrieves CMS zone docs correctly.
+- Task 4 qualitative chat verification: user approved — exact-ID queries hit reliably, natural-language quality preserved.
+- Phase 13.1 (Postgres-native hybrid search) fully signed off.
 
 ## Blocker / Issues
 
@@ -82,9 +84,9 @@ progress:
 
 ## Session Continuity
 
-- **Last session:** 2026-06-07 — executed 13-03 Tasks 1-3 (smoke, toggle-off A/B, fail-loud unit test). Stopped at Task 4 checkpoint:human-verify.
-- **Stopped at:** 13-03 Task 4 checkpoint:human-verify — awaiting user qualitative chat approval
-- **Resume with:** User approves Task 4 in chat UI, then continue 13-03 to completion
+- **Last session:** 2026-06-11 — finalized 13-03 (Task 4 user approval recorded). Phase 13.1 Postgres-native hybrid search fully complete.
+- **Stopped at:** Completed 13-03-smoke-toggle-observability-PLAN.md
+- **Resume with:** Phase 13.2 Elasticsearch (next plan per ROADMAP)
 
 ---
 
