@@ -13,6 +13,7 @@ Routes:
 - DELETE /api/v1/rag/documents/{id}             delete doc + chunks + S3 (ADMIN)
 """
 import asyncio
+import hashlib
 import logging
 import os
 import uuid
@@ -185,6 +186,23 @@ async def upload_document(
     file_bytes = await file.read()
     _validate_file(file.filename or "", len(file_bytes))
 
+    # Dedup: reject before S3 upload if same bytes already ingested
+    content_hash = hashlib.sha256(file_bytes).hexdigest()
+    existing_row = await db.execute(
+        text("SELECT id::text, filename FROM documents WHERE content_hash = :h LIMIT 1"),
+        {"h": content_hash},
+    )
+    existing = existing_row.first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Identical file already ingested.",
+                "existing_doc_id": existing[0],
+                "existing_filename": existing[1],
+            },
+        )
+
     return await _ingest_one(
         file_bytes=file_bytes,
         filename=file.filename or "document",
@@ -310,6 +328,18 @@ async def bulk_upload_documents(
             try:
                 file_bytes = await f.read()
                 _validate_file(f.filename or "", len(file_bytes))
+                content_hash = hashlib.sha256(file_bytes).hexdigest()
+                dup_row = await db.execute(
+                    text("SELECT id::text FROM documents WHERE content_hash = :h LIMIT 1"),
+                    {"h": content_hash},
+                )
+                dup = dup_row.first()
+                if dup:
+                    failed.append({
+                        "filename": f.filename,
+                        "error": f"Duplicate: already ingested as {dup[0]}",
+                    })
+                    return
                 result = await _ingest_one(
                     file_bytes=file_bytes,
                     filename=f.filename or "document",
