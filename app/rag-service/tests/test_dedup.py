@@ -66,16 +66,17 @@ def test_ingest_returns_409_when_duplicate():
     async def mock_ingest(*args, **kwargs):
         return {"duplicate": True, "doc_id": existing_id, "chunk_count": 0, "ocr_used": False}
 
-    async def mock_db():
-        return None
-
-    with patch("main.ingest_document", side_effect=mock_ingest), \
-         patch("main.get_db", return_value=mock_db()):
-        response = client.post(
-            "/ingest",
-            files={"file": ("test.pdf", b"%PDF-1.4 fake", "application/pdf")},
-            data={"doc_type": "manual"},
-        )
+    from database import get_db as _get_db
+    app.dependency_overrides[_get_db] = lambda: None
+    try:
+        with patch("main.ingest_document", side_effect=mock_ingest):
+            response = client.post(
+                "/ingest",
+                files={"file": ("test.pdf", b"%PDF-1.4 fake", "application/pdf")},
+                data={"doc_type": "manual"},
+            )
+    finally:
+        app.dependency_overrides.clear()
 
     assert response.status_code == 409
     body = response.json()
