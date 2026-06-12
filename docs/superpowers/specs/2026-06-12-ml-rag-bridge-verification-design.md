@@ -67,8 +67,13 @@ No silent WARNs — MANUAL_REVIEW exits non-zero so it cannot be ignored by CI o
 
 1. `docker stop` the ml-service container.
 2. Repeat the machine-scoped chat question.
-   - Assert 200 + non-empty answer (manual/RAG-only) — NO 5xx, no user-visible error.
-   - Assert `ml_context_used == false` (graceful degradation confirmed mechanically).
+   - Assert 200 + non-empty answer — NO 5xx, no user-visible error.
+   - `ml_context_used` may legitimately stay `true`: the backend falls back to
+     rule-based scoring (RULCalculator, `score_source=fallback_additive`) computed
+     from raw telemetry, so a valid context block is still injected with the ML
+     container down. Discovered during execution — degradation is stronger than
+     originally assumed; the safety property is "answers without error", not
+     "no context".
 3. `docker start` the container in a `finally` block; wait until healthy again.
 
 ## Components

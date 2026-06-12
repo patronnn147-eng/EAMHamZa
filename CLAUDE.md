@@ -156,3 +156,14 @@ Advanced models fused via Dempster-Shafer Theory:
     * `DELETE /rag/documents/{id}` — cascade chunks + S3 cleanup (ADMIN)
   - ADMIN role guard enforced server-side; CHEFTECH/TECHNICIEN read-only
   - Frontend `RAGDocuments.tsx` admin UI: drag-drop bulk import, replace, download, English labels
+
+### 2026-06-12
+- ML↔RAG chat bridge — built + LIVE-VERIFIED (all smoke layers PASS):
+  - `modules/ml/services/chat_context.py` — get_ml_snapshot() reuses get_unified_health route fn, lean dict, never raises
+  - `ai_prompts.py` build_ml_context() — French [ETAT ML EN TEMPS REEL] block, sensors labeled NORMAL/ATTENTION/CRITIQUE per machine-category thresholds, K→°C
+  - `chat.py` — RAG + ML fetched in parallel (asyncio.gather) when machine_id present; ML block injected just before user question
+  - `ChatResponse.ml_context_used: bool` — mechanical injection proof + `[ml_bridge]` INFO log line
+  - Frontend: machineId prop on ChatWidget/ChatPage; "Assistant IA" tab on MachineDetailPage
+  - Smoke: `app/backend/scripts/smoke_ml_rag_bridge.py` (3 layers, BRIDGE/LLM verdicts split, --allow-destructive gates docker stop, exit 0/1/2)
+  - Discovered: ML container down ≠ no context — RULCalculator rule-based fallback (score_source=fallback_additive) still injects valid block; safety property = "answers without error"
+  - Login API field is `mot_de_passe` (not `password`); machines list = `/api/v1/entities/machines`
