@@ -7,7 +7,15 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://postgres:postgres@postgres:5432/asset_management",
 )
 
-engine = create_async_engine(DATABASE_URL, echo=False, pool_pre_ping=True)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_pre_ping=True,
+    pool_size=20,        # default 5 — ingest holds a connection through slow embed+insert
+    max_overflow=20,     # default 10 — burst during bulk DB→RAG sync
+    pool_timeout=60,     # default 30 — give slow embedding pipeline more headroom
+    pool_recycle=1800,   # recycle stale conns every 30 min
+)
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False)
 
 

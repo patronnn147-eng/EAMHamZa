@@ -32,6 +32,10 @@ ENV SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
 
 COPY . .
 
+# Pre-create cache dirs BEFORE chown so the named volume inherits raguser ownership.
+# Without this, Docker creates the mount point as root → "Permission denied" at runtime.
+RUN mkdir -p /app/.cache/huggingface /app/.cache/sentence_transformers
+
 # Non-root user — security baseline; never run ML inference as root.
 RUN addgroup --gid 1001 raguser && \
     adduser --disabled-password --gecos "" --uid 1001 --ingroup raguser raguser && \
@@ -39,7 +43,7 @@ RUN addgroup --gid 1001 raguser && \
 
 USER raguser
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl -f http://localhost:8003/health || exit 1
 
 EXPOSE 8003

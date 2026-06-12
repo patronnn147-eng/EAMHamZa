@@ -73,6 +73,33 @@ async def lifespan(app: FastAPI):
         logger.info("RabbitMQ connection established")
     except Exception as e:
         logger.warning(f"RabbitMQ connection failed (app will still run): {e}")
+
+    # Register event-driven RAG sync hooks (after_commit on selected models).
+    try:
+        from services.rag_change_hooks import register_rag_hooks
+        register_rag_hooks()
+    except Exception as e:
+        logger.warning(f"RAG change hooks registration failed (sync disabled): {e}")
+
+    # Initial backfill — dispatch full sync to Celery if KB has no auto-synced docs yet,
+    # or unconditionally when RAG_BACKFILL_ON_STARTUP=true. Non-blocking — task runs
+    # in celery_worker so app startup is not delayed.
+    try:
+        import os
+        from sqlalchemy import text
+        from core.database import db_manager
+        force = os.getenv("RAG_BACKFILL_ON_STARTUP", "false").strip().lower() in ("1", "true", "yes", "on")
+        async with db_manager.async_session_maker() as s:
+            row = await s.execute(text("SELECT COUNT(*) FROM documents WHERE filename LIKE 'db:%'"))
+            count = row.scalar() or 0
+        if force or count == 0:
+            from tasks.rag_db_sync import rag_sync_all
+            rag_sync_all.delay(None, True)
+            logger.info(f"[rag_backfill] dispatched (force={force}, existing_db_docs={count})")
+        else:
+            logger.info(f"[rag_backfill] skipped — {count} db:* docs already present")
+    except Exception as e:
+        logger.warning(f"RAG backfill dispatch failed: {e}")
     # MODULE_STARTUP_END
 
     logger.info("=== Application startup completed successfully ===")

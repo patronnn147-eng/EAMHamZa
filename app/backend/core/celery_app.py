@@ -18,6 +18,7 @@ celery_app = Celery(
         "tasks.alert_checker",
         "tasks.reservation_expiry",
         "tasks.archive_sweep",
+        "tasks.rag_db_sync",
     ],
 )
 
@@ -48,5 +49,7 @@ celery_app.conf.update(
             "task": "tasks.purge_archive_old",
             "schedule": 604800.0,  # 7 d
         },
+        # NOTE: RAG sync is event-driven via SQLAlchemy after_commit hooks
+        # (see services/rag_change_hooks.py). No periodic beat task needed.
     },
 )
