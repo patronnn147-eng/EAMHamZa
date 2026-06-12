@@ -359,9 +359,11 @@ async def ai_chat(
     # ── 4c. ML pre-turn: live machine state injected right before the query ──
     # Placed last (recency bias) so the LLM grounds its answer in the live
     # ML predictions + sensor status, combined with the doc context above.
+    ml_context_injected = False
     if ml_snapshot is not None:
         ml_text = build_ml_context(ml_snapshot)
         if ml_text:
+            ml_context_injected = True
             messages.append({
                 "role": "user",
                 "content": (
@@ -379,6 +381,9 @@ async def ai_chat(
                     "et je l'integre dans mon analyse avec la documentation technique."
                 ),
             })
+
+    if machine_id is not None:
+        logger.info(f"[ml_bridge] machine_id={machine_id} ml_context_used={ml_context_injected}")
 
     messages.append({"role": "user", "content": request.message})
 
@@ -510,6 +515,7 @@ async def ai_chat(
         sources=sources,
         session_id=str(target_session.id),
         session_title=target_session.title or "Nouvelle conversation",
+        ml_context_used=ml_context_injected,
     )
 
 

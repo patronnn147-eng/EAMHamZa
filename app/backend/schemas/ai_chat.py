@@ -63,3 +63,7 @@ class ChatResponse(BaseModel):
     )
     session_id: Optional[str] = Field(default=None, description="ChatSession UUID this exchange landed in")
     session_title: Optional[str] = Field(default=None, description="Current title of the session (may auto-update)")
+    ml_context_used: bool = Field(
+        default=False,
+        description="True when live ML predictions were injected into the LLM prompt",
+    )

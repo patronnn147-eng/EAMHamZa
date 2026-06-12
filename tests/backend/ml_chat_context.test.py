@@ -102,6 +102,18 @@ class TestSensorStatus:
         assert _sensor_status(480.0, (490, 525, 485, 530)) == "CRITIQUE"
 
 
+class TestChatResponseFlag:
+    def test_ml_context_used_defaults_false(self):
+        from schemas.ai_chat import ChatResponse
+        r = ChatResponse(message="x")
+        assert r.ml_context_used is False
+
+    def test_ml_context_used_settable(self):
+        from schemas.ai_chat import ChatResponse
+        r = ChatResponse(message="x", ml_context_used=True)
+        assert r.ml_context_used is True
+
+
 class TestThresholdCategory:
     def test_reflow_french(self):
         assert _resolve_threshold_category("", "Four de Refusion BBS") == "reflow"
