@@ -209,6 +209,19 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         parts_readiness = {"status": "UNKNOWN", "error": "inventory_unavailable"}
     response["parts_readiness"] = parts_readiness
 
+    # P6: maintenance schedule (days until next recommended maintenance)
+    _schedule_days = fusion_result.get("p6_schedule_days") if fusion_result else None
+    response["p6_schedule_days"] = round(_schedule_days, 1) if _schedule_days is not None else None
+
+    # Side-effect: persist date_prochaine_maintenance on every ML call
+    if _schedule_days and _schedule_days > 0:
+        try:
+            base = machine.date_derniere_maintenance or datetime.now().astimezone()
+            machine.date_prochaine_maintenance = base + timedelta(days=round(_schedule_days))
+            await db.commit()
+        except Exception:
+            pass  # never break the response
+
     # P7: condition-aware parts demand forecast (from ml-microservice predict_all)
     _parts_demand = fusion_result.get("p7_parts_demand") if fusion_result else None
     response["parts_demand"] = _parts_demand

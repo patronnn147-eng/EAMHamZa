@@ -70,6 +70,8 @@ class WorkOrderResponse(BaseModel):
     date_echeance: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
 
     class Config:
         from_attributes = True

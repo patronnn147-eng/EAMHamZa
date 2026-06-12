@@ -64,7 +64,9 @@ async def get_my_work_orders(
                 statut=wo.statut,
                 machine_id=wo.machine_id,
                 machine_nom=machine_nom,
-                created_at=wo.created_at
+                created_at=wo.created_at,
+                date_debut=wo.date_debut,
+                date_fin=wo.date_fin,
             ) for wo, machine_nom in rows
         ]
 
@@ -176,7 +178,11 @@ async def complete_work_order(
         wo.statut = "TERMINÉ"
         wo.date_fin = now
         wo.rapport = payload.rapport
-        
+
+        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
+        if machine_obj:
+            machine_obj.date_derniere_maintenance = now
+
         # Also update the associated intervention with enhanced fields
         intervention.statut = "TERMINÉ"
         intervention.rapport = payload.rapport

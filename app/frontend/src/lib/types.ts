@@ -60,6 +60,8 @@ export interface WorkOrderTechnicien {
   machine_nom?: string;
   created_at: string;
   date_echeance?: string;
+  date_debut?: string;
+  date_fin?: string;
   p6_schedule_days?: number;
   source?: 'ML_ALERT' | 'PLANNING' | 'MANUAL';
 }

@@ -31,6 +31,8 @@ interface MLPredictionFull {
     };
     health_breakdown?: any;
     explanations?: string[];
+    // P6: maintenance schedule
+    p6_schedule_days?: number | null;
     // Latest telemetry readings (injected by unified-health endpoint)
     air_temperature?: number | null;
     process_temperature?: number | null;
@@ -532,6 +534,12 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
     if (failureTypes.length === 0 && failureProb >= 50) failureTypes.push('Thermal');
     const classificationStr = failureTypes.length > 0 ? failureTypes.join(' / ') : '—';
 
+    const scheduleDays = p?.p6_schedule_days ?? null;
+    const nextMaintDate = machine.date_prochaine_maintenance
+        ? new Date(machine.date_prochaine_maintenance)
+        : null;
+    const scheduleOverdue = nextMaintDate != null && nextMaintDate < new Date();
+
     // Survival probability for chart
     const survivalPct = mo?.survival?.survival_probability != null
         ? Math.round(mo.survival.survival_probability * 100)
@@ -664,7 +672,7 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
             </div>
 
             {/* ── Bottom Row ── */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '0.75rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '0.75rem' }}>
 
                 {/* Failure Probability */}
                 <div style={{ ...glassHighlight, padding: '1.25rem' }}>
@@ -692,6 +700,20 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
                         {rulDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
                     </p>
                     <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>Precision: ±0.8d</p>
+                </div>
+
+                {/* P6 Schedule */}
+                <div style={{ ...glass, padding: '1.25rem', borderColor: scheduleOverdue ? 'rgba(249,115,22,0.4)' : 'rgba(34,197,94,0.25)' }}>
+                    <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.4rem' }}>Schedule</p>
+                    <p style={{ fontSize: '1.8rem', fontWeight: 900, color: scheduleOverdue ? '#f97316' : '#22c55e', fontFamily: 'Manrope, sans-serif' }}>
+                        {scheduleDays != null ? `${Math.round(scheduleDays)}` : '—'}
+                        {scheduleDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
+                    </p>
+                    <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>
+                        {nextMaintDate
+                            ? (scheduleOverdue ? `Overdue · ${nextMaintDate.toLocaleDateString('fr-FR')}` : nextMaintDate.toLocaleDateString('fr-FR'))
+                            : 'Next recommended interval'}
+                    </p>
                 </div>
 
                 {/* Behavioral Anomaly — 4-method ensemble detector */}

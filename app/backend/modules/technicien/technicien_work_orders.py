@@ -36,6 +36,8 @@ class WorkOrderResponse(BaseModel):
     created_at: datetime
     date_echeance: Optional[datetime] = None
     source: Optional[str] = None
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
 
 class WorkOrderCompletePayload(BaseModel):
     rapport: str
@@ -122,6 +124,8 @@ async def get_my_work_orders(
                 created_at=wo.created_at,
                 date_echeance=wo.date_echeance,
                 source=getattr(wo, 'source', None),
+                date_debut=wo.date_debut,
+                date_fin=wo.date_fin,
             ) for wo, machine_nom in rows
         ]
 
@@ -267,7 +271,11 @@ async def complete_work_order(
         wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
-        
+
+        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
+        if machine_obj:
+            machine_obj.date_derniere_maintenance = now
+
         # Update linked intervention if exists
         int_result = await db.execute(
             select(Ordres_intervention).where(

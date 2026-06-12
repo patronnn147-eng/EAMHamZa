@@ -35,6 +35,8 @@ class WorkOrderResponse(BaseModel):
     machine_id: int
     machine_nom: Optional[str] = None
     created_at: datetime
+    date_debut: Optional[datetime] = None
+    date_fin: Optional[datetime] = None
 
     class Config:
         from_attributes = True

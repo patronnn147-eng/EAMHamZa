@@ -181,13 +181,13 @@ async def compute_demand_forecast(
         stock_result = await db.execute(
             select(Stock.piece_id, Stock.quantity).where(Stock.piece_id.in_(piece_ids))
         )
-        stock_by_piece: Dict[int, int] = {row[0]: row[1] for row in stock_result.fetchall()}
+        stock_by_piece: Dict[int, float] = {row[0]: float(row[1]) for row in stock_result.fetchall()}
 
         # 4. Piece metadata (name, min_stock)
         pieces_result = await db.execute(
             select(Piece.id, Piece.name, Piece.min_stock).where(Piece.id.in_(piece_ids))
         )
-        piece_meta: Dict[int, tuple] = {row[0]: (row[1], row[2] or 5) for row in pieces_result.fetchall()}
+        piece_meta: Dict[int, tuple] = {row[0]: (row[1], int(row[2] or 5)) for row in pieces_result.fetchall()}
 
         # 5. Consumption rates from movement history
         consumption_rates = await _get_consumption_rates(db)
