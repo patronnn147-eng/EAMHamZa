@@ -100,7 +100,7 @@ class GroqClient:
                 "model": "llama-3.3-70b-versatile",
                 "messages": messages,
                 "temperature": temperature,
-                "max_tokens": 1024,
+                "max_tokens": 4096,
             }
 
             if tools:

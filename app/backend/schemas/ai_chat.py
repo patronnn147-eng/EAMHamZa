@@ -20,6 +20,27 @@ class ChatRequest(BaseModel):
         default=None,
         description="Optional machine ID for filtered RAG retrieval",
     )
+    session_id: Optional[str] = Field(
+        default=None,
+        description="ChatSession UUID to append to. If null, uses user's most-recent or creates new.",
+    )
+
+
+class ChatSessionSummary(BaseModel):
+    id: str
+    title: str
+    message_count: int
+    last_query: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class CreateSessionRequest(BaseModel):
+    title: Optional[str] = Field(default=None, description="Optional initial title")
+
+
+class RenameSessionRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
 
 
 class ToolCall(BaseModel):
@@ -40,3 +61,5 @@ class ChatResponse(BaseModel):
         default=None,
         description="Data sources used for response"
     )
+    session_id: Optional[str] = Field(default=None, description="ChatSession UUID this exchange landed in")
+    session_title: Optional[str] = Field(default=None, description="Current title of the session (may auto-update)")

@@ -4,7 +4,7 @@ Replaces the in-memory CHAT_HISTORY dict.
 """
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 import uuid
 
@@ -17,6 +17,8 @@ class ChatSession(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id"), nullable=False, index=True)
+    # Conversation title — auto-derived from first user message, user-editable
+    title = Column(String(200), nullable=True)
     # Full message list stored as JSONB: [{"role": "user"|"assistant", "content": "..."}]
     messages = Column(JSONB, nullable=False, default=list)
     # Last query summary for quick display in history endpoint
