@@ -1,6 +1,12 @@
 """System prompt templates and context builders for AI chat."""
 import json
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Union
+
+# Tool result types — what execute_tool() in ai_tools.py can return:
+#   - list[dict] : row results (search_machines, get_work_orders, etc.)
+#   - dict       : either an error envelope {"error": "..."} or a single record
+#   - str        : pre-formatted string (rare; legacy)
+ToolResult = Union[List[Dict[str, Any]], Dict[str, Any], str]
 
 
 def get_system_prompt(role: str, user_name: str = "User") -> str:
@@ -132,6 +138,138 @@ def build_rag_context(chunks: List[Any]) -> str:
     return "\n".join(lines)
 
 
+# ---------------------------------------------------------------------------
+# ML context — live prediction injection for machine-scoped chat
+# ---------------------------------------------------------------------------
+
+# Sensor thresholds per machine category — source: SAG-MNT-001 Section 6.
+# Tuple: (warn_lo, warn_hi, crit_lo, crit_hi). None = no lower bound.
+# Inside warn band = NORMAL; outside warn but inside crit = ATTENTION; outside crit = CRITIQUE.
+_SENSOR_THRESHOLDS: Dict[str, Dict[str, tuple]] = {
+    "reflow": {
+        "air_temperature":     (None, 306, None, 310),
+        "process_temperature": (490, 525, 485, 530),
+        "rotational_speed":    (500, 1400, 400, 1600),
+        "torque":              (None, 28, None, 35),
+        "tool_wear":           (None, 200, None, 240),
+    },
+    "wave": {
+        "air_temperature":     (None, 306, None, 310),
+        "process_temperature": (515, 536, 510, 540),
+        "rotational_speed":    (700, 1700, 600, 1800),
+        "torque":              (None, 40, None, 48),
+        "tool_wear":           (None, 200, None, 240),
+    },
+    "pickplace": {
+        "air_temperature":     (None, 305, None, 310),
+        "process_temperature": (None, 315, None, 320),
+        "rotational_speed":    (None, 2400, None, 2600),
+        "torque":              (None, 18, None, 22),
+        "tool_wear":           (None, 180, None, 220),
+    },
+    "_default": {
+        "air_temperature":     (None, 305, None, 310),
+        "process_temperature": (None, 315, None, 320),
+        "rotational_speed":    (None, 1700, None, 2000),
+        "torque":              (None, 60, None, 75),
+        "tool_wear":           (None, 200, None, 250),
+    },
+}
+
+
+def _resolve_threshold_category(machine_type: str, machine_name: str) -> str:
+    """Map machine type/name (FR or EN) to a threshold category key."""
+    haystack = f"{machine_type} {machine_name}".lower()
+    if "reflow" in haystack or "refusion" in haystack or "four" in haystack:
+        return "reflow"
+    if "wave" in haystack or "vague" in haystack or "brassage" in haystack:
+        return "wave"
+    if "pick" in haystack or "pose" in haystack or "place" in haystack:
+        return "pickplace"
+    return "_default"
+
+
+def _sensor_status(value: float, th: tuple) -> str:
+    """NORMAL / ATTENTION / CRITIQUE from (warn_lo, warn_hi, crit_lo, crit_hi)."""
+    warn_lo, warn_hi, crit_lo, crit_hi = th
+    if (crit_lo is not None and value < crit_lo) or value > crit_hi:
+        return "CRITIQUE"
+    if (warn_lo is not None and value < warn_lo) or value > warn_hi:
+        return "ATTENTION"
+    return "NORMAL"
+
+
+def build_ml_context(snapshot: Optional[Dict]) -> str:
+    """
+    Format a live ML snapshot (from modules.ml.services.chat_context.get_ml_snapshot)
+    into an [ETAT ML EN TEMPS REEL] French section. Empty string if no snapshot.
+    Kept concise (~300 tokens) — only actionable fields.
+    """
+    if not snapshot:
+        return ""
+
+    name = snapshot.get("machine_name") or "(inconnue)"
+    category = _resolve_threshold_category(
+        snapshot.get("machine_type") or "", name
+    )
+    thresholds = _SENSOR_THRESHOLDS[category]
+
+    def num(key, fmt, suffix=""):
+        v = snapshot.get(key)
+        return f"{format(v, fmt)}{suffix}" if v is not None else "N/D"
+
+    lines = [
+        f"[ETAT ML EN TEMPS REEL] Machine: {name}",
+        f"Score sante unifie: {num('health_score', '.0f', '/100')}"
+        + (f"  |  Verdict: {snapshot['dst_verdict']}" if snapshot.get("dst_verdict") else ""),
+        f"Probabilite de defaillance: {num('failure_probability', '.1f', '%')}"
+        + f"  |  Niveau de risque: {snapshot.get('risk_level') or 'N/D'}",
+        f"Duree de vie restante estimee (RUL): {num('rul_days', '.0f', ' jours')}",
+    ]
+
+    if snapshot.get("p6_schedule_days") is not None:
+        lines.append(f"Prochaine maintenance recommandee: dans {snapshot['p6_schedule_days']:.0f} jours")
+    if snapshot.get("predicted_priority"):
+        lines.append(f"Priorite predite: {snapshot['predicted_priority']}")
+
+    anom_score = snapshot.get("p4_anomaly_score") or 0.0
+    if snapshot.get("is_anomaly") or anom_score > 0.5:
+        lines.append(f"ANOMALIE COMPORTEMENTALE DETECTEE (score: {anom_score:.2f})")
+
+    if snapshot.get("parts_readiness"):
+        lines.append(f"Disponibilite pieces: {snapshot['parts_readiness']}")
+    parts_items = snapshot.get("parts_items") or []
+    shortfalls = [p for p in parts_items if p.get("shortfall", 0) > 0]
+    if shortfalls:
+        refs = ", ".join(str(p.get("reference", "?")) for p in shortfalls[:3])
+        lines.append(f"Pieces en deficit prevu: {refs}")
+
+    # Sensor readings with NORMAL/ATTENTION/CRITIQUE status
+    sensor_defs = [
+        ("Temperature air",     "air_temperature",     "K",      True),
+        ("Temperature process", "process_temperature",  "K",      True),
+        ("Vitesse rotation",    "rotational_speed",     "tr/min", False),
+        ("Couple",              "torque",               "Nm",     False),
+        ("Usure outil",         "tool_wear",            "min",    False),
+    ]
+    sensor_lines = []
+    for label, key, unit, is_temp in sensor_defs:
+        v = snapshot.get(key)
+        if v is None:
+            continue
+        status = _sensor_status(float(v), thresholds[key])
+        if is_temp:
+            sensor_lines.append(f"  {label}: {float(v) - 273.15:.1f}C ({float(v):.0f} {unit}) -> {status}")
+        else:
+            sensor_lines.append(f"  {label}: {v} {unit} -> {status}")
+    if sensor_lines:
+        lines.append("Capteurs (derniere mesure):")
+        lines.extend(sensor_lines)
+
+    lines.append("[FIN ETAT ML]")
+    return "\n".join(lines)
+
+
 def build_full_system_prompt(
     role: str,
     user_name: str = "User",
@@ -162,7 +300,7 @@ def build_full_system_prompt(
     return base
 
 
-def format_tool_result(tool_name: str, result: Any, max_items: int = 10) -> str:
+def format_tool_result(tool_name: str, result: ToolResult, max_items: int = 100) -> str:
     """
     Format tool execution results for LLM context injection.
     Truncates large result sets and handles empty results explicitly.

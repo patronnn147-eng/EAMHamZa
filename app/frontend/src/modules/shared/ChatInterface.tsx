@@ -22,6 +22,9 @@ import {
   AlertTriangle,
   Plus,
   FileText,
+  MessagesSquare,
+  Trash2,
+  Pencil,
 } from 'lucide-react';
 import {
   Dialog,
@@ -62,6 +65,15 @@ interface ToolCall {
 interface Source {
   tool: string;
   result: any[];
+}
+
+interface ChatSessionSummary {
+  id: string;
+  title: string;
+  message_count: number;
+  last_query?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
 }
 
 // ─── Utility: parse markdown tables ─────────────────────────────────────────
@@ -228,7 +240,7 @@ function RenderedMessage({ content, toolCalls, sources }: {
 
 // ─── Component: ChatWidget (floating) ─────────────────────────────────────────
 
-export const ChatWidget: React.FC = () => {
+export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [messages, setMessages] = useState<AIMessage[]>([]);
@@ -316,7 +328,10 @@ export const ChatWidget: React.FC = () => {
           Authorization: `Bearer ${getToken()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: finalQuery }),
+        body: JSON.stringify({
+          message: finalQuery,
+          ...(machineId !== undefined && { machine_id: machineId }),
+        }),
       });
 
       if (res.ok) {
@@ -537,13 +552,17 @@ export const ChatWidget: React.FC = () => {
 
 // ─── Component: ChatPage (full page) ─────────────────────────────────────────
 
-export const ChatPage: React.FC = () => {
+export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Multi-conversation state
+  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Doc upload state
   const [showDocUpload, setShowDocUpload] = useState(false);
@@ -580,7 +599,7 @@ export const ChatPage: React.FC = () => {
 
   useEffect(() => {
     fetchSuggestions();
-    fetchHistory();
+    bootstrapSessions();
   }, []);
 
   useEffect(() => {
@@ -601,23 +620,145 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  const fetchHistory = async () => {
+  // ── Multi-conversation session management ──────────────────────────────────
+
+  const fetchSessions = async (): Promise<ChatSessionSummary[]> => {
     try {
-      const res = await fetch(`${API}/api/v1/chat/history?limit=20`, {
+      const res = await fetch(`${API}/api/v1/chat/sessions`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
       if (res.ok) {
-        const data = await res.json();
-        const historyMessages: AIMessage[] = (data.history || []).map((h: any, i: number) => ({
-          id: `history-${i}`,
-          role: 'assistant' as const,
-          content: `${h.query} — ${h.results_count} résultat(s)`,
-          timestamp: h.timestamp,
-        }));
-        setMessages(historyMessages);
+        const data = (await res.json()) as ChatSessionSummary[];
+        setSessions(Array.isArray(data) ? data : []);
+        return Array.isArray(data) ? data : [];
       }
     } catch (err) {
-      console.error('Failed to fetch history', err);
+      console.error('Failed to fetch sessions', err);
+    }
+    return [];
+  };
+
+  const fetchSessionHistory = async (sessionId: string | null) => {
+    try {
+      const url = sessionId
+        ? `${API}/api/v1/chat/history?limit=50&session_id=${sessionId}`
+        : `${API}/api/v1/chat/history?limit=50`;
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) {
+        setMessages([]);
+        return;
+      }
+      const data = await res.json();
+      setCurrentSessionId(data.session_id ?? sessionId ?? null);
+      const historyMessages: AIMessage[] = (data.history || [])
+        .filter((h: any) => h && (h.role === 'user' || h.role === 'assistant') && h.content)
+        .map((h: any, i: number) => ({
+          id: `history-${i}-${Date.now()}`,
+          role: h.role as 'user' | 'assistant',
+          content: String(h.content),
+          timestamp: h.timestamp || new Date().toISOString(),
+        }));
+      setMessages(historyMessages);
+    } catch (err) {
+      console.error('Failed to fetch session history', err);
+      setMessages([]);
+    }
+  };
+
+  const bootstrapSessions = async () => {
+    const list = await fetchSessions();
+    if (list.length === 0) {
+      // No sessions yet — create one
+      await createNewSession({ select: true, silent: true });
+    } else {
+      // Load most recent (already first in the list)
+      await fetchSessionHistory(list[0].id);
+    }
+  };
+
+  const createNewSession = async (opts: { select?: boolean; silent?: boolean } = {}) => {
+    try {
+      const res = await fetch(`${API}/api/v1/chat/sessions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const s = (await res.json()) as ChatSessionSummary;
+      setSessions((prev) => [s, ...prev]);
+      if (opts.select !== false) {
+        setCurrentSessionId(s.id);
+        setMessages([]);
+      }
+      if (!opts.silent) toast({ title: 'Nouvelle conversation' });
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: "Impossible de créer la conversation",
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const selectSession = async (id: string) => {
+    if (id === currentSessionId) return;
+    setCurrentSessionId(id);
+    await fetchSessionHistory(id);
+  };
+
+  const deleteSession = async (id: string) => {
+    if (!confirm('Supprimer cette conversation ?')) return;
+    try {
+      const res = await fetch(`${API}/api/v1/chat/sessions/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok && res.status !== 204) throw new Error(`HTTP ${res.status}`);
+      const remaining = sessions.filter((s) => s.id !== id);
+      setSessions(remaining);
+      if (id === currentSessionId) {
+        if (remaining.length > 0) {
+          await selectSession(remaining[0].id);
+        } else {
+          await createNewSession({ select: true, silent: true });
+        }
+      }
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de supprimer',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const renameSession = async (id: string) => {
+    const current = sessions.find((s) => s.id === id);
+    const next = prompt('Nouveau titre :', current?.title ?? '');
+    if (!next || !next.trim()) return;
+    try {
+      const res = await fetch(`${API}/api/v1/chat/sessions/${id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${getToken()}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ title: next.trim() }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const updated = (await res.json()) as ChatSessionSummary;
+      setSessions((prev) => prev.map((s) => (s.id === id ? updated : s)));
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: 'Renommage impossible',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -642,7 +783,11 @@ export const ChatPage: React.FC = () => {
           Authorization: `Bearer ${getToken()}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: finalQuery }),
+        body: JSON.stringify({
+          message: finalQuery,
+          session_id: currentSessionId,
+          ...(machineId !== undefined && { machine_id: machineId }),
+        }),
       });
 
       if (res.ok) {
@@ -656,6 +801,12 @@ export const ChatPage: React.FC = () => {
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, aiMsg]);
+
+        // Sync sidebar with server-side session state (auto-title + ordering)
+        if (data.session_id) {
+          setCurrentSessionId(data.session_id);
+          await fetchSessions();
+        }
       } else {
         const errText = await res.text();
         toast({ title: 'Erreur', description: `Erreur: ${errText.slice(0, 100)}`, variant: 'destructive' });
@@ -685,7 +836,88 @@ export const ChatPage: React.FC = () => {
         </Badge>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-4">
+      <div className="grid gap-6 lg:grid-cols-5">
+        {/* Conversations sidebar */}
+        <Card className="lg:col-span-1 h-fit sticky top-4 border-2">
+          <CardHeader className="pb-3 flex flex-row items-center justify-between gap-2 space-y-0">
+            <CardTitle className="text-base flex items-center gap-2">
+              <MessagesSquare className="h-4 w-4 text-primary" />
+              Conversations
+            </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1"
+              onClick={() => createNewSession({ select: true })}
+              title="Nouvelle conversation"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              Nouveau
+            </Button>
+          </CardHeader>
+          <CardContent className="p-2 pt-0">
+            <ScrollArea className="h-[500px]">
+              <div className="space-y-1 pr-2">
+                {sessions.length === 0 && (
+                  <p className="text-xs text-muted-foreground text-center py-6">
+                    Aucune conversation.
+                  </p>
+                )}
+                {sessions.map((s) => {
+                  const active = s.id === currentSessionId;
+                  return (
+                    <div
+                      key={s.id}
+                      className={`group flex items-center gap-1 rounded-md px-2 py-2 text-sm cursor-pointer transition-colors ${
+                        active
+                          ? 'bg-primary/10 text-foreground border border-primary/30'
+                          : 'hover:bg-muted/60'
+                      }`}
+                      onClick={() => selectSession(s.id)}
+                    >
+                      <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate text-sm font-medium">
+                          {s.title || 'Nouvelle conversation'}
+                        </div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {s.message_count} message{s.message_count > 1 ? 's' : ''}
+                        </div>
+                      </div>
+                      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-0.5 flex-shrink-0">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            renameSession(s.id);
+                          }}
+                          title="Renommer"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 hover:text-destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteSession(s.id);
+                          }}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+
         {/* Chat area */}
         <Card className="lg:col-span-3 border-2">
           <CardContent className="p-0">

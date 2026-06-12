@@ -1,6 +1,7 @@
+import asyncio
 import json
 import logging
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -10,9 +11,18 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 
-from schemas.ai_chat import ChatRequest, ChatResponse
+from uuid import UUID
+
+from schemas.ai_chat import (
+    ChatRequest,
+    ChatResponse,
+    ChatSessionSummary,
+    CreateSessionRequest,
+    RenameSessionRequest,
+)
 from services.ai_tools import get_tool_definitions, execute_tool
-from services.ai_prompts import build_full_system_prompt, format_tool_result, build_rag_context
+from services.ai_prompts import build_full_system_prompt, format_tool_result, build_rag_context, build_ml_context
+from modules.ml.services.chat_context import get_ml_snapshot
 import services.rag_client as rag_client
 from services.ai_memory import AIMemoryService
 from services.chat_session_service import ChatSessionService
@@ -102,17 +112,38 @@ async def post_cache_clear(
 @router.get("/history")
 async def get_history(
     limit: int = Query(default=20, le=50),
+    session_id: Optional[str] = Query(default=None),
     db: AsyncSession = Depends(get_db),
     current_user: Utilisateurs = Depends(get_current_user),
 ):
-    """Chat history for current user — DB-backed, survives restarts."""
+    """
+    Chat history. If session_id is given, returns that session's messages
+    (ownership-checked). If omitted, returns the user's most-recent session.
+    """
     session_svc = ChatSessionService(db)
+    if session_id:
+        try:
+            sid = UUID(session_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid session_id")
+        session = await session_svc.get_by_id(sid, current_user.id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        messages = session.messages or []
+        return {
+            "history": messages[-limit:],
+            "total": len(messages),
+            "session_id": str(session.id),
+            "title": session.title or "Nouvelle conversation",
+            "last_query": session.last_query,
+        }
     info = await session_svc.get_session_info(current_user.id)
     messages = info["history"]
     return {
         "history": messages[-limit:],
         "total": info["total"],
         "session_id": info["session_id"],
+        "title": info.get("title", "Nouvelle conversation"),
         "last_query": info["last_query"],
     }
 
@@ -122,10 +153,88 @@ async def clear_history(
     db: AsyncSession = Depends(get_db),
     current_user: Utilisateurs = Depends(get_current_user),
 ):
-    """Clear chat history for current user."""
+    """Clear messages on user's most-recent session (does NOT delete the row)."""
     session_svc = ChatSessionService(db)
     await session_svc.clear(current_user.id)
     return {"message": "Historique efface."}
+
+
+# ---------------------------------------------------------------------------
+# Multi-conversation sessions — sidebar CRUD
+# ---------------------------------------------------------------------------
+
+@router.get("/sessions", response_model=List[ChatSessionSummary])
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """List all chat sessions for the current user, newest first."""
+    session_svc = ChatSessionService(db)
+    summaries = await session_svc.list_for_user(current_user.id)
+    return summaries
+
+
+@router.post("/sessions", response_model=ChatSessionSummary, status_code=201)
+async def create_session(
+    payload: CreateSessionRequest = CreateSessionRequest(),
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Create a new empty chat session."""
+    session_svc = ChatSessionService(db)
+    s = await session_svc.create(current_user.id, title=payload.title)
+    return {
+        "id": str(s.id),
+        "title": s.title,
+        "message_count": s.message_count or 0,
+        "last_query": s.last_query,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Delete a chat session (ownership-checked)."""
+    try:
+        sid = UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+    session_svc = ChatSessionService(db)
+    ok = await session_svc.delete(sid, current_user.id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return None
+
+
+@router.patch("/sessions/{session_id}", response_model=ChatSessionSummary)
+async def rename_session(
+    session_id: str,
+    payload: RenameSessionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    """Rename a chat session (ownership-checked)."""
+    try:
+        sid = UUID(session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid session_id")
+    session_svc = ChatSessionService(db)
+    s = await session_svc.rename(sid, current_user.id, payload.title)
+    if s is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "id": str(s.id),
+        "title": s.title,
+        "message_count": s.message_count or 0,
+        "last_query": s.last_query,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+        "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -152,6 +261,20 @@ async def ai_chat(
     memory_svc = AIMemoryService(db)
     session_svc = ChatSessionService(db)
 
+    # ── 0. Resolve target session — multi-conversation aware ──────────────
+    target_session = None
+    if request.session_id:
+        try:
+            sid = UUID(request.session_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid session_id")
+        target_session = await session_svc.get_by_id(sid, current_user.id)
+        if target_session is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+    else:
+        # Backward-compat: no session_id → use user's most-recent (or create one)
+        target_session = await session_svc.get_or_create(current_user.id)
+
     # ── 1. Load + rank memories ───────────────────────────────────────────
     try:
         memories = await memory_svc.get_by_user(current_user.id)
@@ -161,17 +284,31 @@ async def ai_chat(
         logger.warning(f"Memory load failed, continuing without: {e}")
         memories = []
 
-    # ── 2. RAG retrieval (before system prompt — chunks injected into it) ────
-    rag_chunks = []
-    try:
-        rag_chunks = await rag_client.retrieve_chunks(
-            query=request.message,
-            machine_id=getattr(request, "machine_id", None),
-            top_k=8,
-            threshold=0.30,
+    # ── 2. RAG retrieval + ML snapshot (parallel when machine_id present) ────
+    machine_id = getattr(request, "machine_id", None)
+    ml_snapshot = None
+
+    async def _safe_rag() -> list:
+        try:
+            return await rag_client.retrieve_chunks(
+                query=request.message,
+                machine_id=machine_id,
+                top_k=8,
+                threshold=0.30,
+            )
+        except Exception as e:
+            logger.warning(f"RAG retrieval failed, continuing without context: {e}")
+            return []
+
+    if machine_id is not None:
+        # Both fetches run concurrently — total latency = max, not sum.
+        # get_ml_snapshot never raises (returns None on any failure).
+        rag_chunks, ml_snapshot = await asyncio.gather(
+            _safe_rag(),
+            get_ml_snapshot(machine_id, db),
         )
-    except Exception as e:
-        logger.warning(f"RAG retrieval failed, continuing without context: {e}")
+    else:
+        rag_chunks = await _safe_rag()
 
     # ── 3. System prompt + memory + RAG context ───────────────────────────
     system_prompt = build_full_system_prompt(role_name, user_name, memories, rag_chunks)
@@ -184,33 +321,64 @@ async def ai_chat(
             messages.append({"role": msg.role, "content": msg.content})
     else:
         try:
-            db_history = await session_svc.get_history(current_user.id, limit=20)
+            db_history = await session_svc.get_history_by_session(
+                target_session.id, current_user.id, limit=20
+            )
             for msg in db_history:
                 if msg.get("role") in ("user", "assistant"):
                     messages.append(msg)
         except Exception as e:
             logger.warning(f"History load failed, continuing without: {e}")
 
-    # ── 4b. RAG pre-turn: inject doc context as conversation turn ──────────
-    # When RAG chunks found, prime the conversation with a user→assistant exchange
-    # so the LLM answers from documentation BEFORE attempting any tool call.
+    # ── 4b. RAG pre-turn: inject doc context as a hint, NOT a mandate ──────
+    # When RAG chunks found, surface them as additional context. The LLM still
+    # decides whether tools (search_machines, get_work_orders, etc.) are needed.
+    # Tools are authoritative for exhaustive queries ("list all", "count of");
+    # RAG is best for descriptive / procedural questions.
     if rag_chunks:
         rag_text = build_rag_context(rag_chunks)
         messages.append({
             "role": "user",
             "content": (
-                f"[BASE DOCUMENTAIRE] Voici les extraits pertinents de la documentation officielle:\n"
+                f"[BASE DOCUMENTAIRE] Extraits pertinents de la documentation:\n"
                 f"{rag_text}\n\n"
-                "Reponds directement depuis cette documentation. Ne pas appeler d'outil."
+                "Utilise ces extraits comme contexte. "
+                "Si la question demande une liste exhaustive, un comptage, "
+                "ou des donnees structurees (machines, ordres, alertes, pieces), "
+                "appelle l'outil approprie pour obtenir la donnee complete depuis la base."
             ),
         })
         messages.append({
             "role": "assistant",
             "content": (
-                "J'ai bien les extraits documentaires. "
-                "Je vais repondre directement depuis la documentation officielle."
+                "Compris. J'utilise la documentation comme contexte et "
+                "j'appelle les outils quand la question necessite des donnees completes."
             ),
         })
+
+    # ── 4c. ML pre-turn: live machine state injected right before the query ──
+    # Placed last (recency bias) so the LLM grounds its answer in the live
+    # ML predictions + sensor status, combined with the doc context above.
+    if ml_snapshot is not None:
+        ml_text = build_ml_context(ml_snapshot)
+        if ml_text:
+            messages.append({
+                "role": "user",
+                "content": (
+                    f"{ml_text}\n\n"
+                    "Ces donnees ML sont en temps reel pour la machine concernee. "
+                    "Combine cet etat actuel avec la documentation pour donner "
+                    "un diagnostic precis et actionnable. Mentionne les capteurs "
+                    "en ATTENTION ou CRITIQUE si pertinent."
+                ),
+            })
+            messages.append({
+                "role": "assistant",
+                "content": (
+                    "Compris. Je dispose de l'etat ML en temps reel de cette machine "
+                    "et je l'integre dans mon analyse avec la documentation technique."
+                ),
+            })
 
     messages.append({"role": "user", "content": request.message})
 
@@ -287,9 +455,10 @@ async def ai_chat(
 
     final_content = content or "J'ai traite votre requete."
 
-    # ── 7. Persist exchange ───────────────────────────────────────────────
+    # ── 7. Persist exchange to the target session ─────────────────────────
     try:
-        await session_svc.append_messages(
+        await session_svc.append_to_session(
+            target_session.id,
             current_user.id,
             [
                 {"role": "user", "content": request.message},
@@ -314,6 +483,12 @@ async def ai_chat(
             logger.warning(f"Memory feedback failed: {e}")
 
     # ── 9. Return ─────────────────────────────────────────────────────────
+    # Re-read session post-append to pick up auto-derived title
+    try:
+        await db.refresh(target_session)
+    except Exception:
+        pass
+
     return ChatResponse(
         message=final_content,
         tool_calls=(
@@ -333,6 +508,8 @@ async def ai_chat(
             else None
         ),
         sources=sources,
+        session_id=str(target_session.id),
+        session_title=target_session.title or "Nouvelle conversation",
     )
 
 

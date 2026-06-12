@@ -33,12 +33,14 @@ import {
     Beaker,
     Brain,
     Box,
+    Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import type { Machine, Intervention } from '@/lib/types';
 
 import { MLIntelligenceTab } from './machines/components/MLIntelligenceTab';
+import { ChatPage } from './ChatInterface';
 import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
 import { MachineHero3D } from './machines/components/3d/MachineHero3D';
 
@@ -303,7 +305,7 @@ export default function MachineDetailPage() {
             {/* ── Full-width Tabs ── */}
             <MachineHero3D machine={machine} mlPrediction={mlPrediction as any} />
             <Tabs defaultValue="ml" className="w-full">
-                <TabsList className="grid grid-cols-3 w-full max-w-lg">
+                <TabsList className="grid grid-cols-4 w-full max-w-2xl">
                     <TabsTrigger value="ml" className="flex items-center gap-1.5 text-sm">
                         <Brain className="h-3.5 w-3.5" /> ML Intelligence
                     </TabsTrigger>
@@ -312,6 +314,9 @@ export default function MachineDetailPage() {
                     </TabsTrigger>
                     <TabsTrigger value="3d" className="flex items-center gap-1.5 text-sm">
                         <Box className="h-3.5 w-3.5" /> 3D Vue
+                    </TabsTrigger>
+                    <TabsTrigger value="chat" className="flex items-center gap-1.5 text-sm">
+                        <Sparkles className="h-3.5 w-3.5" /> Assistant IA
                     </TabsTrigger>
                 </TabsList>
 
@@ -347,6 +352,11 @@ export default function MachineDetailPage() {
                     >
                         <MachineViewer3D machine={machine} mlPrediction={mlPrediction as any} />
                     </Suspense>
+                </TabsContent>
+
+                {/* Assistant IA Tab — machine-scoped chat (live ML context + docs) */}
+                <TabsContent value="chat" className="mt-4">
+                    <ChatPage machineId={machine.id} />
                 </TabsContent>
 
                 {/* History Tab */}
