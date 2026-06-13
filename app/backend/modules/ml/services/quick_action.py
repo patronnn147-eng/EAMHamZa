@@ -185,3 +185,160 @@ def _summarize(ops: List[Dict[str, Any]]) -> Dict[str, Any]:
         "skipped": sum(1 for o in ops if o["stock_action"] == "skipped"),
         "total_qty_added": round(sum(float(o["qty_added"]) for o in ops), 2),
     }
+
+
+# ── Async orchestrator (DB) ────────────────────────────────────────────────
+import logging
+from typing import Tuple
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
+
+
+async def _preload_maps(
+    db: AsyncSession, items: List[Dict[str, Any]]
+) -> Tuple[dict, dict, dict, dict]:
+    """One batched read for pieces (by id/ref/name) + their stock. Avoids N+1."""
+    from models.pieces import Piece
+    from models.stock import Stock
+    from sqlalchemy import or_, func as sa_func
+
+    ids = {i["piece_id"] for i in items if i.get("piece_id") is not None}
+    refs = {i["reference"] for i in items if i.get("reference")}
+    lnames = {(i.get("name") or "").strip().lower() for i in items if i.get("name")}
+
+    pieces_by_id, pieces_by_ref, pieces_by_lname = {}, {}, {}
+    if ids or refs or lnames:
+        conds = []
+        if ids:
+            conds.append(Piece.id.in_(ids))
+        if refs:
+            conds.append(Piece.reference.in_(refs))
+        if lnames:
+            conds.append(sa_func.lower(Piece.name).in_(lnames))
+        rows = (await db.execute(select(Piece).where(or_(*conds)))).scalars().all()
+        for p in rows:
+            pd = {"id": p.id, "reference": p.reference, "name": p.name,
+                  "min_stock": p.min_stock, "is_consumable": p.is_consumable,
+                  "default_unit": p.default_unit}
+            pieces_by_id[p.id] = pd
+            if p.reference:
+                pieces_by_ref[p.reference] = pd
+            pieces_by_lname[(p.name or "").strip().lower()] = pd
+
+    stock_by_piece_id: Dict[int, float] = {}
+    if pieces_by_id:
+        srows = (await db.execute(
+            select(Stock.piece_id, Stock.quantity).where(Stock.piece_id.in_(pieces_by_id.keys()))
+        )).fetchall()
+        for piece_id, qty in srows:
+            stock_by_piece_id[piece_id] = float(qty or 0.0)
+
+    return pieces_by_id, pieces_by_ref, pieces_by_lname, stock_by_piece_id
+
+
+async def quick_provision_parts(
+    machine_id: int,
+    actor_user_id: Optional[int],
+    db: AsyncSession,
+    parts_demand: Dict[str, Any],
+    dry_run: bool = False,
+) -> Dict[str, Any]:
+    """
+    Provision recommended parts → pieces + stock, atomically.
+
+    Caller passes `parts_demand` already fetched server-side (router does this
+    via get_unified_health). One transaction: machine row lock → idempotency
+    check → preload → apply plan → record run → commit. dry_run rolls back.
+    Never raises; returns {"success": False, "error": ...} on failure.
+    """
+    from models.machines import Machines
+    from models.pieces import Piece
+    from models.quick_action_run import QuickActionRun
+    from services.inventory.stock import StockService
+
+    items = (parts_demand or {}).get("items") or []
+    if not items:
+        return {"success": False, "message": "No recommended parts for this machine"}
+
+    exec_hash = _execution_hash(items, machine_id)
+
+    try:
+        # 1. Lock the machine row (serialize per machine).
+        locked = await db.execute(
+            select(Machines.id).where(Machines.id == machine_id).with_for_update()
+        )
+        if locked.scalar_one_or_none() is None:
+            return {"success": False, "error": f"Machine {machine_id} not found"}
+
+        # 2. Idempotency: replay a prior run with the same hash.
+        prior = await db.execute(
+            select(QuickActionRun.result_json).where(QuickActionRun.hash == exec_hash)
+        )
+        prior_json = prior.scalar_one_or_none()
+        if prior_json is not None:
+            await db.rollback()  # release the lock; no writes
+            stored = json.loads(prior_json)
+            stored["idempotent"] = True
+            stored["dry_run"] = dry_run
+            return stored
+
+        # 3. Preload + build the plan (pure).
+        pid_map, ref_map, lname_map, stock_map = await _preload_maps(db, items)
+        plan = build_execution_plan(items, machine_id, pid_map, ref_map, lname_map, stock_map)
+
+        # 4. Apply: create pieces, then top up stock.
+        stock_svc = StockService(db)
+        for op in plan["ops"]:
+            if op["resolution"] == "create":
+                spec = op["create_spec"]
+                # Re-check for an existing piece with the generated reference (collision-safe).
+                existing = await db.scalar(select(Piece).where(Piece.reference == spec["reference"]))
+                if existing is None:
+                    piece = Piece(
+                        reference=spec["reference"], name=spec["name"],
+                        category=spec["category"], min_stock=spec["min_stock"],
+                        default_unit=spec["default_unit"], is_consumable=spec["is_consumable"],
+                    )
+                    db.add(piece)
+                    await db.flush()  # assign id, no commit
+                    op["piece_id"] = piece.id
+                else:
+                    op["piece_id"] = existing.id
+            if op["stock_action"] == "added" and op["qty_added"] and op["piece_id"] is not None:
+                await stock_svc.add_stock(
+                    piece_id=op["piece_id"], quantity=op["qty_added"],
+                    reference="quick-action", auto_commit=False,
+                )
+
+        result = {
+            "success": True, "machine_id": machine_id, "execution_hash": exec_hash,
+            "idempotent": False, "dry_run": dry_run,
+            "summary": plan["summary"],
+            "items": [
+                {"piece_id": o["piece_id"], "name": o["name"], "action": o["action"],
+                 "stock_action": o["stock_action"], "qty_added": o["qty_added"],
+                 "target_qty": o["target_qty"], "on_hand_before": o["on_hand_before"]}
+                for o in plan["ops"]
+            ],
+            "message": "Quick Action completed successfully",
+        }
+
+        if dry_run:
+            await db.rollback()  # guarantee zero writes
+            result["message"] = "Dry run — no changes applied"
+            return result
+
+        # 5. Record the run (inside the same tx) and commit.
+        db.add(QuickActionRun(
+            machine_id=machine_id, hash=exec_hash, result_json=json.dumps(result),
+        ))
+        await db.commit()
+        logger.info(f"[quick_action] machine {machine_id}: {plan['summary']} (actor={actor_user_id})")
+        return result
+
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"[quick_action] machine {machine_id} failed: {e}", exc_info=True)
+        return {"success": False, "error": str(e)}
