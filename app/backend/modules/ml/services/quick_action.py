@@ -262,19 +262,25 @@ async def quick_provision_parts(
     if not items:
         return {"success": False, "message": "No recommended parts for this machine"}
 
-    exec_hash = _execution_hash(items, machine_id)
-
     try:
+        # Inside the try so the "never raises" contract holds even if an item
+        # carries a non-serializable value.
+        exec_hash = _execution_hash(items, machine_id)
+
         # 1. Lock the machine row (serialize per machine).
         locked = await db.execute(
             select(Machines.id).where(Machines.id == machine_id).with_for_update()
         )
         if locked.scalar_one_or_none() is None:
+            await db.rollback()  # release the lock; no writes
             return {"success": False, "error": f"Machine {machine_id} not found"}
 
-        # 2. Idempotency: replay a prior run with the same hash.
+        # 2. Idempotency: replay a prior run with the same machine + hash.
         prior = await db.execute(
-            select(QuickActionRun.result_json).where(QuickActionRun.hash == exec_hash)
+            select(QuickActionRun.result_json).where(
+                QuickActionRun.hash == exec_hash,
+                QuickActionRun.machine_id == machine_id,
+            )
         )
         prior_json = prior.scalar_one_or_none()
         if prior_json is not None:
