@@ -1006,6 +1006,38 @@ async def reject_procurement_draft_endpoint(
     return await reject_procurement_draft(wo_id, db)
 
 
+@router.post("/procurement/quick-action/{machine_id}")
+async def quick_action_endpoint(
+    machine_id: int,
+    dry_run: bool = Query(False),
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+) -> Dict:
+    """
+    Quick Action — ADMIN one-click: convert ML-recommended parts into real
+    pieces + stock. Atomic, concurrency-safe, idempotent. `?dry_run=true`
+    previews without writing.
+    """
+    # ADMIN guard (mirrors rag_docs._require_admin).
+    role = (current_user.role.value if hasattr(current_user.role, "value")
+            else str(current_user.role or "")).upper()
+    if role != "ADMIN":
+        raise HTTPException(status_code=403, detail="Only ADMIN can run Quick Action.")
+
+    from modules.ml.services.quick_action import quick_provision_parts
+
+    raw = await get_unified_health(machine_id, db)
+    parts_demand = (raw or {}).get("parts_demand")
+
+    return await quick_provision_parts(
+        machine_id=machine_id,
+        actor_user_id=current_user.id if current_user else None,
+        db=db,
+        parts_demand=parts_demand,
+        dry_run=dry_run,
+    )
+
+
 @router.get("/model/metrics")
 async def get_ml_model_metrics():
     """
