@@ -95,3 +95,26 @@ def test_intra_run_duplicate_creates_one_piece():
     assert len(creates) == 1                  # deduped within the run
     assert creates[0]["target_qty"] == 4      # max(2,4) ceil
     assert plan["summary"]["pieces_created"] == 1
+
+
+def test_blank_name_unresolved_is_skipped():
+    # Nameless item that resolves to nothing must NOT create a junk catalog row.
+    items = [{"piece_id": None, "reference": None, "name": "",
+              "expected_qty": 3.0, "recommended_order_qty": 3.0, "driver": "condition"}]
+    plan = build_execution_plan(items, 1, {}, {}, {}, stock_by_piece_id={})
+    assert plan["ops"] == []
+    assert plan["summary"]["pieces_created"] == 0
+
+
+def test_dedup_larger_target_item_sets_category():
+    # Second item wins on qty -> its driver/category should win on the merged op.
+    items = [
+        {"piece_id": None, "reference": None, "name": "Gasket",
+         "expected_qty": 2.0, "recommended_order_qty": 2.0, "driver": "condition"},
+        {"piece_id": None, "reference": None, "name": "gasket",
+         "expected_qty": 4.0, "recommended_order_qty": 4.0, "driver": "consumption"},
+    ]
+    plan = build_execution_plan(items, 1, {}, {}, {}, stock_by_piece_id={})
+    creates = [o for o in plan["ops"] if o["resolution"] == "create"]
+    assert len(creates) == 1
+    assert creates[0]["create_spec"]["category"] == "Consumable"  # from the winning item

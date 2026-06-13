@@ -92,7 +92,12 @@ def build_execution_plan(
 
     Returns {"ops": [op...], "summary": {...}}. For 'create' ops piece_id is None
     (DB assigns later); op carries 'reference' + 'create_spec'. Intra-run creates
-    with the same generated reference are merged (one piece, max target).
+    with the same generated reference are merged (one piece, max target; the
+    larger-target item's driver also sets the category).
+
+    Quantity is driven by ``expected_qty`` (+ piece min_stock); ``recommended_order_qty``
+    is part of the idempotency hash but is NOT used for sizing here. Unresolved
+    items with a blank name are skipped (no junk catalog rows).
     """
     ops: List[Dict[str, Any]] = []
     planned_creates: Dict[str, Dict[str, Any]] = {}   # new_ref → op (intra-run dedup)
@@ -116,16 +121,23 @@ def build_execution_plan(
         resolution, piece = _resolve(item)
 
         if resolution == "create":
+            # Never auto-create a piece from a nameless recommendation — the
+            # generated reference would collapse to "QA-{id}-part-…" and the
+            # catalog row would have a blank name. Skip such items entirely.
+            if not name.strip():
+                continue
             new_ref = _new_ref(name, machine_id)
             min_stock = int(math.ceil(expected))
             target = _target_qty(expected, min_stock, is_consumable=False)
             if new_ref in planned_creates:
                 # Merge duplicate within the same run — keep the larger target.
+                # When the larger-target item wins, its driver also wins (category).
                 prev = planned_creates[new_ref]
                 if target > prev["target_qty"]:
                     prev["target_qty"] = target
                     prev["qty_added"] = target          # on_hand for a new piece is 0
                     prev["create_spec"]["min_stock"] = max(prev["create_spec"]["min_stock"], min_stock)
+                    prev["create_spec"]["category"] = _driver_to_category(driver)
                 continue
             op = {
                 "name": name, "driver": driver, "resolution": "create",
