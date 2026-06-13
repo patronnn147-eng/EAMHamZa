@@ -1,70 +1,199 @@
-# Quick Action — Parts Auto-Provisioning (Design Spec)
+# Quick Action — Parts Auto-Provisioning (Design Spec V2)
 
 **Date:** 2026-06-13
 **Branch:** `clean_Phase_1`
+**Version:** V2 — Atomic + Concurrency-Safe + Idempotent
 **Status:** Approved (brainstorming) → ready for implementation plan
 
 ## Goal
 
-One ADMIN click on a machine's ML Intelligence tab turns the **recommended pieces**
-(`parts_demand.items` from unified-health) into real catalog **pieces** and **stock
-entries**, in a single atomic transaction.
+One ADMIN click converts ML-recommended parts (`parts_demand.items` from
+unified-health) into:
 
-This is a deliberate **fast path** that writes inventory directly — distinct from the
-existing guarded draft-work-order flow (`parts_drafts.py` / `ProcurementRecommendationModal`),
+- valid `Piece` records (created if missing)
+- correct `Stock` levels (auto-adjusted up to need)
+
+executed **safely, atomically, and without duplication, even under concurrent use.**
+
+Deliberate **fast path** that writes inventory directly — distinct from the existing
+guarded draft-work-order flow (`parts_drafts.py` / `ProcurementRecommendationModal`),
 which stays unchanged.
 
-## Decisions (locked during brainstorming)
+## Core Guarantees (non-negotiable)
+
+1. **Atomicity (strict)** — all operations succeed or all roll back. No partial success.
+2. **Concurrency safety** — multiple clicks (same or different admins) must not corrupt stock.
+3. **Idempotency** — same action triggered twice → no duplicate effects.
+4. **Server authority** — all logic derived from server-side `get_unified_health`. Client payload never trusted for what gets written.
+
+## Decisions (locked)
 
 | Question | Decision |
 |----------|----------|
-| Guard model | **Direct write, ADMIN-only.** One click commits pieces + stock. |
-| Quantity logic | **Bring stock up to need:** target = `max(expected_qty, min_stock)`; add only the delta. `ceil()` for non-consumables. |
-| Scope | **All recommended items** in `parts_demand` (not just shortfall rows). |
-| Piece resolution | Resolve-or-create: `piece_id` (existing row) → `reference` match → `name` match (case-insensitive) → else **create** new `Piece`. |
-| Source of truth | Server re-fetches `parts_demand` via `get_unified_health(machine_id, db)`. Client payload is NOT trusted for what gets written. |
+| Guard model | Direct write, **ADMIN-only**. |
+| Quantity logic | Bring stock up to need: `target = max(expected_qty, min_stock)`; add only the delta. |
+| Scope | **All** recommended items in `parts_demand`. |
+| Piece resolution | **Strict** (no fuzzy): `piece_id` (must exist, else ignore that hint) → `reference` exact → `name` exact (case-insensitive) → else create. |
+| Source of truth | Server re-fetches `parts_demand` via `get_unified_health(machine_id, db)`. |
+| Concurrency | Row lock on `machines` (`SELECT … FOR UPDATE`). |
+| Idempotency | Deterministic execution hash persisted in `quick_action_runs`. |
+| Dry run | `?dry_run=true` returns the plan, writes nothing. |
 
-## Architecture
+## High-Level Flow
 
-### Backend
+1. User clicks **Quick Action**.
+2. Backend:
+   - locks the machine row (`FOR UPDATE`),
+   - re-fetches fresh `parts_demand`,
+   - computes deterministic execution hash; if already run → return stored result (no-op),
+   - preloads pieces + stock (no N+1),
+   - computes a deterministic execution plan,
+   - executes all writes in one transaction, records the run, commits.
+3. Returns a structured summary.
 
-#### New service — `app/backend/modules/ml/services/quick_action.py`
+## Backend Architecture
 
-Single public async function plus small pure helpers. Reuses `StockService` and
-`PieceService` rather than re-implementing stock/piece logic.
+### New table — `quick_action_runs`
 
 ```
+quick_action_runs(
+  id           SERIAL PK,
+  machine_id   INTEGER NOT NULL,          -- FK machines.id (no cascade needed)
+  hash         VARCHAR(64) NOT NULL UNIQUE,
+  result_json  TEXT NOT NULL,             -- the structured response, replayed on idempotent hit
+  executed_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+-- UNIQUE(hash) is the idempotency guard. Index on machine_id for lookups.
+```
+
+- **Model:** `app/backend/models/quick_action_run.py` (`QuickActionRun`).
+- **Migration:** new Alembic version `quick_action_runs` under
+  `app/backend/alembic/versions/`. `down_revision` = current head (resolve via
+  `alembic heads` at implementation time). Idempotent guard using the existing
+  `information_schema` table-exists pattern (mirror `p7_parts_demand_column.py`).
+
+### New service — `app/backend/modules/ml/services/quick_action.py`
+
+```python
 async def quick_provision_parts(
     machine_id: int,
-    parts_demand: dict,
     actor_user_id: int | None,
     db: AsyncSession,
+    dry_run: bool = False,
 ) -> dict
 ```
 
-Behaviour:
+Pure helpers (DB-free, unit-testable): `_slug`, `_short_hash`, `_execution_hash`,
+`_target_qty`, `_driver_to_category`, `_summarize`.
 
-- **One transaction.** All stock writes use `auto_commit=False`. Single `db.commit()`
-  at the end. Any fatal error → `db.rollback()`, return `{success: False, error: ...}`.
-- **Per recommended item:**
-  1. `_resolve_piece(item, db)` →
-     - if `item.piece_id` resolves to an existing `Piece` row → use it (`existing`);
-     - else lookup by `reference` (exact) → use it (`existing`);
-     - else lookup by `name` (case-insensitive `ilike`) → use it (`existing`);
-     - else **create** `Piece(reference=<resolved or auto-gen>, name, category=<driver→category>, min_stock=ceil(expected_qty), default_unit="pcs")` (`created`).
-       Auto-gen reference when item carries none: `QA-{machine_id}-{slug(name)}` (slug = lowercased, non-alnum→`-`, trimmed). Dedup-safe: if that reference collides, reuse the colliding row.
-  2. **Target qty** = `max(expected_qty, piece.min_stock or 0)`. Non-consumable (`is_consumable == False`) → `math.ceil()`. Consumable → keep fractional (`Numeric(10,2)`).
-  3. **Live on_hand** read from `Stock` server-side (ignore client `on_hand`).
-  4. **Delta** = `target - on_hand`. If `delta > 0` → `StockService.add_stock(piece_id, delta, reference="quick-action", intervention_id=None, auto_commit=False)` (creates stock row if absent, tops up if present, logs `MouvementStock` movement_type=`in`). If `delta <= 0` → skip, record `stock_action="skipped"`.
-- **Per-item errors are caught** and pushed to `errors[]` with the item name; one bad
-  item does not abort the others UNLESS it's a transaction-fatal DB error (then rollback all).
+#### Step 1 — Concurrency control
 
-**Structured return:**
+Before any work, acquire a row lock on the machine inside the transaction:
+
+```python
+await db.execute(select(Machines.id).where(Machines.id == machine_id).with_for_update())
+```
+
+Serializes Quick Action for the same machine. Parallel requests queue; the second
+sees the first run's `quick_action_runs` row and short-circuits (idempotency).
+
+#### Step 2 — Idempotency
+
+- Build canonical payload from the recommendation: sorted list of
+  `(piece_id, reference, name, round(expected_qty,3), round(recommended_order_qty,3), driver)`
+  plus `machine_id`.
+- `execution_hash = sha256(canonical_json).hexdigest()`.
+- Look up `quick_action_runs.hash`:
+  - **hit** → return stored `result_json` with `idempotent: true` (no writes).
+  - **miss** → proceed.
+- `dry_run=true` computes the hash and plan but **never** inserts a run row and never commits.
+
+#### Step 3 — Data preloading (no N+1)
+
+From the recommendation items collect candidate references / names / piece_ids, then:
+
+```python
+SELECT * FROM pieces WHERE id IN (:ids) OR reference IN (:refs) OR lower(name) IN (:lnames)
+SELECT * FROM stock  WHERE piece_id IN (:resolved_piece_ids)
+```
+
+Build maps: `pieces_by_id`, `pieces_by_ref`, `pieces_by_lname`, `stock_by_piece_id`.
+(Stock for newly created pieces loaded/assumed absent → on_hand 0.)
+
+#### Step 4 — Piece resolution (strict, no fuzzy)
+
+For each item, in order:
+
+1. `item.piece_id` → use **only if** it resolves to an existing row in `pieces_by_id`; otherwise ignore the hint.
+2. `item.reference` → **exact** match in `pieces_by_ref`.
+3. `item.name` → **exact** match, case-insensitive, in `pieces_by_lname`.
+4. Else → **create** (Step 5).
+
+No `ilike '%…%'` fuzzy matching anywhere.
+
+#### Step 5 — Safe piece creation
+
+```
+reference = QA-{machine_id}-{slug(name)}-{short_hash}
+short_hash = sha1(f"{name}{machine_id}").hexdigest()[:6]
+slug(name) = lowercase, non-alphanumeric → '-', collapse repeats, trim
+```
+
+Collision-safe: if that reference already exists (preloaded or unique-violation on
+flush), reuse the existing row instead of inserting a duplicate. Defaults:
+
+- `min_stock = ceil(expected_qty)`
+- `default_unit = "pcs"`
+- `is_consumable = False`
+
+Newly created pieces are added to the in-memory maps so later items in the same run
+resolve to them (no intra-run duplicates).
+
+#### Step 6 — Quantity logic
+
+```
+target_qty = max(expected_qty, piece.min_stock or 0)
+```
+
+- Non-consumable → `ceil(target_qty)`
+- Consumable → keep decimal (`Numeric(10,2)`)
+
+#### Step 7 — Stock update
+
+```
+delta = target_qty - on_hand            # on_hand from stock_by_piece_id (live, server-side)
+```
+
+- `delta > 0` → `StockService.add_stock(piece_id, delta, reference="quick-action", auto_commit=False)` (creates stock row if absent, tops up if present, logs `MouvementStock` type=`in`).
+- `delta <= 0` → skip, record `stock_action="skipped"`.
+
+#### Step 8 — Transaction (strict)
+
+```
+acquire machine FOR UPDATE
+check idempotency hash → maybe short-circuit
+preload pieces + stock
+for each item: resolve → target → delta → (apply stock change unless dry_run)
+if not dry_run:
+    INSERT quick_action_runs(hash, machine_id, result_json)
+    db.commit()
+else:
+    db.rollback()   # guarantee zero writes
+```
+
+Any error → `db.rollback()`, return `{success: false, error: <message>}`. The
+`quick_action_runs` insert is inside the same transaction, so a run is recorded only
+if every write succeeded.
+
+### Response format
 
 ```json
 {
   "success": true,
   "machine_id": 42,
+  "execution_hash": "abc123…",
+  "idempotent": false,
+  "dry_run": false,
   "summary": {
     "pieces_created": 2,
     "pieces_existing": 5,
@@ -73,87 +202,67 @@ Behaviour:
     "total_qty_added": 17.0
   },
   "items": [
-    {"piece_id": 12, "name": "Bearing 6204", "action": "existing",
-     "stock_action": "added", "qty_added": 4.0, "target_qty": 6, "on_hand_before": 2}
+    {"piece_id": 12, "name": "Bearing 6204", "action": "created|existing",
+     "stock_action": "added|skipped", "qty_added": 4.0, "target_qty": 6, "on_hand_before": 2}
   ],
-  "errors": []
+  "message": "Quick Action completed successfully"
 }
 ```
 
-Never raises to the router for per-item issues; only a transaction-fatal failure
-returns `{success: False}`.
+Error: `{"success": false, "error": "Detailed error message"}`.
 
-#### New endpoint — `app/backend/modules/ml/router.py`
+### API endpoint — `app/backend/modules/ml/router.py`
 
 ```
-POST /api/v1/ml/procurement/quick-action/{machine_id}
+POST /api/v1/ml/procurement/quick-action/{machine_id}?dry_run=false
 ```
 
 - `current_user = Depends(get_current_user)`, `db = Depends(get_db)`.
-- **ADMIN guard** replicating the `rag_docs._require_admin` pattern: read role from
-  user, `raise HTTPException(403)` if `!= "ADMIN"`.
-- Re-fetch `parts_demand` server-side: `raw = await get_unified_health(machine_id, db)`;
-  `parts_demand = raw.get("parts_demand")`. If missing/empty items →
-  `{success: False, message: "No recommended parts for this machine"}`.
-- Call `quick_provision_parts(...)`, return its dict.
+- **ADMIN guard** (mirror `rag_docs._require_admin`): `403` if role != `"ADMIN"`.
+- Re-fetch `parts_demand` server-side via `get_unified_health(machine_id, db)`. Empty/missing items → `{success: false, message: "No recommended parts for this machine"}`.
+- Call `quick_provision_parts(machine_id, current_user.id, db, dry_run=dry_run)`; return its dict.
 
-### Frontend
+## Frontend
 
-#### Button — `PartsDemandCard` in `MLIntelligenceTab.tsx`
+### Button — `PartsDemandCard` in `MLIntelligenceTab.tsx`
 
-- Placed in the card **header**, in the existing right-aligned button row next to
-  "Why?" and the "Order Required" badge.
-- Label: **"Quick Action"**. Pill style matching siblings: Space Grotesk, rounded
-  `999`, accent background/border (use `accentColor` already computed in the card).
-- **ADMIN-only:** `const role = useUserRole()` (from `@/hooks/usePermission`); render
-  button only when `role === 'ADMIN'`. Only shown when `demand.items.length > 0`.
+- Card header button row, next to "Why?" / "Order Required" badge.
+- Label **"Quick Action"**, pill style matching siblings (Space Grotesk, rounded `999`, `accentColor`).
+- Visible only when `role === 'ADMIN' && demand.items.length > 0` (`useUserRole()` from `@/hooks/usePermission`).
 
-#### Flow
+### Flow
 
 - `useToast()` from `@/hooks/use-toast`.
-- Click handler:
-  1. set `loading=true` (button shows `Loader2` spinner, disabled).
-  2. `POST ${API}/api/v1/ml/procurement/quick-action/${machineId}` with `Authorization: Bearer <token>`.
-  3. On `success`: toast success — `"{pieces_created} created · {stock_updated} stock entries updated"`; trigger a refetch of unified-health so the card refreshes (lift a `onProvisioned` callback or reuse existing refetch mechanism in the tab).
-  4. On failure / network error: toast destructive variant with `message`/`error`.
-  5. `finally`: `loading=false`.
-- **No new modal** — inline button + toast (satisfies Step 4: loading + feedback).
-
-## Atomicity / Dedup / Quality
-
-- Single DB transaction; rollback-all on fatal error.
-- Dedup is structural: resolve-before-create never duplicates a piece by reference;
-  `add_stock` tops up the existing stock row, never inserts a second.
-- No hardcoded quantities — every number derived from the recommendation + live stock.
-- Modular: service composes `StockService` + `PieceService`; pure helpers
-  (`_slug`, `_target_qty`, `_driver_to_category`) unit-testable without a DB.
+- Click → `loading=true` (button spinner, disabled) → `POST …/quick-action/{machineId}`.
+- Success → toast summary (`"{pieces_created} created · {stock_updated} stock updated"`; note `idempotent` → "already up to date"); refetch unified-health so the card refreshes.
+- Error → destructive toast with `error`/`message`.
+- `finally` → `loading=false`.
+- No new modal.
 
 ## Testing
 
-- **Unit (no DB):** `_slug`, `_target_qty` (ceil vs fractional), `_driver_to_category`,
-  summary aggregation from a list of item-results.
+- **Unit (no DB):** `_slug`, `_short_hash`, `_execution_hash` (stable + order-independent), `_target_qty` (ceil vs decimal), `_driver_to_category`, `_summarize`.
 - **Backend (DB):**
   - all-new pieces → created + stock added, correct deltas;
-  - mix of existing/new → no duplicate pieces, existing topped up;
-  - item already at/above target → `skipped`, no movement;
-  - empty `parts_demand` → `success:False` message, no writes;
+  - mixed existing/new → no duplicate pieces, existing topped up;
+  - **double click (same payload)** → second call idempotent no-op, returns stored result;
+  - **parallel requests** → row lock serializes, no double stock add;
+  - existing stock ≥ target → `skipped`, no movement;
+  - empty `parts_demand` → `success:false`, no writes;
+  - `dry_run=true` → plan returned, zero DB writes (no pieces, no stock, no run row);
   - non-ADMIN → 403;
-  - forced mid-transaction error → full rollback (no partial pieces/stock).
+  - forced mid-transaction error → full rollback, no run row, no partial pieces/stock.
 
 ## Assumptions
 
-1. `get_unified_health(machine_id, db)` is the trusted server-side source for
-   `parts_demand` (already used by `chat_context.get_ml_snapshot`).
-2. Recommended `piece_id` may or may not reference a real row — resolution handles both.
-3. Auto-generated reference format `QA-{machine_id}-{slug(name)}` is acceptable for
-   pieces created without a reference.
-4. Audit trail via the existing `MouvementStock` row (`reference="quick-action"`) is
-   sufficient — no separate audit table.
-5. Default unit `"pcs"`, `is_consumable=False` for auto-created pieces unless the
-   recommendation/category implies a consumable (kept simple: non-consumable default).
+1. `get_unified_health(machine_id, db)` is the trusted server-side `parts_demand` source.
+2. Recommended `piece_id` may or may not reference a real row; strict resolution handles both.
+3. Auto-reference `QA-{machine_id}-{slug(name)}-{short_hash}` is acceptable.
+4. Audit via `MouvementStock` (`reference="quick-action"`) + the `quick_action_runs` row is sufficient.
+5. Auto-created pieces default to non-consumable, `pcs`.
 
 ## Out of scope
 
-- Changing the existing guarded draft-WO flow.
-- Reservation logic (`required_pieces`) — Quick Action only provisions catalog + stock.
+- Changing the guarded draft-WO flow.
+- Reservation logic (`required_pieces`).
 - Supplier / purchase-order integration.
