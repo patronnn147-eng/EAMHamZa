@@ -1024,6 +1024,11 @@ async def quick_action_endpoint(
     if role != "ADMIN":
         raise HTTPException(status_code=403, detail="Only ADMIN can run Quick Action.")
 
+    # Capture the actor id NOW — get_unified_health commits on this session, which
+    # expires the current_user ORM object; reading current_user.id afterwards would
+    # trigger a sync lazy-reload (MissingGreenlet) inside the async request.
+    actor_user_id = current_user.id if current_user else None
+
     from modules.ml.services.quick_action import quick_provision_parts
 
     raw = await get_unified_health(machine_id, db)
@@ -1031,7 +1036,7 @@ async def quick_action_endpoint(
 
     return await quick_provision_parts(
         machine_id=machine_id,
-        actor_user_id=current_user.id if current_user else None,
+        actor_user_id=actor_user_id,
         db=db,
         parts_demand=parts_demand,
         dry_run=dry_run,
