@@ -4,6 +4,9 @@ import { MachineMini3D } from './3d/MachineMini3D';
 import { ExplainabilityDrawer } from './ExplainabilityDrawer';
 import { ReadinessScoreTile } from './ReadinessScoreTile';
 import { MaintenanceTimeline } from './MaintenanceTimeline';
+import { useUserRole } from '@/hooks/usePermission';
+import { useToast } from '@/hooks/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface MLPredictionFull {
     risk_level?: string;
@@ -84,6 +87,7 @@ interface Props {
     machine: Machine;
     mlPrediction: MLPredictionFull | null;
     interventions: Intervention[];
+    onProvisioned?: () => void;   // refetch unified-health after Quick Action
 }
 
 const glass: React.CSSProperties = {
@@ -256,13 +260,51 @@ function PartsDemandCard({
     demand,
     machine,
     mlPrediction,
+    onProvisioned,
 }: {
     demand: MLPredictionFull['parts_demand'];
     machine?: Machine;
     mlPrediction?: MLPredictionFull | null;
+    onProvisioned?: () => void;
 }) {
     const [showAll, setShowAll] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
+    const [qaLoading, setQaLoading] = useState(false);
+    const role = useUserRole();
+    const { toast } = useToast();
+    const QA_API = import.meta.env.VITE_API_BASE_URL || '';
+
+    async function handleQuickAction() {
+        if (!machine) return;
+        setQaLoading(true);
+        try {
+            const res = await fetch(`${QA_API}/api/v1/ml/procurement/quick-action/${machine.id}`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${localStorage.getItem('access_token')}` },
+            });
+            const json = await res.json();
+            if (!res.ok || json.success === false) {
+                toast({
+                    title: 'Quick Action failed',
+                    description: json.error ?? json.message ?? 'Unknown error',
+                    variant: 'destructive',
+                });
+                return;
+            }
+            const s = json.summary ?? {};
+            toast({
+                title: json.idempotent ? 'Already up to date' : 'Quick Action complete',
+                description: json.idempotent
+                    ? 'No changes needed — parts already provisioned.'
+                    : `${s.pieces_created ?? 0} created · ${s.stock_updated ?? 0} stock updated`,
+            });
+            onProvisioned?.();
+        } catch (e: any) {
+            toast({ title: 'Quick Action failed', description: e?.message ?? 'Network error', variant: 'destructive' });
+        } finally {
+            setQaLoading(false);
+        }
+    }
 
     if (!demand || demand.items.length === 0) {
         if (demand && demand.source === 'p7_model') {
@@ -299,6 +341,24 @@ function PartsDemandCard({
                     <span style={{ marginLeft: '0.5rem', color: '#475569', fontWeight: 400 }}>({demand.items.length})</span>
                 </h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    {role === 'ADMIN' && (
+                        <button
+                            onClick={handleQuickAction}
+                            disabled={qaLoading}
+                            title="Create missing pieces and top up stock for all recommended parts"
+                            style={{
+                                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                                fontSize: '0.6rem', fontWeight: 700, color: accentColor,
+                                background: `${accentColor}18`, border: `1px solid ${accentColor}55`,
+                                borderRadius: 999, padding: '0.15rem 0.6rem',
+                                cursor: qaLoading ? 'wait' : 'pointer', opacity: qaLoading ? 0.6 : 1,
+                                fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.08em',
+                            }}
+                        >
+                            {qaLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                            Quick Action
+                        </button>
+                    )}
                     {/* Why? drawer trigger */}
                     {machine && (
                         <button
@@ -517,7 +577,7 @@ function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
     );
 }
 
-export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
+export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Props) {
     const p = mlPrediction;
     const healthScore = p?.unified_health_score ?? p?.health_score ?? 0;
     const failureProb = p?.failure_probability ?? 0;
@@ -755,7 +815,7 @@ export function MLIntelligenceTab({ machine, mlPrediction }: Props) {
             <PartsReadinessCard readiness={p?.parts_readiness} />
 
             {/* Parts Demand — condition-aware forecast for next 30 days */}
-            <PartsDemandCard demand={p?.parts_demand} machine={machine} mlPrediction={p} />
+            <PartsDemandCard demand={p?.parts_demand} machine={machine} mlPrediction={p} onProvisioned={onProvisioned} />
 
             {/* Maintenance Readiness Score — P7.5 */}
             <ReadinessScoreTile machineId={machine.id} />

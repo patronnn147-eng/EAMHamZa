@@ -326,6 +326,7 @@ export default function MachineDetailPage() {
                         machine={machine}
                         mlPrediction={mlPrediction as any}
                         interventions={interventions}
+                        onProvisioned={fetchData}
                     />
                 </TabsContent>
 
