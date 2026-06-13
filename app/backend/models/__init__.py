@@ -26,6 +26,7 @@ from . import pending_pieces
 from . import required_pieces
 from . import consumed_pieces
 from . import machine_telemetry
+from . import quick_action_run  # Quick Action idempotency ledger
 from . import ai_memories
 from .ai_memories import AIMemories
 from . import chat_sessions
