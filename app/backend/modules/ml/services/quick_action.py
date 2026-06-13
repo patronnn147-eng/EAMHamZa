@@ -25,7 +25,9 @@ def _slug(name: str) -> str:
 
 def _short_hash(name: str, machine_id: int) -> str:
     """First 6 hex chars of sha1(name + machine_id) — collision guard for refs."""
-    return hashlib.sha1(f"{name}{machine_id}".encode("utf-8")).hexdigest()[:6]
+    return hashlib.sha1(
+        f"{name}{machine_id}".encode("utf-8"), usedforsecurity=False
+    ).hexdigest()[:6]
 
 
 def _canonical_item(item: Dict[str, Any]) -> List[Any]:
@@ -49,7 +51,7 @@ def _execution_hash(items: List[Dict[str, Any]], machine_id: int) -> str:
 
 def _target_qty(expected_qty: float, min_stock: float, is_consumable: bool):
     """target = max(expected_qty, min_stock). Non-consumable → ceil to whole units."""
-    target = max(float(expected_qty or 0.0), float(min_stock or 0.0))
+    target = max(float(expected_qty or 0.0), float(min_stock or 0.0), 0.0)
     if not is_consumable:
         return int(math.ceil(target))
     return round(target, 2)

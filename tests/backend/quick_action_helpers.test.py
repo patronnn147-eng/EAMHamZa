@@ -49,6 +49,10 @@ def test_target_qty_uses_min_stock_floor():
 def test_target_qty_consumable_keeps_decimal():
     assert _target_qty(expected_qty=1.25, min_stock=0, is_consumable=True) == 1.25
 
+def test_target_qty_never_negative():
+    assert _target_qty(expected_qty=-5, min_stock=-3, is_consumable=False) == 0
+    assert _target_qty(expected_qty=-5, min_stock=-3, is_consumable=True) == 0.0
+
 def test_driver_to_category():
     assert _driver_to_category("condition") == "Predictive"
     assert _driver_to_category("consumption") == "Consumable"
