@@ -33,6 +33,7 @@ import {
     Beaker,
     Brain,
     Box,
+    TrendingDown,
     Sparkles,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -40,6 +41,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import type { Machine, Intervention } from '@/lib/types';
 
 import { MLIntelligenceTab } from './machines/components/MLIntelligenceTab';
+import { MachineForecastPanel } from './machines/components/MachineForecastPanel';
 import { ChatPage } from './ChatInterface';
 import { TelemetrySimulator } from './machines/components/TelemetrySimulator';
 import { MachineHero3D } from './machines/components/3d/MachineHero3D';
@@ -305,7 +307,7 @@ export default function MachineDetailPage() {
             {/* ── Full-width Tabs ── */}
             <MachineHero3D machine={machine} mlPrediction={mlPrediction as any} />
             <Tabs defaultValue="ml" className="w-full">
-                <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+                <TabsList className="grid grid-cols-5 w-full max-w-2xl">
                     <TabsTrigger value="ml" className="flex items-center gap-1.5 text-sm">
                         <Brain className="h-3.5 w-3.5" /> ML Intelligence
                     </TabsTrigger>
@@ -317,6 +319,9 @@ export default function MachineDetailPage() {
                     </TabsTrigger>
                     <TabsTrigger value="chat" className="flex items-center gap-1.5 text-sm">
                         <Sparkles className="h-3.5 w-3.5" /> Assistant IA
+                    </TabsTrigger>
+                    <TabsTrigger value="forecast" className="flex items-center gap-1.5 text-sm">
+                        <TrendingDown className="h-4 w-4" /> Prévisions
                     </TabsTrigger>
                 </TabsList>
 
@@ -411,6 +416,9 @@ export default function MachineDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+                <TabsContent value="forecast" className="mt-4">
+                    {machine && <MachineForecastPanel machineId={machine.id} />}
                 </TabsContent>
             </Tabs>
 
