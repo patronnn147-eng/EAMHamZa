@@ -11,6 +11,13 @@ import {
   TrendingUp
 } from 'lucide-react';
 import type { DashboardMetrics, Machine, OrdreTravail } from '@/lib/types';
+import { Link } from 'react-router-dom';
+import { BriefingBar } from './dashboard/BriefingBar';
+import { NextBestActions } from './dashboard/NextBestActions';
+import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
+import { DeltaBadge } from './dashboard/DeltaBadge';
+import { DashboardFilters } from './dashboard/DashboardFilters';
+import { loadFilters, saveFilters, DashboardFilterState } from './dashboard/dashboardFilters';
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -24,6 +31,14 @@ export default function Dashboard() {
   const [recentWorkOrders, setRecentWorkOrders] = useState<OrdreTravail[]>([]);
   const [upcomingMaintenance, setUpcomingMaintenance] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
+    catch { return {}; }
+  })();
+  const userId = String(currentUser.id ?? 'anon');
+  const [filters, setFilters] = useState<DashboardFilterState>(() => loadFilters(userId));
+  const updateFilters = (f: DashboardFilterState) => { setFilters(f); saveFilters(userId, f); };
 
   useEffect(() => {
     fetchDashboardData();
@@ -106,11 +121,7 @@ export default function Dashboard() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -121,6 +132,19 @@ export default function Dashboard() {
           Overview of your asset management system
         </p>
       </div>
+
+      <DashboardFilters value={filters} onChange={updateFilters} />
+      <BriefingBar site={filters.site} />
+      <NextBestActions
+        role={currentUser.role || 'ADMIN'}
+        userId={Number(currentUser.id) || undefined}
+        workOrders={recentWorkOrders.map((wo) => ({
+          id: wo.id, priorite: wo.priorite, statut: wo.statut,
+          technicien_id: (wo as any).utilisateur_id, machine_id: (wo as any).machine_id,
+        }))}
+        overduePMs={upcomingMaintenance.map((m) => ({ machine_id: m.id, nom: m.nom }))}
+        alerts={[]}
+      />
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -150,18 +174,18 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Urgent Work Orders</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-red-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">{metrics.urgentWorkOrders}</div>
-            <p className="text-xs text-blue-300 mt-1">
-              Require immediate attention
-            </p>
-          </CardContent>
-        </Card>
+        <Link to="/work-orders?priority=URGENTE">
+          <Card className="cursor-pointer hover:bg-slate-700/40 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Urgent Work Orders</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-red-500" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{metrics.urgentWorkOrders}</div>
+              <DeltaBadge current={metrics.urgentWorkOrders} previous={metrics.urgentWorkOrders} />
+            </CardContent>
+          </Card>
+        </Link>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
