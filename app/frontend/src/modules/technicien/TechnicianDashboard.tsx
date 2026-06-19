@@ -8,9 +8,16 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import type { Intervention, OrdreTravail, Machine } from '@/lib/types';
 import { InterventionRequestDialog } from './components/InterventionRequestDialog';
+import { BriefingBar } from '@/modules/shared/dashboard/BriefingBar';
+import { NextBestActions } from '@/modules/shared/dashboard/NextBestActions';
+import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
 
 export default function TechnicianDashboard() {
   const { toast } = useToast();
+  const currentUser = (() => {
+    try { return JSON.parse(localStorage.getItem('user') || '{}'); }
+    catch { return {}; }
+  })();
   const [workOrders, setWorkOrders] = useState<OrdreTravail[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [interventions, setInterventions] = useState<Intervention[]>([]);
@@ -173,11 +180,7 @@ export default function TechnicianDashboard() {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
@@ -208,6 +211,21 @@ export default function TechnicianDashboard() {
           Besoin d'aide / Alerte
         </Button>
       </div>
+
+      <BriefingBar />
+      <NextBestActions
+        role="TECHNICIEN"
+        userId={Number(currentUser.id) || undefined}
+        workOrders={workOrders.map((wo) => ({
+          id: wo.id, priorite: wo.priorite, statut: wo.statut,
+          technicien_id: (wo as any).utilisateur_id ?? Number(currentUser.id),
+          machine_id: wo.machine_id,
+        }))}
+        overduePMs={machines
+          .filter((m) => m.date_prochaine_maintenance && new Date(m.date_prochaine_maintenance) < new Date())
+          .map((m) => ({ machine_id: m.id, nom: m.nom }))}
+        alerts={[]}
+      />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">

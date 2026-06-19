@@ -16,6 +16,9 @@ import {
 } from './dashboard/components';
 import { useCheftechDashboardData } from './dashboard/hooks';
 import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTab';
+import { BriefingBar } from '@/modules/shared/dashboard/BriefingBar';
+import { NextBestActions } from '@/modules/shared/dashboard/NextBestActions';
+import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
 
 interface CheftechDashboardProps {
   role?: string;
@@ -61,11 +64,7 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <div className="min-h-screen p-8"><DashboardSkeleton /></div>;
   }
 
   const getDashboardTitle = () => {
@@ -105,6 +104,21 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
         </div>
 
         {stats && <DashboardStatsCards stats={stats} machines={machines} />}
+
+        <div className="my-6">
+          <BriefingBar />
+          <NextBestActions
+            role={userRole}
+            workOrders={(workOrders || []).map((wo: any) => ({
+              id: wo.id, priorite: wo.priorite, statut: wo.statut,
+              technicien_id: wo.utilisateur_id, machine_id: wo.machine_id,
+            }))}
+            overduePMs={(machines || [])
+              .filter((m: any) => m.date_prochaine_maintenance && new Date(m.date_prochaine_maintenance) < new Date())
+              .map((m: any) => ({ machine_id: m.id, nom: m.nom }))}
+            alerts={[]}
+          />
+        </div>
 
         <Tabs defaultValue="interventions" className="space-y-6">
           <TabsList>

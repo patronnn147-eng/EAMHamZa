@@ -10,6 +10,9 @@ import {
 } from './dashboard/components';
 import { useChetopDashboardData } from './dashboard/hooks';
 import ChefOpWorkOrders from './ChefOpWorkOrders';
+import { BriefingBar } from '@/modules/shared/dashboard/BriefingBar';
+import { NextBestActions } from '@/modules/shared/dashboard/NextBestActions';
+import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
 
 const ChetopDashboard: React.FC = () => {
   const {
@@ -23,11 +26,7 @@ const ChetopDashboard: React.FC = () => {
   } = useChetopDashboardData();
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg animate-pulse font-bold text-blue-400 italic">Chargement du tableau de bord...</div>
-      </div>
-    );
+    return <div className="min-h-screen p-8"><DashboardSkeleton /></div>;
   }
 
   return (
@@ -52,6 +51,18 @@ const ChetopDashboard: React.FC = () => {
         </div>
 
         {stats && <DashboardStatsCards stats={stats} />}
+
+        <div className="my-6">
+          <BriefingBar />
+          <NextBestActions
+            role="CHETOP"
+            workOrders={[]}
+            overduePMs={(machines || [])
+              .filter((m: any) => m.date_prochaine_maintenance && new Date(m.date_prochaine_maintenance) < new Date())
+              .map((m: any) => ({ machine_id: m.id, nom: m.nom }))}
+            alerts={[]}
+          />
+        </div>
 
         <Tabs defaultValue="requests" className="space-y-6">
           <TabsList className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border border-white/20 shadow-sm inline-flex">
