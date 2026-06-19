@@ -7,4 +7,5 @@ from . import (
     ordres_intervention,
     machines,
     dashboard,
+    why,
 )
