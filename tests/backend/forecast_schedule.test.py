@@ -49,10 +49,8 @@ def test_greedy_empty_technicians():
 
 # --- OR-Tools path (skip if not installed) ---
 
-ortools = pytest.importorskip("ortools", reason="ortools not installed — skipping CP-SAT path")
-
-
 def test_ortools_path_returns_valid_structure():
+    pytest.importorskip("ortools", reason="ortools not installed — skipping CP-SAT path")
     result = optimize_schedule(WOS, TECH_IDS, horizon_days=30)
     assert "assignments" in result
     assert "solved" in result
@@ -61,6 +59,7 @@ def test_ortools_path_returns_valid_structure():
 
 
 def test_ortools_high_priority_scheduled_earlier():
+    pytest.importorskip("ortools", reason="ortools not installed — skipping CP-SAT path")
     result = optimize_schedule(WOS, TECH_IDS, horizon_days=30)
     if result["solved"] and not result["fallback"]:
         p5 = next((a for a in result["assignments"] if a["wo_id"] == 1), None)
