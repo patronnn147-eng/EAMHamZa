@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { rankNextBestActions, NbaInput } from './rankNextBestActions';
+import { WhyButton } from '@/modules/shared/explain/WhyButton';
+import { buildNbaWhy } from '@/modules/shared/explain/producers/buildNbaWhy';
 
 const SEV: Record<string, string> = {
   critical: 'border-red-500 bg-red-900/40 text-red-200',
@@ -26,6 +28,7 @@ export function NextBestActions(props: NbaInput) {
               {a.severity === 'critical' ? 'Critique' : a.severity === 'high' ? 'Urgent' : 'À faire'}
             </span>
             <span className="text-sm text-slate-100 flex-1">{a.label}</span>
+            <WhyButton payload={buildNbaWhy(a)} className="mr-1" />
             <ChevronRight className="h-4 w-4 text-slate-500" />
           </Link>
         );

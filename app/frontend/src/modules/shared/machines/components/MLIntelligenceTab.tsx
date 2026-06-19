@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { WhyButton } from '@/modules/shared/explain/WhyButton';
+import { buildHealthWhy } from '@/modules/shared/explain/producers/buildHealthWhy';
+import { buildAnomalyWhy } from '@/modules/shared/explain/producers/buildAnomalyWhy';
 import type { Machine, Intervention } from '@/lib/types';
 import { MachineMini3D } from './3d/MachineMini3D';
 import { ExplainabilityDrawer } from './ExplainabilityDrawer';
 import { ReadinessScoreTile } from './ReadinessScoreTile';
 import { MaintenanceTimeline } from './MaintenanceTimeline';
-import { useUserRole } from '@/hooks/usePermission';
+import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 
@@ -270,7 +273,7 @@ function PartsDemandCard({
     const [showAll, setShowAll] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [qaLoading, setQaLoading] = useState(false);
-    const role = useUserRole();
+    const { isAdmin } = useAuth();
     const { toast } = useToast();
     const QA_API = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -341,7 +344,7 @@ function PartsDemandCard({
                     <span style={{ marginLeft: '0.5rem', color: '#475569', fontWeight: 400 }}>({demand.items.length})</span>
                 </h4>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    {role === 'ADMIN' && (
+                    {isAdmin && (
                         <button
                             onClick={handleQuickAction}
                             disabled={qaLoading}
@@ -682,6 +685,9 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
                                 <p style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: 220 }}>
                                     {isAnomaly ? 'Anomalous behaviour detected. Immediate attention recommended.' : 'DST-fused score across 8 active models.'}
                                 </p>
+                                <div style={{ marginTop: '0.6rem' }}>
+                                    <WhyButton payload={buildHealthWhy(p as any)} />
+                                </div>
                             </>
                         ) : (
                             <p style={{ color: '#475569', fontSize: '0.8rem' }}>No ML data yet</p>
@@ -797,6 +803,9 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                         <AnomalyBar label="Ensemble Score" value={behaviorScore} max={1} color={behaviorFlagged ? '#f97316' : '#00f2ff'} />
                         <AnomalyBar label="Mahal. Distance" value={mahalScore} max={Math.max(5, mahalScore)} color="#bc00ff" />
+                    </div>
+                    <div style={{ marginTop: '0.6rem' }}>
+                        <WhyButton payload={buildAnomalyWhy((p ?? {}) as any)} />
                     </div>
                     <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
                         {behaviorFlagged
