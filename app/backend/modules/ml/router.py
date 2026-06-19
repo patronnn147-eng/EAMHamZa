@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, asc, cast, String
 from core.database import get_db
 from core.auth import get_current_user
+from models.utilisateurs import Utilisateurs
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail, OrdreStatut
@@ -19,7 +20,8 @@ from pydantic import BaseModel
 from typing import Dict, List, Optional
 from schemas.pagination import PaginatedResponse
 from sqlalchemy import func
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from pathlib import Path as _Path
 import asyncio
 import os
 
@@ -27,6 +29,9 @@ import os
 # Set SYSTEM_TECHNICIAN_ID env var to a valid technician PK in your DB.
 # Default 0 works when there is no FK constraint on technician_id.
 _SYSTEM_TECHNICIAN_ID = int(os.getenv("SYSTEM_TECHNICIAN_ID", "0"))
+
+_BACKEND_MODELS = str(_Path(__file__).parent / "models")
+_MICRO_MODELS = str(_Path(__file__).resolve().parents[3] / "ml-microservice" / "models")
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 
@@ -779,13 +784,18 @@ async def get_retraining_stats(db: AsyncSession = Depends(get_db)) -> Dict:
 
 
 @router.post("/retrain")
-async def trigger_retraining(db: AsyncSession = Depends(get_db)):
+async def trigger_retraining(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
     """
-    Manually trigger the PDCA Act Phase: automated retraining.
+    Manually trigger the PDCA Act Phase: automated retraining. ADMIN only.
+    Accepts optional JSON body {"model_type": "all"}.
     """
+    _require_admin(current_user)
     try:
-        await RetrainingService.run_retraining_pipeline(db)
-        return {"status": "success", "message": "Retraining pipeline completed."}
+        result = await RetrainingService.run_retraining_pipeline(db)
+        return result if result is not None else {"status": "success", "message": "Retraining pipeline completed."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1077,3 +1087,51 @@ async def get_ml_model_metrics():
         "success": False,
         "error": "Could not retrieve model metrics"
     }
+
+
+from modules.ml.services.model_registry import scan_models, check_sync
+from modules.ml.services.drift import compute_drift, SENSORS
+from modules.ml.services.retraining_advisor import recommend_retraining
+
+
+def _require_admin(current_user: Utilisateurs):
+    if not current_user.role or current_user.role.value != "ADMIN":
+        raise HTTPException(status_code=403, detail="ADMIN role required.")
+
+
+async def _drift_rows(db: AsyncSession, start, end):
+    cols = [getattr(MlPredictionLog, s) for s in SENSORS]
+    stmt = select(*cols).where(
+        MlPredictionLog.created_at >= start, MlPredictionLog.created_at < end
+    ).limit(2000)
+    res = await db.execute(stmt)
+    return [dict(zip(SENSORS, row)) for row in res.all()]
+
+
+@router.get("/model-health")
+async def model_health(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+):
+    _require_admin(current_user)
+    models = scan_models(_BACKEND_MODELS, _MICRO_MODELS)
+    divergences = check_sync(_BACKEND_MODELS, _MICRO_MODELS)
+    now = datetime.now(timezone.utc)
+    try:
+        baseline = await _drift_rows(db, now - timedelta(days=60), now - timedelta(days=30))
+        recent = await _drift_rows(db, now - timedelta(days=14), now)
+        drift = compute_drift(baseline, recent)
+    except Exception:
+        drift = {"verdict": "insufficient_data", "sensors": {}}
+    try:
+        metrics = await get_model_metrics()
+    except Exception:
+        metrics = {"success": False}
+    try:
+        stats = await RetrainingService.get_retraining_stats(db)
+        ndp = int(stats.get("new_data_points", 0))
+    except Exception:
+        ndp = 0
+    retrain = recommend_retraining(ndp, drift["verdict"])
+    return {"models": models, "divergences": divergences,
+            "metrics": metrics, "drift": drift, "retrain": retrain}
