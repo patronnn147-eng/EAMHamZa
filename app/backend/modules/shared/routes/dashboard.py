@@ -39,6 +39,7 @@ class BriefingResponse(BaseModel):
     text: str
     generated_at: str
     source: str
+    facts: dict = {}
 
 
 def _llm_call(facts: dict) -> str:
@@ -119,4 +120,4 @@ async def get_briefing(
         facts, scope=scope, scope_id=scope_id, site=site,
         today=today, llm_call=_llm_call,
     )
-    return BriefingResponse(**result)
+    return BriefingResponse(**result, facts=facts)
