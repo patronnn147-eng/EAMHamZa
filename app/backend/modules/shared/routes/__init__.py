@@ -6,4 +6,5 @@ from . import (
     ordres_travail,
     ordres_intervention,
     machines,
+    dashboard,
 )
