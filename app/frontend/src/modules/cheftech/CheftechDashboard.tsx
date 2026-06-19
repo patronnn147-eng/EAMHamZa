@@ -19,6 +19,7 @@ import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTa
 import { BriefingBar } from '@/modules/shared/dashboard/BriefingBar';
 import { NextBestActions } from '@/modules/shared/dashboard/NextBestActions';
 import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
+import { ForecastSummaryTile } from '@/modules/shared/dashboard/ForecastSummaryTile';
 
 interface CheftechDashboardProps {
   role?: string;
@@ -118,6 +119,7 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
               .map((m: any) => ({ machine_id: m.id, nom: m.nom }))}
             alerts={[]}
           />
+          <ForecastSummaryTile />
         </div>
 
         <Tabs defaultValue="interventions" className="space-y-6">
