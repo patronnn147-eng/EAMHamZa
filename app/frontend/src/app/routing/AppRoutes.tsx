@@ -60,6 +60,7 @@ import TelemetryPanel from '@/modules/shared/TelemetryPanel';
 import AuditLogViewer from '@/modules/shared/AuditLogViewer';
 import ChefTechAlertWorkflow from '@/modules/cheftech/ChefTechAlertWorkflow';
 import RAGDocuments from '@/modules/shared/RAGDocuments';
+import ForecastDashboard from '@/modules/cheftech/forecast/ForecastDashboard';
 
 export function AppRoutes() {
   return (
@@ -742,6 +743,16 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'CHETOP', 'TECHNICIEN']}>
             <Layout>
               <RAGDocuments />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/forecast"
+        element={
+          <ProtectedRoute allowedRoles={['ADMIN', 'CHEFTECH', 'TECHNICIEN']}>
+            <Layout>
+              <ForecastDashboard />
             </Layout>
           </ProtectedRoute>
         }
