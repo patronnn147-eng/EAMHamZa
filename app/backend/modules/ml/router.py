@@ -42,6 +42,9 @@ _fleet_cache = {
     "ttl_seconds": 300  # 5 minutes cache
 }
 
+# ── C8 Forecast cache ──────────────────────────────────────────────────────
+_FORECAST_SUMMARY_CACHE: dict = {"data": None, "ts": None, "ttl": 1800}
+
 
 class TelemetryUpdate(BaseModel):
     air_temperature: Optional[float] = None
@@ -1135,3 +1138,179 @@ async def model_health(
     retrain = recommend_retraining(ndp, drift["verdict"])
     return {"models": models, "divergences": divergences,
             "metrics": metrics, "drift": drift, "retrain": retrain}
+
+
+# ── C8 helpers ─────────────────────────────────────────────────────────────
+
+def _require_planner(current_user: Utilisateurs) -> None:
+    """Allow CHEFTECH or ADMIN only."""
+    if not current_user.role or current_user.role.value not in ("CHEFTECH", "ADMIN"):
+        raise HTTPException(status_code=403, detail="Accès réservé aux planificateurs.")
+
+_VALID_HORIZONS = {7, 30, 60}
+
+
+# ── C8 Forecast Endpoints ──────────────────────────────────────────────────
+
+@router.get("/forecast/summary")
+async def get_forecast_summary(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """3 KPI cards for all roles — 30-day horizon, cached 30 min."""
+    from .services.downtime_forecast import compute_fleet_downtime
+    from .services.labor_forecast import forecast_labor
+    from .services.budget_forecast import forecast_budget
+    from .services.demand_forecast import compute_demand_forecast
+    from models.utilisateurs import Utilisateurs as U
+
+    now = datetime.utcnow()
+    if (
+        _FORECAST_SUMMARY_CACHE["data"] is not None
+        and _FORECAST_SUMMARY_CACHE["ts"] is not None
+        and (now - _FORECAST_SUMMARY_CACHE["ts"]).total_seconds() < _FORECAST_SUMMARY_CACHE["ttl"]
+    ):
+        return _FORECAST_SUMMARY_CACHE["data"]
+
+    downtime = await compute_fleet_downtime(db, horizon_days=30)
+
+    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
+    tech_count = len(tech_res.scalars().all())
+
+    open_wo_res = await db.execute(
+        select(func.count()).select_from(Ordres_travail).where(
+            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        )
+    )
+    open_wo_count = open_wo_res.scalar_one() or 0
+
+    labor = forecast_labor(
+        machine_forecasts=downtime["machines"],
+        open_wo_count=open_wo_count,
+        avg_wo_hours=4.0,
+        technician_count=tech_count,
+        horizon_days=30,
+    )
+
+    demand_data = await compute_demand_forecast(db, horizon_days=60, limit=50)
+    budget = forecast_budget(
+        labor_demand_hours=labor["demand_hours"],
+        parts_reorder_items=demand_data.get("items", []),
+    )
+
+    payload = {
+        "downtime_hours": downtime["total_expected_hours"],
+        "labor_demand_hours": labor["demand_hours"],
+        "labor_overload": labor["overload"],
+        "budget_total": budget["total"],
+        "currency": "EUR",
+        "horizon_days": 30,
+        "generated_at": now.isoformat(),
+    }
+    _FORECAST_SUMMARY_CACHE["data"] = payload
+    _FORECAST_SUMMARY_CACHE["ts"] = now
+    return payload
+
+
+@router.get("/forecast/downtime")
+async def get_forecast_downtime(
+    horizon: int = Query(30, description="7, 30 or 60"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """Per-machine downtime forecast. CHEFTECH + ADMIN only."""
+    _require_planner(current_user)
+    if horizon not in _VALID_HORIZONS:
+        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+    from .services.downtime_forecast import compute_fleet_downtime
+    return await compute_fleet_downtime(db, horizon_days=horizon)
+
+
+@router.get("/forecast/labor")
+async def get_forecast_labor(
+    horizon: int = Query(30, description="7, 30 or 60"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """Labor demand vs capacity. CHEFTECH + ADMIN only."""
+    _require_planner(current_user)
+    if horizon not in _VALID_HORIZONS:
+        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+    from .services.downtime_forecast import compute_fleet_downtime
+    from .services.labor_forecast import forecast_labor
+    from models.utilisateurs import Utilisateurs as U
+
+    downtime = await compute_fleet_downtime(db, horizon_days=horizon)
+    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
+    tech_count = len(tech_res.scalars().all())
+    open_wo_res = await db.execute(
+        select(func.count()).select_from(Ordres_travail).where(
+            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        )
+    )
+    open_wo_count = open_wo_res.scalar_one() or 0
+    return forecast_labor(downtime["machines"], open_wo_count, 4.0, tech_count, horizon)
+
+
+@router.get("/forecast/budget")
+async def get_forecast_budget(
+    horizon: int = Query(30, description="7, 30 or 60"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """Cost breakdown. CHEFTECH + ADMIN only."""
+    _require_planner(current_user)
+    if horizon not in _VALID_HORIZONS:
+        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+    from .services.downtime_forecast import compute_fleet_downtime
+    from .services.labor_forecast import forecast_labor
+    from .services.budget_forecast import forecast_budget
+    from .services.demand_forecast import compute_demand_forecast
+    from models.utilisateurs import Utilisateurs as U
+
+    downtime = await compute_fleet_downtime(db, horizon_days=horizon)
+    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
+    tech_count = len(tech_res.scalars().all())
+    open_wo_res = await db.execute(
+        select(func.count()).select_from(Ordres_travail).where(
+            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        )
+    )
+    open_wo_count = open_wo_res.scalar_one() or 0
+    labor = forecast_labor(downtime["machines"], open_wo_count, 4.0, tech_count, horizon)
+    demand_data = await compute_demand_forecast(db, horizon_days=horizon, limit=50)
+    return forecast_budget(labor["demand_hours"], demand_data.get("items", []))
+
+
+@router.post("/forecast/optimize-schedule")
+async def post_optimize_schedule(
+    horizon: int = Query(30, description="7, 30 or 60"),
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """Trigger OR-Tools schedule optimizer. CHEFTECH + ADMIN only. Cached 30 min."""
+    _require_planner(current_user)
+    if horizon not in _VALID_HORIZONS:
+        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+    from .services.schedule_optimizer import compute_schedule
+    return await compute_schedule(db, horizon_days=horizon)
+
+
+@router.get("/forecast/my-schedule")
+async def get_my_schedule(
+    db: AsyncSession = Depends(get_db),
+    current_user: Utilisateurs = Depends(get_current_user),
+) -> dict:
+    """TECHNICIEN: returns their own assignments from the cached schedule."""
+    from .services.schedule_optimizer import compute_schedule
+    schedule = await compute_schedule(db, horizon_days=30)
+    my_assignments = [
+        a for a in schedule.get("assignments", [])
+        if a.get("technician_id") == current_user.id
+    ]
+    return {
+        "assignments": my_assignments,
+        "technician_id": current_user.id,
+        "solved": schedule.get("solved"),
+        "fallback": schedule.get("fallback"),
+    }
