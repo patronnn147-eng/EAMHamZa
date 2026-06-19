@@ -43,7 +43,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select, func
     from models.ml_prediction_log import MlPredictionLog
     from models.machines import Machines
-    from models.ordres_travail import Ordres_travail
+    from models.ordres_travail import Ordres_travail, OrdreStatut
 
     now = datetime.now(timezone.utc)
     cache_key = str(horizon_days)
@@ -62,7 +62,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
             select(Ordres_travail).where(
                 Ordres_travail.date_debut.isnot(None),
                 Ordres_travail.date_fin.isnot(None),
-                Ordres_travail.statut.in_(["COMPLETED", "VALIDATED", "CLOSED"]),
+                Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]),
             ).limit(200)
         )
         wos = wo_result.scalars().all()
