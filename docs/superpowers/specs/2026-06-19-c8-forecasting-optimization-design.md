@@ -357,4 +357,4 @@ Greedy fallback is always tested regardless of ortools presence.
 - `app/backend/requirements.txt` — add `ortools>=9.7`
 - `app/frontend/src/App.tsx` (or router file) — add `/forecast` route
 - `app/frontend/src/modules/cheftech/dashboard/components/` — embed `ForecastSummaryTile`
-- `app/frontend/src/modules/shared/machines/components/MachineDetailPage.tsx` (or equivalent) — embed `MachineForecastPanel`
+- `app/frontend/src/modules/shared/MachineDetailPage.tsx` — embed `MachineForecastPanel`
