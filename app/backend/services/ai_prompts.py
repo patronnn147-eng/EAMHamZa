@@ -199,6 +199,47 @@ def _sensor_status(value: float, th: tuple) -> str:
     return "NORMAL"
 
 
+# Plain labels + units per sensor (FR, operator-facing). Temps reported in °C.
+_SENSOR_META = [
+    ("air_temperature",     "Température air",     "°C",     True),
+    ("process_temperature", "Température procédé", "°C",     True),
+    ("rotational_speed",    "Vitesse rotation",    "tr/min", False),
+    ("torque",              "Couple",              "Nm",     False),
+    ("tool_wear",           "Usure outil",         "min",    False),
+]
+
+
+def build_sensor_status(machine_type: str, machine_name: str, readings: dict) -> list:
+    """Per-sensor NORMAL/ATTENTION/CRITIQUE with display value + safe target.
+
+    Temps converted K→°C. Single source of truth for the frontend 'Why?' panels.
+    Never raises; sensors with no reading are omitted.
+    """
+    category = _resolve_threshold_category(machine_type or "", machine_name or "")
+    thresholds = _SENSOR_THRESHOLDS[category]
+    out = []
+    for key, label, unit, is_temp in _SENSOR_META:
+        v = readings.get(key)
+        if v is None:
+            continue
+        try:
+            fv = float(v)
+        except (TypeError, ValueError):
+            continue
+        th = thresholds[key]              # (warn_lo, warn_hi, crit_lo, crit_hi)
+        status = _sensor_status(fv, th)
+        warn_hi = th[1]
+        if is_temp:
+            value = round(fv - 273.15, 1)
+            target = round(warn_hi - 273.15, 2) if warn_hi is not None else None
+        else:
+            value = round(fv, 1)
+            target = warn_hi
+        out.append({"key": key, "label": label, "value": value,
+                    "unit": unit, "status": status, "target": target})
+    return out
+
+
 def build_ml_context(snapshot: Optional[Dict]) -> str:
     """
     Format a live ML snapshot (from modules.ml.services.chat_context.get_ml_snapshot)
