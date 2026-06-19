@@ -13,6 +13,7 @@ from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
 from core.ml_client import ml_client, is_ml_service_available, get_model_metrics
 from services.inventory.pieces import batch_get_parts_readiness, get_machine_parts_readiness
+from services.ai_prompts import build_sensor_status
 
 from pydantic import BaseModel
 from typing import Dict, List, Optional
@@ -244,6 +245,22 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         response["recovery"] = recovery.to_dict() if recovery is not None else None
     except Exception:
         response["recovery"] = None
+
+    # Sensor status — best-effort, never raises
+    try:
+        response["sensor_status"] = build_sensor_status(
+            machine.type or "",
+            machine.nom or "",
+            {
+                "air_temperature": response.get("air_temperature"),
+                "process_temperature": response.get("process_temperature"),
+                "rotational_speed": response.get("rotational_speed"),
+                "torque": response.get("torque"),
+                "tool_wear": response.get("tool_wear"),
+            },
+        )
+    except Exception:
+        response["sensor_status"] = []
 
     return response
 
