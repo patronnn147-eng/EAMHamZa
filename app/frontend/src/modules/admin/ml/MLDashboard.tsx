@@ -14,6 +14,7 @@ import {
     Activity
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { ModelHealthTable } from './ModelHealthTable';
 
 interface MLStats {
     new_data_points: number;
@@ -127,6 +128,8 @@ export default function MLDashboard() {
                     Ré-entraîner les modèles (P1)
                 </Button>
             </div>
+
+            <ModelHealthTable />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Data Collection Card */}
