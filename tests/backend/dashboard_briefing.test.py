@@ -63,3 +63,27 @@ def test_make_briefing_falls_back_to_template_and_does_not_cache():
     assert r["text"].strip()
     # template result is NOT cached -> next call retries the LLM
     assert len(_CACHE) == 0
+
+
+def test_whitespace_llm_falls_back_to_template():
+    _CACHE.clear()
+    r = make_briefing(_facts(), scope="role", scope_id="ADMIN", site="S1",
+                      today="2026-06-18", llm_call=lambda f: "   ")
+    assert r["source"] == "template"
+    assert r["text"].strip()
+
+
+def test_non_briefing_metrics_excluded_from_hash():
+    a = compute_facts(urgent_wos=1, pending_wos=1, completed_week=1,
+                      overdue_pms=0, degraded_machines=[], active_alerts=0)
+    b = compute_facts(urgent_wos=1, pending_wos=99, completed_week=99,
+                      overdue_pms=0, degraded_machines=[], active_alerts=0)
+    assert facts_hash(a) == facts_hash(b)
+
+
+def test_degraded_machine_order_does_not_change_hash():
+    a = compute_facts(urgent_wos=0, pending_wos=0, completed_week=0,
+                      overdue_pms=0, degraded_machines=["M-02", "M-01"], active_alerts=0)
+    b = compute_facts(urgent_wos=0, pending_wos=0, completed_week=0,
+                      overdue_pms=0, degraded_machines=["M-01", "M-02"], active_alerts=0)
+    assert facts_hash(a) == facts_hash(b)
