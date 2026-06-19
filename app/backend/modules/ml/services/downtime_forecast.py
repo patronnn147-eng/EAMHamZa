@@ -45,7 +45,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     from models.machines import Machines
     from models.ordres_travail import Ordres_travail
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     cache_key = str(horizon_days)
     ts = _DOWNTIME_CACHE["timestamp"].get(cache_key)
     if (
@@ -62,6 +62,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
             select(Ordres_travail).where(
                 Ordres_travail.date_debut.isnot(None),
                 Ordres_travail.date_fin.isnot(None),
+                Ordres_travail.statut.in_(["COMPLETED", "VALIDATED", "CLOSED"]),
             ).limit(200)
         )
         wos = wo_result.scalars().all()

@@ -27,3 +27,8 @@ def test_short_horizon_lower_than_long():
 def test_custom_repair_hours():
     result = estimate_downtime_hours(rul_days=5, failure_prob=80, horizon_days=30, avg_repair_hours=12.0)
     assert result["expected_downtime_hours"] == round(result["p_failure"] * 12.0, 2)
+
+
+def test_zero_horizon_days_no_crash():
+    result = estimate_downtime_hours(rul_days=10, failure_prob=50, horizon_days=0)
+    assert 0.0 <= result["p_failure"] <= 1.0
