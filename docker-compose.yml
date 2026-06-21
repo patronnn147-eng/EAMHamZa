@@ -131,7 +131,7 @@ services:
       SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-krhcqurxeiazyvbt}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       FROM_EMAIL: ${FROM_EMAIL:-hamza.mbarki2002@gmail.com}
       FROM_NAME: ${FROM_NAME:-Asset Management System}
       OSS_SERVICE_URL: http://minio:9000/
@@ -173,7 +173,7 @@ services:
       SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-krhcqurxeiazyvbt}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       FROM_EMAIL: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
       FROM_NAME: ${FROM_NAME:-Asset Management System}
       OSS_SERVICE_URL: http://minio:9000/
@@ -204,7 +204,7 @@ services:
       SMTP_SERVER: ${SMTP_SERVER:-smtp.gmail.com}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USERNAME: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
-      SMTP_PASSWORD: ${SMTP_PASSWORD:-krhcqurxeiazyvbt}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
       FROM_EMAIL: ${SMTP_USERNAME:-hamza.mbarki2002@gmail.com}
       FROM_NAME: ${FROM_NAME:-Asset Management System}
       OSS_SERVICE_URL: http://minio:9000/
