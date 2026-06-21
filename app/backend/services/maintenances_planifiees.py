@@ -33,7 +33,9 @@ class Maintenances_planifieesService:
     async def get_by_id(self, obj_id: int) -> Optional[Maintenances_planifiees]:
         """Get maintenances_planifiees by ID"""
         try:
-            query = select(Maintenances_planifiees).where(Maintenances_planifiees.id == obj_id)
+            query = select(Maintenances_planifiees).where(
+                Maintenances_planifiees.id == obj_id
+            )
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -41,9 +43,9 @@ class Maintenances_planifieesService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,21 +53,27 @@ class Maintenances_planifieesService:
         try:
             query = select(Maintenances_planifiees)
             count_query = select(func.count(Maintenances_planifiees.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Maintenances_planifiees, field):
-                        query = query.where(getattr(Maintenances_planifiees, field) == value)
-                        count_query = count_query.where(getattr(Maintenances_planifiees, field) == value)
-            
+                        query = query.where(
+                            getattr(Maintenances_planifiees, field) == value
+                        )
+                        count_query = count_query.where(
+                            getattr(Maintenances_planifiees, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Maintenances_planifiees, field_name):
-                        query = query.order_by(getattr(Maintenances_planifiees, field_name).desc())
+                        query = query.order_by(
+                            getattr(Maintenances_planifiees, field_name).desc()
+                        )
                 else:
                     if hasattr(Maintenances_planifiees, sort):
                         query = query.order_by(getattr(Maintenances_planifiees, sort))
@@ -85,7 +93,9 @@ class Maintenances_planifieesService:
             logger.error(f"Error fetching maintenances_planifiees list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Maintenances_planifiees]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Maintenances_planifiees]:
         """Update maintenances_planifiees"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -110,7 +120,9 @@ class Maintenances_planifieesService:
         try:
             obj = await self.get_by_id(obj_id)
             if not obj:
-                logger.warning(f"Maintenances_planifiees {obj_id} not found for deletion")
+                logger.warning(
+                    f"Maintenances_planifiees {obj_id} not found for deletion"
+                )
                 return False
             await self.db.delete(obj)
             await self.db.commit()
@@ -121,17 +133,25 @@ class Maintenances_planifieesService:
             logger.error(f"Error deleting maintenances_planifiees {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Maintenances_planifiees]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Maintenances_planifiees]:
         """Get maintenances_planifiees by any field"""
         try:
             if not hasattr(Maintenances_planifiees, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Maintenances_planifiees")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Maintenances_planifiees"
+                )
             result = await self.db.execute(
-                select(Maintenances_planifiees).where(getattr(Maintenances_planifiees, field_name) == field_value)
+                select(Maintenances_planifiees).where(
+                    getattr(Maintenances_planifiees, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching maintenances_planifiees by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching maintenances_planifiees by {field_name}: {str(e)}"
+            )
             raise
 
     async def list_by_field(
@@ -140,7 +160,9 @@ class Maintenances_planifieesService:
         """Get list of maintenances_planifieess filtered by field"""
         try:
             if not hasattr(Maintenances_planifiees, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Maintenances_planifiees")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Maintenances_planifiees"
+                )
             result = await self.db.execute(
                 select(Maintenances_planifiees)
                 .where(getattr(Maintenances_planifiees, field_name) == field_value)
@@ -150,5 +172,7 @@ class Maintenances_planifieesService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching maintenances_planifieess by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching maintenances_planifieess by {field_name}: {str(e)}"
+            )
             raise

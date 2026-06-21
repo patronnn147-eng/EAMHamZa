@@ -1,6 +1,4 @@
 import logging
-import time
-from datetime import datetime, timezone
 from typing import Optional
 
 from core.config import settings
@@ -10,7 +8,6 @@ from models.utilisateurs import Utilisateurs, UserRole
 from sqlalchemy import select
 
 logger = logging.getLogger(__name__)
-
 
 
 async def initialize_admin_user():
@@ -27,12 +24,16 @@ async def initialize_admin_user():
     admin_user_nom = getattr(settings, "admin_user_nom", "Admin")
 
     if not admin_id or not admin_user_email or not admin_user_password:
-        logger.warning("Admin user configuration missing, skipping admin initialization")
+        logger.warning(
+            "Admin user configuration missing, skipping admin initialization"
+        )
         return
 
     async with db_manager.async_session_maker() as db:
         # Check if admin user already exists (by email)
-        result = await db.execute(select(Utilisateurs).where(Utilisateurs.email == admin_user_email))
+        result = await db.execute(
+            select(Utilisateurs).where(Utilisateurs.email == admin_user_email)
+        )
         user: Optional[Utilisateurs] = result.scalar_one_or_none()
 
         if user:
@@ -55,4 +56,6 @@ async def initialize_admin_user():
             )
             db.add(admin_user)
             await db.commit()
-            logger.debug(f"Created admin user: {admin_id} with email: {admin_user_email}")
+            logger.debug(
+                f"Created admin user: {admin_id} with email: {admin_user_email}"
+            )

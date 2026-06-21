@@ -12,12 +12,13 @@ Lifecycle:
 2. **Reactivate**: admin action sets archived_at=NULL.
 3. **Purge**: weekly sweep deletes rows where archived_at < now - retention_days.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence
 
 from sqlalchemy import String, and_, cast, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,8 +36,10 @@ logger = logging.getLogger(__name__)
 class ArchiveRule:
     module: str
     model: type
-    due_column: str            # column whose value > NOW means "past due"
-    terminal_statuses: Sequence[str]  # status values that trigger archive regardless of date
+    due_column: str  # column whose value > NOW means "past due"
+    terminal_statuses: Sequence[
+        str
+    ]  # status values that trigger archive regardless of date
     status_column: str = "statut"
 
 
@@ -102,11 +105,15 @@ class ArchiveService:
                 if status_col is not None and rule.terminal_statuses:
                     stmt_completed = (
                         update(rule.model)
-                        .where(and_(
-                            archived_col.is_(None),
-                            cast(status_col, String).in_(rule.terminal_statuses),
-                        ))
-                        .values(archived_at=now, archive_reason=ARCHIVE_REASON_COMPLETED)
+                        .where(
+                            and_(
+                                archived_col.is_(None),
+                                cast(status_col, String).in_(rule.terminal_statuses),
+                            )
+                        )
+                        .values(
+                            archived_at=now, archive_reason=ARCHIVE_REASON_COMPLETED
+                        )
                         .execution_options(synchronize_session=False)
                     )
                     r1 = await self.db.execute(stmt_completed)
@@ -115,11 +122,13 @@ class ArchiveService:
                 # Pass 2: archive remaining past-due rows (reason=PAST_DUE_DATE)
                 stmt_past = (
                     update(rule.model)
-                    .where(and_(
-                        archived_col.is_(None),
-                        due_col.is_not(None),
-                        due_col < now,
-                    ))
+                    .where(
+                        and_(
+                            archived_col.is_(None),
+                            due_col.is_not(None),
+                            due_col < now,
+                        )
+                    )
                     .values(archived_at=now, archive_reason=ARCHIVE_REASON_PAST_DUE)
                     .execution_options(synchronize_session=False)
                 )
@@ -133,7 +142,9 @@ class ArchiveService:
                 await self.db.commit()
 
             if total:
-                logger.warning(f"ArchiveService.archive_past_due — archived {total} row(s): {results}")
+                logger.warning(
+                    f"ArchiveService.archive_past_due — archived {total} row(s): {results}"
+                )
             return results
         except Exception as e:
             if auto_commit:
@@ -143,7 +154,9 @@ class ArchiveService:
 
     # ─── Reactivate: admin-only ─────────────────────────────────────────
 
-    async def reactivate(self, module: str, item_id: int, auto_commit: bool = True) -> bool:
+    async def reactivate(
+        self, module: str, item_id: int, auto_commit: bool = True
+    ) -> bool:
         rule = next((r for r in ARCHIVE_RULES if r.module == module), None)
         if rule is None:
             raise ValueError(f"Unknown module: {module}")
@@ -165,12 +178,16 @@ class ArchiveService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"reactivate failed for {module}/{item_id}: {e}", exc_info=True)
+            logger.error(
+                f"reactivate failed for {module}/{item_id}: {e}", exc_info=True
+            )
             raise
 
     # ─── Purge: hard delete rows older than retention ───────────────────
 
-    async def purge_old(self, retention_days: int = DEFAULT_PURGE_DAYS, auto_commit: bool = True) -> Dict[str, int]:
+    async def purge_old(
+        self, retention_days: int = DEFAULT_PURGE_DAYS, auto_commit: bool = True
+    ) -> Dict[str, int]:
         """Delete archived rows where archived_at < now - retention_days.
 
         WARNING: irreversible. Run only via scheduled task. Returns counts per module.
@@ -196,7 +213,9 @@ class ArchiveService:
                 await self.db.commit()
 
             if total:
-                logger.warning(f"ArchiveService.purge_old — purged {total} row(s) (>{retention_days}d): {results}")
+                logger.warning(
+                    f"ArchiveService.purge_old — purged {total} row(s) (>{retention_days}d): {results}"
+                )
             return results
         except Exception as e:
             if auto_commit:
@@ -234,7 +253,11 @@ class ArchiveService:
         if date_to:
             conditions.append(archived_col <= date_to)
 
-        if user_filter_column and user_id_filter and hasattr(rule.model, user_filter_column):
+        if (
+            user_filter_column
+            and user_id_filter
+            and hasattr(rule.model, user_filter_column)
+        ):
             col = getattr(rule.model, user_filter_column)
             conditions.append(col == user_id_filter)
 
@@ -242,14 +265,25 @@ class ArchiveService:
         if search:
             search_pattern = f"%{search.strip()}%"
             text_candidates: List[str] = []
-            for col_name in ("titre", "identifiant_planning", "problem_description", "description", "rapport"):
+            for col_name in (
+                "titre",
+                "identifiant_planning",
+                "problem_description",
+                "description",
+                "rapport",
+            ):
                 if hasattr(rule.model, col_name):
                     text_candidates.append(col_name)
             if text_candidates:
-                ors = [getattr(rule.model, c).ilike(search_pattern) for c in text_candidates]
+                ors = [
+                    getattr(rule.model, c).ilike(search_pattern)
+                    for c in text_candidates
+                ]
                 conditions.append(or_(*ors))
 
-        count_stmt = select(func.count()).select_from(rule.model).where(and_(*conditions))
+        count_stmt = (
+            select(func.count()).select_from(rule.model).where(and_(*conditions))
+        )
         total = (await self.db.execute(count_stmt)).scalar() or 0
 
         rows_stmt = (

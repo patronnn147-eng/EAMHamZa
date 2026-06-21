@@ -50,10 +50,16 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     if not _column_exists("ordres_intervention", "problem_description"):
-        op.add_column("ordres_intervention", sa.Column("problem_description", sa.Text(), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("problem_description", sa.Text(), nullable=True),
+        )
 
     if not _column_exists("ordres_intervention", "priority"):
-        op.add_column("ordres_intervention", sa.Column("priority", sa.String(length=20), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("priority", sa.String(length=20), nullable=True),
+        )
 
     if not _column_exists("ordres_intervention", "estimated_duration_minutes"):
         op.add_column(
@@ -62,22 +68,38 @@ def upgrade() -> None:
         )
 
     if not _column_exists("ordres_intervention", "required_materials"):
-        op.add_column("ordres_intervention", sa.Column("required_materials", sa.Text(), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("required_materials", sa.Text(), nullable=True),
+        )
 
     if not _column_exists("ordres_intervention", "machine_id"):
-        op.add_column("ordres_intervention", sa.Column("machine_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ordres_intervention", sa.Column("machine_id", sa.Integer(), nullable=True)
+        )
 
     if not _column_exists("ordres_intervention", "requested_at"):
-        op.add_column("ordres_intervention", sa.Column("requested_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("requested_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
     if not _column_exists("ordres_intervention", "approved_by"):
-        op.add_column("ordres_intervention", sa.Column("approved_by", sa.Integer(), nullable=True))
+        op.add_column(
+            "ordres_intervention", sa.Column("approved_by", sa.Integer(), nullable=True)
+        )
 
     if not _column_exists("ordres_intervention", "approved_at"):
-        op.add_column("ordres_intervention", sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
     if not _column_exists("ordres_intervention", "rejection_reason"):
-        op.add_column("ordres_intervention", sa.Column("rejection_reason", sa.Text(), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("rejection_reason", sa.Text(), nullable=True),
+        )
 
     idx_name = op.f("ix_ordres_intervention_statut")
     if not _index_exists(idx_name):
@@ -85,7 +107,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_ordres_intervention_statut"), table_name="ordres_intervention")
+    op.drop_index(
+        op.f("ix_ordres_intervention_statut"), table_name="ordres_intervention"
+    )
 
     op.drop_column("ordres_intervention", "rejection_reason")
     op.drop_column("ordres_intervention", "approved_at")

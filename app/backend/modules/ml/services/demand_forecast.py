@@ -6,6 +6,7 @@ and historical consumption from mouvement_stock to produce a ranked reorder list
 
 No trained model — deterministic algorithm, cached 1 hour.
 """
+
 import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -29,7 +30,7 @@ _forecast_cache: Dict[str, Any] = {
 }
 
 _DEFAULT_CONSUMPTION_RATE = 1.0  # units / intervention when no history exists
-_RUL_HORIZON_DAYS = 90           # beyond this RUL the machine contributes 0 weight
+_RUL_HORIZON_DAYS = 90  # beyond this RUL the machine contributes 0 weight
 
 
 def _urgency_score(
@@ -64,7 +65,9 @@ def _urgency_label(score: float) -> str:
     return "MONITOR"
 
 
-def _days_until_stockout(current_qty: int, consumption_rate_per_month: float) -> Optional[int]:
+def _days_until_stockout(
+    current_qty: int, consumption_rate_per_month: float
+) -> Optional[int]:
     """Estimate days until stockout given monthly consumption rate."""
     if consumption_rate_per_month <= 0:
         return None
@@ -127,12 +130,14 @@ async def compute_demand_forecast(
     if (
         _forecast_cache["data"] is not None
         and _forecast_cache["timestamp"] is not None
-        and (now - _forecast_cache["timestamp"]).total_seconds() < _forecast_cache["ttl_seconds"]
+        and (now - _forecast_cache["timestamp"]).total_seconds()
+        < _forecast_cache["ttl_seconds"]
     ):
         cached = _forecast_cache["data"]
         # Apply horizon/limit on cached data (they may differ per request)
         items = [
-            i for i in cached["_all_items"]
+            i
+            for i in cached["_all_items"]
             if any(m["rul_days"] <= horizon_days for m in i["machines_affected"])
         ]
         return _build_response(items[:limit], horizon_days, now)
@@ -170,7 +175,14 @@ async def compute_demand_forecast(
             pieces_to_machines.setdefault(p_id, []).append(m_id)
 
         if not pieces_to_machines:
-            result = {"items": [], "total_urgent": 0, "total_monitor": 0, "generated_at": now.isoformat(), "horizon_days": horizon_days, "_all_items": []}
+            result = {
+                "items": [],
+                "total_urgent": 0,
+                "total_monitor": 0,
+                "generated_at": now.isoformat(),
+                "horizon_days": horizon_days,
+                "_all_items": [],
+            }
             _forecast_cache["data"] = result
             _forecast_cache["timestamp"] = now
             return result
@@ -181,13 +193,17 @@ async def compute_demand_forecast(
         stock_result = await db.execute(
             select(Stock.piece_id, Stock.quantity).where(Stock.piece_id.in_(piece_ids))
         )
-        stock_by_piece: Dict[int, float] = {row[0]: float(row[1]) for row in stock_result.fetchall()}
+        stock_by_piece: Dict[int, float] = {
+            row[0]: float(row[1]) for row in stock_result.fetchall()
+        }
 
         # 4. Piece metadata (name, min_stock)
         pieces_result = await db.execute(
             select(Piece.id, Piece.name, Piece.min_stock).where(Piece.id.in_(piece_ids))
         )
-        piece_meta: Dict[int, tuple] = {row[0]: (row[1], int(row[2] or 5)) for row in pieces_result.fetchall()}
+        piece_meta: Dict[int, tuple] = {
+            row[0]: (row[1], int(row[2] or 5)) for row in pieces_result.fetchall()
+        }
 
         # 5. Consumption rates from movement history
         consumption_rates = await _get_consumption_rates(db)
@@ -195,8 +211,11 @@ async def compute_demand_forecast(
         # 6. Build forecast items
         # Machine name lookup
         from models.machines import Machines
+
         machines_result = await db.execute(select(Machines.id, Machines.nom))
-        machine_names: Dict[int, str] = {row[0]: row[1] for row in machines_result.fetchall()}
+        machine_names: Dict[int, str] = {
+            row[0]: row[1] for row in machines_result.fetchall()
+        }
 
         # Per-piece: aggregate across all linked machines
         all_items: List[Dict[str, Any]] = []
@@ -207,7 +226,9 @@ async def compute_demand_forecast(
 
             piece_name, min_stock = piece_meta[piece_id]
             current_qty = stock_by_piece.get(piece_id, 0)
-            rate, data_quality = consumption_rates.get(piece_id, (_DEFAULT_CONSUMPTION_RATE, "estimated"))
+            rate, data_quality = consumption_rates.get(
+                piece_id, (_DEFAULT_CONSUMPTION_RATE, "estimated")
+            )
 
             # Only consider machines with actual ML log data
             affected_machines = []
@@ -218,19 +239,25 @@ async def compute_demand_forecast(
                 log = logs_by_machine.get(m_id)
                 if log is None:
                     continue
-                rul = float(log.rul_days) if log.rul_days is not None else _RUL_HORIZON_DAYS
+                rul = (
+                    float(log.rul_days)
+                    if log.rul_days is not None
+                    else _RUL_HORIZON_DAYS
+                )
                 fail_prob = float(log.failure_probability or 0.0)
                 score = _urgency_score(rul, fail_prob, current_qty, rate, min_stock)
                 if score > max_urgency:
                     max_urgency = score
                 if fail_prob > max_fail_prob:
                     max_fail_prob = fail_prob
-                affected_machines.append({
-                    "id": m_id,
-                    "name": machine_names.get(m_id, f"Machine {m_id}"),
-                    "rul_days": round(rul, 1),
-                    "urgency_score": score,
-                })
+                affected_machines.append(
+                    {
+                        "id": m_id,
+                        "name": machine_names.get(m_id, f"Machine {m_id}"),
+                        "rul_days": round(rul, 1),
+                        "urgency_score": score,
+                    }
+                )
 
             if not affected_machines:
                 continue
@@ -242,32 +269,38 @@ async def compute_demand_forecast(
             reorder_qty = max(projected_demand, min_stock) + max(1, round(rate))
             days_out = _days_until_stockout(current_qty, rate)
 
-            all_items.append({
-                "piece_id": piece_id,
-                "piece_name": piece_name,
-                "current_qty": current_qty,
-                "min_stock": min_stock,
-                "urgency_score": max_urgency,
-                "urgency_label": _urgency_label(max_urgency),
-                "projected_demand": projected_demand,
-                "reorder_qty_suggested": reorder_qty,
-                "days_until_stockout": days_out,
-                "consumption_data": data_quality,
-                "machines_affected": [
-                    {"id": m["id"], "name": m["name"], "rul_days": m["rul_days"]}
-                    for m in affected_machines
-                ],
-            })
+            all_items.append(
+                {
+                    "piece_id": piece_id,
+                    "piece_name": piece_name,
+                    "current_qty": current_qty,
+                    "min_stock": min_stock,
+                    "urgency_score": max_urgency,
+                    "urgency_label": _urgency_label(max_urgency),
+                    "projected_demand": projected_demand,
+                    "reorder_qty_suggested": reorder_qty,
+                    "days_until_stockout": days_out,
+                    "consumption_data": data_quality,
+                    "machines_affected": [
+                        {"id": m["id"], "name": m["name"], "rul_days": m["rul_days"]}
+                        for m in affected_machines
+                    ],
+                }
+            )
 
         # Sort by urgency descending
         all_items.sort(key=lambda x: x["urgency_score"], reverse=True)
 
-        _forecast_cache["data"] = {"_all_items": all_items, "generated_at": now.isoformat()}
+        _forecast_cache["data"] = {
+            "_all_items": all_items,
+            "generated_at": now.isoformat(),
+        }
         _forecast_cache["timestamp"] = now
 
         # Apply horizon filter + limit
         filtered = [
-            i for i in all_items
+            i
+            for i in all_items
             if any(m["rul_days"] <= horizon_days for m in i["machines_affected"])
         ]
         return _build_response(filtered[:limit], horizon_days, now)
@@ -277,7 +310,9 @@ async def compute_demand_forecast(
         raise
 
 
-def _build_response(items: List[Dict], horizon_days: int, ts: datetime) -> Dict[str, Any]:
+def _build_response(
+    items: List[Dict], horizon_days: int, ts: datetime
+) -> Dict[str, Any]:
     total_urgent = sum(1 for i in items if i["urgency_label"] == "URGENT")
     total_monitor = sum(1 for i in items if i["urgency_label"] in ("SOON", "MONITOR"))
     return {

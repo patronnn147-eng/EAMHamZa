@@ -40,7 +40,8 @@ class ChatMessage(BaseModel):
 
     role: str = Field(..., description="Message role: system/user/assistant.")
     content: Union[str, List[Union[ContentPartText, ContentPartImage]]] = Field(
-        ..., description="Message content: a string or a list of content parts (multimodal)."
+        ...,
+        description="Message content: a string or a list of content parts (multimodal).",
     )
 
 
@@ -52,9 +53,15 @@ class GenTxtRequest(BaseModel):
         default="deepseek-v3.2",
         description="Model name: gpt-5-chat / gemini-2.5-pro / gemini-3-pro-preview / claude-4-5-sonnet / deepseek-v3.2.",
     )
-    stream: bool = Field(default=False, description="Whether to enable streaming output.")
-    temperature: Optional[float] = Field(default=0.7, description="Sampling temperature (0-2).")
-    max_tokens: Optional[int] = Field(default=4096, description="Maximum number of generated tokens.")
+    stream: bool = Field(
+        default=False, description="Whether to enable streaming output."
+    )
+    temperature: Optional[float] = Field(
+        default=0.7, description="Sampling temperature (0-2)."
+    )
+    max_tokens: Optional[int] = Field(
+        default=4096, description="Maximum number of generated tokens."
+    )
 
 
 class GenTxtResponse(BaseModel):
@@ -84,7 +91,10 @@ class GenImgRequest(BaseModel):
         default="gemini-2.5-flash-image",
         description="Model name",
     )
-    size: str = Field(default="1024x1024", description="Image size: 1024x1024 / 1024x1792 / 1792x1024.")
+    size: str = Field(
+        default="1024x1024",
+        description="Image size: 1024x1024 / 1024x1792 / 1792x1024.",
+    )
     quality: Literal["standard", "hd"] = Field(
         default="standard",
         description="Image quality (only for text-to-image; ignored when `image` is provided).",
@@ -103,4 +113,6 @@ class GenImgResponse(BaseModel):
         ),
     )
     model: str = Field(..., description="Name of the model used.")
-    revised_prompt: Optional[str] = Field(default=None, description="Refined prompt used for generation.")
+    revised_prompt: Optional[str] = Field(
+        default=None, description="Refined prompt used for generation."
+    )

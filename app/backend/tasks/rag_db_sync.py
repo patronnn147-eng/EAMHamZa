@@ -11,6 +11,7 @@ Also keeps the full `sync_all` task available for manual/initial backfill
 (e.g. `docker compose exec backend python scripts/sync_db_to_rag.py` is fine,
 or call this task with `.delay()` for the same behavior).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -23,8 +24,8 @@ _app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _app_root not in sys.path:
     sys.path.insert(0, _app_root)
 
-from core.celery_app import celery_app
-from scripts.sync_db_to_rag import run_sync, sync_row, delete_row, TABLES
+from core.celery_app import celery_app  # noqa: E402
+from scripts.sync_db_to_rag import run_sync, sync_row, delete_row  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +71,8 @@ def rag_sync_all(self, tables: list | None = None, delete_stale: bool = True):
     NOT scheduled — invoke manually via `.delay()` if needed.
     """
     logger.info(f"[rag_sync_all] tables={tables or 'ALL'} delete_stale={delete_stale}")
-    result = asyncio.run(run_sync(tables=tables, delete_stale=delete_stale, dry_run=False))
+    result = asyncio.run(
+        run_sync(tables=tables, delete_stale=delete_stale, dry_run=False)
+    )
     logger.info(f"[rag_sync_all] done — {result}")
     return result

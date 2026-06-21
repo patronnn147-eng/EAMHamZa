@@ -16,6 +16,7 @@ Env:
 
 Exit codes: 0 = PASS, 1 = FAIL, 2 = MANUAL_REVIEW (human must read the answer)
 """
+
 import argparse
 import os
 import re
@@ -56,7 +57,9 @@ def login(client: httpx.Client, base: str) -> str:
     if not user or not pwd:
         print("FATAL: SMOKE_USER / SMOKE_PASS env vars required.")
         sys.exit(1)
-    r = client.post(f"{base}/api/v1/auth/login", json={"email": user, "mot_de_passe": pwd})
+    r = client.post(
+        f"{base}/api/v1/auth/login", json={"email": user, "mot_de_passe": pwd}
+    )
     if r.status_code != 200:
         print(f"FATAL: login failed ({r.status_code}): {r.text[:300]}")
         sys.exit(1)
@@ -67,7 +70,11 @@ def layer1_stack_health(client: httpx.Client, base: str, headers: dict):
     print("\n== Layer 1: stack health ==")
     try:
         r = client.get(f"{base}/docs")
-        record("backend /docs", PASS if r.status_code == 200 else FAIL, f"HTTP {r.status_code}")
+        record(
+            "backend /docs",
+            PASS if r.status_code == 200 else FAIL,
+            f"HTTP {r.status_code}",
+        )
     except Exception as e:
         record("backend /docs", FAIL, str(e))
 
@@ -102,7 +109,9 @@ def discover_machine(client: httpx.Client, base: str, headers: dict, override):
     if override is not None:
         candidates = [override]
     else:
-        r = client.get(f"{base}/api/v1/entities/machines", headers=headers, params={"limit": 100})
+        r = client.get(
+            f"{base}/api/v1/entities/machines", headers=headers, params={"limit": 100}
+        )
         if r.status_code != 200:
             record("machine list", FAIL, f"HTTP {r.status_code}")
             return None, None
@@ -112,12 +121,21 @@ def discover_machine(client: httpx.Client, base: str, headers: dict, override):
 
     for mid in candidates:
         try:
-            r = client.get(f"{base}/api/v1/ml/machines/{mid}/unified-health", headers=headers)
+            r = client.get(
+                f"{base}/api/v1/ml/machines/{mid}/unified-health", headers=headers
+            )
             if r.status_code != 200:
                 continue
             h = r.json()
-            if h.get("unified_health_score") is not None and h.get("air_temperature") is not None:
-                record("machine discovery", PASS, f"machine_id={mid} ({h.get('machine_name', '?')})")
+            if (
+                h.get("unified_health_score") is not None
+                and h.get("air_temperature") is not None
+            ):
+                record(
+                    "machine discovery",
+                    PASS,
+                    f"machine_id={mid} ({h.get('machine_name', '?')})",
+                )
                 return mid, h
         except Exception:
             continue
@@ -159,13 +177,17 @@ def _grounding_hits(answer: str, health: dict) -> list:
     proc = health.get("process_temperature")
     if proc is not None:
         celsius = round(proc - 273.15)
-        if re.search(rf"\b{round(proc)}\b", answer) or re.search(rf"\b{celsius}\b", answer):
+        if re.search(rf"\b{round(proc)}\b", answer) or re.search(
+            rf"\b{celsius}\b", answer
+        ):
             hits.append(f"process_temp≈{round(proc)}K/{celsius}C")
 
     return hits
 
 
-def layer2_bridge(client: httpx.Client, base: str, headers: dict, mid: int, health: dict):
+def layer2_bridge(
+    client: httpx.Client, base: str, headers: dict, mid: int, health: dict
+):
     print("\n== Layer 2: bridge + LLM ==")
 
     # --- machine-scoped chat ---
@@ -204,7 +226,11 @@ def layer2_bridge(client: httpx.Client, base: str, headers: dict, mid: int, heal
     if data.get("ml_context_used") is True:
         record("BRIDGE", PASS, "ml_context_used=true on machine-scoped chat")
     else:
-        record("BRIDGE", FAIL, f"ml_context_used={data.get('ml_context_used')!r} — ML block NOT injected")
+        record(
+            "BRIDGE",
+            FAIL,
+            f"ml_context_used={data.get('ml_context_used')!r} — ML block NOT injected",
+        )
 
     # LLM grounding — fuzzy, non-deterministic answers tolerated.
     hits = _grounding_hits(answer, health)
@@ -228,7 +254,9 @@ def layer2_bridge(client: httpx.Client, base: str, headers: dict, mid: int, heal
         )
         if r2.status_code == 200:
             d2 = r2.json()
-            no_leak = d2.get("ml_context_used") is False and bool(d2.get("message", "").strip())
+            no_leak = d2.get("ml_context_used") is False and bool(
+                d2.get("message", "").strip()
+            )
             record(
                 "no-machine chat isolated",
                 PASS if no_leak else FAIL,
@@ -240,14 +268,18 @@ def layer2_bridge(client: httpx.Client, base: str, headers: dict, mid: int, heal
         record("no-machine chat isolated", FAIL, str(e))
 
 
-def layer3_degradation(client: httpx.Client, base: str, headers: dict, mid: int, allow: bool):
+def layer3_degradation(
+    client: httpx.Client, base: str, headers: dict, mid: int, allow: bool
+):
     print("\n== Layer 3: degradation (ML service down) ==")
     if not allow:
         record("degradation", SKIP, "--allow-destructive not set (local-only test)")
         return
 
     try:
-        subprocess.run(["docker", "stop", ML_CONTAINER], check=True, capture_output=True)
+        subprocess.run(
+            ["docker", "stop", ML_CONTAINER], check=True, capture_output=True
+        )
         print(f"  stopped {ML_CONTAINER}")
         try:
             r = client.post(
@@ -270,16 +302,24 @@ def layer3_degradation(client: httpx.Client, base: str, headers: dict, mid: int,
                     "(rule-based fallback keeps context alive — by design)",
                 )
             else:
-                record("degradation", FAIL, f"HTTP {r.status_code} — chat broke when ML down")
+                record(
+                    "degradation",
+                    FAIL,
+                    f"HTTP {r.status_code} — chat broke when ML down",
+                )
         except Exception as e:
             record("degradation", FAIL, f"chat error with ML down: {e}")
     finally:
-        subprocess.run(["docker", "start", ML_CONTAINER], check=False, capture_output=True)
+        subprocess.run(
+            ["docker", "start", ML_CONTAINER], check=False, capture_output=True
+        )
         print(f"  restarted {ML_CONTAINER}, waiting for health…")
         deadline = time.time() + 120
         while time.time() < deadline:
             try:
-                r = client.get(f"{base}/api/v1/ml/machines/{mid}/unified-health", headers=headers)
+                r = client.get(
+                    f"{base}/api/v1/ml/machines/{mid}/unified-health", headers=headers
+                )
                 if r.status_code == 200:
                     print("  ml-service healthy again")
                     break
@@ -287,14 +327,21 @@ def layer3_degradation(client: httpx.Client, base: str, headers: dict, mid: int,
                 pass
             time.sleep(5)
         else:
-            print("  WARNING: ml-service not confirmed healthy after restart — check manually")
+            print(
+                "  WARNING: ml-service not confirmed healthy after restart — check manually"
+            )
 
 
 def main():
     ap = argparse.ArgumentParser(description="ML<->RAG bridge smoke test")
-    ap.add_argument("--machine-id", type=int, default=None, help="override machine discovery")
-    ap.add_argument("--allow-destructive", action="store_true",
-                    help="enable Layer 3 (docker stop ml-service) — LOCAL ENVIRONMENTS ONLY")
+    ap.add_argument(
+        "--machine-id", type=int, default=None, help="override machine discovery"
+    )
+    ap.add_argument(
+        "--allow-destructive",
+        action="store_true",
+        help="enable Layer 3 (docker stop ml-service) — LOCAL ENVIRONMENTS ONLY",
+    )
     ap.add_argument("--base-url", default="http://localhost:8000")
     args = ap.parse_args()
 
@@ -305,7 +352,9 @@ def main():
 
         layer1_stack_health(client, base, headers)
         if any(s == FAIL for s, _ in results.values()):
-            print("\nLayer 1 failed — aborting (no point testing the bridge on a broken stack).")
+            print(
+                "\nLayer 1 failed — aborting (no point testing the bridge on a broken stack)."
+            )
             _verdict()
             sys.exit(1)
 

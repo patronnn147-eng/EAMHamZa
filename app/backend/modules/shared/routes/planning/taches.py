@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
@@ -11,14 +11,15 @@ from models.machines import Machines
 from services.notifications import NotificationsService
 from tasks.planning_tache_emails import send_task_assignment_email
 from .schemas import (
-    PlanningTacheCreate,
     PlanningTacheUpdate,
     PlanningTacheResponse,
     PlanningTacheListResponse,
     PlanningTachesSubmitRequest,
 )
 
-router = APIRouter(prefix="/api/v1/plannings/{planning_id}/taches", tags=["planning-taches"])
+router = APIRouter(
+    prefix="/api/v1/plannings/{planning_id}/taches", tags=["planning-taches"]
+)
 all_taches_router = APIRouter(prefix="/api/v1/plannings", tags=["planning-taches"])
 
 
@@ -34,12 +35,12 @@ def validate_task_dates(planning: Plannings, date_debut: datetime, date_fin: dat
     if date_debut < planning.date_debut:
         raise HTTPException(
             status_code=400,
-            detail=f"Task start date must be >= planning start date ({planning.date_debut})"
+            detail=f"Task start date must be >= planning start date ({planning.date_debut})",
         )
     if date_fin > planning.date_fin:
         raise HTTPException(
             status_code=400,
-            detail=f"Task end date must be <= planning end date ({planning.date_fin})"
+            detail=f"Task end date must be <= planning end date ({planning.date_fin})",
         )
 
 
@@ -50,7 +51,11 @@ async def list_tasks(
     current_user: Utilisateurs = Depends(get_current_user),
 ):
     """List all tasks for a planning."""
-    result = await db.execute(select(Planning_taches).where(Planning_taches.archived_at.is_(None)).where(Planning_taches.planning_id == planning_id))
+    result = await db.execute(
+        select(Planning_taches)
+        .where(Planning_taches.archived_at.is_(None))
+        .where(Planning_taches.planning_id == planning_id)
+    )
     tasks = result.scalars().all()
     return {"items": tasks, "total": len(tasks)}
 
@@ -64,14 +69,16 @@ async def create_tasks(
 ):
     """Create tasks and submit planning for approval."""
     planning = await get_planning_or_404(planning_id, db)
-    
+
     if planning.planning_statut != PlanningStatut.DRAFT:
-        raise HTTPException(status_code=400, detail="Only DRAFT plannings can have tasks")
-    
+        raise HTTPException(
+            status_code=400, detail="Only DRAFT plannings can have tasks"
+        )
+
     created_tasks = []
     for task_data in request.tasks:
         validate_task_dates(planning, task_data.date_debut, task_data.date_fin)
-        
+
         task = Planning_taches(
             planning_id=planning_id,
             titre=task_data.titre,
@@ -85,33 +92,43 @@ async def create_tasks(
         )
         db.add(task)
         created_tasks.append(task)
-    
+
     await db.commit()
     for task in created_tasks:
         await db.refresh(task)
 
     # Send bell notification + email to each assigned technician
     for task in created_tasks:
-        tech_result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == task.technicien_id))
+        tech_result = await db.execute(
+            select(Utilisateurs).where(Utilisateurs.id == task.technicien_id)
+        )
         technician = tech_result.scalar_one_or_none()
-        machine_result = await db.execute(select(Machines).where(Machines.id == task.machine_id))
+        machine_result = await db.execute(
+            select(Machines).where(Machines.id == task.machine_id)
+        )
         machine = machine_result.scalar_one_or_none()
         if technician:
-            await NotificationsService(db).create({
-                "utilisateur_id": technician.id,
-                "titre": "Nouvelle tâche de planning assignée",
-                "priorite": "HAUTE",
-                "type": "PLANNING_ASSIGNMENT",
-                "message": (
-                    f"Tâche « {task.titre} » — "
-                    f"{machine.nom if machine else ''} — "
-                    f"Planning {planning.identifiant_planning}"
-                ),
-                "date_envoi": datetime.now(),
-                "lu": False,
-            })
+            await NotificationsService(db).create(
+                {
+                    "utilisateur_id": technician.id,
+                    "titre": "Nouvelle tâche de planning assignée",
+                    "priorite": "HAUTE",
+                    "type": "PLANNING_ASSIGNMENT",
+                    "message": (
+                        f"Tâche « {task.titre} » — "
+                        f"{machine.nom if machine else ''} — "
+                        f"Planning {planning.identifiant_planning}"
+                    ),
+                    "date_envoi": datetime.now(),
+                    "lu": False,
+                }
+            )
             send_task_assignment_email.delay(
-                technician={"id": technician.id, "nom": technician.nom, "email": technician.email},
+                technician={
+                    "id": technician.id,
+                    "nom": technician.nom,
+                    "email": technician.email,
+                },
                 task={
                     "titre": task.titre,
                     "task_type": task.task_type.value,
@@ -125,7 +142,7 @@ async def create_tasks(
     if request.submit:
         planning.planning_statut = PlanningStatut.SUBMITTED
         await db.commit()
-    
+
     return created_tasks
 
 
@@ -139,20 +156,21 @@ async def update_task(
 ):
     """Update a task."""
     planning = await get_planning_or_404(planning_id, db)
-    
+
     if planning.planning_statut != PlanningStatut.DRAFT:
-        raise HTTPException(status_code=400, detail="Only DRAFT plannings can be modified")
-    
+        raise HTTPException(
+            status_code=400, detail="Only DRAFT plannings can be modified"
+        )
+
     result = await db.execute(
         select(Planning_taches).where(
-            Planning_taches.id == task_id,
-            Planning_taches.planning_id == planning_id
+            Planning_taches.id == task_id, Planning_taches.planning_id == planning_id
         )
     )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     if request.titre is not None:
         task.titre = request.titre
     if request.description is not None:
@@ -167,7 +185,7 @@ async def update_task(
         task.date_debut = request.date_debut
     if request.date_fin is not None:
         task.date_fin = request.date_fin
-    
+
     await db.commit()
     await db.refresh(task)
     return task
@@ -182,20 +200,21 @@ async def delete_task(
 ):
     """Delete a task."""
     planning = await get_planning_or_404(planning_id, db)
-    
+
     if planning.planning_statut != PlanningStatut.DRAFT:
-        raise HTTPException(status_code=400, detail="Only DRAFT plannings can be modified")
-    
+        raise HTTPException(
+            status_code=400, detail="Only DRAFT plannings can be modified"
+        )
+
     result = await db.execute(
         select(Planning_taches).where(
-            Planning_taches.id == task_id,
-            Planning_taches.planning_id == planning_id
+            Planning_taches.id == task_id, Planning_taches.planning_id == planning_id
         )
     )
     task = result.scalar_one_or_none()
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
-    
+
     await db.delete(task)
     await db.commit()
     return {"message": "Task deleted"}
@@ -210,7 +229,7 @@ async def list_plannings_with_tasks(
     tasks_subquery = (
         select(
             Planning_taches.planning_id,
-            func.count(Planning_taches.id).label('task_count')
+            func.count(Planning_taches.id).label("task_count"),
         )
         .where(Planning_taches.archived_at.is_(None))
         .group_by(Planning_taches.planning_id)
@@ -224,14 +243,14 @@ async def list_plannings_with_tasks(
             Plannings.date_debut,
             Plannings.date_fin,
             Plannings.planning_statut,
-            func.coalesce(tasks_subquery.c.task_count, 0).label('task_count')
+            func.coalesce(tasks_subquery.c.task_count, 0).label("task_count"),
         )
         .outerjoin(tasks_subquery, Plannings.id == tasks_subquery.c.planning_id)
         .where(Plannings.archived_at.is_(None))
         .order_by(Plannings.date_debut.desc())
     )
     rows = result.all()
-    
+
     return [
         {
             "id": row[0],

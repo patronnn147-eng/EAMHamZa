@@ -8,6 +8,7 @@ Follow-up to inventory_consumption_workflow: the parent migration converted
 ``mouvement_stock.quantity`` but missed ``stock.quantity``, causing fractional
 values (e.g. 0.5 L) to be truncated when written back to stock.
 """
+
 from alembic import op
 import sqlalchemy as sa
 

@@ -8,14 +8,19 @@ Covers:
 
 No DB or HTTP needed — pure function tests.
 """
-import pytest
+
 from services.ai_prompts import build_rag_context, build_full_system_prompt
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def make_chunk(content: str, filename: str = "guide_cms.txt",
-               similarity: float = 0.45, page: int = 1) -> dict:
+
+def make_chunk(
+    content: str,
+    filename: str = "guide_cms.txt",
+    similarity: float = 0.45,
+    page: int = 1,
+) -> dict:
     return {
         "content": content,
         "metadata": {"filename": filename, "page": page, "doc_type": "manual"},
@@ -49,8 +54,8 @@ DEPILEUR_CHUNK = make_chunk(
 
 # ── build_rag_context ─────────────────────────────────────────────────────────
 
-class TestBuildRagContext:
 
+class TestBuildRagContext:
     def test_empty_chunks_returns_empty_string(self):
         assert build_rag_context([]) == ""
 
@@ -70,9 +75,15 @@ class TestBuildRagContext:
         """Critical: LLM must be told to use docs before calling tools."""
         result = build_rag_context([INDICATEURS_CHUNK])
         # Should contain some form of instruction to prioritize doc context
-        assert any(keyword in result.lower() for keyword in [
-            "priorit", "sans appeler", "n'utilise pas", "reponds directement"
-        ]), f"No priority instruction found in:\n{result}"
+        assert any(
+            keyword in result.lower()
+            for keyword in [
+                "priorit",
+                "sans appeler",
+                "n'utilise pas",
+                "reponds directement",
+            ]
+        ), f"No priority instruction found in:\n{result}"
 
     def test_chunk_content_included(self):
         result = build_rag_context([INDICATEURS_CHUNK])
@@ -112,8 +123,8 @@ class TestBuildRagContext:
 
 # ── build_full_system_prompt with RAG ─────────────────────────────────────────
 
-class TestBuildFullSystemPromptWithRag:
 
+class TestBuildFullSystemPromptWithRag:
     def test_no_rag_chunks_no_contexte_section(self):
         prompt = build_full_system_prompt("ADMIN", "hamza", rag_chunks=None)
         assert "[CONTEXTE DOCUMENTAIRE]" not in prompt
@@ -145,8 +156,7 @@ class TestBuildFullSystemPromptWithRag:
 
     def test_multiple_chunks_all_in_prompt(self):
         prompt = build_full_system_prompt(
-            "ADMIN", "hamza",
-            rag_chunks=[INDICATEURS_CHUNK, DEPILEUR_CHUNK]
+            "ADMIN", "hamza", rag_chunks=[INDICATEURS_CHUNK, DEPILEUR_CHUNK]
         )
         # Both source filenames should be in the prompt
         assert prompt.count("guide_cms.txt") >= 2
@@ -154,6 +164,7 @@ class TestBuildFullSystemPromptWithRag:
     def test_rag_chunks_with_memories(self):
         """RAG + memories both present — no crash, both injected."""
         from types import SimpleNamespace
+
         # Matches actual AIMemory ORM fields: memory_key, memory_value, memory_type
         fake_memory = SimpleNamespace(
             memory_key="procedure_depileur",
@@ -161,7 +172,8 @@ class TestBuildFullSystemPromptWithRag:
             memory_type="strategy",
         )
         prompt = build_full_system_prompt(
-            "TECHNICIEN", "ali",
+            "TECHNICIEN",
+            "ali",
             memories=[fake_memory],
             rag_chunks=[DEPILEUR_CHUNK],
         )
@@ -170,6 +182,7 @@ class TestBuildFullSystemPromptWithRag:
 
 
 # ── RAG priority over tool-calling ───────────────────────────────────────────
+
 
 class TestRagPriorityInstruction:
     """
@@ -201,9 +214,17 @@ class TestRagPriorityInstruction:
     def test_cite_source_instruction_present(self):
         """LLM should be told to cite the document filename in its response."""
         result = build_rag_context([INDICATEURS_CHUNK])
-        assert "source" in result.lower() or "cite" in result.lower() or "fichier" in result.lower()
+        assert (
+            "source" in result.lower()
+            or "cite" in result.lower()
+            or "fichier" in result.lower()
+        )
 
     def test_instruction_critique_label_present(self):
         """The 'INSTRUCTION CRITIQUE' label makes priority unambiguous to LLM."""
         result = build_rag_context([INDICATEURS_CHUNK])
-        assert "INSTRUCTION" in result or "CRITIQUE" in result or "PRIORIT" in result.upper()
+        assert (
+            "INSTRUCTION" in result
+            or "CRITIQUE" in result
+            or "PRIORIT" in result.upper()
+        )

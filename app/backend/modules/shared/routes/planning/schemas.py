@@ -6,6 +6,7 @@ import enum
 
 class PlanningCreateData(BaseModel):
     """Schema for creating a planning"""
+
     identifiant_planning: str
     date_debut: datetime
     date_fin: datetime
@@ -15,12 +16,17 @@ class PlanningCreateData(BaseModel):
     chef_technique_id: Optional[int] = None
     zone_travail: Optional[str] = None
     planning_statut: Optional[str] = None
-    technicien_ids: List[int] = Field(default_factory=list, description="List of technician IDs")
-    machine_ids: List[int] = Field(default_factory=list, description="List of machine IDs")
+    technicien_ids: List[int] = Field(
+        default_factory=list, description="List of technician IDs"
+    )
+    machine_ids: List[int] = Field(
+        default_factory=list, description="List of machine IDs"
+    )
 
 
 class PlanningUpdateData(BaseModel):
     """Schema for updating a planning"""
+
     identifiant_planning: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
@@ -36,6 +42,7 @@ class PlanningUpdateData(BaseModel):
 
 class PlanningResponse(BaseModel):
     """Schema for planning response"""
+
     id: int
     identifiant_planning: str
     date_debut: datetime
@@ -56,6 +63,7 @@ class PlanningResponse(BaseModel):
 
 class UserOption(BaseModel):
     """User option for dropdowns"""
+
     id: int
     nom: str
     email: str

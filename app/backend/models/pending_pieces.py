@@ -14,6 +14,7 @@ Admins later review the queue and either:
 
 Status transitions are one-way (no rollback) for audit integrity.
 """
+
 from core.database import Base
 from sqlalchemy import (
     Column,
@@ -31,7 +32,9 @@ class PendingPiece(Base):
     __tablename__ = "pending_pieces"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     intervention_id = Column(
         Integer,
         ForeignKey("ordres_intervention.id", ondelete="SET NULL"),
@@ -62,4 +65,6 @@ class PendingPiece(Base):
     )
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
     rejection_reason = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

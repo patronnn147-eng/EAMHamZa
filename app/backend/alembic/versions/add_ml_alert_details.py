@@ -12,8 +12,6 @@ it originally contained have already been applied to the database.
 
 from typing import Sequence, Union
 
-import sqlalchemy as sa
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "add_ml_alert_details"

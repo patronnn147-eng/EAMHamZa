@@ -2,9 +2,8 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,6 +21,7 @@ router = APIRouter(prefix="/api/v1/entities/utilisateurs", tags=["utilisateurs"]
 # ---------- Pydantic Schemas ----------
 class UtilisateursData(BaseModel):
     """Entity data schema (for create/update)"""
+
     nom: str
     email: str
     mot_de_passe: str
@@ -30,6 +30,7 @@ class UtilisateursData(BaseModel):
 
 class UtilisateursUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     nom: Optional[str] = None
     email: Optional[str] = None
     mot_de_passe: Optional[str] = None
@@ -38,6 +39,7 @@ class UtilisateursUpdateData(BaseModel):
 
 class UtilisateursResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     nom: str
     email: str
@@ -50,6 +52,7 @@ class UtilisateursResponse(BaseModel):
 
 class UtilisateursListResponse(BaseModel):
     """List response schema"""
+
     items: List[UtilisateursResponse]
     total: int
     skip: int
@@ -58,22 +61,26 @@ class UtilisateursListResponse(BaseModel):
 
 class UtilisateursBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[UtilisateursData]
 
 
 class UtilisateursBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: UtilisateursUpdateData
 
 
 class UtilisateursBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[UtilisateursBatchUpdateItem]
 
 
 class UtilisateursBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]
 
 
@@ -83,14 +90,18 @@ async def query_utilisateurss(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     current_user: UserResponse = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """Query utilisateurss with filtering, sorting, and pagination (user can only see their own records)"""
-    logger.debug(f"Querying utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+    logger.debug(
+        f"Querying utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
+
     service = UtilisateursService(db)
     try:
         # Parse query JSON if provided
@@ -100,9 +111,9 @@ async def query_utilisateurss(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -122,12 +133,16 @@ async def query_utilisateurss_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     # Query utilisateurss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = UtilisateursService(db)
     try:
@@ -140,10 +155,7 @@ async def query_utilisateurss_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} utilisateurss")
         return result
@@ -163,14 +175,14 @@ async def get_utilisateurs(
 ):
     """Get a single utilisateurs by ID (user can only see their own records)"""
     logger.debug(f"Fetching utilisateurs with id: {id}, fields={fields}")
-    
+
     service = UtilisateursService(db)
     try:
         result = await service.get_by_id(id, id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
-        
+
         return result
     except HTTPException:
         raise
@@ -187,13 +199,13 @@ async def create_utilisateurs(
 ):
     """Create a new utilisateurs"""
     logger.debug(f"Creating new utilisateurs with data: {data}")
-    
+
     service = UtilisateursService(db)
     try:
         result = await service.create(data.model_dump(), id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create utilisateurs")
-        
+
         logger.info(f"Utilisateurs created successfully with id: {result.id}")
         return result
     except ValueError as e:
@@ -212,16 +224,18 @@ async def create_utilisateurss_batch(
 ):
     """Create multiple utilisateurss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} utilisateurss")
-    
+
     service = UtilisateursService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
-            result = await service.create(item_data.model_dump(), id=str(current_user.id))
+            result = await service.create(
+                item_data.model_dump(), id=str(current_user.id)
+            )
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch created {len(results)} utilisateurss successfully")
         return results
     except Exception as e:
@@ -238,18 +252,20 @@ async def update_utilisateurss_batch(
 ):
     """Update multiple utilisateurss in a single request (requires ownership)"""
     logger.debug(f"Batch updating {len(request.items)} utilisateurss")
-    
+
     service = UtilisateursService(db)
     results = []
-    
+
     try:
         for item in request.items:
             # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict, id=str(current_user.id))
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch updated {len(results)} utilisateurss successfully")
         return results
     except Exception as e:
@@ -276,7 +292,7 @@ async def update_utilisateurs(
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
-        
+
         logger.info(f"Utilisateurs {id} updated successfully")
         return result
     except HTTPException:
@@ -297,18 +313,21 @@ async def delete_utilisateurss_batch(
 ):
     """Delete multiple utilisateurss by their IDs (requires ownership)"""
     logger.debug(f"Batch deleting {len(request.ids)} utilisateurss")
-    
+
     service = UtilisateursService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id, id=str(current_user.id))
             if success:
                 deleted_count += 1
-        
+
         logger.info(f"Batch deleted {deleted_count} utilisateurss successfully")
-        return {"message": f"Successfully deleted {deleted_count} utilisateurss", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} utilisateurss",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -323,14 +342,14 @@ async def delete_utilisateurs(
 ):
     """Delete a single utilisateurs by ID (requires ownership)"""
     logger.debug(f"Deleting utilisateurs with id: {id}")
-    
+
     service = UtilisateursService(db)
     try:
         success = await service.delete(id, id=str(current_user.id))
         if not success:
             logger.warning(f"Utilisateurs with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Utilisateurs not found")
-        
+
         logger.info(f"Utilisateurs {id} deleted successfully")
         return {"message": "Utilisateurs deleted successfully", "id": id}
     except HTTPException:

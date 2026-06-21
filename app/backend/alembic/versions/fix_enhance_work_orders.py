@@ -11,8 +11,6 @@ It is intentionally a no-op and only restores a valid migration chain.
 
 from typing import Sequence, Union
 
-from alembic import op
-
 
 # revision identifiers, used by Alembic.
 revision: str = "fix_enhance_work_orders"

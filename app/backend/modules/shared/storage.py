@@ -25,7 +25,9 @@ router = APIRouter(prefix="/api/v1/storage", tags=["storage"])
 
 
 @router.post("/create-bucket", response_model=BucketResponse)
-async def create_bucket(request: BucketRequest, _current_user: UserResponse = Depends(get_admin_user)):
+async def create_bucket(
+    request: BucketRequest, _current_user: UserResponse = Depends(get_admin_user)
+):
     """
     Create a new bucket
     """
@@ -37,7 +39,9 @@ async def create_bucket(request: BucketRequest, _current_user: UserResponse = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to create bucket: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.get("/list-buckets", response_model=BucketListResponse)
@@ -53,11 +57,16 @@ async def list_buckets(_current_user: UserResponse = Depends(get_current_user)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to list buckets: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.get("/list-objects", response_model=ObjectListResponse)
-async def list_objects(request: OSSBaseModel = Depends(), _current_user: UserResponse = Depends(get_current_user)):
+async def list_objects(
+    request: OSSBaseModel = Depends(),
+    _current_user: UserResponse = Depends(get_current_user),
+):
     """
     List objects under the bucket
     """
@@ -69,11 +78,16 @@ async def list_objects(request: OSSBaseModel = Depends(), _current_user: UserRes
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to list objects: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.get("/get-object-info", response_model=ObjectInfo)
-async def get_object_info(request: ObjectRequest = Depends(), _current_user: UserResponse = Depends(get_current_user)):
+async def get_object_info(
+    request: ObjectRequest = Depends(),
+    _current_user: UserResponse = Depends(get_current_user),
+):
     """
     Get object metadata from the bucket
     """
@@ -85,11 +99,15 @@ async def get_object_info(request: ObjectRequest = Depends(), _current_user: Use
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to get object metadata: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.post("/rename-object", response_model=RenameResponse)
-async def rename_object(request: RenameRequest, _current_user: UserResponse = Depends(get_current_user)):
+async def rename_object(
+    request: RenameRequest, _current_user: UserResponse = Depends(get_current_user)
+):
     """
     Rename object inside the bucket
     """
@@ -101,11 +119,15 @@ async def rename_object(request: RenameRequest, _current_user: UserResponse = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to rename object: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.delete("/delete-object", response_model=DeleteResponse)
-async def delete_object(request: ObjectRequest, _current_user: UserResponse = Depends(get_current_user)):
+async def delete_object(
+    request: ObjectRequest, _current_user: UserResponse = Depends(get_current_user)
+):
     """
     Delete object inside the bucket
     """
@@ -117,11 +139,15 @@ async def delete_object(request: ObjectRequest, _current_user: UserResponse = De
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
         logger.error(f"Failed to delete object: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.post("/upload-url", response_model=FileUpDownResponse)
-async def upload_file(request: FileUpDownRequest, _current_user: UserResponse = Depends(get_current_user)):
+async def upload_file(
+    request: FileUpDownRequest, _current_user: UserResponse = Depends(get_current_user)
+):
     """
     Get a presigned URL for uploading a file to StorageService.
 
@@ -137,14 +163,20 @@ async def upload_file(request: FileUpDownRequest, _current_user: UserResponse = 
         return await service.create_upload_url(request)
     except ValueError as e:
         logger.error(f"Invalid upload request: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Failed to generate upload URL: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )
 
 
 @router.post("/download-url", response_model=FileUpDownResponse)
-async def download_file(request: FileUpDownRequest, _current_user: UserResponse = Depends(get_current_user)):
+async def download_file(
+    request: FileUpDownRequest, _current_user: UserResponse = Depends(get_current_user)
+):
     """
     Get a presigned URL for downloading a file to StorageService.
     """
@@ -153,7 +185,11 @@ async def download_file(request: FileUpDownRequest, _current_user: UserResponse 
         return await service.create_download_url(request)
     except ValueError as e:
         logger.error(f"Invalid download request: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Failed to generate download URL: {e}")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
+        )

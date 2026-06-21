@@ -1,12 +1,11 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.notifications import Notifications
 from models.utilisateurs import Utilisateurs, UserRole
-from models.machines import Machines
 
 logger = logging.getLogger(__name__)
 
@@ -14,63 +13,63 @@ logger = logging.getLogger(__name__)
 WORKFLOW_NOTIFICATIONS = {
     "WORK_ORDER_CREATED": {
         "roles": [UserRole.CHEFTECH, UserRole.CHETOP],
-        "message": "Nouvel ordre de travail créé: {title}"
+        "message": "Nouvel ordre de travail créé: {title}",
     },
     "WORK_ORDER_ASSIGNED": {
         "roles": [UserRole.TECHNICIEN],
-        "message": "Ordre de travail assigné: {title}"
+        "message": "Ordre de travail assigné: {title}",
     },
     "WORK_ORDER_COMPLETED": {
         "roles": [UserRole.CHEFTECH, UserRole.CHETOP],
-        "message": "Ordre de travail terminé: {title}"
+        "message": "Ordre de travail terminé: {title}",
     },
     "WORK_ORDER_UPDATED": {
         "roles": [UserRole.CHEFTECH, UserRole.CHETOP, UserRole.TECHNICIEN],
-        "message": "Ordre de travail mis à jour: {title}"
+        "message": "Ordre de travail mis à jour: {title}",
     },
     "INTERVENTION_REQUESTED": {
         "roles": [UserRole.CHEFTECH],
-        "message": "Demande d'intervention reçue: {machine}"
+        "message": "Demande d'intervention reçue: {machine}",
     },
     "INTERVENTION_APPROVED": {
         "roles": [UserRole.TECHNICIEN, UserRole.CHEFTECH],
-        "message": "Intervention approuvée: {machine}"
+        "message": "Intervention approuvée: {machine}",
     },
     "INTERVENTION_REJECTED": {
         "roles": [UserRole.CHETOP],
-        "message": "Intervention rejetée: {machine}"
+        "message": "Intervention rejetée: {machine}",
     },
     "INTERVENTION_COMPLETED": {
         "roles": [UserRole.CHEFTECH, UserRole.CHETOP],
-        "message": "Intervention terminée: {machine}"
+        "message": "Intervention terminée: {machine}",
     },
     "ALERT_CREATED": {
         "roles": [UserRole.CHEFTECH, UserRole.CHETOP, UserRole.TECHNICIEN],
-        "message": "Nouvelle alerte prédictive: {machine} - {alert_type}"
+        "message": "Nouvelle alerte prédictive: {machine} - {alert_type}",
     },
     "ALERT_CRITICAL": {
         "roles": [UserRole.ADMIN, UserRole.CHEFTECH],
-        "message": "ALERTE CRITIQUE: {machine} - {message}"
+        "message": "ALERTE CRITIQUE: {machine} - {message}",
     },
     "REPORT_GENERATED": {
         "roles": [UserRole.ADMIN],
-        "message": "Rapport généré: {report_type}"
+        "message": "Rapport généré: {report_type}",
     },
     "REPORT_SENT": {
         "roles": [UserRole.ADMIN],
-        "message": "Rapport envoyé: {report_type} à {recipients} destinataires"
+        "message": "Rapport envoyé: {report_type} à {recipients} destinataires",
     },
     "USER_APPROVED": {
         "roles": [],  # Direct to user
-        "message": "Votre compte a été approuvé. Vous pouvez maintenant vous connecter."
+        "message": "Votre compte a été approuvé. Vous pouvez maintenant vous connecter.",
     },
     "USER_REJECTED": {
         "roles": [],  # Direct to user
-        "message": "Votre demande de compte a été rejetée."
+        "message": "Votre demande de compte a été rejetée.",
     },
     "MAINTENANCE_DUE": {
         "roles": [UserRole.CHEFTECH, UserRole.TECHNICIEN],
-        "message": "Maintenance prévue: {machine} - {date}"
+        "message": "Maintenance prévue: {machine} - {date}",
     },
 }
 
@@ -90,23 +89,28 @@ class NotificationsService:
             await self.db.commit()
             await self.db.refresh(obj)
             logger.info(f"Created notification with id: {obj.id}")
-            
+
             # Broadcast to real-time clients
             try:
                 from core.notifications import broadcaster
+
                 notification_data = {
                     "id": obj.id,
                     "utilisateur_id": obj.utilisateur_id,
                     "type": obj.type,
                     "message": obj.message,
-                    "date_envoi": obj.date_envoi.isoformat() if obj.date_envoi else None,
+                    "date_envoi": obj.date_envoi.isoformat()
+                    if obj.date_envoi
+                    else None,
                     "lu": obj.lu,
-                    "created_at": obj.created_at.isoformat() if obj.created_at else None
+                    "created_at": obj.created_at.isoformat()
+                    if obj.created_at
+                    else None,
                 }
                 await broadcaster.broadcast(obj.utilisateur_id, notification_data)
             except Exception as e:
                 logger.error(f"Error broadcasting notification: {e}")
-                
+
             return obj
         except Exception as e:
             await self.db.rollback()
@@ -124,9 +128,9 @@ class NotificationsService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -134,21 +138,25 @@ class NotificationsService:
         try:
             query = select(Notifications)
             count_query = select(func.count(Notifications.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Notifications, field):
                         query = query.where(getattr(Notifications, field) == value)
-                        count_query = count_query.where(getattr(Notifications, field) == value)
-            
+                        count_query = count_query.where(
+                            getattr(Notifications, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Notifications, field_name):
-                        query = query.order_by(getattr(Notifications, field_name).desc())
+                        query = query.order_by(
+                            getattr(Notifications, field_name).desc()
+                        )
                 else:
                     if hasattr(Notifications, sort):
                         query = query.order_by(getattr(Notifications, sort))
@@ -168,7 +176,9 @@ class NotificationsService:
             logger.error(f"Error fetching notification list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Notifications]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Notifications]:
         """Update notification"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -204,13 +214,17 @@ class NotificationsService:
             logger.error(f"Error deleting notification {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Notifications]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Notifications]:
         """Get notification by any field"""
         try:
             if not hasattr(Notifications, field_name):
                 raise ValueError(f"Field {field_name} does not exist on Notifications")
             result = await self.db.execute(
-                select(Notifications).where(getattr(Notifications, field_name) == field_value)
+                select(Notifications).where(
+                    getattr(Notifications, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:
@@ -236,14 +250,16 @@ class NotificationsService:
             logger.error(f"Error fetching notifications by {field_name}: {str(e)}")
             raise
 
-    async def send_to_role(self, role: UserRole, notification_data: Dict[str, Any]) -> List[Notifications]:
+    async def send_to_role(
+        self, role: UserRole, notification_data: Dict[str, Any]
+    ) -> List[Notifications]:
         """Send notification to all users with a specific role"""
         try:
             result = await self.db.execute(
                 select(Utilisateurs).where(Utilisateurs.role == role)
             )
             users = result.scalars().all()
-            
+
             notifications = []
             for user in users:
                 notif_data = notification_data.copy()
@@ -251,18 +267,17 @@ class NotificationsService:
                 notif = await self.create(notif_data)
                 if notif:
                     notifications.append(notif)
-            
-            logger.info(f"Sent notification to {len(notifications)} users with role {role}")
+
+            logger.info(
+                f"Sent notification to {len(notifications)} users with role {role}"
+            )
             return notifications
         except Exception as e:
             logger.error(f"Error sending notification to role {role}: {str(e)}")
             raise
 
     async def send_workflow_notification(
-        self, 
-        action: str, 
-        data: Dict[str, Any],
-        specific_user_id: Optional[int] = None
+        self, action: str, data: Dict[str, Any], specific_user_id: Optional[int] = None
     ) -> List[Notifications]:
         """Send notification based on workflow action"""
         try:
@@ -272,28 +287,24 @@ class NotificationsService:
 
             config = WORKFLOW_NOTIFICATIONS[action]
             message_template = config["message"]
-            
+
             message = message_template.format(**data)
-            
-            notification_data = {
-                "type": action,
-                "message": message,
-                "lu": False
-            }
-            
+
+            notification_data = {"type": action, "message": message, "lu": False}
+
             # If specific user is provided (like USER_APPROVED)
             if specific_user_id:
                 notification_data["utilisateur_id"] = specific_user_id
                 return [await self.create(notification_data)]
-            
+
             # Otherwise, send to all users of the configured roles
             target_roles = config.get("roles", [])
             notifications = []
-            
+
             for role in target_roles:
                 role_notifs = await self.send_to_role(role, notification_data)
                 notifications.extend(role_notifs)
-            
+
             return notifications
         except Exception as e:
             logger.error(f"Error sending workflow notification for {action}: {str(e)}")
@@ -305,38 +316,35 @@ class NotificationsService:
         alert_type: str,
         severity: str,
         message: str,
-        machine_zone: Optional[str] = None
+        machine_zone: Optional[str] = None,
     ) -> List[Notifications]:
         """Send notification for predictive maintenance alerts"""
         data = {
             "machine": machine_name,
             "alert_type": alert_type,
             "message": message,
-            "severity": severity
+            "severity": severity,
         }
-        
+
         if severity in ["CRITICAL", "HIGH"]:
             action = "ALERT_CRITICAL"
         else:
             action = "ALERT_CREATED"
-        
+
         return await self.send_workflow_notification(action, data)
 
     async def get_user_notifications(
-        self, 
-        user_id: int, 
-        unread_only: bool = False,
-        limit: int = 50
+        self, user_id: int, unread_only: bool = False, limit: int = 50
     ) -> List[Notifications]:
         """Get notifications for a specific user"""
         try:
             query = select(Notifications).where(Notifications.utilisateur_id == user_id)
-            
+
             if unread_only:
-                query = query.where(Notifications.lu == False)
-            
+                query = query.where(not Notifications.lu)
+
             query = query.order_by(Notifications.id.desc()).limit(limit)
-            
+
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
@@ -348,8 +356,7 @@ class NotificationsService:
         try:
             result = await self.db.execute(
                 select(func.count(Notifications.id)).where(
-                    Notifications.utilisateur_id == user_id,
-                    Notifications.lu == False
+                    Notifications.utilisateur_id == user_id, not Notifications.lu
                 )
             )
             return result.scalar() or 0
@@ -357,22 +364,24 @@ class NotificationsService:
             logger.error(f"Error fetching unread count: {str(e)}")
             raise
 
-    async def mark_as_read(self, notification_id: int, user_id: int) -> Optional[Notifications]:
+    async def mark_as_read(
+        self, notification_id: int, user_id: int
+    ) -> Optional[Notifications]:
         """Mark a notification as read (only if owned by user)"""
         try:
             result = await self.db.execute(
                 select(Notifications).where(
                     Notifications.id == notification_id,
-                    Notifications.utilisateur_id == user_id
+                    Notifications.utilisateur_id == user_id,
                 )
             )
             notification = result.scalar_one_or_none()
-            
+
             if notification:
                 notification.lu = True
                 await self.db.commit()
                 await self.db.refresh(notification)
-            
+
             return notification
         except Exception as e:
             await self.db.rollback()
@@ -384,20 +393,19 @@ class NotificationsService:
         try:
             result = await self.db.execute(
                 select(Notifications).where(
-                    Notifications.utilisateur_id == user_id,
-                    Notifications.lu == False
+                    Notifications.utilisateur_id == user_id, not Notifications.lu
                 )
             )
             notifications = result.scalars().all()
-            
+
             count = 0
             for notif in notifications:
                 notif.lu = True
                 count += 1
-            
+
             if count > 0:
                 await self.db.commit()
-            
+
             logger.info(f"Marked {count} notifications as read for user {user_id}")
             return count
         except Exception as e:

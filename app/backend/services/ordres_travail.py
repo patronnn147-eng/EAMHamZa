@@ -21,11 +21,13 @@ class Ordres_travailService:
         try:
             # Handle None values for required fields
             processed_data = data.copy()
-            if processed_data.get('titre') is None:
-                processed_data['titre'] = f"Ordre de travail - {processed_data.get('priorite', 'MOYENNE')}"
-            if processed_data.get('description') is None:
-                processed_data['description'] = "Description non spécifiée"
-            
+            if processed_data.get("titre") is None:
+                processed_data["titre"] = (
+                    f"Ordre de travail - {processed_data.get('priorite', 'MOYENNE')}"
+                )
+            if processed_data.get("description") is None:
+                processed_data["description"] = "Description non spécifiée"
+
             obj = Ordres_travail(**processed_data)
             self.db.add(obj)
             await self.db.commit()
@@ -48,9 +50,9 @@ class Ordres_travailService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -58,33 +60,35 @@ class Ordres_travailService:
         try:
             query = select(Ordres_travail)
             count_query = select(func.count(Ordres_travail.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Ordres_travail, field):
                         column = getattr(Ordres_travail, field)
                         # Convert value to appropriate type based on column type
                         column_type = str(column.type)
-                        if 'integer' in column_type.lower() and isinstance(value, str):
+                        if "integer" in column_type.lower() and isinstance(value, str):
                             try:
                                 value = int(value)
                             except ValueError:
                                 continue
                         query = query.where(column == value)
                         count_query = count_query.where(column == value)
-            
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
                 order_clauses = []
-                for field in sort.split(','):
+                for field in sort.split(","):
                     field = field.strip()
-                    if field.startswith('-'):
+                    if field.startswith("-"):
                         field_name = field[1:]
                         if hasattr(Ordres_travail, field_name):
                             try:
-                                order_clauses.append(getattr(Ordres_travail, field_name).desc())
+                                order_clauses.append(
+                                    getattr(Ordres_travail, field_name).desc()
+                                )
                             except Exception:
                                 pass
                     else:
@@ -113,7 +117,9 @@ class Ordres_travailService:
             logger.error(f"Error fetching ordres_travail list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Ordres_travail]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Ordres_travail]:
         """Update ordres_travail"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -149,13 +155,17 @@ class Ordres_travailService:
             logger.error(f"Error deleting ordres_travail {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Ordres_travail]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Ordres_travail]:
         """Get ordres_travail by any field"""
         try:
             if not hasattr(Ordres_travail, field_name):
                 raise ValueError(f"Field {field_name} does not exist on Ordres_travail")
             result = await self.db.execute(
-                select(Ordres_travail).where(getattr(Ordres_travail, field_name) == field_value)
+                select(Ordres_travail).where(
+                    getattr(Ordres_travail, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:

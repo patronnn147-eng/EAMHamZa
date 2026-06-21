@@ -41,9 +41,9 @@ class Ordres_interventionService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,21 +51,27 @@ class Ordres_interventionService:
         try:
             query = select(Ordres_intervention)
             count_query = select(func.count(Ordres_intervention.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Ordres_intervention, field):
-                        query = query.where(getattr(Ordres_intervention, field) == value)
-                        count_query = count_query.where(getattr(Ordres_intervention, field) == value)
-            
+                        query = query.where(
+                            getattr(Ordres_intervention, field) == value
+                        )
+                        count_query = count_query.where(
+                            getattr(Ordres_intervention, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Ordres_intervention, field_name):
-                        query = query.order_by(getattr(Ordres_intervention, field_name).desc())
+                        query = query.order_by(
+                            getattr(Ordres_intervention, field_name).desc()
+                        )
                 else:
                     if hasattr(Ordres_intervention, sort):
                         query = query.order_by(getattr(Ordres_intervention, sort))
@@ -85,7 +91,9 @@ class Ordres_interventionService:
             logger.error(f"Error fetching ordres_intervention list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Ordres_intervention]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Ordres_intervention]:
         """Update ordres_intervention"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -121,17 +129,25 @@ class Ordres_interventionService:
             logger.error(f"Error deleting ordres_intervention {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Ordres_intervention]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Ordres_intervention]:
         """Get ordres_intervention by any field"""
         try:
             if not hasattr(Ordres_intervention, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Ordres_intervention")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Ordres_intervention"
+                )
             result = await self.db.execute(
-                select(Ordres_intervention).where(getattr(Ordres_intervention, field_name) == field_value)
+                select(Ordres_intervention).where(
+                    getattr(Ordres_intervention, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching ordres_intervention by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching ordres_intervention by {field_name}: {str(e)}"
+            )
             raise
 
     async def list_by_field(
@@ -140,7 +156,9 @@ class Ordres_interventionService:
         """Get list of ordres_interventions filtered by field"""
         try:
             if not hasattr(Ordres_intervention, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Ordres_intervention")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Ordres_intervention"
+                )
             result = await self.db.execute(
                 select(Ordres_intervention)
                 .where(getattr(Ordres_intervention, field_name) == field_value)
@@ -150,5 +168,7 @@ class Ordres_interventionService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching ordres_interventions by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching ordres_interventions by {field_name}: {str(e)}"
+            )
             raise

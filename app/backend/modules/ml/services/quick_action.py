@@ -8,6 +8,7 @@ project's pure-function test convention (see parts_drafts / readiness tests).
 Guarantees enforced by the orchestrator: atomicity, machine-row lock
 (concurrency), idempotency via execution hash, server-side source of truth.
 """
+
 import hashlib
 import json
 import math
@@ -16,6 +17,7 @@ from typing import Any, Dict, List, Optional
 
 
 # ── Pure helpers (no DB) ───────────────────────────────────────────────────
+
 
 def _slug(name: str) -> str:
     """lowercase, non-alphanumeric → '-', collapse repeats, trim. Fallback 'part'."""
@@ -44,7 +46,9 @@ def _canonical_item(item: Dict[str, Any]) -> List[Any]:
 
 def _execution_hash(items: List[Dict[str, Any]], machine_id: int) -> str:
     """Deterministic, order-independent sha256 over canonical items + machine_id."""
-    canon = sorted((_canonical_item(i) for i in items), key=lambda c: json.dumps(c, sort_keys=True))
+    canon = sorted(
+        (_canonical_item(i) for i in items), key=lambda c: json.dumps(c, sort_keys=True)
+    )
     payload = json.dumps({"machine_id": machine_id, "items": canon}, sort_keys=True)
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
@@ -59,10 +63,13 @@ def _target_qty(expected_qty: float, min_stock: float, is_consumable: bool):
 
 def _driver_to_category(driver: str) -> str:
     """Category for auto-created pieces, derived from the recommendation driver."""
-    return {"condition": "Predictive", "consumption": "Consumable"}.get(driver, "General")
+    return {"condition": "Predictive", "consumption": "Consumable"}.get(
+        driver, "General"
+    )
 
 
 # ── Plan builder (pure) ────────────────────────────────────────────────────
+
 
 def _new_ref(name: str, machine_id: int) -> str:
     # Normalise to lower so "Gasket" and "gasket" produce the same ref (intra-run dedup).
@@ -100,7 +107,7 @@ def build_execution_plan(
     items with a blank name are skipped (no junk catalog rows).
     """
     ops: List[Dict[str, Any]] = []
-    planned_creates: Dict[str, Dict[str, Any]] = {}   # new_ref → op (intra-run dedup)
+    planned_creates: Dict[str, Dict[str, Any]] = {}  # new_ref → op (intra-run dedup)
 
     def _resolve(item):
         pid = item.get("piece_id")
@@ -135,21 +142,31 @@ def build_execution_plan(
                 prev = planned_creates[new_ref]
                 if target > prev["target_qty"]:
                     prev["target_qty"] = target
-                    prev["qty_added"] = target          # on_hand for a new piece is 0
-                    prev["create_spec"]["min_stock"] = max(prev["create_spec"]["min_stock"], min_stock)
+                    prev["qty_added"] = target  # on_hand for a new piece is 0
+                    prev["create_spec"]["min_stock"] = max(
+                        prev["create_spec"]["min_stock"], min_stock
+                    )
                     prev["create_spec"]["category"] = _driver_to_category(driver)
                 continue
             op = {
-                "name": name, "driver": driver, "resolution": "create",
-                "action": "created", "piece_id": None, "reference": new_ref,
+                "name": name,
+                "driver": driver,
+                "resolution": "create",
+                "action": "created",
+                "piece_id": None,
+                "reference": new_ref,
                 "create_spec": {
-                    "reference": new_ref, "name": name,
+                    "reference": new_ref,
+                    "name": name,
                     "category": _driver_to_category(driver),
-                    "min_stock": min_stock, "default_unit": "pcs",
+                    "min_stock": min_stock,
+                    "default_unit": "pcs",
                     "is_consumable": False,
                 },
-                "on_hand_before": 0.0, "target_qty": target,
-                "qty_added": target, "stock_action": "added" if target > 0 else "skipped",
+                "on_hand_before": 0.0,
+                "target_qty": target,
+                "qty_added": target,
+                "stock_action": "added" if target > 0 else "skipped",
             }
             planned_creates[new_ref] = op
             ops.append(op)
@@ -164,14 +181,23 @@ def build_execution_plan(
         if delta < 0:
             delta = 0
         # quantize like the rest of the codebase (2 dp) but keep ints clean
-        qty_added = (int(delta) if not is_consumable else round(delta, 2)) if delta > 0 else 0
-        ops.append({
-            "name": name, "driver": driver, "resolution": resolution,
-            "action": "existing", "piece_id": piece["id"], "reference": piece.get("reference"),
-            "on_hand_before": on_hand, "target_qty": target,
-            "qty_added": qty_added,
-            "stock_action": "added" if delta > 0 else "skipped",
-        })
+        qty_added = (
+            (int(delta) if not is_consumable else round(delta, 2)) if delta > 0 else 0
+        )
+        ops.append(
+            {
+                "name": name,
+                "driver": driver,
+                "resolution": resolution,
+                "action": "existing",
+                "piece_id": piece["id"],
+                "reference": piece.get("reference"),
+                "on_hand_before": on_hand,
+                "target_qty": target,
+                "qty_added": qty_added,
+                "stock_action": "added" if delta > 0 else "skipped",
+            }
+        )
 
     summary = _summarize(ops)
     return {"ops": ops, "summary": summary}
@@ -188,10 +214,10 @@ def _summarize(ops: List[Dict[str, Any]]) -> Dict[str, Any]:
 
 
 # ── Async orchestrator (DB) ────────────────────────────────────────────────
-import logging
-from typing import Tuple
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+import logging  # noqa: E402
+from typing import Tuple  # noqa: E402
+from sqlalchemy import select  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -219,9 +245,14 @@ async def _preload_maps(
             conds.append(sa_func.lower(Piece.name).in_(lnames))
         rows = (await db.execute(select(Piece).where(or_(*conds)))).scalars().all()
         for p in rows:
-            pd = {"id": p.id, "reference": p.reference, "name": p.name,
-                  "min_stock": p.min_stock, "is_consumable": p.is_consumable,
-                  "default_unit": p.default_unit}
+            pd = {
+                "id": p.id,
+                "reference": p.reference,
+                "name": p.name,
+                "min_stock": p.min_stock,
+                "is_consumable": p.is_consumable,
+                "default_unit": p.default_unit,
+            }
             pieces_by_id[p.id] = pd
             if p.reference:
                 pieces_by_ref[p.reference] = pd
@@ -229,9 +260,13 @@ async def _preload_maps(
 
     stock_by_piece_id: Dict[int, float] = {}
     if pieces_by_id:
-        srows = (await db.execute(
-            select(Stock.piece_id, Stock.quantity).where(Stock.piece_id.in_(pieces_by_id.keys()))
-        )).fetchall()
+        srows = (
+            await db.execute(
+                select(Stock.piece_id, Stock.quantity).where(
+                    Stock.piece_id.in_(pieces_by_id.keys())
+                )
+            )
+        ).fetchall()
         for piece_id, qty in srows:
             stock_by_piece_id[piece_id] = float(qty or 0.0)
 
@@ -292,7 +327,9 @@ async def quick_provision_parts(
 
         # 3. Preload + build the plan (pure).
         pid_map, ref_map, lname_map, stock_map = await _preload_maps(db, items)
-        plan = build_execution_plan(items, machine_id, pid_map, ref_map, lname_map, stock_map)
+        plan = build_execution_plan(
+            items, machine_id, pid_map, ref_map, lname_map, stock_map
+        )
 
         # 4. Apply: create pieces, then top up stock.
         stock_svc = StockService(db)
@@ -300,32 +337,52 @@ async def quick_provision_parts(
             if op["resolution"] == "create":
                 spec = op["create_spec"]
                 # Re-check for an existing piece with the generated reference (collision-safe).
-                existing = await db.scalar(select(Piece).where(Piece.reference == spec["reference"]))
+                existing = await db.scalar(
+                    select(Piece).where(Piece.reference == spec["reference"])
+                )
                 if existing is None:
                     piece = Piece(
-                        reference=spec["reference"], name=spec["name"],
-                        category=spec["category"], min_stock=spec["min_stock"],
-                        default_unit=spec["default_unit"], is_consumable=spec["is_consumable"],
+                        reference=spec["reference"],
+                        name=spec["name"],
+                        category=spec["category"],
+                        min_stock=spec["min_stock"],
+                        default_unit=spec["default_unit"],
+                        is_consumable=spec["is_consumable"],
                     )
                     db.add(piece)
                     await db.flush()  # assign id, no commit
                     op["piece_id"] = piece.id
                 else:
                     op["piece_id"] = existing.id
-            if op["stock_action"] == "added" and op["qty_added"] and op["piece_id"] is not None:
+            if (
+                op["stock_action"] == "added"
+                and op["qty_added"]
+                and op["piece_id"] is not None
+            ):
                 await stock_svc.add_stock(
-                    piece_id=op["piece_id"], quantity=op["qty_added"],
-                    reference="quick-action", auto_commit=False,
+                    piece_id=op["piece_id"],
+                    quantity=op["qty_added"],
+                    reference="quick-action",
+                    auto_commit=False,
                 )
 
         result = {
-            "success": True, "machine_id": machine_id, "execution_hash": exec_hash,
-            "idempotent": False, "dry_run": dry_run,
+            "success": True,
+            "machine_id": machine_id,
+            "execution_hash": exec_hash,
+            "idempotent": False,
+            "dry_run": dry_run,
             "summary": plan["summary"],
             "items": [
-                {"piece_id": o["piece_id"], "name": o["name"], "action": o["action"],
-                 "stock_action": o["stock_action"], "qty_added": o["qty_added"],
-                 "target_qty": o["target_qty"], "on_hand_before": o["on_hand_before"]}
+                {
+                    "piece_id": o["piece_id"],
+                    "name": o["name"],
+                    "action": o["action"],
+                    "stock_action": o["stock_action"],
+                    "qty_added": o["qty_added"],
+                    "target_qty": o["target_qty"],
+                    "on_hand_before": o["on_hand_before"],
+                }
                 for o in plan["ops"]
             ],
             "message": "Quick Action completed successfully",
@@ -337,11 +394,17 @@ async def quick_provision_parts(
             return result
 
         # 5. Record the run (inside the same tx) and commit.
-        db.add(QuickActionRun(
-            machine_id=machine_id, hash=exec_hash, result_json=json.dumps(result),
-        ))
+        db.add(
+            QuickActionRun(
+                machine_id=machine_id,
+                hash=exec_hash,
+                result_json=json.dumps(result),
+            )
+        )
         await db.commit()
-        logger.info(f"[quick_action] machine {machine_id}: {plan['summary']} (actor={actor_user_id})")
+        logger.info(
+            f"[quick_action] machine {machine_id}: {plan['summary']} (actor={actor_user_id})"
+        )
         return result
 
     except Exception as e:

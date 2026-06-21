@@ -12,14 +12,15 @@ Key invariants:
 - All multi-row operations support ``auto_commit=False`` so callers can wrap
   them in a parent transaction (e.g. work-order completion).
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence
 
-from sqlalchemy import and_, func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.consumed_pieces import ConsumedPiece
@@ -66,13 +67,16 @@ class InventoryReservationService:
             return DECIMAL_ZERO
 
         reserved = await self.db.scalar(
-            select(func.coalesce(func.sum(RequiredPiece.quantity_reserved), 0))
-            .where(RequiredPiece.piece_id == piece_id)
+            select(func.coalesce(func.sum(RequiredPiece.quantity_reserved), 0)).where(
+                RequiredPiece.piece_id == piece_id
+            )
         )
         result = Decimal(str(stock_qty)) - Decimal(str(reserved or 0))
         return result if result > DECIMAL_ZERO else DECIMAL_ZERO
 
-    async def get_availability_map(self, piece_ids: Iterable[int]) -> Dict[int, Dict[str, Decimal]]:
+    async def get_availability_map(
+        self, piece_ids: Iterable[int]
+    ) -> Dict[int, Dict[str, Decimal]]:
         """Batch availability lookup — single query.
 
         Returns {piece_id: {stock, reserved, available}}.
@@ -86,18 +90,24 @@ class InventoryReservationService:
         stock_rows = await self.db.execute(
             select(Stock.piece_id, Stock.quantity).where(Stock.piece_id.in_(piece_ids))
         )
-        stock_map = {row.piece_id: Decimal(str(row.quantity or 0)) for row in stock_rows}
+        stock_map = {
+            row.piece_id: Decimal(str(row.quantity or 0)) for row in stock_rows
+        }
 
         # Reserved per piece
         reserved_rows = await self.db.execute(
             select(
                 RequiredPiece.piece_id,
-                func.coalesce(func.sum(RequiredPiece.quantity_reserved), 0).label("reserved"),
+                func.coalesce(func.sum(RequiredPiece.quantity_reserved), 0).label(
+                    "reserved"
+                ),
             )
             .where(RequiredPiece.piece_id.in_(piece_ids))
             .group_by(RequiredPiece.piece_id)
         )
-        reserved_map = {row.piece_id: Decimal(str(row.reserved or 0)) for row in reserved_rows}
+        reserved_map = {
+            row.piece_id: Decimal(str(row.reserved or 0)) for row in reserved_rows
+        }
 
         result: Dict[int, Dict[str, Decimal]] = {}
         for pid in piece_ids:
@@ -141,13 +151,17 @@ class InventoryReservationService:
                 q = q.where(RequiredPiece.id.in_(required_piece_ids))
             rows = (await self.db.execute(q)).scalars().all()
             if not rows:
-                logger.info(f"try_reserve: no required pieces to reserve for itv {intervention_id}")
+                logger.info(
+                    f"try_reserve: no required pieces to reserve for itv {intervention_id}"
+                )
                 return []
 
             # Group desired qty per piece (in case duplicate piece rows exist)
             wanted: Dict[int, Decimal] = {}
             for r in rows:
-                wanted[r.piece_id] = wanted.get(r.piece_id, DECIMAL_ZERO) + Decimal(str(r.quantity_planned))
+                wanted[r.piece_id] = wanted.get(r.piece_id, DECIMAL_ZERO) + Decimal(
+                    str(r.quantity_planned)
+                )
 
             # Availability map (one query for all)
             avail_map = await self.get_availability_map(wanted.keys())
@@ -160,13 +174,15 @@ class InventoryReservationService:
                     piece_name = await self.db.scalar(
                         select(Piece.name).where(Piece.id == piece_id)
                     )
-                    deficits.append(DeficitItem(
-                        piece_id=piece_id,
-                        piece_name=piece_name or f"piece-{piece_id}",
-                        requested=need,
-                        available=avail,
-                        deficit=need - avail,
-                    ))
+                    deficits.append(
+                        DeficitItem(
+                            piece_id=piece_id,
+                            piece_name=piece_name or f"piece-{piece_id}",
+                            requested=need,
+                            available=avail,
+                            deficit=need - avail,
+                        )
+                    )
             if deficits:
                 if auto_commit:
                     await self.db.rollback()
@@ -179,14 +195,16 @@ class InventoryReservationService:
                 r.reservation_expires_at = expires_at
                 r.approved = True
                 # Audit row
-                self.db.add(MouvementStock(
-                    piece_id=r.piece_id,
-                    quantity=r.quantity_reserved,
-                    unit=r.unit,
-                    movement_type="RESERVED",
-                    reference=f"OT-itv-{intervention_id}",
-                    intervention_id=intervention_id,
-                ))
+                self.db.add(
+                    MouvementStock(
+                        piece_id=r.piece_id,
+                        quantity=r.quantity_reserved,
+                        unit=r.unit,
+                        movement_type="RESERVED",
+                        reference=f"OT-itv-{intervention_id}",
+                        intervention_id=intervention_id,
+                    )
+                )
 
             await self.db.flush()
             if auto_commit:
@@ -201,7 +219,9 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"try_reserve failed for itv {intervention_id}: {e}", exc_info=True)
+            logger.error(
+                f"try_reserve failed for itv {intervention_id}: {e}", exc_info=True
+            )
             raise
 
     # ── Release: full intervention ──────────────────────────────────────────
@@ -218,24 +238,32 @@ class InventoryReservationService:
         completed intervention (no rows will match).
         """
         try:
-            rows = (await self.db.execute(
-                select(RequiredPiece).where(
-                    RequiredPiece.intervention_id == intervention_id,
-                    RequiredPiece.quantity_reserved > 0,
+            rows = (
+                (
+                    await self.db.execute(
+                        select(RequiredPiece).where(
+                            RequiredPiece.intervention_id == intervention_id,
+                            RequiredPiece.quantity_reserved > 0,
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for r in rows:
                 reserved_qty = Decimal(str(r.quantity_reserved))
                 # audit
-                self.db.add(MouvementStock(
-                    piece_id=r.piece_id,
-                    quantity=reserved_qty,
-                    unit=r.unit,
-                    movement_type="RESERVATION_RELEASED",
-                    reference=f"OT-itv-{intervention_id}-{reason}",
-                    intervention_id=intervention_id,
-                ))
+                self.db.add(
+                    MouvementStock(
+                        piece_id=r.piece_id,
+                        quantity=reserved_qty,
+                        unit=r.unit,
+                        movement_type="RESERVATION_RELEASED",
+                        reference=f"OT-itv-{intervention_id}-{reason}",
+                        intervention_id=intervention_id,
+                    )
+                )
                 r.quantity_reserved = DECIMAL_ZERO
                 r.reservation_expires_at = None
 
@@ -243,12 +271,16 @@ class InventoryReservationService:
             if auto_commit:
                 await self.db.commit()
 
-            logger.info(f"release_all itv {intervention_id} — released {len(rows)} reservations ({reason})")
+            logger.info(
+                f"release_all itv {intervention_id} — released {len(rows)} reservations ({reason})"
+            )
             return len(rows)
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"release_all failed for itv {intervention_id}: {e}", exc_info=True)
+            logger.error(
+                f"release_all failed for itv {intervention_id}: {e}", exc_info=True
+            )
             raise
 
     # ── Release: expired only (Celery beat task) ────────────────────────────
@@ -260,26 +292,34 @@ class InventoryReservationService:
         """
         try:
             now = datetime.now(timezone.utc)
-            rows = (await self.db.execute(
-                select(RequiredPiece).where(
-                    RequiredPiece.quantity_reserved > 0,
-                    RequiredPiece.reservation_expires_at != None,  # noqa: E711
-                    RequiredPiece.reservation_expires_at < now,
+            rows = (
+                (
+                    await self.db.execute(
+                        select(RequiredPiece).where(
+                            RequiredPiece.quantity_reserved > 0,
+                            RequiredPiece.reservation_expires_at != None,  # noqa: E711
+                            RequiredPiece.reservation_expires_at < now,
+                        )
+                    )
                 )
-            )).scalars().all()
+                .scalars()
+                .all()
+            )
 
             count = 0
             affected_interventions = set()
             for r in rows:
                 reserved_qty = Decimal(str(r.quantity_reserved))
-                self.db.add(MouvementStock(
-                    piece_id=r.piece_id,
-                    quantity=reserved_qty,
-                    unit=r.unit,
-                    movement_type="RESERVATION_RELEASED",
-                    reference=f"OT-itv-{r.intervention_id}-expired",
-                    intervention_id=r.intervention_id,
-                ))
+                self.db.add(
+                    MouvementStock(
+                        piece_id=r.piece_id,
+                        quantity=reserved_qty,
+                        unit=r.unit,
+                        movement_type="RESERVATION_RELEASED",
+                        reference=f"OT-itv-{r.intervention_id}-expired",
+                        intervention_id=r.intervention_id,
+                    )
+                )
                 r.quantity_reserved = DECIMAL_ZERO
                 r.reservation_expires_at = None
                 count += 1
@@ -367,14 +407,16 @@ class InventoryReservationService:
 
             # 3. Release the reservation (audit row + zero out reserved qty)
             if rp.quantity_reserved > 0:
-                self.db.add(MouvementStock(
-                    piece_id=rp.piece_id,
-                    quantity=Decimal(str(rp.quantity_reserved)),
-                    unit=rp.unit,
-                    movement_type="RESERVATION_RELEASED",
-                    reference=f"OT-itv-{rp.intervention_id}-fulfilled",
-                    intervention_id=rp.intervention_id,
-                ))
+                self.db.add(
+                    MouvementStock(
+                        piece_id=rp.piece_id,
+                        quantity=Decimal(str(rp.quantity_reserved)),
+                        unit=rp.unit,
+                        movement_type="RESERVATION_RELEASED",
+                        reference=f"OT-itv-{rp.intervention_id}-fulfilled",
+                        intervention_id=rp.intervention_id,
+                    )
+                )
             rp.quantity_reserved = DECIMAL_ZERO
             rp.reservation_expires_at = None
 
@@ -410,11 +452,16 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"fulfill_reservation failed for rp {required_piece_id}: {e}", exc_info=True)
+            logger.error(
+                f"fulfill_reservation failed for rp {required_piece_id}: {e}",
+                exc_info=True,
+            )
             raise
 
     # ── Auto-linking — Option 1 of hybrid piece-machine workflow ──────────
-    async def _auto_link_piece_to_machine(self, piece_id: int, intervention_id: int) -> None:
+    async def _auto_link_piece_to_machine(
+        self, piece_id: int, intervention_id: int
+    ) -> None:
         """Insert a piece_machine row when a piece is consumed on a machine.
 
         Idempotent (`ON CONFLICT DO NOTHING`). Catches the scenario where a
@@ -427,13 +474,19 @@ class InventoryReservationService:
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 
             machine_id = await self.db.scalar(
-                select(Ordres_intervention.machine_id).where(Ordres_intervention.id == intervention_id)
+                select(Ordres_intervention.machine_id).where(
+                    Ordres_intervention.id == intervention_id
+                )
             )
             if not machine_id:
                 return  # intervention has no machine — skip
 
-            stmt = pg_insert(piece_machine).values(piece_id=piece_id, machine_id=machine_id)
-            stmt = stmt.on_conflict_do_nothing(index_elements=["piece_id", "machine_id"])
+            stmt = pg_insert(piece_machine).values(
+                piece_id=piece_id, machine_id=machine_id
+            )
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=["piece_id", "machine_id"]
+            )
             await self.db.execute(stmt)
         except Exception as e:
             # Non-fatal — auto-link is a best-effort enrichment
@@ -448,6 +501,7 @@ class InventoryReservationService:
         """
         try:
             from modules.ml.services.demand_forecast import invalidate_forecast_cache
+
             invalidate_forecast_cache()
             logger.info(
                 f"create_deficit_alert — invalidated forecast cache; "

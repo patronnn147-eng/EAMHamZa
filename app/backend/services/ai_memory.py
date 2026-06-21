@@ -2,7 +2,7 @@ import logging
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.ai_memories import AIMemories
@@ -17,14 +17,16 @@ class AIMemoryService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data: AIMemoryCreate, utilisateur_id: int = None) -> Optional[AIMemories]:
+    async def create(
+        self, data: AIMemoryCreate, utilisateur_id: int = None
+    ) -> Optional[AIMemories]:
         """Create a new AI memory entry"""
         try:
             # Use provided user_id or from schema
             user_id = utilisateur_id or data.utilisateur_id
             if not user_id:
                 raise ValueError("utilisateur_id is required")
-            
+
             obj = AIMemories(
                 utilisateur_id=user_id,
                 memory_type=data.memory_type,
@@ -68,7 +70,7 @@ class AIMemoryService:
             if memory_type:
                 query = query.where(AIMemories.memory_type == memory_type)
             query = query.order_by(AIMemories.updated_at.desc())
-            
+
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
@@ -102,14 +104,14 @@ class AIMemoryService:
             obj = await self.get_by_id(obj_id)
             if not obj:
                 return None
-            
+
             if data.memory_value is not None:
                 obj.memory_value = data.memory_value
             if data.success_count is not None:
                 obj.success_count = data.success_count
             if data.failure_count is not None:
                 obj.failure_count = data.failure_count
-            
+
             obj.updated_at = datetime.now()
             await self.db.commit()
             await self.db.refresh(obj)
@@ -160,20 +162,22 @@ class AIMemoryService:
     async def get_all_types(self, utilisateur_id: int) -> Dict[str, Any]:
         """Get summary of all memory types for a user"""
         memories = await self.get_by_user(utilisateur_id)
-        
+
         summary = {
             "preference": [],
             "strategy": [],
             "failure": [],
         }
-        
+
         for mem in memories:
             if mem.memory_type in summary:
-                summary[mem.memory_type].append({
-                    "key": mem.memory_key,
-                    "value": mem.memory_value,
-                    "success_count": mem.success_count,
-                    "failure_count": mem.failure_count,
-                })
-        
+                summary[mem.memory_type].append(
+                    {
+                        "key": mem.memory_key,
+                        "value": mem.memory_value,
+                        "success_count": mem.success_count,
+                        "failure_count": mem.failure_count,
+                    }
+                )
+
         return summary

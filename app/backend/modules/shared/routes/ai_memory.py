@@ -113,7 +113,9 @@ async def mark_success(
     service = AIMemoryService(db)
     memory = await service.get_by_id(str(memory_id))
     if not memory or memory.utilisateur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+        )
     return await service.increment_success(str(memory_id))
 
 
@@ -127,7 +129,9 @@ async def mark_failure(
     service = AIMemoryService(db)
     memory = await service.get_by_id(str(memory_id))
     if not memory or memory.utilisateur_id != current_user.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+        )
     return await service.increment_failure(str(memory_id))
 
 

@@ -7,11 +7,11 @@ reservation back to available stock. Emits one MouvementStock
 
 Idempotent — re-running yields zero work after the first sweep.
 """
+
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from typing import Any, Dict
 
 from celery import shared_task
@@ -19,7 +19,12 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="tasks.release_expired_reservations", bind=True, max_retries=2, default_retry_delay=300)
+@shared_task(
+    name="tasks.release_expired_reservations",
+    bind=True,
+    max_retries=2,
+    default_retry_delay=300,
+)
 def release_expired_reservations(self) -> Dict[str, Any]:
     """Synchronous Celery entry point — bridges to async service call."""
     try:
@@ -48,5 +53,7 @@ async def _run_async() -> int:
         svc = InventoryReservationService(session)
         count = await svc.release_expired(auto_commit=True)
         if count:
-            logger.warning(f"release_expired_reservations released {count} expired reservation(s)")
+            logger.warning(
+                f"release_expired_reservations released {count} expired reservation(s)"
+            )
         return count

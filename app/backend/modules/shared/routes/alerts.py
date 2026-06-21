@@ -1,20 +1,17 @@
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, case
+from sqlalchemy import select, case
 
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity
-from models.machines import Machines
+from models.alertes import Alert, AlertSeverity
 from services.alertes import AlertService
-from schemas.pagination import PaginatedResponse
-import math
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +92,7 @@ async def get_alerts_for_user_role(
     ADMIN / CHEFTECH / CHETOP — see all active alerts (no zone column exists on Machines).
     TECHNICIEN — same for now (no technicien_id FK on Machines).
     """
-    query = select(Alert).where(Alert.is_active == True)
+    query = select(Alert).where(Alert.is_active)
 
     if machine_id:
         query = query.where(Alert.machine_id == machine_id)
@@ -142,7 +139,7 @@ async def get_alerts(
         db, current_user, machine_id, alert_severity
     )
 
-    total = len(alerts)
+    len(alerts)
     start = (page - 1) * page_size
     end = start + page_size
     paginated_alerts = alerts[start:end]
@@ -235,7 +232,7 @@ async def create_work_order_from_alert(
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
         raise HTTPException(
             status_code=403,
-            detail="Only admin or cheftech can create work orders from alerts"
+            detail="Only admin or cheftech can create work orders from alerts",
         )
 
     service = AlertService(db)
@@ -258,7 +255,7 @@ async def create_work_order_from_alert(
         "status": "created",
         "alert_id": alert_id,
         "work_order_id": wo.id,
-        "work_order_title": wo.titre
+        "work_order_title": wo.titre,
     }
 
 

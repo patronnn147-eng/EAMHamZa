@@ -6,7 +6,9 @@ class Archives(Base):
     __tablename__ = "archives"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     identifiant_archive = Column(String, nullable=False)
     nom = Column(String, nullable=False)
     date_archivage = Column(DateTime(timezone=True), nullable=False)

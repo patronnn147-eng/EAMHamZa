@@ -6,6 +6,7 @@ from uuid import UUID
 
 class AIMemoryCreate(BaseModel):
     """Schema for creating AI memory - utilisateur_id set from auth"""
+
     utilisateur_id: Optional[int] = None  # Auto-set from current user
     memory_type: Literal["preference", "strategy", "failure"]
     memory_key: str
@@ -16,6 +17,7 @@ class AIMemoryCreate(BaseModel):
 
 class AIMemoryUpdate(BaseModel):
     """Schema for updating AI memory"""
+
     memory_value: Optional[str] = None
     success_count: Optional[int] = None
     failure_count: Optional[int] = None
@@ -23,6 +25,7 @@ class AIMemoryUpdate(BaseModel):
 
 class AIMemoryResponse(BaseModel):
     """Schema for AI memory response"""
+
     id: UUID
     utilisateur_id: int
     memory_type: str
@@ -40,5 +43,6 @@ class AIMemoryResponse(BaseModel):
 
 class AIMemoryListResponse(BaseModel):
     """Schema for listing AI memories"""
+
     memories: list[AIMemoryResponse]
     total: int

@@ -33,20 +33,26 @@ async def get_machines_list(
         result = await db.execute(query)
         machines = result.scalars().all()
 
-        return [MachineResponse(
-            id=m.id,
-            nom=m.nom,
-            emplacement=m.emplacement,
-            type=m.type,
-            statut=m.statut,
-            created_at=m.created_at
-        ) for m in machines]
+        return [
+            MachineResponse(
+                id=m.id,
+                nom=m.nom,
+                emplacement=m.emplacement,
+                type=m.type,
+                statut=m.statut,
+                created_at=m.created_at,
+            )
+            for m in machines
+        ]
     except Exception as e:
         logger.error(f"Error getting machines for technicien: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/machines/{machine_id}/telemetry", response_model=PaginatedResponse[MachineTelemetryResponse])
+@router.get(
+    "/machines/{machine_id}/telemetry",
+    response_model=PaginatedResponse[MachineTelemetryResponse],
+)
 async def get_machine_telemetry(
     machine_id: int,
     page: int = Query(1, ge=1),
@@ -58,21 +64,26 @@ async def get_machine_telemetry(
     machine_result = await db.execute(select(Machines).where(Machines.id == machine_id))
     if not machine_result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Machine not found")
-    
+
     count_result = await db.execute(
-        select(func.count(MachineTelemetry.id)).where(MachineTelemetry.machine_id == machine_id)
+        select(func.count(MachineTelemetry.id)).where(
+            MachineTelemetry.machine_id == machine_id
+        )
     )
     total = count_result.scalar() or 0
-    
+
     skip = (page - 1) * size
-    query = select(MachineTelemetry)\
-        .where(MachineTelemetry.machine_id == machine_id)\
-        .order_by(desc(MachineTelemetry.recorded_at))\
-        .offset(skip).limit(size)
-    
+    query = (
+        select(MachineTelemetry)
+        .where(MachineTelemetry.machine_id == machine_id)
+        .order_by(desc(MachineTelemetry.recorded_at))
+        .offset(skip)
+        .limit(size)
+    )
+
     result = await db.execute(query)
     records = result.scalars().all()
-    
+
     items = [
         MachineTelemetryResponse(
             id=r.id,
@@ -87,13 +98,16 @@ async def get_machine_telemetry(
             recorded_at=r.recorded_at,
             notes=r.notes,
             created_at=r.created_at,
-        ) for r in records
+        )
+        for r in records
     ]
-    
+
     return PaginatedResponse.create(items=items, total=total, page=page, size=size)
 
 
-@router.get("/machines/{machine_id}/telemetry/latest", response_model=MachineTelemetryLatest)
+@router.get(
+    "/machines/{machine_id}/telemetry/latest", response_model=MachineTelemetryLatest
+)
 async def get_machine_latest_telemetry(
     machine_id: int,
     current_user: Utilisateurs = Depends(verify_technicien),
@@ -104,18 +118,22 @@ async def get_machine_latest_telemetry(
     machine = machine_result.scalar_one_or_none()
     if not machine:
         raise HTTPException(status_code=404, detail="Machine not found")
-    
-    query = select(MachineTelemetry)\
-        .where(MachineTelemetry.machine_id == machine_id)\
-        .order_by(desc(MachineTelemetry.recorded_at))\
+
+    query = (
+        select(MachineTelemetry)
+        .where(MachineTelemetry.machine_id == machine_id)
+        .order_by(desc(MachineTelemetry.recorded_at))
         .limit(1)
-    
+    )
+
     result = await db.execute(query)
     telemetry = result.scalar_one_or_none()
-    
+
     if not telemetry:
-        raise HTTPException(status_code=404, detail="No telemetry data found for this machine")
-    
+        raise HTTPException(
+            status_code=404, detail="No telemetry data found for this machine"
+        )
+
     return MachineTelemetryLatest(
         machine_id=machine_id,
         machine_nom=machine.nom,

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/v1/inventory/stock", tags=["inventory-stock"])
 async def list_stock_levels(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get current stock levels for all parts with pagination."""
     service = StockService(db)
@@ -33,10 +33,7 @@ async def list_stock_levels(
         skip = (page - 1) * size
         result = await service.get_stock_levels(skip=skip, limit=size)
         return PaginatedResponse.create(
-            items=result["items"],
-            total=result["total"],
-            page=page,
-            size=size
+            items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
         logger.error(f"Error listing stock levels: {str(e)}", exc_info=True)
@@ -87,7 +84,7 @@ async def consume_stock(data: StockConsumeRequest, db: AsyncSession = Depends(ge
 async def get_stock_alerts(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get alerts for parts with stock below minimum threshold with pagination."""
     service = StockService(db)
@@ -95,10 +92,7 @@ async def get_stock_alerts(
         skip = (page - 1) * size
         result = await service.get_alerts(skip=skip, limit=size)
         return PaginatedResponse.create(
-            items=result["items"],
-            total=result["total"],
-            page=page,
-            size=size
+            items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
         logger.error(f"Error fetching stock alerts: {str(e)}", exc_info=True)
@@ -119,10 +113,7 @@ async def get_stock_movements(
         skip = (page - 1) * size
         result = await service.get_movements(piece_id=piece_id, skip=skip, limit=size)
         return PaginatedResponse.create(
-            items=result["items"],
-            total=result["total"],
-            page=page,
-            size=size
+            items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
         logger.error(f"Error fetching stock movements: {str(e)}", exc_info=True)

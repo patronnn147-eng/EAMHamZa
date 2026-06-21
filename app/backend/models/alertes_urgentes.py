@@ -6,7 +6,9 @@ class Alertes_urgentes(Base):
     __tablename__ = "alertes_urgentes"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     utilisateur_id = Column(Integer, nullable=False)
     categorie = Column(String, nullable=False)  # SECURITE, PANNE_CRITIQUE, QUALITE
     description = Column(String, nullable=False)

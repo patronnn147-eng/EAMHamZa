@@ -18,9 +18,7 @@ depends_on = None
 def _table_exists(table_name: str) -> bool:
     bind = op.get_bind()
     result = bind.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = :t"
-        ),
+        sa.text("SELECT 1 FROM information_schema.tables WHERE table_name = :t"),
         {"t": table_name},
     )
     return result.first() is not None
@@ -39,7 +37,9 @@ def upgrade() -> None:
     if not _table_exists("planning_taches"):
         op.create_table(
             "planning_taches",
-            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+            sa.Column(
+                "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
+            ),
             sa.Column("planning_id", sa.Integer(), nullable=False),
             sa.Column("titre", sa.String(length=255), nullable=False),
             sa.Column("description", sa.Text(), nullable=False),

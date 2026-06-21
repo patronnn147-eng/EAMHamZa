@@ -77,8 +77,10 @@ async def run_migrations_online_async(db_url):
 def run_migrations():
     db_url = config.get_main_option("sqlalchemy.url")
     if not db_url:
-        raise RuntimeError("Alembic sqlalchemy.url is empty and DATABASE_URL is not set")
-    
+        raise RuntimeError(
+            "Alembic sqlalchemy.url is empty and DATABASE_URL is not set"
+        )
+
     if "asyncpg" in db_url:
         asyncio.run(run_migrations_online_async(db_url))
     else:

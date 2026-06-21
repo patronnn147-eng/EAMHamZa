@@ -4,12 +4,11 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
 
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from services.audit import AuditService, AuditActionType, AuditEntityType, AuditLog
+from services.audit import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +58,7 @@ async def get_audit_log(
     """Get audit log entries with filters"""
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
         raise HTTPException(status_code=403, detail="Only admin can view audit logs")
-    
+
     service = AuditService(db)
     result = await service.get_audit_log(
         entity_type=entity_type,
@@ -73,12 +72,16 @@ async def get_audit_log(
         skip=skip,
         limit=limit,
     )
-    
+
     items = [
         {
             "id": item.id,
-            "action_type": item.action_type.value if item.action_type else item.action_type,
-            "entity_type": item.entity_type.value if item.entity_type else item.entity_type,
+            "action_type": item.action_type.value
+            if item.action_type
+            else item.action_type,
+            "entity_type": item.entity_type.value
+            if item.entity_type
+            else item.entity_type,
             "entity_id": item.entity_id,
             "entity_name": item.entity_name,
             "user_id": item.user_id,
@@ -92,7 +95,7 @@ async def get_audit_log(
         }
         for item in result["items"]
     ]
-    
+
     return {
         "items": items,
         "total": result["total"],
@@ -112,12 +115,16 @@ async def get_entity_history(
     """Get complete history for a specific entity"""
     service = AuditService(db)
     history = await service.get_entity_history(entity_type, entity_id, limit)
-    
+
     return [
         {
             "id": item.id,
-            "action_type": item.action_type.value if item.action_type else item.action_type,
-            "entity_type": item.entity_type.value if item.entity_type else item.entity_type,
+            "action_type": item.action_type.value
+            if item.action_type
+            else item.action_type,
+            "entity_type": item.entity_type.value
+            if item.entity_type
+            else item.entity_type,
             "entity_id": item.entity_id,
             "entity_name": item.entity_name,
             "user_id": item.user_id,
@@ -142,7 +149,7 @@ async def get_audit_stats(
     """Get audit log statistics"""
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
         raise HTTPException(status_code=403, detail="Only admin can view audit stats")
-    
+
     service = AuditService(db)
     stats = await service.get_audit_stats(entity_type, entity_id)
     return stats
@@ -158,8 +165,10 @@ async def export_audit_log(
 ):
     """Export audit log to CSV"""
     if current_user.role not in (UserRole.ADMIN, UserRole.CHEFTECH):
-        raise HTTPException(status_code=403, detail="Only admin or cheftech can export audit logs")
-    
+        raise HTTPException(
+            status_code=403, detail="Only admin or cheftech can export audit logs"
+        )
+
     service = AuditService(db)
     result = await service.get_audit_log(
         entity_type=entity_type,
@@ -169,8 +178,10 @@ async def export_audit_log(
         skip=0,
         limit=10000,
     )
-    
-    csv_lines = ["id,action_type,entity_type,entity_id,user_name,description,created_at"]
+
+    csv_lines = [
+        "id,action_type,entity_type,entity_id,user_name,description,created_at"
+    ]
     for item in result["items"]:
         csv_lines.append(
             f"{item.id},"
@@ -181,5 +192,5 @@ async def export_audit_log(
             f"{(item.description or '').replace(',', ';')},"
             f"{item.created_at.isoformat() if item.created_at else ''}"
         )
-    
+
     return {"csv": "\n".join(csv_lines), "count": result["total"]}

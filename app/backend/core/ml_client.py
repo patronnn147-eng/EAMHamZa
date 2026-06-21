@@ -2,6 +2,7 @@
 ML Client - Backend client for ML microservice
 Calls ML predictions from the separate ML container
 """
+
 import os
 import httpx
 from typing import Dict, List, Optional
@@ -17,24 +18,21 @@ TIMEOUT = 30.0
 
 class MLClient:
     """Client for ML microservice."""
-    
+
     def __init__(self, base_url: str = None):
         self.base_url = base_url or ML_SERVICE_URL
         self._client: Optional[httpx.AsyncClient] = None
-    
+
     async def get_client(self) -> httpx.AsyncClient:
         if self._client is None:
-            self._client = httpx.AsyncClient(
-                base_url=self.base_url,
-                timeout=TIMEOUT
-            )
+            self._client = httpx.AsyncClient(base_url=self.base_url, timeout=TIMEOUT)
         return self._client
-    
+
     async def close(self):
         if self._client:
             await self._client.aclose()
             self._client = None
-    
+
     async def health_check(self) -> Dict:
         """Check ML service health."""
         client = await self.get_client()
@@ -44,14 +42,14 @@ class MLClient:
         except Exception as e:
             logger.error(f"ML service health check failed: {e}")
             return {"status": "unhealthy", "error": str(e)}
-    
+
     async def predict_failure_probability(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P1: Predict failure probability."""
         client = await self.get_client()
@@ -62,11 +60,11 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def predict_all(
         self,
         air_temperature: float,
@@ -85,13 +83,13 @@ class MLClient:
         """
         client = await self.get_client()
         payload = {
-            "air_temperature":    air_temperature,
+            "air_temperature": air_temperature,
             "process_temperature": process_temperature,
-            "rotational_speed":   rotational_speed,
-            "torque":             torque,
-            "tool_wear":          tool_wear,
-            "machine_id":         machine_id,
-            "include_shap":       include_shap,
+            "rotational_speed": rotational_speed,
+            "torque": torque,
+            "tool_wear": tool_wear,
+            "machine_id": machine_id,
+            "include_shap": include_shap,
         }
         if telemetry_logs:
             payload["telemetry_logs"] = telemetry_logs
@@ -99,14 +97,14 @@ class MLClient:
         data = response.json()
         # Unwrap AllPredictionsResponse envelope {"success": bool, "predictions": {...}}
         return data.get("predictions", data)
-    
+
     async def predict_failure_type(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P2: Predict specific failure types."""
         client = await self.get_client()
@@ -117,18 +115,18 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def predict_rul(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P3: Predict Remaining Useful Life."""
         client = await self.get_client()
@@ -139,18 +137,18 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def detect_anomaly(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P4: Detect anomaly."""
         client = await self.get_client()
@@ -161,18 +159,18 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def predict_priority(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P5: Predict work order priority."""
         client = await self.get_client()
@@ -183,18 +181,18 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def predict_schedule(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """P6: Predict maintenance schedule."""
         client = await self.get_client()
@@ -205,48 +203,44 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
-    
-    async def batch_predict(
-        self,
-        machines: List[Dict]
-    ) -> Dict:
+
+    async def batch_predict(self, machines: List[Dict]) -> Dict:
         """Batch predict for multiple machines."""
         client = await self.get_client()
         response = await client.post(
-            "/api/v1/ml/predict/batch",
-            json={"machines": machines}
+            "/api/v1/ml/predict/batch", json={"machines": machines}
         )
         return response.json()
-    
+
     async def get_cache_stats(self) -> Dict:
         """Get cache statistics."""
         client = await self.get_client()
         response = await client.get("/api/v1/ml/cache/stats")
         return response.json()
-    
+
     async def clear_cache(self) -> Dict:
         """Clear prediction cache."""
         client = await self.get_client()
         response = await client.post("/api/v1/ml/cache/clear")
         return response.json()
-    
+
     async def get_rate_limit_status(self) -> Dict:
         """Get rate limit status."""
         client = await self.get_client()
         response = await client.get("/api/v1/ml/rate-limit/status")
         return response.json()
-    
+
     async def validate_features(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """Validate features against allowed ranges."""
         client = await self.get_client()
@@ -257,18 +251,18 @@ class MLClient:
                 "process": process_temperature,
                 "rpm": rotational_speed,
                 "torque": torque,
-                "wear": tool_wear
-            }
+                "wear": tool_wear,
+            },
         )
         return response.json()
-    
+
     async def check_drift(
         self,
         air_temperature: float,
         process_temperature: float,
         rotational_speed: int,
         torque: float,
-        tool_wear: int
+        tool_wear: int,
     ) -> Dict:
         """Check for data drift."""
         client = await self.get_client()
@@ -279,8 +273,8 @@ class MLClient:
                 "process_temperature": process_temperature,
                 "rotational_speed": rotational_speed,
                 "torque": torque,
-                "tool_wear": tool_wear
-            }
+                "tool_wear": tool_wear,
+            },
         )
         return response.json()
 
@@ -295,15 +289,11 @@ async def get_ml_predictions(
     process_temperature: float,
     rotational_speed: int,
     torque: float,
-    tool_wear: int
+    tool_wear: int,
 ) -> Dict:
     """Get all ML predictions for telemetry data."""
     return await ml_client.predict_all(
-        air_temperature,
-        process_temperature,
-        rotational_speed,
-        torque,
-        tool_wear
+        air_temperature, process_temperature, rotational_speed, torque, tool_wear
     )
 
 

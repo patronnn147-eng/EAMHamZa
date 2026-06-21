@@ -1,7 +1,6 @@
 import json
 import logging
 from datetime import datetime
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,7 +20,9 @@ from ..ordres_intervention.schemas import (
     Ordres_interventionBatchDeleteRequest,
 )
 
-router = APIRouter(prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"])
+router = APIRouter(
+    prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"]
+)
 logger = logging.getLogger(__name__)
 
 
@@ -30,11 +31,15 @@ async def query_ordres_interventions(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    logger.debug(f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = Ordres_interventionService(db)
     try:
@@ -65,11 +70,15 @@ async def query_ordres_interventions_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    logger.debug(f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = Ordres_interventionService(db)
     try:
@@ -81,10 +90,7 @@ async def query_ordres_interventions_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} ordres_interventions")
         return result
@@ -114,7 +120,9 @@ async def get_ordres_intervention(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching ordres_intervention {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error fetching ordres_intervention {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -133,7 +141,9 @@ async def create_ordres_intervention(
     try:
         result = await service.create(data.model_dump())
         if not result:
-            raise HTTPException(status_code=400, detail="Failed to create ordres_intervention")
+            raise HTTPException(
+                status_code=400, detail="Failed to create ordres_intervention"
+            )
 
         logger.info(f"Ordres_intervention created successfully with id: {result.id}")
 
@@ -158,7 +168,9 @@ async def create_ordres_intervention(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=list[Ordres_interventionResponse], status_code=201)
+@router.post(
+    "/batch", response_model=list[Ordres_interventionResponse], status_code=201
+)
 async def create_ordres_interventions_batch(
     request: Ordres_interventionBatchCreateRequest,
     db: AsyncSession = Depends(get_db),
@@ -184,7 +196,9 @@ async def create_ordres_interventions_batch(
                         entity_name=getattr(result, "titre", None),
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch create intervention %s", result.id)
+                    logger.warning(
+                        "Audit log failed for batch create intervention %s", result.id
+                    )
 
         logger.info(f"Batch created {len(results)} ordres_interventions successfully")
         return results
@@ -207,7 +221,9 @@ async def update_ordres_interventions_batch(
 
     try:
         for item in request.items:
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
@@ -222,7 +238,9 @@ async def update_ordres_interventions_batch(
                         entity_name=getattr(result, "titre", None),
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch update intervention %s", item.id)
+                    logger.warning(
+                        "Audit log failed for batch update intervention %s", item.id
+                    )
 
         logger.info(f"Batch updated {len(results)} ordres_interventions successfully")
         return results
@@ -246,7 +264,9 @@ async def update_ordres_intervention(
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
 
         old_entity = await service.get_by_id(id)
-        old_values = {k: getattr(old_entity, k, None) for k in update_dict} if old_entity else {}
+        old_values = (
+            {k: getattr(old_entity, k, None) for k in update_dict} if old_entity else {}
+        )
 
         result = await service.update(id, update_dict)
         if not result:
@@ -276,7 +296,9 @@ async def update_ordres_intervention(
         logger.error(f"Validation error updating ordres_intervention {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating ordres_intervention {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error updating ordres_intervention {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -304,10 +326,15 @@ async def delete_ordres_interventions_batch(
                         user_name=current_user.nom,
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch delete intervention %s", item_id)
+                    logger.warning(
+                        "Audit log failed for batch delete intervention %s", item_id
+                    )
 
         logger.info(f"Batch deleted {deleted_count} ordres_interventions successfully")
-        return {"message": f"Successfully deleted {deleted_count} ordres_interventions", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} ordres_interventions",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -345,5 +372,7 @@ async def delete_ordres_intervention(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting ordres_intervention {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error deleting ordres_intervention {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
+from datetime import datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/entities/plannings", tags=["plannings"])
 # ---------- Pydantic Schemas ----------
 class PlanningsData(BaseModel):
     """Entity data schema (for create/update)"""
+
     identifiant_planning: str
     date_debut: datetime
     date_fin: datetime
@@ -35,6 +36,7 @@ class PlanningsData(BaseModel):
 
 class PlanningsUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     identifiant_planning: Optional[str] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
@@ -50,6 +52,7 @@ class PlanningsUpdateData(BaseModel):
 
 class PlanningsResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     identifiant_planning: str
     date_debut: datetime
@@ -69,6 +72,7 @@ class PlanningsResponse(BaseModel):
 
 class PlanningsListResponse(BaseModel):
     """List response schema"""
+
     items: List[PlanningsResponse]
     total: int
     skip: int
@@ -77,22 +81,26 @@ class PlanningsListResponse(BaseModel):
 
 class PlanningsBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[PlanningsData]
 
 
 class PlanningsBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: PlanningsUpdateData
 
 
 class PlanningsBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[PlanningsBatchUpdateItem]
 
 
 class PlanningsBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]
 
 
@@ -102,13 +110,17 @@ async def query_planningss(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """Query planningss with filtering, sorting, and pagination"""
-    logger.debug(f"Querying planningss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+    logger.debug(
+        f"Querying planningss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
+
     service = PlanningsService(db)
     try:
         # Parse query JSON if provided
@@ -118,9 +130,9 @@ async def query_planningss(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -139,12 +151,16 @@ async def query_planningss_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     # Query planningss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying planningss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying planningss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = PlanningsService(db)
     try:
@@ -157,10 +173,7 @@ async def query_planningss_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} planningss")
         return result
@@ -179,14 +192,14 @@ async def get_plannings(
 ):
     """Get a single plannings by ID"""
     logger.debug(f"Fetching plannings with id: {id}, fields={fields}")
-    
+
     service = PlanningsService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Plannings with id {id} not found")
             raise HTTPException(status_code=404, detail="Plannings not found")
-        
+
         return result
     except HTTPException:
         raise
@@ -202,13 +215,13 @@ async def create_plannings(
 ):
     """Create a new plannings"""
     logger.debug(f"Creating new plannings with data: {data}")
-    
+
     service = PlanningsService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create plannings")
-        
+
         logger.info(f"Plannings created successfully with id: {result.id}")
         return result
     except ValueError as e:
@@ -226,16 +239,16 @@ async def create_planningss_batch(
 ):
     """Create multiple planningss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} planningss")
-    
+
     service = PlanningsService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch created {len(results)} planningss successfully")
         return results
     except Exception as e:
@@ -251,18 +264,20 @@ async def update_planningss_batch(
 ):
     """Update multiple planningss in a single request"""
     logger.debug(f"Batch updating {len(request.items)} planningss")
-    
+
     service = PlanningsService(db)
     results = []
-    
+
     try:
         for item in request.items:
             # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch updated {len(results)} planningss successfully")
         return results
     except Exception as e:
@@ -288,7 +303,7 @@ async def update_plannings(
         if not result:
             logger.warning(f"Plannings with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Plannings not found")
-        
+
         logger.info(f"Plannings {id} updated successfully")
         return result
     except HTTPException:
@@ -308,18 +323,21 @@ async def delete_planningss_batch(
 ):
     """Delete multiple planningss by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} planningss")
-    
+
     service = PlanningsService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id)
             if success:
                 deleted_count += 1
-        
+
         logger.info(f"Batch deleted {deleted_count} planningss successfully")
-        return {"message": f"Successfully deleted {deleted_count} planningss", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} planningss",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -333,14 +351,14 @@ async def delete_plannings(
 ):
     """Delete a single plannings by ID"""
     logger.debug(f"Deleting plannings with id: {id}")
-    
+
     service = PlanningsService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(f"Plannings with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Plannings not found")
-        
+
         logger.info(f"Plannings {id} deleted successfully")
         return {"message": "Plannings deleted successfully", "id": id}
     except HTTPException:

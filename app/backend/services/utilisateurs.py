@@ -16,7 +16,9 @@ class UtilisateursService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data: Dict[str, Any], id: Optional[str] = None) -> Optional[Utilisateurs]:
+    async def create(
+        self, data: Dict[str, Any], id: Optional[str] = None
+    ) -> Optional[Utilisateurs]:
         """Create a new utilisateurs"""
         try:
             obj = Utilisateurs(**data)
@@ -36,10 +38,14 @@ class UtilisateursService:
             obj = await self.get_by_id(obj_id, id=id)
             return obj is not None
         except Exception as e:
-            logger.error(f"Error checking ownership for utilisateurs {obj_id}: {str(e)}")
+            logger.error(
+                f"Error checking ownership for utilisateurs {obj_id}: {str(e)}"
+            )
             return False
 
-    async def get_by_id(self, obj_id: int, id: Optional[str] = None) -> Optional[Utilisateurs]:
+    async def get_by_id(
+        self, obj_id: int, id: Optional[str] = None
+    ) -> Optional[Utilisateurs]:
         """Get utilisateurs by ID (user can only see their own records)"""
         try:
             query = select(Utilisateurs).where(Utilisateurs.id == obj_id)
@@ -50,9 +56,9 @@ class UtilisateursService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         id: Optional[str] = None,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
@@ -61,18 +67,20 @@ class UtilisateursService:
         try:
             query = select(Utilisateurs)
             count_query = select(func.count(Utilisateurs.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Utilisateurs, field):
                         query = query.where(getattr(Utilisateurs, field) == value)
-                        count_query = count_query.where(getattr(Utilisateurs, field) == value)
-            
+                        count_query = count_query.where(
+                            getattr(Utilisateurs, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Utilisateurs, field_name):
                         query = query.order_by(getattr(Utilisateurs, field_name).desc())
@@ -95,7 +103,9 @@ class UtilisateursService:
             logger.error(f"Error fetching utilisateurs list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any], id: Optional[str] = None) -> Optional[Utilisateurs]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any], id: Optional[str] = None
+    ) -> Optional[Utilisateurs]:
         """Update utilisateurs (requires ownership)"""
         try:
             obj = await self.get_by_id(obj_id, id=id)
@@ -131,13 +141,17 @@ class UtilisateursService:
             logger.error(f"Error deleting utilisateurs {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Utilisateurs]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Utilisateurs]:
         """Get utilisateurs by any field"""
         try:
             if not hasattr(Utilisateurs, field_name):
                 raise ValueError(f"Field {field_name} does not exist on Utilisateurs")
             result = await self.db.execute(
-                select(Utilisateurs).where(getattr(Utilisateurs, field_name) == field_value)
+                select(Utilisateurs).where(
+                    getattr(Utilisateurs, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:

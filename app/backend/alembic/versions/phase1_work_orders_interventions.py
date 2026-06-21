@@ -52,15 +52,28 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     # --- ordres_travail (work orders) ---
     if not _column_exists("ordres_travail", "created_by_id"):
-        op.add_column("ordres_travail", sa.Column("created_by_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ordres_travail", sa.Column("created_by_id", sa.Integer(), nullable=True)
+        )
     if not _column_exists("ordres_travail", "validated_by_id"):
-        op.add_column("ordres_travail", sa.Column("validated_by_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ordres_travail", sa.Column("validated_by_id", sa.Integer(), nullable=True)
+        )
     if not _column_exists("ordres_travail", "validated_at"):
-        op.add_column("ordres_travail", sa.Column("validated_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_travail",
+            sa.Column("validated_at", sa.DateTime(timezone=True), nullable=True),
+        )
     if not _column_exists("ordres_travail", "assigned_at"):
-        op.add_column("ordres_travail", sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_travail",
+            sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=True),
+        )
     if not _column_exists("ordres_travail", "completed_at"):
-        op.add_column("ordres_travail", sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_travail",
+            sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        )
     if not _column_exists("ordres_travail", "estimated_duration_minutes"):
         op.add_column(
             "ordres_travail",
@@ -69,18 +82,35 @@ def upgrade() -> None:
 
     # --- ordres_intervention (interventions) ---
     if not _column_exists("ordres_intervention", "technicien_id"):
-        op.add_column("ordres_intervention", sa.Column("technicien_id", sa.Integer(), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("technicien_id", sa.Integer(), nullable=True),
+        )
     if not _column_exists("ordres_intervention", "statut"):
         op.add_column(
             "ordres_intervention",
-            sa.Column("statut", sa.String(length=20), nullable=False, server_default="EN_ATTENTE"),
+            sa.Column(
+                "statut",
+                sa.String(length=20),
+                nullable=False,
+                server_default="EN_ATTENTE",
+            ),
         )
     if not _column_exists("ordres_intervention", "date_debut"):
-        op.add_column("ordres_intervention", sa.Column("date_debut", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("date_debut", sa.DateTime(timezone=True), nullable=True),
+        )
     if not _column_exists("ordres_intervention", "date_fin"):
-        op.add_column("ordres_intervention", sa.Column("date_fin", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("date_fin", sa.DateTime(timezone=True), nullable=True),
+        )
     if not _column_exists("ordres_intervention", "updated_at"):
-        op.add_column("ordres_intervention", sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            "ordres_intervention",
+            sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
     idx_name = op.f("ix_ordres_intervention_technicien_id")
     if not _index_exists(idx_name):
@@ -93,7 +123,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(op.f("ix_ordres_intervention_technicien_id"), table_name="ordres_intervention")
+    op.drop_index(
+        op.f("ix_ordres_intervention_technicien_id"), table_name="ordres_intervention"
+    )
 
     op.drop_column("ordres_intervention", "updated_at")
     op.drop_column("ordres_intervention", "date_fin")

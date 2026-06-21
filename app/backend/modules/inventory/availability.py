@@ -1,7 +1,8 @@
 """Live availability endpoints — read-only observability for stock + reservations."""
+
 import logging
 from decimal import Decimal
-from typing import List, Optional
+from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +13,9 @@ from schemas.stock import AvailabilityResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/inventory/availability", tags=["inventory-availability"])
+router = APIRouter(
+    prefix="/api/v1/inventory/availability", tags=["inventory-availability"]
+)
 
 
 @router.get("/{piece_id}", response_model=AvailabilityResponse)
@@ -21,7 +24,10 @@ async def get_availability(piece_id: int, db: AsyncSession = Depends(get_db)):
     try:
         svc = InventoryReservationService(db)
         avail_map = await svc.get_availability_map([piece_id])
-        info = avail_map.get(piece_id, {"stock": Decimal(0), "reserved": Decimal(0), "available": Decimal(0)})
+        info = avail_map.get(
+            piece_id,
+            {"stock": Decimal(0), "reserved": Decimal(0), "available": Decimal(0)},
+        )
         return AvailabilityResponse(
             piece_id=piece_id,
             stock_quantity=info["stock"],
@@ -29,7 +35,9 @@ async def get_availability(piece_id: int, db: AsyncSession = Depends(get_db)):
             available_quantity=info["available"],
         )
     except Exception as e:
-        logger.error(f"get_availability failed for piece {piece_id}: {e}", exc_info=True)
+        logger.error(
+            f"get_availability failed for piece {piece_id}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -50,7 +58,9 @@ async def get_availability_batch(
             except ValueError:
                 raise HTTPException(status_code=400, detail=f"Invalid piece_id: {tok}")
         if len(ids) > 200:
-            raise HTTPException(status_code=400, detail="At most 200 piece IDs per request")
+            raise HTTPException(
+                status_code=400, detail="At most 200 piece IDs per request"
+            )
         if not ids:
             return []
 

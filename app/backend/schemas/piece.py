@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 
+
 class PieceBase(BaseModel):
     reference: str = Field(..., description="Unique part reference code")
     name: str = Field(..., description="Part name")
@@ -9,8 +10,10 @@ class PieceBase(BaseModel):
     category: Optional[str] = None
     min_stock: Optional[int] = 5
 
+
 class PieceCreate(PieceBase):
     pass
+
 
 class PieceUpdate(BaseModel):
     name: Optional[str] = None
@@ -18,6 +21,7 @@ class PieceUpdate(BaseModel):
     unit_price: Optional[float] = None
     category: Optional[str] = None
     min_stock: Optional[int] = None
+
 
 class PieceResponse(PieceBase):
     id: int

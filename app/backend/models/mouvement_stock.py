@@ -14,6 +14,7 @@ Movement types:
 
 Either piece_id or pending_piece_id must be set (DB CHECK).
 """
+
 from core.database import Base
 from sqlalchemy import Column, Integer, Numeric, ForeignKey, String, DateTime
 from sqlalchemy.sql import func
@@ -23,7 +24,9 @@ class MouvementStock(Base):
     __tablename__ = "mouvement_stock"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     # nullable now — pending pieces have no piece_id until resolved
     piece_id = Column(Integer, ForeignKey("pieces.id"), nullable=True)
     pending_piece_id = Column(

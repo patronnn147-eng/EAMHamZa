@@ -1,6 +1,5 @@
 import json
 import logging
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,12 +28,16 @@ async def query_machiness(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """Query machiness with filtering, sorting, and pagination"""
-    logger.debug(f"Querying machiness: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying machiness: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = MachinesService(db)
     try:
@@ -65,11 +68,15 @@ async def query_machiness_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
-    logger.debug(f"Querying machiness: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying machiness: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = MachinesService(db)
     try:
@@ -81,10 +88,7 @@ async def query_machiness_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} machiness")
         return result
@@ -181,7 +185,9 @@ async def create_machiness_batch(
                         entity_name=getattr(result, "nom", None),
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch create machine %s", result.id)
+                    logger.warning(
+                        "Audit log failed for batch create machine %s", result.id
+                    )
 
         logger.info(f"Batch created {len(results)} machiness successfully")
         return results
@@ -204,7 +210,9 @@ async def update_machiness_batch(
 
     try:
         for item in request.items:
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
@@ -219,7 +227,9 @@ async def update_machiness_batch(
                         entity_name=getattr(result, "nom", None),
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch update machine %s", item.id)
+                    logger.warning(
+                        "Audit log failed for batch update machine %s", item.id
+                    )
 
         logger.info(f"Batch updated {len(results)} machiness successfully")
         return results
@@ -243,7 +253,9 @@ async def update_machines(
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
 
         old_entity = await service.get_by_id(id)
-        old_values = {k: getattr(old_entity, k, None) for k in update_dict} if old_entity else {}
+        old_values = (
+            {k: getattr(old_entity, k, None) for k in update_dict} if old_entity else {}
+        )
 
         result = await service.update(id, update_dict)
         if not result:
@@ -301,10 +313,15 @@ async def delete_machiness_batch(
                         user_name=current_user.nom,
                     )
                 except Exception:
-                    logger.warning("Audit log failed for batch delete machine %s", item_id)
+                    logger.warning(
+                        "Audit log failed for batch delete machine %s", item_id
+                    )
 
         logger.info(f"Batch deleted {deleted_count} machiness successfully")
-        return {"message": f"Successfully deleted {deleted_count} machiness", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} machiness",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)

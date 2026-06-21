@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.rapports import Rapports, ReportType
+from models.rapports import Rapports
 from models.machines import Machines
 from models.alertes import Alert
 
@@ -45,9 +45,9 @@ class RapportsService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -55,18 +55,20 @@ class RapportsService:
         try:
             query = select(Rapports)
             count_query = select(func.count(Rapports.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Rapports, field):
                         query = query.where(getattr(Rapports, field) == value)
-                        count_query = count_query.where(getattr(Rapports, field) == value)
-            
+                        count_query = count_query.where(
+                            getattr(Rapports, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Rapports, field_name):
                         query = query.order_by(getattr(Rapports, field_name).desc())
@@ -89,7 +91,9 @@ class RapportsService:
             logger.error(f"Error fetching rapports list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Rapports]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Rapports]:
         """Update rapports"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -125,7 +129,9 @@ class RapportsService:
             logger.error(f"Error deleting rapports {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Rapports]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Rapports]:
         """Get rapports by any field"""
         try:
             if not hasattr(Rapports, field_name):
@@ -162,7 +168,7 @@ class RapportsService:
         try:
             query = select(Rapports).where(Rapports.report_type.isnot(None))
             if active_only:
-                query = query.where(Rapports.is_active == True)
+                query = query.where(Rapports.is_active)
             result = await self.db.execute(query.order_by(Rapports.id.desc()))
             return list(result.scalars().all())
         except Exception as e:
@@ -206,14 +212,14 @@ class RapportsService:
 
             # Get active alerts
             alerts_result = await self.db.execute(
-                select(func.count(Alert.id)).where(Alert.is_active == True)
+                select(func.count(Alert.id)).where(Alert.is_active)
             )
             active_alerts = alerts_result.scalar() or 0
 
             # Get critical alerts
             critical_result = await self.db.execute(
                 select(func.count(Alert.id)).where(
-                    and_(Alert.is_active == True, Alert.severity == 'CRITICAL')
+                    and_(Alert.is_active, Alert.severity == "CRITICAL")
                 )
             )
             critical_alerts = critical_result.scalar() or 0

@@ -33,12 +33,12 @@ def notify_work_order_created(
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #2563eb;">Nouvel Ordre de Travail</h2>
                     <p>Bonjour {user_name},</p>
-                    <p>Un nouvel ordre de travail a été créé par <strong>{creator.get('nom', 'Chef Opérations')}</strong>.</p>
+                    <p>Un nouvel ordre de travail a été créé par <strong>{creator.get("nom", "Chef Opérations")}</strong>.</p>
                     <ul>
-                        <li><strong>Titre:</strong> {work_order.get('titre', '')}</li>
-                        <li><strong>Priorité:</strong> {work_order.get('priorite', '')}</li>
-                        <li><strong>Machine ID:</strong> {work_order.get('machine_id', '')}</li>
-                        <li><strong>Date échéance:</strong> {work_order.get('date_echeance', 'Non définie')}</li>
+                        <li><strong>Titre:</strong> {work_order.get("titre", "")}</li>
+                        <li><strong>Priorité:</strong> {work_order.get("priorite", "")}</li>
+                        <li><strong>Machine ID:</strong> {work_order.get("machine_id", "")}</li>
+                        <li><strong>Date échéance:</strong> {work_order.get("date_echeance", "Non définie")}</li>
                     </ul>
                     <p>Veuillez consulter le système pour plus de détails.</p>
                 </div>
@@ -89,11 +89,11 @@ def notify_work_order_assigned(
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #f59e0b;">Ordre de Travail Assigné</h2>
                     <p>Bonjour {user_name},</p>
-                    <p>Un ordre de travail vous a été assigné par <strong>{assigner.get('nom', 'ChefTech')}</strong>.</p>
+                    <p>Un ordre de travail vous a été assigné par <strong>{assigner.get("nom", "ChefTech")}</strong>.</p>
                     <ul>
-                        <li><strong>Titre:</strong> {work_order.get('titre', '')}</li>
-                        <li><strong>Priorité:</strong> {work_order.get('priorite', '')}</li>
-                        <li><strong>Description:</strong> {work_order.get('description', '')}</li>
+                        <li><strong>Titre:</strong> {work_order.get("titre", "")}</li>
+                        <li><strong>Priorité:</strong> {work_order.get("priorite", "")}</li>
+                        <li><strong>Description:</strong> {work_order.get("description", "")}</li>
                     </ul>
                     <p>Veuillez commencer le travail dès que possible.</p>
                 </div>
@@ -124,7 +124,7 @@ def notify_work_order_assigned(
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                         <h2 style="color: #10b981;">Ordre de Travail Assigné</h2>
                         <p>Bonjour {user_name},</p>
-                        <p>Votre ordre de travail <strong>{work_order.get('titre', '')}</strong> a été assigné par le ChefTech.</p>
+                        <p>Votre ordre de travail <strong>{work_order.get("titre", "")}</strong> a été assigné par le ChefTech.</p>
                         <p>Les techniciens assignés commenceront le travail prochainement.</p>
                     </div>
                 </body>
@@ -169,11 +169,11 @@ def notify_work_order_status_changed(
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #8b5cf6;">Changement de Statut</h2>
                     <p>Bonjour {user_name},</p>
-                    <p>Le statut de l'ordre de travail <strong>{work_order.get('titre', '')}</strong> a été modifié.</p>
+                    <p>Le statut de l'ordre de travail <strong>{work_order.get("titre", "")}</strong> a été modifié.</p>
                     <ul>
                         <li><strong>Ancien statut:</strong> {old_status}</li>
                         <li><strong>Nouveau statut:</strong> {new_status}</li>
-                        <li><strong>Modifié par:</strong> {changed_by.get('nom', '')}</li>
+                        <li><strong>Modifié par:</strong> {changed_by.get("nom", "")}</li>
                     </ul>
                 </div>
             </body>
@@ -193,5 +193,7 @@ def notify_work_order_status_changed(
         else:
             failed.append(to_email)
 
-    logger.info(f"Work order status changed notifications: sent={ok}, failed={len(failed)}")
+    logger.info(
+        f"Work order status changed notifications: sent={ok}, failed={len(failed)}"
+    )
     return {"sent": ok, "failed": failed}

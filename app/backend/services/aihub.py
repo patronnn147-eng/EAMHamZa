@@ -24,7 +24,9 @@ class AIHubService:
 
     def __init__(self):
         if not settings.app_ai_base_url or not settings.app_ai_key:
-            raise ValueError("AI service not configured. Set APP_AI_BASE_URL and APP_AI_KEY.")
+            raise ValueError(
+                "AI service not configured. Set APP_AI_BASE_URL and APP_AI_KEY."
+            )
 
         self.client = AsyncOpenAI(
             api_key=settings.app_ai_key,
@@ -36,7 +38,10 @@ class AIHubService:
         content = msg.content
         # If content is a list (multimodal), convert it to plain dicts
         if isinstance(content, list):
-            content = [item.model_dump() if hasattr(item, "model_dump") else item for item in content]
+            content = [
+                item.model_dump() if hasattr(item, "model_dump") else item
+                for item in content
+            ]
         return {"role": msg.role, "content": content}
 
     async def gentxt(self, request: GenTxtRequest) -> GenTxtResponse:
@@ -158,7 +163,9 @@ class AIHubService:
             raise InvalidImageInputError("Invalid base64 data in data URI.") from e
 
     @staticmethod
-    def _filename_from_content_type(content_type: str, name_prefix: str = "image") -> str:
+    def _filename_from_content_type(
+        content_type: str, name_prefix: str = "image"
+    ) -> str:
         """Best-effort filename for in-memory uploads."""
         ct = (content_type or "").lower()
         ext = {
@@ -169,7 +176,9 @@ class AIHubService:
         }.get(ct, "png")
         return f"{name_prefix}.{ext}"
 
-    async def _image_str_to_upload_file(self, image: str, name_prefix: str = "image") -> io.BytesIO:
+    async def _image_str_to_upload_file(
+        self, image: str, name_prefix: str = "image"
+    ) -> io.BytesIO:
         """
         Convert image input (base64 data URI) into an in-memory file object for uploads.
 
@@ -193,10 +202,14 @@ class AIHubService:
 
         upload = io.BytesIO(image_bytes)
         # openai SDK uses this name for multipart filename
-        upload.name = self._filename_from_content_type(content_type, name_prefix=name_prefix)  # type: ignore[attr-defined]
+        upload.name = self._filename_from_content_type(
+            content_type, name_prefix=name_prefix
+        )  # type: ignore[attr-defined]
         return upload
 
-    async def _image_input_to_upload_files(self, image_input: str | list[str]) -> list[io.BytesIO]:
+    async def _image_input_to_upload_files(
+        self, image_input: str | list[str]
+    ) -> list[io.BytesIO]:
         """
         Convert image input (single data URI or list of data URIs) into uploadable file objects.
 
@@ -209,8 +222,14 @@ class AIHubService:
         upload_files: list[io.BytesIO] = []
         for idx, img in enumerate(images):
             if not isinstance(img, str):
-                raise InvalidImageInputError("Each image must be a base64 data URI string.")
-            upload_files.append(await self._image_str_to_upload_file(img, name_prefix=f"image_{idx + 1}"))
+                raise InvalidImageInputError(
+                    "Each image must be a base64 data URI string."
+                )
+            upload_files.append(
+                await self._image_str_to_upload_file(
+                    img, name_prefix=f"image_{idx + 1}"
+                )
+            )
         return upload_files
 
     async def genimg(self, request: GenImgRequest) -> GenImgResponse:

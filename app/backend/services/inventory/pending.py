@@ -12,14 +12,15 @@ Admin review converts the placeholder in-place — the same mouvement_stock row
 is updated (NOT a new row inserted), preserving created_at. This is the
 "chronological honesty" requirement from the plan.
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.mouvement_stock import MouvementStock
@@ -28,7 +29,7 @@ from models.pieces import Piece
 from models.stock import Stock
 from models.utilisateurs import Utilisateurs
 
-from .stock import StockService, _to_decimal
+from .stock import _to_decimal
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,9 @@ class PendingPieceService:
                 quantity=qty,
                 unit=unit,
                 movement_type="PENDING_OUT",
-                reference=f"OT-itv-{intervention_id}-pending" if intervention_id else "pending",
+                reference=f"OT-itv-{intervention_id}-pending"
+                if intervention_id
+                else "pending",
                 intervention_id=intervention_id,
             )
             self.db.add(placeholder)
@@ -132,25 +135,27 @@ class PendingPieceService:
 
             items = []
             for pp, submitter_name, matched_name in rows:
-                items.append({
-                    "id": pp.id,
-                    "intervention_id": pp.intervention_id,
-                    "submitted_by": pp.submitted_by,
-                    "submitted_by_name": submitter_name,
-                    "name": pp.name,
-                    "category": pp.category,
-                    "quantity": pp.quantity,
-                    "unit": pp.unit,
-                    "photo_object_key": pp.photo_object_key,
-                    "notes": pp.notes,
-                    "status": pp.status,
-                    "matched_piece_id": pp.matched_piece_id,
-                    "matched_piece_name": matched_name,
-                    "reviewed_by": pp.reviewed_by,
-                    "reviewed_at": pp.reviewed_at,
-                    "rejection_reason": pp.rejection_reason,
-                    "created_at": pp.created_at,
-                })
+                items.append(
+                    {
+                        "id": pp.id,
+                        "intervention_id": pp.intervention_id,
+                        "submitted_by": pp.submitted_by,
+                        "submitted_by_name": submitter_name,
+                        "name": pp.name,
+                        "category": pp.category,
+                        "quantity": pp.quantity,
+                        "unit": pp.unit,
+                        "photo_object_key": pp.photo_object_key,
+                        "notes": pp.notes,
+                        "status": pp.status,
+                        "matched_piece_id": pp.matched_piece_id,
+                        "matched_piece_name": matched_name,
+                        "reviewed_by": pp.reviewed_by,
+                        "reviewed_at": pp.reviewed_at,
+                        "rejection_reason": pp.rejection_reason,
+                        "created_at": pp.created_at,
+                    }
+                )
             return {"items": items, "total": total}
         except Exception as e:
             logger.error(f"list_pending failed: {e}", exc_info=True)
@@ -174,19 +179,27 @@ class PendingPieceService:
         - Decrement Stock.quantity by the pending qty (real stock effect now)
         """
         try:
-            pp = await self.db.scalar(select(PendingPiece).where(PendingPiece.id == pending_id))
+            pp = await self.db.scalar(
+                select(PendingPiece).where(PendingPiece.id == pending_id)
+            )
             if pp is None:
                 raise ValueError(f"PendingPiece {pending_id} not found")
             if pp.status != "PENDING_REVIEW":
-                raise ValueError(f"PendingPiece {pending_id} is not pending review (status={pp.status})")
+                raise ValueError(
+                    f"PendingPiece {pending_id} is not pending review (status={pp.status})"
+                )
 
-            target_piece = await self.db.scalar(select(Piece).where(Piece.id == matched_piece_id))
+            target_piece = await self.db.scalar(
+                select(Piece).where(Piece.id == matched_piece_id)
+            )
             if target_piece is None:
                 raise ValueError(f"Target piece {matched_piece_id} not found")
 
             # Locate the placeholder mvt row
             placeholder = await self.db.scalar(
-                select(MouvementStock).where(MouvementStock.pending_piece_id == pending_id)
+                select(MouvementStock).where(
+                    MouvementStock.pending_piece_id == pending_id
+                )
             )
 
             qty = Decimal(str(pp.quantity))
@@ -196,10 +209,14 @@ class PendingPieceService:
                 placeholder.movement_type = "out"
                 placeholder.piece_id = matched_piece_id
                 # keep pending_piece_id for audit traceability
-                placeholder.reference = (placeholder.reference or "") + f"|matched-pending-{pending_id}"
+                placeholder.reference = (
+                    placeholder.reference or ""
+                ) + f"|matched-pending-{pending_id}"
 
             # Decrement stock now (real effect)
-            stock = await self.db.scalar(select(Stock).where(Stock.piece_id == matched_piece_id))
+            stock = await self.db.scalar(
+                select(Stock).where(Stock.piece_id == matched_piece_id)
+            )
             if stock is None:
                 stock = Stock(piece_id=matched_piece_id, quantity=Decimal("0"))
                 self.db.add(stock)
@@ -238,7 +255,9 @@ class PendingPieceService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"match_to_existing failed for pending {pending_id}: {e}", exc_info=True)
+            logger.error(
+                f"match_to_existing failed for pending {pending_id}: {e}", exc_info=True
+            )
             raise
 
     # ── Create new piece from pending submission ────────────────────────────
@@ -252,7 +271,9 @@ class PendingPieceService:
     ) -> PendingPiece:
         """Create a brand-new catalog piece then match the pending to it."""
         try:
-            pp = await self.db.scalar(select(PendingPiece).where(PendingPiece.id == pending_id))
+            pp = await self.db.scalar(
+                select(PendingPiece).where(PendingPiece.id == pending_id)
+            )
             if pp is None:
                 raise ValueError(f"PendingPiece {pending_id} not found")
             if pp.status != "PENDING_REVIEW":
@@ -262,7 +283,9 @@ class PendingPieceService:
             ref = new_piece_data["reference"]
             existing = await self.db.scalar(select(Piece).where(Piece.reference == ref))
             if existing is not None:
-                raise ValueError(f"Reference '{ref}' already exists (piece id={existing.id}). Use match instead.")
+                raise ValueError(
+                    f"Reference '{ref}' already exists (piece id={existing.id}). Use match instead."
+                )
 
             piece = Piece(
                 reference=ref,
@@ -279,16 +302,25 @@ class PendingPieceService:
 
             # Reuse the match path (in-place mvt conversion, stock decrement)
             placeholder = await self.db.scalar(
-                select(MouvementStock).where(MouvementStock.pending_piece_id == pending_id)
+                select(MouvementStock).where(
+                    MouvementStock.pending_piece_id == pending_id
+                )
             )
             qty = Decimal(str(pp.quantity))
             if placeholder is not None:
                 placeholder.movement_type = "out"
                 placeholder.piece_id = piece.id
-                placeholder.reference = (placeholder.reference or "") + f"|created-pending-{pending_id}"
+                placeholder.reference = (
+                    placeholder.reference or ""
+                ) + f"|created-pending-{pending_id}"
 
             # New piece → no prior stock — start at zero and decrement (negative balance signals owed)
-            self.db.add(Stock(piece_id=piece.id, quantity=(Decimal("0") - qty).quantize(Decimal("0.01"))))
+            self.db.add(
+                Stock(
+                    piece_id=piece.id,
+                    quantity=(Decimal("0") - qty).quantize(Decimal("0.01")),
+                )
+            )
 
             pp.status = "CREATED"
             pp.matched_piece_id = piece.id
@@ -307,12 +339,16 @@ class PendingPieceService:
 
             self._invalidate_forecast()
 
-            logger.info(f"PendingPiece {pending_id} CREATED new piece {piece.id} ({piece.reference})")
+            logger.info(
+                f"PendingPiece {pending_id} CREATED new piece {piece.id} ({piece.reference})"
+            )
             return pp
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"create_new_piece failed for pending {pending_id}: {e}", exc_info=True)
+            logger.error(
+                f"create_new_piece failed for pending {pending_id}: {e}", exc_info=True
+            )
             raise
 
     # ── Reject ──────────────────────────────────────────────────────────────
@@ -326,18 +362,24 @@ class PendingPieceService:
     ) -> PendingPiece:
         """Reject — placeholder mvt updated to 'REJECTED', no stock effect."""
         try:
-            pp = await self.db.scalar(select(PendingPiece).where(PendingPiece.id == pending_id))
+            pp = await self.db.scalar(
+                select(PendingPiece).where(PendingPiece.id == pending_id)
+            )
             if pp is None:
                 raise ValueError(f"PendingPiece {pending_id} not found")
             if pp.status != "PENDING_REVIEW":
                 raise ValueError(f"PendingPiece {pending_id} is not pending review")
 
             placeholder = await self.db.scalar(
-                select(MouvementStock).where(MouvementStock.pending_piece_id == pending_id)
+                select(MouvementStock).where(
+                    MouvementStock.pending_piece_id == pending_id
+                )
             )
             if placeholder is not None:
                 placeholder.movement_type = "REJECTED"
-                placeholder.reference = (placeholder.reference or "") + f"|rejected-{rejection_reason[:50]}"
+                placeholder.reference = (
+                    placeholder.reference or ""
+                ) + f"|rejected-{rejection_reason[:50]}"
 
             pp.status = "REJECTED"
             pp.rejection_reason = rejection_reason
@@ -357,7 +399,9 @@ class PendingPieceService:
             logger.error(f"reject failed for pending {pending_id}: {e}", exc_info=True)
             raise
 
-    async def _auto_link_pending_to_machine(self, piece_id: int, intervention_id: int | None) -> None:
+    async def _auto_link_pending_to_machine(
+        self, piece_id: int, intervention_id: int | None
+    ) -> None:
         """When a pending piece is MATCHED/CREATED and tied to an intervention,
         auto-link the resolved piece to the intervention's machine.
 
@@ -372,12 +416,18 @@ class PendingPieceService:
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 
             machine_id = await self.db.scalar(
-                select(Ordres_intervention.machine_id).where(Ordres_intervention.id == intervention_id)
+                select(Ordres_intervention.machine_id).where(
+                    Ordres_intervention.id == intervention_id
+                )
             )
             if not machine_id:
                 return
-            stmt = pg_insert(piece_machine).values(piece_id=piece_id, machine_id=machine_id)
-            stmt = stmt.on_conflict_do_nothing(index_elements=["piece_id", "machine_id"])
+            stmt = pg_insert(piece_machine).values(
+                piece_id=piece_id, machine_id=machine_id
+            )
+            stmt = stmt.on_conflict_do_nothing(
+                index_elements=["piece_id", "machine_id"]
+            )
             await self.db.execute(stmt)
         except Exception as e:
             logger.debug(f"_auto_link_pending_to_machine soft-fail: {e}")
@@ -388,6 +438,7 @@ class PendingPieceService:
     def _invalidate_forecast() -> None:
         try:
             from modules.ml.services.demand_forecast import invalidate_forecast_cache
+
             invalidate_forecast_cache()
         except Exception:  # pragma: no cover — best effort
             pass

@@ -1,4 +1,5 @@
 """Labor demand/capacity forecast — pure function."""
+
 from __future__ import annotations
 from typing import Any, Dict, List
 
@@ -18,7 +19,9 @@ def forecast_labor(
 
     Returns {demand_hours, capacity_hours, coverage_pct, overload, breakdown}.
     """
-    predicted_hours = sum(float(m.get("expected_downtime_hours", 0)) for m in machine_forecasts)
+    predicted_hours = sum(
+        float(m.get("expected_downtime_hours", 0)) for m in machine_forecasts
+    )
     backlog_hours = float(open_wo_count) * float(avg_wo_hours)
     demand = round(predicted_hours + backlog_hours, 1)
 

@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
+from datetime import datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/entities/archives", tags=["archives"])
 # ---------- Pydantic Schemas ----------
 class ArchivesData(BaseModel):
     """Entity data schema (for create/update)"""
+
     identifiant_archive: str
     nom: str
     date_archivage: datetime
@@ -31,6 +32,7 @@ class ArchivesData(BaseModel):
 
 class ArchivesUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     identifiant_archive: Optional[str] = None
     nom: Optional[str] = None
     date_archivage: Optional[datetime] = None
@@ -42,6 +44,7 @@ class ArchivesUpdateData(BaseModel):
 
 class ArchivesResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     identifiant_archive: str
     nom: str
@@ -57,6 +60,7 @@ class ArchivesResponse(BaseModel):
 
 class ArchivesListResponse(BaseModel):
     """List response schema"""
+
     items: List[ArchivesResponse]
     total: int
     skip: int
@@ -65,22 +69,26 @@ class ArchivesListResponse(BaseModel):
 
 class ArchivesBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[ArchivesData]
 
 
 class ArchivesBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: ArchivesUpdateData
 
 
 class ArchivesBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[ArchivesBatchUpdateItem]
 
 
 class ArchivesBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]
 
 
@@ -90,13 +98,17 @@ async def query_archivess(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """Query archivess with filtering, sorting, and pagination"""
-    logger.debug(f"Querying archivess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+    logger.debug(
+        f"Querying archivess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
+
     service = ArchivesService(db)
     try:
         # Parse query JSON if provided
@@ -106,9 +118,9 @@ async def query_archivess(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -127,12 +139,16 @@ async def query_archivess_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     # Query archivess with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying archivess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying archivess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = ArchivesService(db)
     try:
@@ -145,10 +161,7 @@ async def query_archivess_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} archivess")
         return result
@@ -167,14 +180,14 @@ async def get_archives(
 ):
     """Get a single archives by ID"""
     logger.debug(f"Fetching archives with id: {id}, fields={fields}")
-    
+
     service = ArchivesService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Archives with id {id} not found")
             raise HTTPException(status_code=404, detail="Archives not found")
-        
+
         return result
     except HTTPException:
         raise
@@ -190,13 +203,13 @@ async def create_archives(
 ):
     """Create a new archives"""
     logger.debug(f"Creating new archives with data: {data}")
-    
+
     service = ArchivesService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create archives")
-        
+
         logger.info(f"Archives created successfully with id: {result.id}")
         return result
     except ValueError as e:
@@ -214,16 +227,16 @@ async def create_archivess_batch(
 ):
     """Create multiple archivess in a single request"""
     logger.debug(f"Batch creating {len(request.items)} archivess")
-    
+
     service = ArchivesService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch created {len(results)} archivess successfully")
         return results
     except Exception as e:
@@ -239,18 +252,20 @@ async def update_archivess_batch(
 ):
     """Update multiple archivess in a single request"""
     logger.debug(f"Batch updating {len(request.items)} archivess")
-    
+
     service = ArchivesService(db)
     results = []
-    
+
     try:
         for item in request.items:
             # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch updated {len(results)} archivess successfully")
         return results
     except Exception as e:
@@ -276,7 +291,7 @@ async def update_archives(
         if not result:
             logger.warning(f"Archives with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Archives not found")
-        
+
         logger.info(f"Archives {id} updated successfully")
         return result
     except HTTPException:
@@ -296,18 +311,21 @@ async def delete_archivess_batch(
 ):
     """Delete multiple archivess by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} archivess")
-    
+
     service = ArchivesService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id)
             if success:
                 deleted_count += 1
-        
+
         logger.info(f"Batch deleted {deleted_count} archivess successfully")
-        return {"message": f"Successfully deleted {deleted_count} archivess", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} archivess",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -321,14 +339,14 @@ async def delete_archives(
 ):
     """Delete a single archives by ID"""
     logger.debug(f"Deleting archives with id: {id}")
-    
+
     service = ArchivesService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(f"Archives with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Archives not found")
-        
+
         logger.info(f"Archives {id} deleted successfully")
         return {"message": "Archives deleted successfully", "id": id}
     except HTTPException:

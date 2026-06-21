@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class Ordres_interventionData(BaseModel):
     """Entity data schema (for create/update)"""
+
     date_intervention: datetime
     rapport: str = None
     ordre_travail_id: Optional[int] = None
@@ -28,6 +29,7 @@ class Ordres_interventionData(BaseModel):
 
 class Ordres_interventionUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     date_intervention: Optional[datetime] = None
     rapport: Optional[str] = None
     ordre_travail_id: Optional[int] = None
@@ -51,6 +53,7 @@ class Ordres_interventionUpdateData(BaseModel):
 
 class Ordres_interventionResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     date_intervention: datetime
     rapport: Optional[str] = None
@@ -84,6 +87,7 @@ class Ordres_interventionValidationData(BaseModel):
 
 class Ordres_interventionListResponse(BaseModel):
     """List response schema"""
+
     items: List[Ordres_interventionResponse]
     total: int
     skip: int
@@ -92,20 +96,24 @@ class Ordres_interventionListResponse(BaseModel):
 
 class Ordres_interventionBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[Ordres_interventionData]
 
 
 class Ordres_interventionBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: Ordres_interventionUpdateData
 
 
 class Ordres_interventionBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[Ordres_interventionBatchUpdateItem]
 
 
 class Ordres_interventionBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]

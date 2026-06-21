@@ -6,7 +6,9 @@ class Planning_machines(Base):
     __tablename__ = "planning_machines"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     planning_id = Column(Integer, nullable=False)
     machine_id = Column(Integer, nullable=False)
     created_at = Column(DateTime(timezone=True), nullable=True)

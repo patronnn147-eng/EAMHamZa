@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import func, and_, or_
-from sqlalchemy.orm import selectinload
+from sqlalchemy import func
 from typing import List, Optional
 from schemas.pagination import PaginatedResponse
 from datetime import datetime
@@ -11,7 +10,7 @@ from pydantic import BaseModel
 
 from core.database import get_db
 from core.security import verify_technicien
-from models.utilisateurs import Utilisateurs, UserRole
+from models.utilisateurs import Utilisateurs
 from models.machines import Machines
 from models.ordres_travail import Ordres_travail, OrdreStatut
 from models.ordres_intervention import Ordres_intervention
@@ -24,6 +23,7 @@ from schemas.stock import ConsumedPieceItem, ConsumedPieceDirect, PendingPieceDi
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
+
 
 class WorkOrderResponse(BaseModel):
     id: int
@@ -39,9 +39,10 @@ class WorkOrderResponse(BaseModel):
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None
 
+
 class WorkOrderCompletePayload(BaseModel):
     rapport: str
-    
+
     # Enhanced Report fields
     intervention_type: Optional[str] = None
     root_cause_category: Optional[str] = None
@@ -50,14 +51,14 @@ class WorkOrderCompletePayload(BaseModel):
     parts_replaced: Optional[str] = None
     tools_used: Optional[str] = None
     machine_status_after: Optional[str] = None
-    
+
     # PDCA Specific
     plan_hypothesis: Optional[str] = None
     check_resolved: Optional[bool] = None
     check_verification_method: Optional[str] = None
     act_preventive_actions: Optional[str] = None
     act_recommendations: Optional[str] = None
-    
+
     # Machine Telemetry fields (all optional)
     air_temperature: Optional[float] = None
     process_temperature: Optional[float] = None
@@ -91,27 +92,41 @@ async def get_my_work_orders(
         skip = (page - 1) * size
 
         # Count total - also check Ordres_travail.utilisateur_id directly
-        count_query = select(func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None))\
-            .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
-            .where(
-                (Ordres_intervention.technician_id == current_user.id) |
-                (Ordres_travail.utilisateur_id == current_user.id)
+        count_query = (
+            select(func.count(Ordres_travail.id))
+            .where(Ordres_travail.archived_at.is_(None))
+            .outerjoin(
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
             )
+            .where(
+                (Ordres_intervention.technician_id == current_user.id)
+                | (Ordres_travail.utilisateur_id == current_user.id)
+            )
+        )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(Ordres_travail, Machines.nom.label("machine_nom")).where(Ordres_travail.archived_at.is_(None))\
-            .outerjoin(Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id)\
-            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)\
+        query = (
+            select(Ordres_travail, Machines.nom.label("machine_nom"))
+            .where(Ordres_travail.archived_at.is_(None))
+            .outerjoin(
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+            )
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
             .where(
-                (Ordres_intervention.technician_id == current_user.id) |
-                (Ordres_travail.utilisateur_id == current_user.id)
-            )\
-            .order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
-        
+                (Ordres_intervention.technician_id == current_user.id)
+                | (Ordres_travail.utilisateur_id == current_user.id)
+            )
+            .order_by(Ordres_travail.created_at.desc())
+            .offset(skip)
+            .limit(size)
+        )
+
         result = await db.execute(query)
         rows = result.all()
-        
+
         items = [
             WorkOrderResponse(
                 id=wo.id,
@@ -123,21 +138,18 @@ async def get_my_work_orders(
                 machine_nom=machine_nom,
                 created_at=wo.created_at,
                 date_echeance=wo.date_echeance,
-                source=getattr(wo, 'source', None),
+                source=getattr(wo, "source", None),
                 date_debut=wo.date_debut,
                 date_fin=wo.date_fin,
-            ) for wo, machine_nom in rows
+            )
+            for wo, machine_nom in rows
         ]
 
-        return PaginatedResponse.create(
-            items=items,
-            total=total,
-            page=page,
-            size=size
-        )
+        return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
         logger.error(f"Error fetching work orders for technician: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.patch("/work-orders/{order_id}/start")
 async def start_work_order(
@@ -154,7 +166,7 @@ async def start_work_order(
         wo = wo_result.scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
-        
+
         # Allow if either utilisateur_id matches OR intervention link exists
         has_access = False
         if wo.utilisateur_id == current_user.id:
@@ -164,24 +176,28 @@ async def start_work_order(
             int_result = await db.execute(
                 select(Ordres_intervention).where(
                     Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technician_id == current_user.id
+                    Ordres_intervention.technician_id == current_user.id,
                 )
             )
             if int_result.scalar_one_or_none():
                 has_access = True
-        
+
         if not has_access:
-            raise HTTPException(status_code=403, detail="You can only start work orders assigned to you")
-        
+            raise HTTPException(
+                status_code=403, detail="You can only start work orders assigned to you"
+            )
+
         if wo.statut not in ["EN_ATTENTE", "ASSIGNÉ", "ASSIGNED"]:
-            raise HTTPException(status_code=400, detail="Only pending/assigned orders can be started")
+            raise HTTPException(
+                status_code=400, detail="Only pending/assigned orders can be started"
+            )
 
         previous_statut = wo.statut
         now = datetime.utcnow()
         wo.statut = OrdreStatut.IN_PROGRESS
         if not wo.date_debut:
             wo.date_debut = now
-        
+
         # Update linked intervention if exists
         int_result = await db.execute(
             select(Ordres_intervention).where(
@@ -193,7 +209,7 @@ async def start_work_order(
             intervention.statut = "EN_COURS"
             if not intervention.date_debut:
                 intervention.date_debut = now
-            
+
         await db.commit()
 
         try:
@@ -207,7 +223,9 @@ async def start_work_order(
                 entity_name=wo.titre,
             )
         except Exception:
-            logger.warning("Audit log failed for technician start work order %s", order_id)
+            logger.warning(
+                "Audit log failed for technician start work order %s", order_id
+            )
 
         return {"message": "Work order started", "statut": OrdreStatut.IN_PROGRESS}
     except HTTPException:
@@ -216,6 +234,7 @@ async def start_work_order(
         await db.rollback()
         logger.error(f"Error starting work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
 
 @router.patch("/work-orders/{order_id}/complete")
 async def complete_work_order(
@@ -227,11 +246,13 @@ async def complete_work_order(
     """TECHNICIEN: Complete a work order with full PDCA data"""
     try:
         # Check if work order exists
-        wo_result = await db.execute(select(Ordres_travail).where(Ordres_travail.id == order_id))
+        wo_result = await db.execute(
+            select(Ordres_travail).where(Ordres_travail.id == order_id)
+        )
         wo = wo_result.scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
-        
+
         # Allow if either utilisateur_id matches OR intervention link exists
         has_access = False
         if wo.utilisateur_id == current_user.id:
@@ -240,17 +261,22 @@ async def complete_work_order(
             int_result = await db.execute(
                 select(Ordres_intervention).where(
                     Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technician_id == current_user.id
+                    Ordres_intervention.technician_id == current_user.id,
                 )
             )
             if int_result.scalar_one_or_none():
                 has_access = True
-        
+
         if not has_access:
-            raise HTTPException(status_code=403, detail="You can only complete work orders assigned to you")
-        
+            raise HTTPException(
+                status_code=403,
+                detail="You can only complete work orders assigned to you",
+            )
+
         if wo.statut != OrdreStatut.IN_PROGRESS:
-            raise HTTPException(status_code=400, detail="Only 'IN_PROGRESS' orders can be completed")
+            raise HTTPException(
+                status_code=400, detail="Only 'IN_PROGRESS' orders can be completed"
+            )
 
         now = datetime.utcnow()
 
@@ -265,14 +291,17 @@ async def complete_work_order(
         except Exception as _rec_exc:
             logger.warning(
                 "Recovery completion snapshot failed for WO %s: %s",
-                order_id, _rec_exc,
+                order_id,
+                _rec_exc,
             )
 
         wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
 
-        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
+        machine_obj = await db.scalar(
+            select(Machines).where(Machines.id == wo.machine_id)
+        )
         if machine_obj:
             machine_obj.date_derniere_maintenance = now
 
@@ -289,15 +318,17 @@ async def complete_work_order(
             if not intervention.date_debut:
                 intervention.date_debut = wo.date_debut or now
             intervention.date_fin = now
-            
+
             intervention.intervention_type = payload.intervention_type
             intervention.root_cause_category = payload.root_cause_category
             intervention.root_cause_description = payload.root_cause_description
             intervention.actions_performed = payload.actions_performed
-            intervention.legacy_parts_text = payload.parts_replaced  # legacy free-text fallback
+            intervention.legacy_parts_text = (
+                payload.parts_replaced
+            )  # legacy free-text fallback
             intervention.tools_used = payload.tools_used
             intervention.machine_status_after = payload.machine_status_after
-            
+
             intervention.plan_hypothesis = payload.plan_hypothesis
             intervention.check_resolved = payload.check_resolved
             intervention.check_verification_method = payload.check_verification_method
@@ -308,19 +339,23 @@ async def complete_work_order(
 
             if intervention.planning_tache_id:
                 tache = await db.scalar(
-                    select(Planning_taches).where(Planning_taches.id == intervention.planning_tache_id)
+                    select(Planning_taches).where(
+                        Planning_taches.id == intervention.planning_tache_id
+                    )
                 )
                 if tache:
                     tache.statut = "COMPLETED"
 
         # Save telemetry if any telemetry field is provided
-        if any([
-            payload.air_temperature,
-            payload.process_temperature,
-            payload.rotational_speed,
-            payload.torque,
-            payload.tool_wear,
-        ]):
+        if any(
+            [
+                payload.air_temperature,
+                payload.process_temperature,
+                payload.rotational_speed,
+                payload.torque,
+                payload.tool_wear,
+            ]
+        ):
             telemetry = MachineTelemetry(
                 machine_id=wo.machine_id,
                 work_order_id=wo.id,
@@ -345,9 +380,12 @@ async def complete_work_order(
                 from sqlalchemy import select as _select
                 from models.pieces import Piece as _Piece
                 from decimal import Decimal as _D
+
                 stock_svc = _Stock(db)
                 for di in payload.parts_consumed_direct:
-                    piece = await db.scalar(_select(_Piece).where(_Piece.id == di.piece_id))
+                    piece = await db.scalar(
+                        _select(_Piece).where(_Piece.id == di.piece_id)
+                    )
                     if piece is None:
                         raise ValueError(f"Pièce {di.piece_id} introuvable")
                     unit = di.unit or piece.default_unit or "pcs"
@@ -388,17 +426,27 @@ async def complete_work_order(
                 await db.flush()
             except ValueError as ve:
                 await db.rollback()
-                logger.warning("Direct parts consumption failed for OT %s: %s", order_id, ve)
+                logger.warning(
+                    "Direct parts consumption failed for OT %s: %s", order_id, ve
+                )
                 raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
             except Exception as exc:
                 await db.rollback()
-                logger.error("Direct parts consumption error for OT %s: %s", order_id, exc, exc_info=True)
-                raise HTTPException(status_code=500, detail="Échec consommation directe")
+                logger.error(
+                    "Direct parts consumption error for OT %s: %s",
+                    order_id,
+                    exc,
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=500, detail="Échec consommation directe"
+                )
 
         # ── Pending pieces submitted at completion (uncatalogued) ─────────
         if intervention and payload.pending_pieces_direct:
             try:
                 from services.inventory import PendingPieceService as _PPS
+
                 pending_svc = _PPS(db)
                 for pp_item in payload.pending_pieces_direct:
                     if not pp_item.name or not pp_item.name.strip():
@@ -414,7 +462,10 @@ async def complete_work_order(
                         auto_commit=False,
                     )
             except Exception as exc:
-                logger.warning(f"Pending direct submit failed for OT {order_id}: {exc}", exc_info=True)
+                logger.warning(
+                    f"Pending direct submit failed for OT {order_id}: {exc}",
+                    exc_info=True,
+                )
 
         # ── Atomic parts consumption (pre-reserved) ───────────────────────
         # If the technician submitted parts_consumed, fulfill each reservation
@@ -435,7 +486,10 @@ async def complete_work_order(
                     )
                 # invalidate forecast cache after real consumption recorded
                 try:
-                    from modules.ml.services.demand_forecast import invalidate_forecast_cache
+                    from modules.ml.services.demand_forecast import (
+                        invalidate_forecast_cache,
+                    )
+
                     invalidate_forecast_cache()
                 except Exception:
                     pass
@@ -457,7 +511,9 @@ async def complete_work_order(
                 entity_name=wo.titre,
             )
         except Exception:
-            logger.warning("Audit log failed for technician complete work order %s", order_id)
+            logger.warning(
+                "Audit log failed for technician complete work order %s", order_id
+            )
 
         return {"message": "Work order completed via PDCA form", "statut": "TERMINÉ"}
     except HTTPException:

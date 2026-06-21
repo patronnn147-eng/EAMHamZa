@@ -3,6 +3,7 @@ P7.4 — Guarded draft creation for parts procurement.
 Shortfall → DRAFT Ordres_travail (human must approve before anything commits).
 Dedup: if PARTS_SHORTAGE alert already has a work_order_id, skip creation.
 """
+
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
@@ -14,6 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 # ── Pure helpers (fully testable, no DB) ──────────────────────────────────
+
 
 def _determine_priority(shortage_items: list) -> str:
     """
@@ -39,7 +41,7 @@ def _build_wo_description(parts_demand: Dict[str, Any]) -> str:
     """Plain-language WO description with parts list. No ML jargon."""
     items = parts_demand.get("items", [])
     shortage = [i for i in items if i.get("shortfall", 0) > 0]
-    horizon  = parts_demand.get("horizon_days", 30)
+    horizon = parts_demand.get("horizon_days", 30)
 
     lines = [
         f"Predictive maintenance forecast — next {horizon} days.",
@@ -48,13 +50,17 @@ def _build_wo_description(parts_demand: Dict[str, Any]) -> str:
         "Parts needed:",
     ]
     for item in items[:20]:
-        name     = item.get("name", f"Part {item.get('piece_id')}").title()
+        name = item.get("name", f"Part {item.get('piece_id')}").title()
         expected = item.get("expected_qty", 0)
-        on_hand  = item.get("on_hand", 0)
+        on_hand = item.get("on_hand", 0)
         shortfall = item.get("shortfall", 0)
-        driver   = "Condition-based" if item.get("driver") == "condition" else "Usage-based"
-        flag     = f"  ← ORDER {int(shortfall + 0.999)}" if shortfall > 0 else ""
-        lines.append(f"  • {name}: need {expected:.1f}, in stock {on_hand}{flag} ({driver})")
+        driver = (
+            "Condition-based" if item.get("driver") == "condition" else "Usage-based"
+        )
+        flag = f"  ← ORDER {int(shortfall + 0.999)}" if shortfall > 0 else ""
+        lines.append(
+            f"  • {name}: need {expected:.1f}, in stock {on_hand}{flag} ({driver})"
+        )
 
     if len(items) > 20:
         lines.append(f"  … and {len(items) - 20} more parts.")
@@ -68,6 +74,7 @@ def _build_wo_description(parts_demand: Dict[str, Any]) -> str:
 
 
 # ── Async DB operations ───────────────────────────────────────────────────
+
 
 async def create_procurement_draft(
     machine_id: int,
@@ -91,7 +98,7 @@ async def create_procurement_draft(
     if not parts_demand or not parts_demand.get("items"):
         return None
 
-    items    = parts_demand["items"]
+    items = parts_demand["items"]
     shortage = [i for i in items if i.get("shortfall", 0) > 0]
 
     # Dedup: check if active PARTS_SHORTAGE alert already has a WO linked
@@ -100,7 +107,7 @@ async def create_procurement_draft(
             and_(
                 Alert.machine_id == machine_id,
                 Alert.alert_type == AlertType.PARTS_SHORTAGE,
-                Alert.is_active  == True,
+                Alert.is_active,
                 Alert.work_order_id.is_not(None),
             )
         )
@@ -109,19 +116,21 @@ async def create_procurement_draft(
         logger.info(f"[P7] Draft WO already exists for machine {machine_id} — skipping")
         return None
 
-    priority    = _determine_priority(shortage)
-    title       = _build_wo_title(machine_id)
+    priority = _determine_priority(shortage)
+    title = _build_wo_title(machine_id)
     description = _build_wo_description(parts_demand)
-    due_date    = datetime.now(timezone.utc) + timedelta(days=parts_demand.get("horizon_days", 30))
+    due_date = datetime.now(timezone.utc) + timedelta(
+        days=parts_demand.get("horizon_days", 30)
+    )
 
     wo = Ordres_travail(
-        titre         = title,
-        description   = description,
-        priorite      = priority,
-        machine_id    = machine_id,
-        statut        = OrdreStatut.DRAFT,
-        created_by    = created_by,
-        date_echeance = due_date,
+        titre=title,
+        description=description,
+        priorite=priority,
+        machine_id=machine_id,
+        statut=OrdreStatut.DRAFT,
+        created_by=created_by,
+        date_echeance=due_date,
     )
     db.add(wo)
     await db.flush()  # get wo.id without committing
@@ -132,14 +141,14 @@ async def create_procurement_draft(
             and_(
                 Alert.machine_id == machine_id,
                 Alert.alert_type == AlertType.PARTS_SHORTAGE,
-                Alert.is_active  == True,
+                Alert.is_active,
             )
         )
     )
     alert = alert_q.scalar_one_or_none()
     if alert:
-        alert.work_order_id    = wo.id
-        alert.is_linked_to_wo  = True
+        alert.work_order_id = wo.id
+        alert.is_linked_to_wo = True
 
     logger.info(f"[P7] Draft WO #{wo.id} created for machine {machine_id} ({priority})")
     return wo.id
@@ -161,9 +170,12 @@ async def approve_procurement_draft(
     if not wo:
         return {"success": False, "error": "Work order not found"}
     if wo.statut != OrdreStatut.DRAFT:
-        return {"success": False, "error": f"WO is not a draft (status: {wo.statut.value})"}
+        return {
+            "success": False,
+            "error": f"WO is not a draft (status: {wo.statut.value})",
+        }
 
-    wo.statut       = OrdreStatut.SUBMITTED
+    wo.statut = OrdreStatut.SUBMITTED
     wo.validated_by = approved_by
     await db.commit()
     await db.refresh(wo)
@@ -187,17 +199,18 @@ async def reject_procurement_draft(
     if not wo:
         return {"success": False, "error": "Work order not found"}
     if wo.statut != OrdreStatut.DRAFT:
-        return {"success": False, "error": f"WO is not a draft (status: {wo.statut.value})"}
+        return {
+            "success": False,
+            "error": f"WO is not a draft (status: {wo.statut.value})",
+        }
 
     wo.statut = OrdreStatut.ANNULÉ
 
     # Unlink from PARTS_SHORTAGE alert so future shortfalls can create a new draft
-    alert_q = await db.execute(
-        select(Alert).where(Alert.work_order_id == wo_id)
-    )
+    alert_q = await db.execute(select(Alert).where(Alert.work_order_id == wo_id))
     alert = alert_q.scalar_one_or_none()
     if alert:
-        alert.work_order_id   = None
+        alert.work_order_id = None
         alert.is_linked_to_wo = False
 
     await db.commit()

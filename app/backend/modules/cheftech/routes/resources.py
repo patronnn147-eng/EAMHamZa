@@ -23,9 +23,11 @@ async def get_technicians(
     """Get all technicians"""
     try:
         skip = (page - 1) * size
-        
+
         # Count total
-        count_query = select(func.count(Utilisateurs.id)).where(Utilisateurs.role == UserRole.TECHNICIEN)
+        count_query = select(func.count(Utilisateurs.id)).where(
+            Utilisateurs.role == UserRole.TECHNICIEN
+        )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -35,19 +37,13 @@ async def get_technicians(
 
         technicians = [
             TechnicianResponse(
-                id=tech.id,
-                nom=tech.nom,
-                email=tech.email,
-                role=tech.role
+                id=tech.id, nom=tech.nom, email=tech.email, role=tech.role
             )
             for tech in result.scalars()
         ]
 
         return PaginatedResponse.create(
-            items=technicians,
-            total=total,
-            page=page,
-            size=size
+            items=technicians, total=total, page=page, size=size
         )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -64,7 +60,7 @@ async def get_machines(
     """Get machines with optional status filter"""
     try:
         skip = (page - 1) * size
-        
+
         # Count total
         count_query = select(func.count(Machines.id))
         if statut:
@@ -91,16 +87,13 @@ async def get_machines(
                 date_derniere_maintenance=machine.date_derniere_maintenance,
                 date_prochaine_maintenance=machine.date_prochaine_maintenance,
                 image_url=machine.image_url,
-                created_at=machine.created_at
+                created_at=machine.created_at,
             )
             for machine in result.scalars()
         ]
 
         return PaginatedResponse.create(
-            items=machines,
-            total=total,
-            page=page,
-            size=size
+            items=machines, total=total, page=page, size=size
         )
     except Exception:
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -124,7 +117,10 @@ async def update_machine_status(
 
         valid_statuses = ["ACTIF", "INACTIF", "MAINTENANCE", "CRITIQUE", "HORS_SERVICE"]
         if statut not in valid_statuses:
-            raise HTTPException(status_code=400, detail=f"Statut invalide. Valeurs valides: {valid_statuses}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Statut invalide. Valeurs valides: {valid_statuses}",
+            )
 
         machine.statut = statut
         await db.commit()

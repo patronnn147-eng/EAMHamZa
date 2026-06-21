@@ -17,6 +17,7 @@ Adds the inventory ↔ work-order consumption workflow:
 - Creates a `intervention_consumption_summary` VIEW used as the single source
   of truth for consumed-parts JSON reports.
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -33,15 +34,38 @@ def upgrade() -> None:
 
     # ── pieces: add columns ──────────────────────────────────────────────────
     with op.batch_alter_table("pieces") as batch:
-        batch.add_column(sa.Column("is_consumable", sa.Boolean(), nullable=False, server_default=sa.text("false")))
-        batch.add_column(sa.Column("default_unit", sa.String(20), nullable=False, server_default="pcs"))
+        batch.add_column(
+            sa.Column(
+                "is_consumable",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.text("false"),
+            )
+        )
+        batch.add_column(
+            sa.Column(
+                "default_unit", sa.String(20), nullable=False, server_default="pcs"
+            )
+        )
 
-    op.create_index("idx_pieces_name_trgm", "pieces", [sa.text("name gin_trgm_ops")], postgresql_using="gin")
-    op.create_index("idx_pieces_reference_trgm", "pieces", [sa.text("reference gin_trgm_ops")], postgresql_using="gin")
+    op.create_index(
+        "idx_pieces_name_trgm",
+        "pieces",
+        [sa.text("name gin_trgm_ops")],
+        postgresql_using="gin",
+    )
+    op.create_index(
+        "idx_pieces_reference_trgm",
+        "pieces",
+        [sa.text("reference gin_trgm_ops")],
+        postgresql_using="gin",
+    )
 
     # ── mouvement_stock: extend ──────────────────────────────────────────────
     # Drop NOT NULL on piece_id (pending pieces have no piece_id yet)
-    op.alter_column("mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=True)
+    op.alter_column(
+        "mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=True
+    )
     # Convert quantity to DECIMAL
     op.alter_column(
         "mouvement_stock",
@@ -51,8 +75,13 @@ def upgrade() -> None:
         postgresql_using="quantity::numeric(10,2)",
     )
     # Add unit + pending_piece_id + intervention_id
-    op.add_column("mouvement_stock", sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"))
-    op.add_column("mouvement_stock", sa.Column("intervention_id", sa.Integer(), nullable=True))
+    op.add_column(
+        "mouvement_stock",
+        sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
+    )
+    op.add_column(
+        "mouvement_stock", sa.Column("intervention_id", sa.Integer(), nullable=True)
+    )
     # pending_piece_id added AFTER pending_pieces table exists (see below)
 
     # ── ordres_intervention: parts_approved + rename ─────────────────────────
@@ -72,20 +101,47 @@ def upgrade() -> None:
     op.create_table(
         "pending_pieces",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("intervention_id", sa.Integer(), sa.ForeignKey("ordres_intervention.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("submitted_by", sa.Integer(), sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "intervention_id",
+            sa.Integer(),
+            sa.ForeignKey("ordres_intervention.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "submitted_by",
+            sa.Integer(),
+            sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("name", sa.String(200), nullable=False),
         sa.Column("category", sa.String(50), nullable=True),
         sa.Column("quantity", sa.Numeric(10, 2), nullable=False),
         sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
         sa.Column("photo_object_key", sa.String(500), nullable=True),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("status", sa.String(20), nullable=False, server_default="PENDING_REVIEW"),
-        sa.Column("matched_piece_id", sa.Integer(), sa.ForeignKey("pieces.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("reviewed_by", sa.Integer(), sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True),
+        sa.Column(
+            "status", sa.String(20), nullable=False, server_default="PENDING_REVIEW"
+        ),
+        sa.Column(
+            "matched_piece_id",
+            sa.Integer(),
+            sa.ForeignKey("pieces.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "reviewed_by",
+            sa.Integer(),
+            sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("rejection_reason", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint("quantity > 0", name="ck_pending_pieces_qty_positive"),
         sa.CheckConstraint(
             "status IN ('PENDING_REVIEW', 'MATCHED', 'CREATED', 'REJECTED')",
@@ -98,7 +154,12 @@ def upgrade() -> None:
         ["status"],
         postgresql_where=sa.text("status = 'PENDING_REVIEW'"),
     )
-    op.create_index("idx_pending_pieces_name_trgm", "pending_pieces", [sa.text("name gin_trgm_ops")], postgresql_using="gin")
+    op.create_index(
+        "idx_pending_pieces_name_trgm",
+        "pending_pieces",
+        [sa.text("name gin_trgm_ops")],
+        postgresql_using="gin",
+    )
 
     # Now add the FK column on mouvement_stock that references pending_pieces
     op.add_column(
@@ -125,8 +186,12 @@ def upgrade() -> None:
         "(piece_id IS NOT NULL) OR (pending_piece_id IS NOT NULL)",
     )
 
-    op.create_index("idx_mouvement_stock_intervention", "mouvement_stock", ["intervention_id"])
-    op.create_index("idx_mouvement_stock_pending", "mouvement_stock", ["pending_piece_id"])
+    op.create_index(
+        "idx_mouvement_stock_intervention", "mouvement_stock", ["intervention_id"]
+    )
+    op.create_index(
+        "idx_mouvement_stock_pending", "mouvement_stock", ["pending_piece_id"]
+    )
     op.create_index(
         "idx_mouvement_stock_active_reservations",
         "mouvement_stock",
@@ -144,15 +209,38 @@ def upgrade() -> None:
             sa.ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
             nullable=False,
         ),
-        sa.Column("piece_id", sa.Integer(), sa.ForeignKey("pieces.id", ondelete="RESTRICT"), nullable=False),
+        sa.Column(
+            "piece_id",
+            sa.Integer(),
+            sa.ForeignKey("pieces.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
         sa.Column("quantity_planned", sa.Numeric(10, 2), nullable=False),
         sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
-        sa.Column("quantity_reserved", sa.Numeric(10, 2), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "quantity_reserved",
+            sa.Numeric(10, 2),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
         sa.Column("reservation_expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("approved", sa.Boolean(), nullable=True),  # NULL=pending, True=approved, False=rejected
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.CheckConstraint("quantity_planned >= 0 AND quantity_reserved >= 0", name="ck_required_pieces_non_negative"),
-        sa.CheckConstraint("quantity_reserved <= quantity_planned", name="ck_required_pieces_reserve_le_plan"),
+        sa.Column(
+            "approved", sa.Boolean(), nullable=True
+        ),  # NULL=pending, True=approved, False=rejected
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.CheckConstraint(
+            "quantity_planned >= 0 AND quantity_reserved >= 0",
+            name="ck_required_pieces_non_negative",
+        ),
+        sa.CheckConstraint(
+            "quantity_reserved <= quantity_planned",
+            name="ck_required_pieces_reserve_le_plan",
+        ),
     )
     op.create_index("idx_required_pieces_itv", "required_pieces", ["intervention_id"])
     op.create_index("idx_required_pieces_piece", "required_pieces", ["piece_id"])
@@ -179,14 +267,39 @@ def upgrade() -> None:
             sa.ForeignKey("required_pieces.id", ondelete="RESTRICT"),
             nullable=False,
         ),
-        sa.Column("piece_id", sa.Integer(), sa.ForeignKey("pieces.id", ondelete="RESTRICT"), nullable=False),
-        sa.Column("quantity_used", sa.Numeric(10, 2), nullable=False, server_default=sa.text("0")),
-        sa.Column("quantity_returned", sa.Numeric(10, 2), nullable=False, server_default=sa.text("0")),
-        sa.Column("quantity_wasted", sa.Numeric(10, 2), nullable=False, server_default=sa.text("0")),
+        sa.Column(
+            "piece_id",
+            sa.Integer(),
+            sa.ForeignKey("pieces.id", ondelete="RESTRICT"),
+            nullable=False,
+        ),
+        sa.Column(
+            "quantity_used",
+            sa.Numeric(10, 2),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
+        sa.Column(
+            "quantity_returned",
+            sa.Numeric(10, 2),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
+        sa.Column(
+            "quantity_wasted",
+            sa.Numeric(10, 2),
+            nullable=False,
+            server_default=sa.text("0"),
+        ),
         sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
         sa.Column("disposition", sa.String(20), nullable=False),
         sa.Column("notes", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.CheckConstraint(
             "quantity_used >= 0 AND quantity_returned >= 0 AND quantity_wasted >= 0",
             name="ck_consumed_pieces_non_negative",
@@ -198,7 +311,9 @@ def upgrade() -> None:
     )
     op.create_index("idx_consumed_pieces_itv", "consumed_pieces", ["intervention_id"])
     op.create_index("idx_consumed_pieces_piece", "consumed_pieces", ["piece_id"])
-    op.create_index("idx_consumed_pieces_required", "consumed_pieces", ["required_piece_id"])
+    op.create_index(
+        "idx_consumed_pieces_required", "consumed_pieces", ["required_piece_id"]
+    )
 
     # Cross-table CHECK enforced via trigger (Postgres CHECKs can't subquery)
     op.execute(
@@ -276,16 +391,24 @@ def downgrade() -> None:
     op.drop_index("idx_consumed_pieces_itv", table_name="consumed_pieces")
     op.drop_table("consumed_pieces")
 
-    op.drop_index("idx_required_pieces_active_reservation", table_name="required_pieces")
+    op.drop_index(
+        "idx_required_pieces_active_reservation", table_name="required_pieces"
+    )
     op.drop_index("idx_required_pieces_piece", table_name="required_pieces")
     op.drop_index("idx_required_pieces_itv", table_name="required_pieces")
     op.drop_table("required_pieces")
 
-    op.drop_index("idx_mouvement_stock_active_reservations", table_name="mouvement_stock")
+    op.drop_index(
+        "idx_mouvement_stock_active_reservations", table_name="mouvement_stock"
+    )
     op.drop_index("idx_mouvement_stock_pending", table_name="mouvement_stock")
     op.drop_index("idx_mouvement_stock_intervention", table_name="mouvement_stock")
-    op.drop_constraint("ck_mouvement_stock_piece_or_pending", "mouvement_stock", type_="check")
-    op.drop_constraint("ck_mouvement_stock_type_valid", "mouvement_stock", type_="check")
+    op.drop_constraint(
+        "ck_mouvement_stock_piece_or_pending", "mouvement_stock", type_="check"
+    )
+    op.drop_constraint(
+        "ck_mouvement_stock_type_valid", "mouvement_stock", type_="check"
+    )
     op.drop_column("mouvement_stock", "pending_piece_id")
 
     op.drop_index("idx_pending_pieces_name_trgm", table_name="pending_pieces")
@@ -309,7 +432,9 @@ def downgrade() -> None:
         type_=sa.Integer(),
         postgresql_using="quantity::integer",
     )
-    op.alter_column("mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=False)
+    op.alter_column(
+        "mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=False
+    )
 
     op.drop_index("idx_pieces_reference_trgm", table_name="pieces")
     op.drop_index("idx_pieces_name_trgm", table_name="pieces")

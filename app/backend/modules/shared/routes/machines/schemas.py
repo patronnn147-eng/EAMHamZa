@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class MachinesData(BaseModel):
     """Entity data schema (for create/update)"""
+
     nom: str
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
@@ -18,6 +19,7 @@ class MachinesData(BaseModel):
 
 class MachinesUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     nom: Optional[str] = None
     zone: Optional[str] = None
     sous_zone: Optional[str] = None
@@ -31,6 +33,7 @@ class MachinesUpdateData(BaseModel):
 
 class MachinesResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     nom: str
     zone: Optional[str] = None
@@ -48,6 +51,7 @@ class MachinesResponse(BaseModel):
 
 class MachinesListResponse(BaseModel):
     """List response schema"""
+
     items: List[MachinesResponse]
     total: int
     skip: int
@@ -56,20 +60,24 @@ class MachinesListResponse(BaseModel):
 
 class MachinesBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[MachinesData]
 
 
 class MachinesBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: MachinesUpdateData
 
 
 class MachinesBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[MachinesBatchUpdateItem]
 
 
 class MachinesBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]

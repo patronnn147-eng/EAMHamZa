@@ -11,10 +11,10 @@ _app_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if _app_root not in sys.path:
     sys.path.insert(0, _app_root)
 
-from core.celery_app import celery_app
-from core.database import db_manager
-from models.alertes import Alert  # noqa: F401 — registers Alert mapper for string relationships
-from models.machines import Machines  # noqa: F401 — registers Machines mapper
+from core.celery_app import celery_app  # noqa: E402
+from core.database import db_manager  # noqa: E402
+from models.alertes import Alert  # noqa: E402,F401
+from models.machines import Machines  # noqa: E402,F401
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ async def run_alert_check() -> dict:
     await db_manager.init_db()
     async with db_manager.async_session_maker() as session:
         from services.alertes import AlertService
+
         service = AlertService(session)
         return await service.check_and_create_alerts()
 

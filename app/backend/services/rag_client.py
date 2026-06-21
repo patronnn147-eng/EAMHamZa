@@ -4,6 +4,7 @@ RAG service client — thin httpx async wrapper.
 Main backend calls this instead of embedding/querying pgvector directly.
 All heavy ML work (embedding, chunking) is done in the rag-service container.
 """
+
 import logging
 import os
 from typing import Optional

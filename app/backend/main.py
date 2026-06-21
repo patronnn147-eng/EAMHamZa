@@ -15,7 +15,6 @@ from services.database import initialize_database, close_database
 from services.mock_data import initialize_mock_data
 from core.rabbitmq import get_rabbitmq, RabbitMQService
 # Import all models to ensure they are registered with SQLAlchemy metadata
-import models
 # MODULE_IMPORTS_END
 
 
@@ -77,6 +76,7 @@ async def lifespan(app: FastAPI):
     # Register event-driven RAG sync hooks (after_commit on selected models).
     try:
         from services.rag_change_hooks import register_rag_hooks
+
         register_rag_hooks()
     except Exception as e:
         logger.warning(f"RAG change hooks registration failed (sync disabled): {e}")
@@ -88,14 +88,25 @@ async def lifespan(app: FastAPI):
         import os
         from sqlalchemy import text
         from core.database import db_manager
-        force = os.getenv("RAG_BACKFILL_ON_STARTUP", "false").strip().lower() in ("1", "true", "yes", "on")
+
+        force = os.getenv("RAG_BACKFILL_ON_STARTUP", "false").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
         async with db_manager.async_session_maker() as s:
-            row = await s.execute(text("SELECT COUNT(*) FROM documents WHERE filename LIKE 'db:%'"))
+            row = await s.execute(
+                text("SELECT COUNT(*) FROM documents WHERE filename LIKE 'db:%'")
+            )
             count = row.scalar() or 0
         if force or count == 0:
             from tasks.rag_db_sync import rag_sync_all
+
             rag_sync_all.delay(None, True)
-            logger.info(f"[rag_backfill] dispatched (force={force}, existing_db_docs={count})")
+            logger.info(
+                f"[rag_backfill] dispatched (force={force}, existing_db_docs={count})"
+            )
         else:
             logger.info(f"[rag_backfill] skipped — {count} db:* docs already present")
     except Exception as e:
@@ -152,7 +163,9 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
         return
 
     discovered: int = 0
-    for _finder, module_name, is_pkg in pkgutil.walk_packages(pkg.__path__, pkg.__name__ + "."):
+    for _finder, module_name, is_pkg in pkgutil.walk_packages(
+        pkg.__path__, pkg.__name__ + "."
+    ):
         # Only import leaf modules; subpackages will be walked automatically
         if is_pkg:
             continue
@@ -182,7 +195,12 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
                     if isinstance(item, APIRouter):
                         app.include_router(item)
                         discovered += 1
-                        logger.info("Included router from list: %s.%s[%d]", module_name, attr_name, idx)
+                        logger.info(
+                            "Included router from list: %s.%s[%d]",
+                            module_name,
+                            attr_name,
+                            idx,
+                        )
 
     if discovered == 0:
         logger.debug("No routers discovered in package '%s'", package_name)
@@ -193,7 +211,8 @@ setup_logging()
 include_routers_from_package(app, "modules")
 
 # Include ML router (not auto-discovered due to different path)
-from modules.ml.router import router as ml_router
+from modules.ml.router import router as ml_router  # noqa: E402
+
 app.include_router(ml_router)
 
 # Note: planning_taches routers are auto-included via include_routers_from_package
@@ -212,11 +231,9 @@ def health_check():
 @app.get("/api/v1/health")
 async def api_health_check():
     from services.database import check_database_health
+
     db_healthy = await check_database_health()
-    return {
-        "status": "ok",
-        "database": "connected" if db_healthy else "disconnected"
-    }
+    return {"status": "ok", "database": "connected" if db_healthy else "disconnected"}
 
 
 def run_in_debug_mode(app: FastAPI):
@@ -263,7 +280,9 @@ if __name__ == "__main__":
 
     # Detect if running in debugger (PyCharm, VS Code, etc.)
     # Debuggers patch asyncio which conflicts with uvicorn's asyncio_run
-    is_debugging = "pydevd" in sys.modules or (hasattr(sys, "gettrace") and sys.gettrace() is not None)
+    is_debugging = "pydevd" in sys.modules or (
+        hasattr(sys, "gettrace") and sys.gettrace() is not None
+    )
 
     if is_debugging:
         run_in_debug_mode(app)

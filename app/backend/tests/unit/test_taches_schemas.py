@@ -6,6 +6,7 @@ Covers: PlanningTacheCreate, PlanningTacheUpdate, PlanningTachesSubmitRequest,
 
 No database or FastAPI app required — pure Pydantic validation.
 """
+
 import pytest
 from datetime import datetime
 from pydantic import ValidationError
@@ -20,6 +21,7 @@ from modules.shared.routes.planning.schemas import (
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def valid_create_payload(**overrides) -> dict:
     base = {
@@ -36,8 +38,8 @@ def valid_create_payload(**overrides) -> dict:
 
 # ── TaskType enum ─────────────────────────────────────────────────────────────
 
-class TestTaskType:
 
+class TestTaskType:
     def test_diagnostic_value(self):
         assert TaskType.DIAGNOSTIC == "DIAGNOSTIC"
 
@@ -51,8 +53,8 @@ class TestTaskType:
 
 # ── PlanningTacheCreate ───────────────────────────────────────────────────────
 
-class TestPlanningTacheCreate:
 
+class TestPlanningTacheCreate:
     def test_valid_payload_parses(self):
         t = PlanningTacheCreate(**valid_create_payload())
         assert t.titre == "Diagnostic compresseur"
@@ -120,8 +122,8 @@ class TestPlanningTacheCreate:
 
 # ── PlanningTacheUpdate ───────────────────────────────────────────────────────
 
-class TestPlanningTacheUpdate:
 
+class TestPlanningTacheUpdate:
     def test_all_fields_optional(self):
         """Empty payload is valid — all fields optional for PATCH semantics."""
         u = PlanningTacheUpdate()
@@ -149,8 +151,8 @@ class TestPlanningTacheUpdate:
 
 # ── PlanningTachesSubmitRequest ───────────────────────────────────────────────
 
-class TestPlanningTachesSubmitRequest:
 
+class TestPlanningTachesSubmitRequest:
     def test_submit_defaults_to_false(self):
         req = PlanningTachesSubmitRequest(tasks=[valid_create_payload()])
         assert req.submit is False
@@ -180,15 +182,13 @@ class TestPlanningTachesSubmitRequest:
     def test_invalid_task_inside_list_raises(self):
         """Bad task data bubbles up as ValidationError."""
         with pytest.raises(ValidationError):
-            PlanningTachesSubmitRequest(
-                tasks=[{"titre": "X", "task_type": "INVALID"}]
-            )
+            PlanningTachesSubmitRequest(tasks=[{"titre": "X", "task_type": "INVALID"}])
 
 
 # ── PlanningTacheResponse (alias mapping) ────────────────────────────────────
 
-class TestPlanningTacheResponse:
 
+class TestPlanningTacheResponse:
     def test_technician_id_alias_from_technicien_id(self):
         """Response schema maps technicien_id (DB column) → technician_id (API field)."""
         data = {
@@ -196,7 +196,7 @@ class TestPlanningTacheResponse:
             "planning_id": 10,
             "titre": "Test task",
             "description": "desc",
-            "technicien_id": 5,   # ← DB column name
+            "technicien_id": 5,  # ← DB column name
             "machine_id": 12,
             "task_type": "DIAGNOSTIC",
             "date_debut": "2026-01-16T08:00:00",

@@ -16,11 +16,16 @@ class UpdateProfileRequest(BaseModel):
 
 
 @router.get("/profile", response_model=UserResponse)
-async def get_profile(db: AsyncSession = Depends(get_db), current_user: UserResponse = Depends(get_current_user)):
+async def get_profile(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserResponse = Depends(get_current_user),
+):
     """Get current user profile"""
     profile = await UserService.get_user_profile(db, current_user.id)
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+        )
     return profile
 
 
@@ -31,7 +36,11 @@ async def update_profile(
     current_user: UserResponse = Depends(get_current_user),
 ):
     """Update current user profile"""
-    profile = await UserService.update_user_profile(db, current_user.id, profile_data.name)
+    profile = await UserService.update_user_profile(
+        db, current_user.id, profile_data.name
+    )
     if not profile:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found"
+        )
     return profile

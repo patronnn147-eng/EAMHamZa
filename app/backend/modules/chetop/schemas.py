@@ -1,14 +1,15 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel
 
 
 class InterventionRequestCreate(BaseModel):
     """ChefOp requests an intervention (PDS) - Enhanced"""
+
     machine_id: int
     priorite: str = "MOYENNE"
     description: str
-    
+
     # Enhanced DI fields
     machine_category: Optional[str] = None
     symptoms: Optional[str] = None
@@ -19,7 +20,7 @@ class InterventionRequestCreate(BaseModel):
     impact: Optional[str] = None
     estimated_loss: Optional[str] = None
     similar_issue_before: Optional[bool] = None
-    
+
     # AI placeholders (usually filled by backend/ML service)
     suggested_cause: Optional[str] = None
     suggested_priority: Optional[str] = None
@@ -59,12 +60,14 @@ class InterventionRequestResponse(BaseModel):
 
 class MachineStatusUpdate(BaseModel):
     """US-CHETOP-007: Update machine status"""
+
     statut: str  # disponible, en_maintenance, hors_service
     commentaire: Optional[str] = None
 
 
 class MachineResponse(BaseModel):
     """US-CHETOP-006: Machine with status"""
+
     id: int
     nom: str
     emplacement: Optional[str] = None
@@ -78,6 +81,7 @@ class MachineResponse(BaseModel):
 
 class DashboardStats(BaseModel):
     """CHETOP Dashboard Statistics"""
+
     total_requests: int
     requests_pending: int
     requests_approved: int
@@ -89,7 +93,7 @@ class DashboardStats(BaseModel):
 
 class WorkOrderCompletePayload(BaseModel):
     rapport: str
-    
+
     # Enhanced Report fields
     intervention_type: Optional[str] = None
     root_cause_category: Optional[str] = None
@@ -98,14 +102,14 @@ class WorkOrderCompletePayload(BaseModel):
     parts_replaced: Optional[str] = None
     tools_used: Optional[str] = None
     machine_status_after: Optional[str] = None
-    
+
     # PDCA Specific
     plan_hypothesis: Optional[str] = None
     check_resolved: Optional[bool] = None
     check_verification_method: Optional[str] = None
     act_preventive_actions: Optional[str] = None
     act_recommendations: Optional[str] = None
-    
+
     # Telemetry for ML - Required after work order completion
     # Technician inputs these post-work order completion
     air_temperature: Optional[float] = None  # Kelvin (e.g., 295.5)
@@ -115,4 +119,6 @@ class WorkOrderCompletePayload(BaseModel):
     tool_wear: Optional[int] = None  # minutes (e.g., 15)
 
     # ── NEW: structured parts consumption (replaces free-text parts_replaced) ──
-    parts_consumed: Optional[list] = None  # List[ConsumedPieceItem] — kept as list to avoid circular import
+    parts_consumed: Optional[list] = (
+        None  # List[ConsumedPieceItem] — kept as list to avoid circular import
+    )

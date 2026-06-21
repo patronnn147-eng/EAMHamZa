@@ -33,13 +33,13 @@ def notify_intervention_requested(
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #f59e0b;">Demande d'Intervention</h2>
                     <p>Bonjour {user_name},</p>
-                    <p>Le technicien <strong>{technician.get('nom', '')}</strong> a soumis une demande d'intervention.</p>
+                    <p>Le technicien <strong>{technician.get("nom", "")}</strong> a soumis une demande d'intervention.</p>
                     <ul>
-                        <li><strong>Ordre de travail:</strong> #{intervention.get('ordre_travail_id', '')}</li>
-                        <li><strong>Problème:</strong> {intervention.get('problem_description', 'Non spécifié')}</li>
-                        <li><strong>Priorité:</strong> {intervention.get('priority', 'Non spécifiée')}</li>
-                        <li><strong>Durée estimée:</strong> {intervention.get('estimated_duration_minutes', 'N/A')} min</li>
-                        <li><strong>Matériaux requis:</strong> {intervention.get('required_materials', 'Non spécifiés')}</li>
+                        <li><strong>Ordre de travail:</strong> #{intervention.get("ordre_travail_id", "")}</li>
+                        <li><strong>Problème:</strong> {intervention.get("problem_description", "Non spécifié")}</li>
+                        <li><strong>Priorité:</strong> {intervention.get("priority", "Non spécifiée")}</li>
+                        <li><strong>Durée estimée:</strong> {intervention.get("estimated_duration_minutes", "N/A")} min</li>
+                        <li><strong>Matériaux requis:</strong> {intervention.get("required_materials", "Non spécifiés")}</li>
                     </ul>
                     <p>Veuillez approuver ou rejeter cette demande.</p>
                 </div>
@@ -60,7 +60,9 @@ def notify_intervention_requested(
         else:
             failed.append(to_email)
 
-    logger.info(f"Intervention requested notifications: sent={ok}, failed={len(failed)}")
+    logger.info(
+        f"Intervention requested notifications: sent={ok}, failed={len(failed)}"
+    )
     return {"sent": ok, "failed": failed}
 
 
@@ -84,10 +86,10 @@ def notify_intervention_approved(
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #10b981;">Intervention Approuvée</h2>
                 <p>Bonjour {user_name},</p>
-                <p>Votre demande d'intervention a été <strong style="color: #10b981;">approuvée</strong> par <strong>{approved_by.get('nom', 'ChefTech')}</strong>.</p>
+                <p>Votre demande d'intervention a été <strong style="color: #10b981;">approuvée</strong> par <strong>{approved_by.get("nom", "ChefTech")}</strong>.</p>
                 <ul>
-                    <li><strong>Ordre de travail:</strong> #{intervention.get('ordre_travail_id', '')}</li>
-                    <li><strong>Intervention ID:</strong> #{intervention.get('id', '')}</li>
+                    <li><strong>Ordre de travail:</strong> #{intervention.get("ordre_travail_id", "")}</li>
+                    <li><strong>Intervention ID:</strong> #{intervention.get("id", "")}</li>
                 </ul>
                 <p>Vous pouvez maintenant démarrer l'intervention.</p>
             </div>
@@ -132,10 +134,10 @@ def notify_intervention_declined(
             <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                 <h2 style="color: #ef4444;">Intervention Refusée</h2>
                 <p>Bonjour {user_name},</p>
-                <p>Votre demande d'intervention a été <strong style="color: #ef4444;">refusée</strong> par <strong>{rejected_by.get('nom', 'ChefTech')}</strong>.</p>
+                <p>Votre demande d'intervention a été <strong style="color: #ef4444;">refusée</strong> par <strong>{rejected_by.get("nom", "ChefTech")}</strong>.</p>
                 <ul>
-                    <li><strong>Ordre de travail:</strong> #{intervention.get('ordre_travail_id', '')}</li>
-                    <li><strong>Intervention ID:</strong> #{intervention.get('id', '')}</li>
+                    <li><strong>Ordre de travail:</strong> #{intervention.get("ordre_travail_id", "")}</li>
+                    <li><strong>Intervention ID:</strong> #{intervention.get("id", "")}</li>
                     {reason_html}
                 </ul>
                 <p>Vous pouvez soumettre une nouvelle demande si nécessaire.</p>
@@ -168,7 +170,9 @@ def notify_intervention_rejected(
     technician_recipient: Dict[str, Any],
     reason: str = "",
 ) -> Dict[str, Any]:
-    return notify_intervention_declined(intervention, rejected_by, technician_recipient, reason)
+    return notify_intervention_declined(
+        intervention, rejected_by, technician_recipient, reason
+    )
 
 
 @celery_app.task(name="tasks.notify_intervention_status_changed")
@@ -180,7 +184,9 @@ def notify_intervention_status_changed(
     recipients: List[Dict[str, Any]],
 ) -> Dict[str, Any]:
     email_service = EmailService()
-    subject = f"Statut intervention modifié - OT #{intervention.get('ordre_travail_id', '')}"
+    subject = (
+        f"Statut intervention modifié - OT #{intervention.get('ordre_travail_id', '')}"
+    )
 
     ok = 0
     failed: List[str] = []
@@ -197,12 +203,12 @@ def notify_intervention_status_changed(
                 <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                     <h2 style="color: #8b5cf6;">Changement de Statut - Intervention</h2>
                     <p>Bonjour {user_name},</p>
-                    <p>Le statut de l'intervention #{intervention.get('id', '')} a été modifié.</p>
+                    <p>Le statut de l'intervention #{intervention.get("id", "")} a été modifié.</p>
                     <ul>
-                        <li><strong>Ordre de travail:</strong> #{intervention.get('ordre_travail_id', '')}</li>
+                        <li><strong>Ordre de travail:</strong> #{intervention.get("ordre_travail_id", "")}</li>
                         <li><strong>Ancien statut:</strong> {old_status}</li>
                         <li><strong>Nouveau statut:</strong> {new_status}</li>
-                        <li><strong>Modifié par:</strong> {changed_by.get('nom', '')}</li>
+                        <li><strong>Modifié par:</strong> {changed_by.get("nom", "")}</li>
                     </ul>
                 </div>
             </body>
@@ -222,5 +228,7 @@ def notify_intervention_status_changed(
         else:
             failed.append(to_email)
 
-    logger.info(f"Intervention status changed notifications: sent={ok}, failed={len(failed)}")
+    logger.info(
+        f"Intervention status changed notifications: sent={ok}, failed={len(failed)}"
+    )
     return {"sent": ok, "failed": failed}

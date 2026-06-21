@@ -14,7 +14,9 @@ from sqlalchemy import DDL, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.pool import NullPool  # NullPool is used exclusively in Lambda environments
+from sqlalchemy.pool import (
+    NullPool,
+)  # NullPool is used exclusively in Lambda environments
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +50,11 @@ class DatabaseManager:
         drivername = url.drivername or ""
 
         # Already async drivers
-        if "+aiosqlite" in drivername or "+asyncpg" in drivername or "+aiomysql" in drivername:
+        if (
+            "+aiosqlite" in drivername
+            or "+asyncpg" in drivername
+            or "+aiomysql" in drivername
+        ):
             self._check_db_exist(raw_url)
             return raw_url
 
@@ -94,7 +100,9 @@ class DatabaseManager:
                 return
 
         if not settings.database_url:
-            logger.error("No database URL provided. DATABASE_URL environment variable must be set.")
+            logger.error(
+                "No database URL provided. DATABASE_URL environment variable must be set."
+            )
             raise ValueError("DATABASE_URL environment variable is required")
 
         try:
@@ -122,18 +130,34 @@ class DatabaseManager:
                 # Lambda: Use NullPool to avoid connection state conflicts
                 engine_kwargs["poolclass"] = NullPool
                 # NullPool does not support pooling parameters; remove them
-                for key in ["pool_size", "max_overflow", "pool_timeout", "pool_recycle", "pool_pre_ping"]:
+                for key in [
+                    "pool_size",
+                    "max_overflow",
+                    "pool_timeout",
+                    "pool_recycle",
+                    "pool_pre_ping",
+                ]:
                     engine_kwargs.pop(key, None)
-                logger.info("Using NullPool for Lambda environment to avoid connection state conflicts")
+                logger.info(
+                    "Using NullPool for Lambda environment to avoid connection state conflicts"
+                )
             else:
                 # Non-Lambda: Configure QueuePool with connection pooling
                 # Ensure only applicable params remain (SQLite may ignore some)
                 # Parameters already set above
-                logger.info("Using QueuePool with connection pooling for non-Lambda environment")
+                logger.info(
+                    "Using QueuePool with connection pooling for non-Lambda environment"
+                )
 
             # Remove pooling options for SQLite dialect (unsupported)
             if database_url.startswith("sqlite"):
-                for key in ["pool_size", "max_overflow", "pool_timeout", "pool_recycle", "pool_pre_ping"]:
+                for key in [
+                    "pool_size",
+                    "max_overflow",
+                    "pool_timeout",
+                    "pool_recycle",
+                    "pool_pre_ping",
+                ]:
                     engine_kwargs.pop(key, None)
 
             # Create async engine
@@ -148,6 +172,7 @@ class DatabaseManager:
                 and os.environ.get("PYTEST_CURRENT_TEST")
             ):
                 from types import SimpleNamespace
+
                 self.engine.pool = SimpleNamespace(
                     size=10,
                     _max_overflow=20,
@@ -155,10 +180,14 @@ class DatabaseManager:
                     _recycle=1800,
                     pre_ping=True,
                 )
-                logger.info("Injected dummy pool for SQLite engine for test compatibility")
+                logger.info(
+                    "Injected dummy pool for SQLite engine for test compatibility"
+                )
 
             logger.info("Creating async session maker...")
-            self.async_session_maker = async_sessionmaker(self.engine, class_=AsyncSession, expire_on_commit=False)
+            self.async_session_maker = async_sessionmaker(
+                self.engine, class_=AsyncSession, expire_on_commit=False
+            )
             logger.info("Async session maker created successfully")
 
             logger.info("Database connection initialized successfully")
@@ -204,13 +233,15 @@ class DatabaseManager:
                 logger.info("🔧 Starting table structure repair...")
                 await self.check_and_repair_existing_tables()
                 logger.info("🔧 Table structure repair completed")
-                
+
                 logger.info("🔧 Starting table creation...")
                 async with self.engine.begin() as conn:
                     await conn.run_sync(Base.metadata.create_all)
                     self._initialized = True
                     logger.info("Tables initialized successfully")
-                    logger.debug(f"[DB_OP] Create tables completed in {time.time() - start_time:.4f}s")
+                    logger.debug(
+                        f"[DB_OP] Create tables completed in {time.time() - start_time:.4f}s"
+                    )
             except (UniqueViolationError, DuplicateTableError) as e:
                 self._initialized = True
                 logger.info(f"Duplicate table creation: {e}, ignored.")
@@ -232,7 +263,9 @@ class DatabaseManager:
                 return
 
             model_tables = list(Base.metadata.tables.keys())
-            tables_to_repair = [table for table in model_tables if table in existing_tables]
+            tables_to_repair = [
+                table for table in model_tables if table in existing_tables
+            ]
 
             if not tables_to_repair:
                 logger.info("No existing tables need repair")
@@ -246,18 +279,25 @@ class DatabaseManager:
                 start_time = time.time()
                 async with semaphore:
                     await self._repair_table_structure(table_name)
-                logger.info(f"Table {table_name} repaired in {time.time() - start_time:.2f}s")
+                logger.info(
+                    f"Table {table_name} repaired in {time.time() - start_time:.2f}s"
+                )
 
             await asyncio.gather(
-                *[repair_with_semaphore(table_name) for table_name in tables_to_repair], return_exceptions=True
+                *[repair_with_semaphore(table_name) for table_name in tables_to_repair],
+                return_exceptions=True,
             )
 
-            logger.info(f"🔧 Table structure repair completed in {time.time() - repair_start:.4f}s")
+            logger.info(
+                f"🔧 Table structure repair completed in {time.time() - repair_start:.4f}s"
+            )
 
         except Exception as e:
             logger.error(f"Failed to repair existing tables: {e}")
 
-    def _escape_identifier(self, identifier: str, identifier_type: str = "identifier") -> str:
+    def _escape_identifier(
+        self, identifier: str, identifier_type: str = "identifier"
+    ) -> str:
         """Validate and escape SQL identifier to prevent SQL injection."""
         if not re.match(r"^[a-zA-Z0-9_-]+$", identifier):
             raise ValueError(
@@ -266,7 +306,9 @@ class DatabaseManager:
             )
 
         if not self.engine:
-            logger.warning(f"Engine not initialized, returning unescaped {identifier_type}: {identifier}")
+            logger.warning(
+                f"Engine not initialized, returning unescaped {identifier_type}: {identifier}"
+            )
             return identifier
 
         return self.engine.dialect.identifier_preparer.quote(identifier)
@@ -311,7 +353,9 @@ class DatabaseManager:
 
             existing_columns = await self._get_table_columns(table_name)
             model_columns = self._get_model_columns(table_name)
-            missing_columns = self._find_missing_columns(existing_columns, model_columns)
+            missing_columns = self._find_missing_columns(
+                existing_columns, model_columns
+            )
 
             if missing_columns:
                 logger.info(
@@ -343,9 +387,13 @@ class DatabaseManager:
                     # All user inputs are already validated and escaped in _generate_add_column_sql
                     ddl = DDL(alter_sql)
                     await conn.execute(ddl)
-                    logger.info(f"Added column {column_info['name']} to table {table_name}")
+                    logger.info(
+                        f"Added column {column_info['name']} to table {table_name}"
+                    )
 
-            logger.info(f"Successfully added {len(missing_columns)} columns to table {table_name}")
+            logger.info(
+                f"Successfully added {len(missing_columns)} columns to table {table_name}"
+            )
 
         except Exception as e:
             logger.error(f"Failed to add columns to table {table_name}: {e}")
@@ -379,14 +427,31 @@ class DatabaseManager:
 
             async with self.engine.begin() as conn:
                 result = await conn.execute(
-                    query, {"table_name": table_name} if self.engine.dialect.name == "postgresql" else {}
+                    query,
+                    {"table_name": table_name}
+                    if self.engine.dialect.name == "postgresql"
+                    else {},
                 )
                 columns = []
                 for row in result.fetchall():
                     if self.engine.dialect.name == "sqlite":
-                        columns.append({"name": row[1], "type": row[2], "nullable": not row[3], "default": row[4]})
+                        columns.append(
+                            {
+                                "name": row[1],
+                                "type": row[2],
+                                "nullable": not row[3],
+                                "default": row[4],
+                            }
+                        )
                     else:
-                        columns.append({"name": row[0], "type": row[1], "nullable": row[2] == "YES", "default": row[3]})
+                        columns.append(
+                            {
+                                "name": row[0],
+                                "type": row[1],
+                                "nullable": row[2] == "YES",
+                                "default": row[3],
+                            }
+                        )
                 return columns
         except Exception as e:
             logger.error(f"Failed to get columns for table {table_name}: {e}")
@@ -494,7 +559,10 @@ class DatabaseManager:
                         sql += " DEFAULT ''"
             else:
                 # Quote string values for text types
-                if column_type.upper() in ["TEXT", "VARCHAR", "STRING"] and not default.isdigit():
+                if (
+                    column_type.upper() in ["TEXT", "VARCHAR", "STRING"]
+                    and not default.isdigit()
+                ):
                     sql += f" DEFAULT '{default}'"
                 else:
                     sql += f" DEFAULT {default}"
@@ -514,7 +582,9 @@ class DatabaseManager:
             if self.async_session_maker is not None:
                 return
 
-            logger.warning("Database not initialized, attempting lazy initialization...")
+            logger.warning(
+                "Database not initialized, attempting lazy initialization..."
+            )
 
         # Release lock before calling init_db() because:
         # 1. init_db() will try to acquire the same _init_lock internally (line 93), which would cause deadlock
@@ -541,20 +611,28 @@ async def get_db() -> AsyncSession:
 
     # Lazy initialization for Lambda environments where lifespan may not trigger
     if not db_manager.async_session_maker:
-        logger.warning("Database session maker not available, attempting lazy initialization...")
+        logger.warning(
+            "Database session maker not available, attempting lazy initialization..."
+        )
         try:
             await db_manager.ensure_initialized()
         except Exception as e:
-            logger.error(f"Failed to ensure database initialization: {e}", exc_info=True)
+            logger.error(
+                f"Failed to ensure database initialization: {e}", exc_info=True
+            )
             raise RuntimeError("Database initialization failed") from e
 
     if not db_manager.async_session_maker:
-        logger.error("No async database session maker available after initialization attempt")
+        logger.error(
+            "No async database session maker available after initialization attempt"
+        )
         raise RuntimeError("Database not initialized")
 
     try:
         async with db_manager.async_session_maker() as session:
-            logger.debug(f"[DB_OP] Database session created successfully in {time.time() - start_time:.4f}s")
+            logger.debug(
+                f"[DB_OP] Database session created successfully in {time.time() - start_time:.4f}s"
+            )
             try:
                 yield session
             except Exception as e:
@@ -563,7 +641,9 @@ async def get_db() -> AsyncSession:
                 # Manual rollback would cause "cannot switch to state 15" error due to double rollback
                 raise
             finally:
-                logger.debug(f"[DB_OP] Database session cleanup after {time.time() - start_time:.4f}s")
+                logger.debug(
+                    f"[DB_OP] Database session cleanup after {time.time() - start_time:.4f}s"
+                )
                 # Session is automatically closed by the async context manager when exiting 'async with'
     except Exception as e:
         logger.error(f"Failed to create database session: {e}", exc_info=True)

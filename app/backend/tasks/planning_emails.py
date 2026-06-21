@@ -7,7 +7,9 @@ from core.email import EmailService
 
 
 @celery_app.task(name="tasks.send_planning_assignment_emails")
-def send_planning_assignment_emails(recipients: List[Dict[str, Any]], planning: Dict[str, Any]) -> Dict[str, Any]:
+def send_planning_assignment_emails(
+    recipients: List[Dict[str, Any]], planning: Dict[str, Any]
+) -> Dict[str, Any]:
     email_service = EmailService()
 
     subject = f"Planning assignment: {planning.get('identifiant_planning', '')}"
@@ -26,12 +28,12 @@ def send_planning_assignment_emails(recipients: List[Dict[str, Any]], planning: 
             <body style=\"font-family: Arial, sans-serif; line-height: 1.6; color: #333;\">
                 <div style=\"max-width: 600px; margin: 0 auto; padding: 20px;\">
                     <h2 style=\"color: #2563eb;\">Bonjour {user_name},</h2>
-                    <p>Vous avez été assigné au planning <strong>{planning.get('identifiant_planning', '')}</strong>.</p>
+                    <p>Vous avez été assigné au planning <strong>{planning.get("identifiant_planning", "")}</strong>.</p>
                     <ul>
-                        <li><strong>Date début:</strong> {planning.get('date_debut', '')}</li>
-                        <li><strong>Date fin:</strong> {planning.get('date_fin', '')}</li>
-                        <li><strong>Type:</strong> {planning.get('type', '')}</li>
-                        <li><strong>Zone:</strong> {planning.get('zone_travail') or ''}</li>
+                        <li><strong>Date début:</strong> {planning.get("date_debut", "")}</li>
+                        <li><strong>Date fin:</strong> {planning.get("date_fin", "")}</li>
+                        <li><strong>Type:</strong> {planning.get("type", "")}</li>
+                        <li><strong>Zone:</strong> {planning.get("zone_travail") or ""}</li>
                     </ul>
                     <p>Merci.</p>
                 </div>

@@ -4,6 +4,7 @@ Phase 2: Intervention → Work Order Workflow
 API endpoints for creating interventions from plannings,
 validation workflow, and work order generation.
 """
+
 import logging
 from datetime import datetime, timezone
 from typing import List, Optional
@@ -37,23 +38,31 @@ logger = logging.getLogger(__name__)
 # REJECTED → rejected, cannot create work order
 # CONVERTED_TO_WORKORDER → work order has been created
 
-router = APIRouter(prefix="/api/v1/entities/intervention-workflow", tags=["intervention-workflow"])
+router = APIRouter(
+    prefix="/api/v1/entities/intervention-workflow", tags=["intervention-workflow"]
+)
 
 
-@router.post("/create", response_model=Ordres_interventionResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/create",
+    response_model=Ordres_interventionResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def create_intervention_from_planning(
     planning_id: int = Query(..., description="Planning ID to link intervention to"),
     machine_id: int = Query(..., description="Machine ID"),
     problem_description: str = Query(..., description="Description of the issue"),
     priority: str = Query("MOYENNE", description="Priority: HAUTE, MOYENNE, BASSE"),
-    estimated_duration_minutes: Optional[int] = Query(None, description="Estimated duration in minutes"),
+    estimated_duration_minutes: Optional[int] = Query(
+        None, description="Estimated duration in minutes"
+    ),
     required_materials: Optional[str] = Query(None, description="Required materials"),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Create intervention from a planning.
-    
+
     Roles that can create: ADMIN, CHEFTECH, CHETOP, TECHNICIAN
     The intervention is created in PENDING status and needs validation.
     """
@@ -61,56 +70,55 @@ async def create_intervention_from_planning(
     planning = await db.scalar(select(Plannings).where(Plannings.id == planning_id))
     if not planning:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Planning not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Planning not found"
         )
-    
+
     # Verify planning is APPROVED (only approved plannings can generate interventions)
     if planning.planning_statut != "APPROVED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot create intervention from planning with status {planning.planning_statut}. Planning must be APPROVED."
+            detail=f"Cannot create intervention from planning with status {planning.planning_statut}. Planning must be APPROVED.",
         )
-    
+
     # Verify machine exists
     machine = await db.scalar(select(Machines).where(Machines.id == machine_id))
     if not machine:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Machine not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Machine not found"
         )
-    
+
     # Check user permissions
     user_role = current_user.role
     has_permission = False
-    
+
     if user_role == UserRole.ADMIN:
         has_permission = True
     elif user_role == UserRole.CHEFTECH:
-        has_permission = (planning.chef_technique_id == current_user.id)
+        has_permission = planning.chef_technique_id == current_user.id
     elif user_role == UserRole.CHEFOP:
-        has_permission = (planning.chef_operation_id == current_user.id)
+        has_permission = planning.chef_operation_id == current_user.id
     else:
         # Check if technician is assigned to planning
         from models.planning_utilisateurs import Planning_utilisateurs
+
         assignment = await db.scalar(
             select(Planning_utilisateurs).where(
                 and_(
                     Planning_utilisateurs.planning_id == planning_id,
-                    Planning_utilisateurs.utilisateur_id == current_user.id
+                    Planning_utilisateurs.utilisateur_id == current_user.id,
                 )
             )
         )
         has_permission = assignment is not None
-    
+
     if not has_permission:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="You don't have permission to create interventions for this planning"
+            detail="You don't have permission to create interventions for this planning",
         )
-    
+
     now = datetime.now(timezone.utc)
-    
+
     # Create the intervention
     intervention = Ordres_intervention(
         date_intervention=now,
@@ -125,11 +133,11 @@ async def create_intervention_from_planning(
         requested_at=now,
         statut="PENDING",  # Phase 2 workflow status
     )
-    
+
     db.add(intervention)
     await db.commit()
     await db.refresh(intervention)
-    
+
     # Log audit event
     try:
         await AuditService(db).log_create(
@@ -142,12 +150,14 @@ async def create_intervention_from_planning(
                 "machine_id": machine_id,
                 "problem_description": problem_description,
                 "priority": priority,
-            }
+            },
         )
     except Exception:
         logger.warning("Audit log failed for create intervention %s", intervention.id)
-    
-    logger.info(f"Intervention #{intervention.id} created from planning #{planning_id} by user {current_user.id}")
+
+    logger.info(
+        f"Intervention #{intervention.id} created from planning #{planning_id} by user {current_user.id}"
+    )
     return intervention
 
 
@@ -162,7 +172,7 @@ async def list_interventions(
 ):
     """List interventions with optional filtering."""
     skip = (page - 1) * size
-    
+
     # Build query based on user role
     if current_user.role == UserRole.ADMIN:
         # Admin sees all
@@ -180,33 +190,32 @@ async def list_interventions(
         query = select(Ordres_intervention).where(
             Ordres_intervention.requested_by == current_user.id
         )
-    
+
     # Apply filters
     if planning_id:
         query = query.where(Ordres_intervention.planning_id == planning_id)
     if statut:
         query = query.where(Ordres_intervention.statut == statut)
-    
+
     # Count total
     count_query = query.with_only_columns(func.count(Ordres_intervention.id))
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
-    
+
     # Apply ordering and pagination
     query = query.options(
         selectinload(Ordres_intervention.machine),
     )
-    query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(size)
-    
+    query = (
+        query.order_by(Ordres_intervention.date_intervention.desc())
+        .offset(skip)
+        .limit(size)
+    )
+
     result = await db.execute(query)
     items = list(result.scalars().all())
-    
-    return PaginatedResponse.create(
-        items=items,
-        total=total,
-        page=page,
-        size=size
-    )
+
+    return PaginatedResponse.create(items=items, total=total, page=page, size=size)
 
 
 @router.get("/{intervention_id}", response_model=Ordres_interventionResponse)
@@ -221,8 +230,7 @@ async def get_intervention(
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
         )
     return intervention
 
@@ -236,7 +244,7 @@ async def validate_intervention(
 ):
     """
     Validate or reject an intervention.
-    
+
     Roles: CHEFTECH, ADMIN only
     Action: "APPROVE" or "REJECT"
     """
@@ -244,28 +252,27 @@ async def validate_intervention(
     if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only CHEFTECH or ADMIN can validate interventions"
+            detail="Only CHEFTECH or ADMIN can validate interventions",
         )
-    
+
     intervention = await db.scalar(
         select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
         )
-    
+
     # Can only validate PENDING interventions
     if intervention.statut != "PENDING":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot validate intervention with status {intervention.statut}. Only PENDING interventions can be validated."
+            detail=f"Cannot validate intervention with status {intervention.statut}. Only PENDING interventions can be validated.",
         )
-    
+
     now = datetime.now(timezone.utc)
     old_status = intervention.statut
-    
+
     if data.action == "APPROVE":
         intervention.statut = "APPROVED"
         intervention.approved_by = current_user.id
@@ -278,12 +285,12 @@ async def validate_intervention(
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid action. Use 'APPROVE' or 'REJECT'."
+            detail="Invalid action. Use 'APPROVE' or 'REJECT'.",
         )
-    
+
     await db.commit()
     await db.refresh(intervention)
-    
+
     # Log audit event
     try:
         await AuditService(db).log_update(
@@ -296,21 +303,27 @@ async def validate_intervention(
         )
     except Exception:
         logger.warning("Audit log failed for validate intervention %s", intervention_id)
-    
-    logger.info(f"Intervention #{intervention_id} {data.action}ed by user {current_user.id}")
+
+    logger.info(
+        f"Intervention #{intervention_id} {data.action}ed by user {current_user.id}"
+    )
     return intervention
 
 
-@router.post("/{intervention_id}/create-work-order", response_model=Ordres_travailResponse)
+@router.post(
+    "/{intervention_id}/create-work-order", response_model=Ordres_travailResponse
+)
 async def create_work_order_from_intervention(
     intervention_id: int,
-    technician_id: Optional[int] = Query(None, description="Technician to assign the work order to"),
+    technician_id: Optional[int] = Query(
+        None, description="Technician to assign the work order to"
+    ),
     current_user: Utilisateurs = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Create a work order from an approved intervention.
-    
+
     Roles: CHEFTECH, ADMIN only
     The intervention must be in APPROVED status.
     """
@@ -318,44 +331,44 @@ async def create_work_order_from_intervention(
     if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only CHEFTECH or ADMIN can create work orders from interventions"
+            detail="Only CHEFTECH or ADMIN can create work orders from interventions",
         )
-    
+
     intervention = await db.scalar(
         select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
         )
-    
+
     # Check status - must be APPROVED
     if intervention.statut != "APPROVED":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot create work order from intervention with status {intervention.statut}. Intervention must be APPROVED."
+            detail=f"Cannot create work order from intervention with status {intervention.statut}. Intervention must be APPROVED.",
         )
-    
+
     # Check if work order already exists
     if intervention.ordre_travail_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Work order already created for this intervention (Work Order #{intervention.ordre_travail_id})"
+            detail=f"Work order already created for this intervention (Work Order #{intervention.ordre_travail_id})",
         )
-    
+
     now = datetime.now(timezone.utc)
-    
+
     # Determine technician to assign
     assigned_tech_id = technician_id or intervention.technician_id or current_user.id
-    
+
     # Create work order linked to intervention
     # Map Phase 2 status to work order status
     wo_statut = OrdreStatut.ASSIGNED
-    
+
     work_order = Ordres_travail(
         titre=f"[Intervention #{intervention_id}] {intervention.problem_description[:50] if intervention.problem_description else 'Work Order'}",
-        description=intervention.problem_description or f"Generated from intervention #{intervention_id}",
+        description=intervention.problem_description
+        or f"Generated from intervention #{intervention_id}",
         priorite=intervention.priority or "MOYENNE",
         statut=wo_statut.value,
         machine_id=intervention.machine_id,
@@ -364,7 +377,7 @@ async def create_work_order_from_intervention(
         validated_by=current_user.id,
         date_validation=now,
     )
-    
+
     db.add(work_order)
     await db.flush()
 
@@ -382,12 +395,13 @@ async def create_work_order_from_intervention(
     except Exception as _rec_exc:
         logger.warning(
             "Recovery baseline snapshot failed for WO %s: %s",
-            work_order.id, _rec_exc,
+            work_order.id,
+            _rec_exc,
         )
 
     await db.commit()
     await db.refresh(work_order)
-    
+
     # Log audit event
     try:
         await AuditService(db).log_create(
@@ -399,12 +413,17 @@ async def create_work_order_from_intervention(
                 "intervention_id": intervention_id,
                 "titre": work_order.titre,
                 "machine_id": work_order.machine_id,
-            }
+            },
         )
     except Exception:
-        logger.warning("Audit log failed for create work order from intervention %s", intervention_id)
-    
-    logger.info(f"Work Order #{work_order.id} created from Intervention #{intervention_id} by user {current_user.id}")
+        logger.warning(
+            "Audit log failed for create work order from intervention %s",
+            intervention_id,
+        )
+
+    logger.info(
+        f"Work Order #{work_order.id} created from Intervention #{intervention_id} by user {current_user.id}"
+    )
     return work_order
 
 
@@ -415,15 +434,15 @@ async def get_pending_interventions(
 ):
     """
     Get all interventions pending validation.
-    
+
     Roles: CHEFTECH, ADMIN only
     """
     if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only CHEFTECH or ADMIN can view pending interventions"
+            detail="Only CHEFTECH or ADMIN can view pending interventions",
         )
-    
+
     result = await db.execute(
         select(Ordres_intervention)
         .where(Ordres_intervention.statut == "PENDING")

@@ -18,6 +18,7 @@ Env:
   ADMIN_USER / ADMIN_PASS   ADMIN login (login field is `mot_de_passe`)
   TECH_USER  / TECH_PASS    non-admin, for the 403 check (skipped if unset)
 """
+
 import argparse
 import json
 import os
@@ -29,7 +30,9 @@ API = os.environ.get("API_BASE", "http://localhost:8000").rstrip("/")
 
 
 def _login(client: httpx.Client, user: str, pw: str):
-    r = client.post(f"{API}/api/v1/auth/login", json={"email": user, "mot_de_passe": pw})
+    r = client.post(
+        f"{API}/api/v1/auth/login", json={"email": user, "mot_de_passe": pw}
+    )
     if r.status_code != 200:
         print(f"[setup] login failed for {user}: {r.status_code} {r.text[:200]}")
         return None
@@ -73,26 +76,43 @@ def main() -> int:
 
         # 1. Dry run writes nothing.
         before = _stock_snapshot(client, admin)
-        r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}",
-                        params={"dry_run": "true"}, headers=ah)
-        dry = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        r = client.post(
+            f"{API}/api/v1/ml/procurement/quick-action/{mid}",
+            params={"dry_run": "true"},
+            headers=ah,
+        )
+        dry = (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else {}
+        )
         if r.status_code != 200 or not dry.get("dry_run"):
             failures.append(f"dry_run response wrong: HTTP {r.status_code} {dry}")
         after = _stock_snapshot(client, admin)
         if before.startswith("__unavailable__"):
-            print(f"[warn] stock snapshot unavailable ({before}) — dry-run no-write check degraded")
+            print(
+                f"[warn] stock snapshot unavailable ({before}) — dry-run no-write check degraded"
+            )
         elif before != after:
             failures.append("dry_run mutated stock levels")
 
         # 2. Real run.
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
-        run1 = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        run1 = (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else {}
+        )
         if r.status_code != 200 or not run1.get("success"):
             failures.append(f"real run failed: HTTP {r.status_code} {run1}")
 
         # 3. Idempotent repeat (same recommendation → no new writes).
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
-        run2 = r.json() if r.headers.get("content-type", "").startswith("application/json") else {}
+        run2 = (
+            r.json()
+            if r.headers.get("content-type", "").startswith("application/json")
+            else {}
+        )
         if r.status_code != 200 or not run2.get("idempotent"):
             failures.append(f"repeat not idempotent: HTTP {r.status_code} {run2}")
 
@@ -101,8 +121,10 @@ def main() -> int:
         if tu and tp:
             tech = _login(client, tu, tp)
             if tech:
-                r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}",
-                                headers={"Authorization": f"Bearer {tech}"})
+                r = client.post(
+                    f"{API}/api/v1/ml/procurement/quick-action/{mid}",
+                    headers={"Authorization": f"Bearer {tech}"},
+                )
                 if r.status_code != 403:
                     failures.append(f"non-admin not blocked: got HTTP {r.status_code}")
             else:

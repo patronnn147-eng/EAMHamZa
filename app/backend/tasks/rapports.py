@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 import logging
-import json
-from typing import Any, Dict, List
+from typing import Any, Dict
 from datetime import datetime
 
 from core.celery_app import celery_app
@@ -25,8 +24,11 @@ def send_weekly_report() -> Dict[str, Any]:
 
             weekly_recipients = []
             for report in scheduled:
-                if report.schedule_config and report.schedule_config.get('frequency') == 'weekly':
-                    recipients = report.schedule_config.get('recipients', [])
+                if (
+                    report.schedule_config
+                    and report.schedule_config.get("frequency") == "weekly"
+                ):
+                    recipients = report.schedule_config.get("recipients", [])
                     weekly_recipients.extend(recipients)
 
             # If no scheduled reports, send to all admins (default)
@@ -44,12 +46,12 @@ def send_weekly_report() -> Dict[str, Any]:
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                         <h2 style="color: #2563eb;">Rapport Hebdomadaire</h2>
-                        <p>Période: {report_data.get('period', 'N/A')}</p>
+                        <p>Période: {report_data.get("period", "N/A")}</p>
                         <hr/>
                         <h3>Résumé</h3>
                         <ul>
-                            <li><strong>Total Machines:</strong> {report_data['summary']['total_machines']}</li>
-                            <li><strong>Alertes Générées:</strong> {report_data['summary']['alerts_generated']}</li>
+                            <li><strong>Total Machines:</strong> {report_data["summary"]["total_machines"]}</li>
+                            <li><strong>Alertes Générées:</strong> {report_data["summary"]["alerts_generated"]}</li>
                         </ul>
                         <p>Voir le dashboard pour plus de détails.</p>
                     </div>
@@ -59,8 +61,12 @@ def send_weekly_report() -> Dict[str, Any]:
 
             sent = 0
             for recipient in weekly_recipients:
-                to_email = recipient.get('email') if isinstance(recipient, dict) else recipient
-                if to_email and email_service.send_email(to_email, subject, html_content, None):
+                to_email = (
+                    recipient.get("email") if isinstance(recipient, dict) else recipient
+                )
+                if to_email and email_service.send_email(
+                    to_email, subject, html_content, None
+                ):
                     sent += 1
 
             return {"sent": sent, "report_type": "WEEKLY_DIGEST"}
@@ -80,8 +86,11 @@ def send_daily_digest() -> Dict[str, Any]:
 
             daily_recipients = []
             for report in scheduled:
-                if report.schedule_config and report.schedule_config.get('frequency') == 'daily':
-                    recipients = report.schedule_config.get('recipients', [])
+                if (
+                    report.schedule_config
+                    and report.schedule_config.get("frequency") == "daily"
+                ):
+                    recipients = report.schedule_config.get("recipients", [])
                     daily_recipients.extend(recipients)
 
             if not daily_recipients:
@@ -98,13 +107,13 @@ def send_daily_digest() -> Dict[str, Any]:
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
                         <h2 style="color: #2563eb;">Résumé Quotidien</h2>
-                        <p>Généré: {report_data.get('generated_at', 'N/A')}</p>
+                        <p>Généré: {report_data.get("generated_at", "N/A")}</p>
                         <hr/>
                         <h3>État des Actifs</h3>
                         <ul>
-                            <li><strong>Total Machines:</strong> {report_data['summary']['total_machines']}</li>
-                            <li><strong>Alertes Actives:</strong> {report_data['summary']['active_alerts']}</li>
-                            <li><strong>Alertes Critiques:</strong> {report_data['summary']['critical_alerts']}</li>
+                            <li><strong>Total Machines:</strong> {report_data["summary"]["total_machines"]}</li>
+                            <li><strong>Alertes Actives:</strong> {report_data["summary"]["active_alerts"]}</li>
+                            <li><strong>Alertes Critiques:</strong> {report_data["summary"]["critical_alerts"]}</li>
                         </ul>
                     </div>
                 </body>
@@ -113,8 +122,12 @@ def send_daily_digest() -> Dict[str, Any]:
 
             sent = 0
             for recipient in daily_recipients:
-                to_email = recipient.get('email') if isinstance(recipient, dict) else recipient
-                if to_email and email_service.send_email(to_email, subject, html_content, None):
+                to_email = (
+                    recipient.get("email") if isinstance(recipient, dict) else recipient
+                )
+                if to_email and email_service.send_email(
+                    to_email, subject, html_content, None
+                ):
                     sent += 1
 
             return {"sent": sent, "report_type": "DAILY_DIGEST"}
@@ -138,4 +151,4 @@ def check_and_send_due_reports() -> Dict[str, Any]:
     }
 
 
-import asyncio
+import asyncio  # noqa: E402

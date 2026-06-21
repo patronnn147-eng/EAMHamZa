@@ -3,6 +3,7 @@
 Called by the intervention-request flow (frontend `PiecePicker`). Each row
 becomes a reservation candidate when the CHEFTECH approves the intervention.
 """
+
 import logging
 from decimal import Decimal
 from typing import List
@@ -21,7 +22,9 @@ from schemas.stock import RequiredPieceItem, RequiredPieceResponse
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/inventory/required-pieces", tags=["inventory-required"])
+router = APIRouter(
+    prefix="/api/v1/inventory/required-pieces", tags=["inventory-required"]
+)
 
 ROLES_ATTACH = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 
@@ -47,7 +50,9 @@ async def attach_required_pieces(
     if not items:
         return []
     if len(items) > 100:
-        raise HTTPException(status_code=400, detail="At most 100 required pieces per request")
+        raise HTTPException(
+            status_code=400, detail="At most 100 required pieces per request"
+        )
 
     try:
         # Validate intervention
@@ -59,7 +64,11 @@ async def attach_required_pieces(
 
         # Validate piece IDs and gather unit defaults
         piece_ids = list({i.piece_id for i in items})
-        pieces = (await db.execute(select(Piece).where(Piece.id.in_(piece_ids)))).scalars().all()
+        pieces = (
+            (await db.execute(select(Piece).where(Piece.id.in_(piece_ids))))
+            .scalars()
+            .all()
+        )
         pieces_by_id = {p.id: p for p in pieces}
         missing = [pid for pid in piece_ids if pid not in pieces_by_id]
         if missing:
@@ -104,7 +113,10 @@ async def attach_required_pieces(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"attach_required_pieces failed for itv {intervention_id}: {e}", exc_info=True)
+        logger.error(
+            f"attach_required_pieces failed for itv {intervention_id}: {e}",
+            exc_info=True,
+        )
         await db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
@@ -117,12 +129,14 @@ async def list_required_pieces(
 ):
     """List required pieces for an intervention with piece-name join."""
     try:
-        rows = (await db.execute(
-            select(RequiredPiece, Piece)
-            .join(Piece, Piece.id == RequiredPiece.piece_id)
-            .where(RequiredPiece.intervention_id == intervention_id)
-            .order_by(RequiredPiece.id)
-        )).all()
+        rows = (
+            await db.execute(
+                select(RequiredPiece, Piece)
+                .join(Piece, Piece.id == RequiredPiece.piece_id)
+                .where(RequiredPiece.intervention_id == intervention_id)
+                .order_by(RequiredPiece.id)
+            )
+        ).all()
         return [
             RequiredPieceResponse(
                 id=rp.id,
@@ -162,7 +176,10 @@ async def remove_required_piece(
         if rp is None:
             raise HTTPException(status_code=404, detail="Required piece not found")
         if Decimal(str(rp.quantity_reserved)) > 0:
-            raise HTTPException(status_code=400, detail="Cannot remove reserved required piece — release first")
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot remove reserved required piece — release first",
+            )
         await db.delete(rp)
         await db.commit()
         return

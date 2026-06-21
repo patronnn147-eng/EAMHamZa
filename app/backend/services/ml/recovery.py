@@ -37,15 +37,16 @@ RECOVERY_WINDOW_DAYS: int = 7
 @dataclass
 class RecoveryResult:
     """Recovery snapshot for a single (machine, work_order) pair."""
+
     work_order_id: Optional[int]
-    delta: Optional[float]              # current_score - health_score_at_creation
-    status: str                         # Recovered | Recovering | No improvement | Monitoring | No baseline
-    score_before: Optional[float]       # health_score_at_creation
+    delta: Optional[float]  # current_score - health_score_at_creation
+    status: str  # Recovered | Recovering | No improvement | Monitoring | No baseline
+    score_before: Optional[float]  # health_score_at_creation
     score_after_completion: Optional[float]  # health_score_at_completion
-    current_score: Optional[float]      # live unified_health_score
+    current_score: Optional[float]  # live unified_health_score
     days_since_completion: Optional[int]
     within_recovery_window: bool
-    completion_date: Optional[str]      # ISO-8601
+    completion_date: Optional[str]  # ISO-8601
 
     def to_dict(self) -> Dict:
         return asdict(self)
@@ -100,14 +101,14 @@ class PostMaintenanceRecoveryService:
             )
             telemetry_logs = [
                 {
-                    "machine_id":          machine_id,
-                    "air_temperature":     e.air_temperature,
+                    "machine_id": machine_id,
+                    "air_temperature": e.air_temperature,
                     "process_temperature": e.process_temperature,
-                    "rotational_speed":    e.rotational_speed,
-                    "torque":              e.torque,
-                    "tool_wear":           e.tool_wear,
-                    "created_at":          e.recorded_at.isoformat() if e.recorded_at else "",
-                    "risk_level":          "LOW",
+                    "rotational_speed": e.rotational_speed,
+                    "torque": e.torque,
+                    "tool_wear": e.tool_wear,
+                    "created_at": e.recorded_at.isoformat() if e.recorded_at else "",
+                    "risk_level": "LOW",
                 }
                 for e in reversed(hist_result.scalars().all())
             ]
@@ -137,9 +138,7 @@ class PostMaintenanceRecoveryService:
             return round(float(score), 2)
 
         except Exception as exc:
-            logger.warning(
-                "snapshot_health failed for machine %s: %s", machine_id, exc
-            )
+            logger.warning("snapshot_health failed for machine %s: %s", machine_id, exc)
             return None
 
     # ─────────────────────────── compute ─────────────────────────────────
@@ -240,9 +239,6 @@ class PostMaintenanceRecoveryService:
 
         recovery = self.compute_recovery(wo, current_score)
         # Suppress if completion is far in the past AND no baseline exists.
-        if (
-            not recovery.within_recovery_window
-            and recovery.score_before is None
-        ):
+        if not recovery.within_recovery_window and recovery.score_before is None:
             return None
         return recovery

@@ -40,14 +40,17 @@ async def get_machines(
         result = await db.execute(query)
         machines = result.scalars().all()
 
-        return [MachineResponse(
-            id=machine.id,
-            nom=machine.nom,
-            emplacement=machine.emplacement,
-            type=machine.type,
-            statut=machine.statut,
-            created_at=machine.created_at
-        ) for machine in machines]
+        return [
+            MachineResponse(
+                id=machine.id,
+                nom=machine.nom,
+                emplacement=machine.emplacement,
+                type=machine.type,
+                statut=machine.statut,
+                created_at=machine.created_at,
+            )
+            for machine in machines
+        ]
     except Exception as e:
         logger.error(f"Error getting machines: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -94,7 +97,7 @@ async def update_machine_status(
             emplacement=machine.emplacement,
             type=machine.type,
             statut=machine.statut,
-            created_at=machine.created_at
+            created_at=machine.created_at,
         )
     except HTTPException:
         raise

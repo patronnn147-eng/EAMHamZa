@@ -10,15 +10,15 @@ _backend_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _backend_root not in sys.path:
     sys.path.insert(0, _backend_root)
 
-from sqlalchemy import select, func, and_
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, and_, case  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
-from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity
-from models.machines import Machines
-from models.machine_telemetry import MachineTelemetry
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
-from core.notifications import broadcaster
+from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity  # noqa: E402
+from models.machines import Machines  # noqa: E402
+from models.machine_telemetry import MachineTelemetry  # noqa: E402
+from models.ordres_intervention import Ordres_intervention  # noqa: E402
+from models.ordres_travail import Ordres_travail  # noqa: E402
+from core.notifications import broadcaster  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -45,14 +45,16 @@ class AlertService:
                 and_(
                     Alert.machine_id == machine_id,
                     Alert.alert_type == alert_type,
-                    Alert.is_active == True,
+                    Alert.is_active,
                 )
             )
             result = await self.db.execute(existing_query)
             existing = result.scalar_one_or_none()
 
             if existing:
-                logger.info(f"Active alert already exists for machine {machine_id}, type {alert_type}")
+                logger.info(
+                    f"Active alert already exists for machine {machine_id}, type {alert_type}"
+                )
                 return existing
 
             obj = Alert(
@@ -121,7 +123,7 @@ class AlertService:
     ) -> List[Alert]:
         """Get list of active alerts, optionally filtered"""
         try:
-            query = select(Alert).where(Alert.is_active == True)
+            query = select(Alert).where(Alert.is_active)
 
             if machine_id is not None:
                 query = query.where(Alert.machine_id == machine_id)
@@ -149,9 +151,7 @@ class AlertService:
     async def dismiss_alert(self, alert_id: int, user_id: int) -> Optional[Alert]:
         """Dismiss an alert"""
         try:
-            result = await self.db.execute(
-                select(Alert).where(Alert.id == alert_id)
-            )
+            result = await self.db.execute(select(Alert).where(Alert.id == alert_id))
             alert = result.scalar_one_or_none()
 
             if not alert:
@@ -175,7 +175,7 @@ class AlertService:
         """Get alert statistics summary"""
         try:
             # Total active alerts
-            total_query = select(func.count(Alert.id)).where(Alert.is_active == True)
+            total_query = select(func.count(Alert.id)).where(Alert.is_active)
             total_result = await self.db.execute(total_query)
             total_active = total_result.scalar() or 0
 
@@ -183,15 +183,15 @@ class AlertService:
             severity_counts = {}
             for severity in AlertSeverity:
                 query = select(func.count(Alert.id)).where(
-                    and_(Alert.is_active == True, Alert.severity == severity)
+                    and_(Alert.is_active, Alert.severity == severity)
                 )
                 result = await self.db.execute(query)
                 severity_counts[severity.value] = result.scalar() or 0
 
             # By machine count
-            machine_query = select(
-                func.count(func.distinct(Alert.machine_id))
-            ).where(Alert.is_active == True)
+            machine_query = select(func.count(func.distinct(Alert.machine_id))).where(
+                Alert.is_active
+            )
             machine_result = await self.db.execute(machine_query)
             machines_affected = machine_result.scalar() or 0
 
@@ -261,6 +261,7 @@ class AlertService:
             # Calling is_ml_service_available() per machine = N health-check HTTP requests.
             from modules.ml.rul_calculator import RULCalculator
             from core.ml_client import ml_client, is_ml_service_available
+
             _ml_available = await is_ml_service_available()
 
             for machine in machines:
@@ -285,9 +286,9 @@ class AlertService:
                     # Use latest telemetry values if available, else nominal defaults
                     if telemetry_entries:
                         latest = telemetry_entries[-1]
-                        air  = float(latest.air_temperature)
+                        air = float(latest.air_temperature)
                         proc = float(latest.process_temperature)
-                        rpm  = int(latest.rotational_speed)
+                        rpm = int(latest.rotational_speed)
                         torq = float(latest.torque)
                         wear = int(latest.tool_wear)
                     else:
@@ -316,10 +317,16 @@ class AlertService:
                     )
 
                     rul_days = prediction.get("rul_days")
-                    failure_prob = prediction.get("failure_probability", 0) / 100  # Convert from percentage
+                    failure_prob = (
+                        prediction.get("failure_probability", 0) / 100
+                    )  # Convert from percentage
 
                     # Check RUL threshold
-                    if config.enable_rul_alerts and rul_days is not None and rul_days < config.rul_threshold_days:
+                    if (
+                        config.enable_rul_alerts
+                        and rul_days is not None
+                        and rul_days < config.rul_threshold_days
+                    ):
                         severity = self._get_rul_severity(rul_days)
                         message = f"RUL prediction: {rul_days:.1f} days remaining (threshold: {config.rul_threshold_days} days)"
 
@@ -333,12 +340,15 @@ class AlertService:
                         alerts_created["rul_warnings"] += 1
 
                     # Check failure probability threshold
-                    if config.enable_failure_alerts and failure_prob > config.failure_probability_threshold:
+                    if (
+                        config.enable_failure_alerts
+                        and failure_prob > config.failure_probability_threshold
+                    ):
                         await self.create_alert(
                             machine_id=machine.id,
                             alert_type=AlertType.FAILURE_PREDICTED,
                             severity=AlertSeverity.HIGH,
-                            message=f"Failure probability: {failure_prob*100:.1f}% (threshold: {config.failure_probability_threshold*100:.1f}%)",
+                            message=f"Failure probability: {failure_prob * 100:.1f}% (threshold: {config.failure_probability_threshold * 100:.1f}%)",
                             failure_probability=failure_prob,
                         )
                         alerts_created["failure_predicted"] += 1
@@ -375,85 +385,94 @@ class AlertService:
                 select(Alert).where(Alert.id == alert_id)
             )
             alert = alert_result.scalar_one_or_none()
-            
+
             if not alert:
                 logger.warning(f"Alert {alert_id} not found")
                 return None
-            
+
             if alert.is_linked_to_wo and alert.work_order_id:
-                logger.info(f"Alert {alert_id} already linked to work order {alert.work_order_id}")
+                logger.info(
+                    f"Alert {alert_id} already linked to work order {alert.work_order_id}"
+                )
                 existing_wo = await self.db.execute(
-                    select(Ordres_travail).where(Ordres_travail.id == alert.work_order_id)
+                    select(Ordres_travail).where(
+                        Ordres_travail.id == alert.work_order_id
+                    )
                 )
                 return existing_wo.scalar_one_or_none()
-            
+
             priority_map = {
                 "LOW": "BASSE",
-                "MEDIUM": "MOYENNE", 
+                "MEDIUM": "MOYENNE",
                 "HIGH": "ÉLEVÉE",
-                "CRITICAL": "URGENTE"
+                "CRITICAL": "URGENTE",
             }
-            
+
             wo = Ordres_travail(
-                titre=wo_data.get("title", f"Maintenance - {alert.machine.name if alert.machine else 'Machine #'+str(alert.machine_id)}"),
+                titre=wo_data.get(
+                    "title",
+                    f"Maintenance - {alert.machine.name if alert.machine else 'Machine #' + str(alert.machine_id)}",
+                ),
                 description=wo_data.get("description", alert.message),
                 priorite=priority_map.get(alert.severity.value, "MOYENNE"),
                 machine_id=alert.machine_id,
                 utilisateur_id=wo_data.get("assigned_to"),
                 date_echeance=wo_data.get("due_date"),
                 created_by=wo_data.get("created_by"),
-                statut="EN_ATTENTE"
+                statut="EN_ATTENTE",
             )
-            
+
             self.db.add(wo)
             await self.db.commit()
             await self.db.refresh(wo)
-            
+
             alert.is_linked_to_wo = True
             alert.work_order_id = wo.id
             alert.priority = wo_data.get("priority", alert.severity.value)
             await self.db.commit()
-            
+
             logger.info(f"Created work order {wo.id} from alert {alert_id}")
-            
+
             from services.notifications import NotificationsService
+
             notif_service = NotificationsService(self.db)
             await notif_service.send_workflow_notification(
-                "WORK_ORDER_CREATED",
-                {"title": wo.titre}
+                "WORK_ORDER_CREATED", {"title": wo.titre}
             )
-            
+
             return wo
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Error creating work order from alert {alert_id}: {str(e)}")
             raise
 
-    async def link_existing_work_order(self, alert_id: int, work_order_id: int) -> Optional[Alert]:
+    async def link_existing_work_order(
+        self, alert_id: int, work_order_id: int
+    ) -> Optional[Alert]:
         """Link an existing work order to an alert"""
         try:
             alert_result = await self.db.execute(
                 select(Alert).where(Alert.id == alert_id)
             )
             alert = alert_result.scalar_one_or_none()
-            
+
             if not alert:
                 return None
-            
+
             wo_result = await self.db.execute(
                 select(Ordres_travail).where(Ordres_travail.id == work_order_id)
             )
             wo = wo_result.scalar_one_or_none()
-            
+
             if not wo:
                 return None
-            
+
             alert.is_linked_to_wo = True
             alert.work_order_id = work_order_id
-            
+
             await self.db.commit()
             await self.db.refresh(alert)
-            
+
             logger.info(f"Linked alert {alert_id} to work order {work_order_id}")
             return alert
         except Exception as e:
@@ -465,16 +484,18 @@ class AlertService:
         """Send email notification for critical alerts"""
         if not config.notification_email:
             return False
-        
+
         if alert.severity not in [AlertSeverity.CRITICAL, AlertSeverity.HIGH]:
             if config.frequency in ["daily", "weekly"]:
                 return False
-        
+
         try:
             from core.email import EmailService
-            
-            machine_name = alert.machine.name if alert.machine else f"Machine {alert.machine_id}"
-            
+
+            machine_name = (
+                alert.machine.name if alert.machine else f"Machine {alert.machine_id}"
+            )
+
             subject = f"[{alert.severity.value}] Predictive Alert - {machine_name}"
             html_content = f"""
             <html>
@@ -491,14 +512,14 @@ class AlertService:
                         </tr>
                         <tr>
                             <td style="padding: 8px; border: 1px solid #ddd;"><strong>Severity</strong></td>
-                            <td style="padding: 8px; border: 1px solid #ddd; color: {'red' if alert.severity == AlertSeverity.CRITICAL else 'orange'};">{alert.severity.value}</td>
+                            <td style="padding: 8px; border: 1px solid #ddd; color: {"red" if alert.severity == AlertSeverity.CRITICAL else "orange"};">{alert.severity.value}</td>
                         </tr>
                         <tr>
                             <td style="padding: 8px; border: 1px solid #ddd;"><strong>Message</strong></td>
                             <td style="padding: 8px; border: 1px solid #ddd;">{alert.message}</td>
                         </tr>
-                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>RUL Days</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.rul_days}</td></tr>' if alert.rul_days else ''}
-                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Failure Probability</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.failure_probability*100:.1f}%</td></tr>' if alert.failure_probability else ''}
+                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>RUL Days</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.rul_days}</td></tr>' if alert.rul_days else ""}
+                        {f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Failure Probability</strong></td><td style="padding: 8px; border: 1px solid #ddd;">{alert.failure_probability * 100:.1f}%</td></tr>' if alert.failure_probability else ""}
                     </table>
                     <p style="margin-top: 20px;">
                         <a href="/alerts" style="background-color: #1976d2; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px;">View All Alerts</a>
@@ -506,22 +527,24 @@ class AlertService:
                 </body>
             </html>
             """
-            
+
             email_service = EmailService()
             from models.utilisateurs import Utilisateurs, UserRole
-            
+
             result = await self.db.execute(
                 select(Utilisateurs.email).where(
                     Utilisateurs.role.in_([UserRole.ADMIN, UserRole.CHEFTECH]),
-                    Utilisateurs.status == "ACTIVE"
+                    Utilisateurs.status == "ACTIVE",
                 )
             )
             emails = [row[0] for row in result.all() if row[0]]
-            
+
             for email in emails:
                 email_service.send_email(email, subject, html_content, None)
-            
-            logger.info(f"Sent alert email for alert {alert.id} to {len(emails)} recipients")
+
+            logger.info(
+                f"Sent alert email for alert {alert.id} to {len(emails)} recipients"
+            )
             return True
         except Exception as e:
             logger.error(f"Error sending alert email: {str(e)}")

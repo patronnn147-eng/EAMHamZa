@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -66,10 +66,7 @@ async def list_users(
     # Get paginated users
     skip = (page - 1) * size
     result = await db.execute(
-        select(Utilisateurs)
-        .order_by(Utilisateurs.id.desc())
-        .offset(skip)
-        .limit(size)
+        select(Utilisateurs).order_by(Utilisateurs.id.desc()).offset(skip).limit(size)
     )
     users = result.scalars().all()
 
@@ -80,14 +77,18 @@ async def list_users(
             email=u.email,
             role=u.role.value if hasattr(u.role, "value") else str(u.role),
             status=u.status.value if hasattr(u.status, "value") else str(u.status),
-            shift_type=u.shift_type.value if hasattr(u.shift_type, "value") else (str(u.shift_type) if u.shift_type else None),
+            shift_type=u.shift_type.value
+            if hasattr(u.shift_type, "value")
+            else (str(u.shift_type) if u.shift_type else None),
             created_at=u.created_at,
             updated_at=u.updated_at,
         )
         for u in users
     ]
 
-    return PaginatedResponse.create(items=items, total=total_count, page=page, size=size)
+    return PaginatedResponse.create(
+        items=items, total=total_count, page=page, size=size
+    )
 
 
 @router.patch("/{user_id}/status", response_model=AdminUserResponse)
@@ -102,7 +103,9 @@ async def update_user_status(
     result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     user.status = data.status
     user.updated_at = datetime.now()
@@ -115,7 +118,9 @@ async def update_user_status(
         email=user.email,
         role=user.role.value if hasattr(user.role, "value") else str(user.role),
         status=user.status.value if hasattr(user.status, "value") else str(user.status),
-        shift_type=user.shift_type.value if hasattr(user.shift_type, "value") else (str(user.shift_type) if user.shift_type else None),
+        shift_type=user.shift_type.value
+        if hasattr(user.shift_type, "value")
+        else (str(user.shift_type) if user.shift_type else None),
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -133,7 +138,9 @@ async def update_user_shift_type(
     result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     user.shift_type = data.shift_type
     user.updated_at = datetime.now()
@@ -146,7 +153,9 @@ async def update_user_shift_type(
         email=user.email,
         role=user.role.value if hasattr(user.role, "value") else str(user.role),
         status=user.status.value if hasattr(user.status, "value") else str(user.status),
-        shift_type=user.shift_type.value if hasattr(user.shift_type, "value") else (str(user.shift_type) if user.shift_type else None),
+        shift_type=user.shift_type.value
+        if hasattr(user.shift_type, "value")
+        else (str(user.shift_type) if user.shift_type else None),
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -161,12 +170,17 @@ async def delete_user(
     await _require_admin(current_user)
 
     if current_user.id == user_id:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot delete your own account")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You cannot delete your own account",
+        )
 
     result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
 
     await db.delete(user)
     await db.commit()

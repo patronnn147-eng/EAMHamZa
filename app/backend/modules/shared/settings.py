@@ -87,103 +87,152 @@ async def get_settings(current_user: UserResponse = Depends(get_admin_user)):
             "ADMIN_USER_EMAIL": "Admin user email",
         }
 
-        frontend_descriptions = {"VITE_API_BASE_URL": "Base API URL", "VITE_FRONTEND_URL": "Frontend URL"}
+        frontend_descriptions = {
+            "VITE_API_BASE_URL": "Base API URL",
+            "VITE_FRONTEND_URL": "Frontend URL",
+        }
 
         # Build response data
         backend_config = {}
         for key, value in backend_vars.items():
-            backend_config[key] = EnvVariable(key=key, value=value, description=backend_descriptions.get(key, ""))
+            backend_config[key] = EnvVariable(
+                key=key, value=value, description=backend_descriptions.get(key, "")
+            )
 
         frontend_config = {}
         for key, value in frontend_vars.items():
-            frontend_config[key] = EnvVariable(key=key, value=value, description=frontend_descriptions.get(key, ""))
+            frontend_config[key] = EnvVariable(
+                key=key, value=value, description=frontend_descriptions.get(key, "")
+            )
 
         return EnvConfig(backend_vars=backend_config, frontend_vars=frontend_config)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to read configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to read configuration: {str(e)}"
+        )
 
 
 @router.put("/backend/{key}")
 async def update_backend_setting(
-    key: str, update: EnvVariableUpdate, current_user: UserResponse = Depends(get_admin_user)
+    key: str,
+    update: EnvVariableUpdate,
+    current_user: UserResponse = Depends(get_admin_user),
 ):
     """Update a backend environment variable."""
     try:
         env_vars = read_env_file("backend")
         env_vars[key] = update.value
         write_env_file("backend", env_vars)
-        return {"message": f"Backend configuration '{key}' updated successfully; restart required to take effect."}
+        return {
+            "message": f"Backend configuration '{key}' updated successfully; restart required to take effect."
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update configuration: {str(e)}"
+        )
 
 
 @router.put("/frontend/{key}")
 async def update_frontend_setting(
-    key: str, update: EnvVariableUpdate, current_user: UserResponse = Depends(get_admin_user)
+    key: str,
+    update: EnvVariableUpdate,
+    current_user: UserResponse = Depends(get_admin_user),
 ):
     """Update a frontend environment variable."""
     try:
         env_vars = read_env_file("frontend")
         env_vars[key] = update.value
         write_env_file("frontend", env_vars)
-        return {"message": f"Frontend configuration '{key}' updated successfully; restart required to take effect."}
+        return {
+            "message": f"Frontend configuration '{key}' updated successfully; restart required to take effect."
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to update configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update configuration: {str(e)}"
+        )
 
 
 @router.post("/backend/{key}")
 async def add_backend_setting(
-    key: str, update: EnvVariableUpdate, current_user: UserResponse = Depends(get_admin_user)
+    key: str,
+    update: EnvVariableUpdate,
+    current_user: UserResponse = Depends(get_admin_user),
 ):
     """Add a backend environment variable."""
     try:
         env_vars = read_env_file("backend")
         env_vars[key] = update.value
         write_env_file("backend", env_vars)
-        return {"message": f"Backend configuration '{key}' added successfully; restart required to take effect."}
+        return {
+            "message": f"Backend configuration '{key}' added successfully; restart required to take effect."
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to add configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add configuration: {str(e)}"
+        )
 
 
 @router.post("/frontend/{key}")
 async def add_frontend_setting(
-    key: str, update: EnvVariableUpdate, current_user: UserResponse = Depends(get_admin_user)
+    key: str,
+    update: EnvVariableUpdate,
+    current_user: UserResponse = Depends(get_admin_user),
 ):
     """Add a frontend environment variable."""
     try:
         env_vars = read_env_file("frontend")
         env_vars[key] = update.value
         write_env_file("frontend", env_vars)
-        return {"message": f"Frontend configuration '{key}' added successfully; restart required to take effect."}
+        return {
+            "message": f"Frontend configuration '{key}' added successfully; restart required to take effect."
+        }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to add configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to add configuration: {str(e)}"
+        )
 
 
 @router.delete("/backend/{key}")
-async def delete_backend_setting(key: str, current_user: UserResponse = Depends(get_admin_user)):
+async def delete_backend_setting(
+    key: str, current_user: UserResponse = Depends(get_admin_user)
+):
     """Delete a backend environment variable."""
     try:
         env_vars = read_env_file("backend")
         if key in env_vars:
             del env_vars[key]
             write_env_file("backend", env_vars)
-            return {"message": f"Backend configuration '{key}' deleted successfully; restart required to take effect."}
+            return {
+                "message": f"Backend configuration '{key}' deleted successfully; restart required to take effect."
+            }
         else:
-            raise HTTPException(status_code=404, detail=f"Configuration item '{key}' does not exist")
+            raise HTTPException(
+                status_code=404, detail=f"Configuration item '{key}' does not exist"
+            )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete configuration: {str(e)}"
+        )
 
 
 @router.delete("/frontend/{key}")
-async def delete_frontend_setting(key: str, current_user: UserResponse = Depends(get_admin_user)):
+async def delete_frontend_setting(
+    key: str, current_user: UserResponse = Depends(get_admin_user)
+):
     """Delete a frontend environment variable."""
     try:
         env_vars = read_env_file("frontend")
         if key in env_vars:
             del env_vars[key]
             write_env_file("frontend", env_vars)
-            return {"message": f"Frontend configuration '{key}' deleted successfully; restart required to take effect."}
+            return {
+                "message": f"Frontend configuration '{key}' deleted successfully; restart required to take effect."
+            }
         else:
-            raise HTTPException(status_code=404, detail=f"Configuration item '{key}' does not exist")
+            raise HTTPException(
+                status_code=404, detail=f"Configuration item '{key}' does not exist"
+            )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to delete configuration: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete configuration: {str(e)}"
+        )

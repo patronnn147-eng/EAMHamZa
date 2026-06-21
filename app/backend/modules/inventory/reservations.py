@@ -1,4 +1,5 @@
 """Reservation observability + manual release endpoints (admin only)."""
+
 import logging
 from decimal import Decimal
 from typing import List, Optional
@@ -17,7 +18,9 @@ from services.inventory import InventoryReservationService
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/inventory/reservations", tags=["inventory-reservations"])
+router = APIRouter(
+    prefix="/api/v1/inventory/reservations", tags=["inventory-reservations"]
+)
 
 ROLES_ADMIN = ["ADMIN", "CHEFTECH"]
 
@@ -64,7 +67,9 @@ async def list_active_reservations(
                 quantity_planned=rp.quantity_planned,
                 quantity_reserved=rp.quantity_reserved,
                 unit=rp.unit,
-                reservation_expires_at=rp.reservation_expires_at.isoformat() if rp.reservation_expires_at else None,
+                reservation_expires_at=rp.reservation_expires_at.isoformat()
+                if rp.reservation_expires_at
+                else None,
                 approved=rp.approved,
             )
             for rp, piece_name in rows
@@ -89,9 +94,16 @@ async def release_intervention_reservations(
     try:
         svc = InventoryReservationService(db)
         count = await svc.release_all(intervention_id=intervention_id, reason=reason)
-        return {"intervention_id": intervention_id, "released_count": count, "reason": reason}
+        return {
+            "intervention_id": intervention_id,
+            "released_count": count,
+            "reason": reason,
+        }
     except Exception as e:
-        logger.error(f"release_intervention_reservations failed for itv {intervention_id}: {e}", exc_info=True)
+        logger.error(
+            f"release_intervention_reservations failed for itv {intervention_id}: {e}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

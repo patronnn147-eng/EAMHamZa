@@ -1,7 +1,14 @@
 """Drift detection over logged predictions — PSI + mean shift. Pure, stdlib only."""
+
 import math
 
-SENSORS = ("air_temperature", "process_temperature", "rotational_speed", "torque", "tool_wear")
+SENSORS = (
+    "air_temperature",
+    "process_temperature",
+    "rotational_speed",
+    "torque",
+    "tool_wear",
+)
 _ORDER = {"stable": 0, "watch": 1, "drifting": 2}
 
 
@@ -40,7 +47,11 @@ def compute_drift(baseline_rows, recent_rows, sensors=SENSORS) -> dict:
         rmean = sum(rc) / len(rc)
         shift = 0.0 if bmean == 0 else (rmean - bmean) / abs(bmean) * 100
         status = "drifting" if psi >= 0.25 else "watch" if psi >= 0.1 else "stable"
-        out[s] = {"psi": round(psi, 3), "mean_shift_pct": round(shift, 1), "status": status}
+        out[s] = {
+            "psi": round(psi, 3),
+            "mean_shift_pct": round(shift, 1),
+            "status": status,
+        }
         if _ORDER[status] > _ORDER[worst]:
             worst = status
     if not out:

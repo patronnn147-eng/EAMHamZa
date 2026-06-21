@@ -3,6 +3,7 @@ Schedule optimizer.
 Primary: OR-Tools CP-SAT (minimize priority-weighted completion day).
 Fallback: greedy round-robin when ortools unavailable.
 """
+
 from __future__ import annotations
 import asyncio
 import logging
@@ -16,10 +17,13 @@ _SCHEDULE_CACHE: Dict[str, Any] = {"data": None, "timestamp": None, "ttl": 1800}
 
 try:
     from ortools.sat.python import cp_model as _cp_model
+
     _ORTOOLS_AVAILABLE = True
 except ImportError:
     _ORTOOLS_AVAILABLE = False
-    logger.warning("ortools not installed — schedule optimizer will use greedy fallback")
+    logger.warning(
+        "ortools not installed — schedule optimizer will use greedy fallback"
+    )
 
 
 def _greedy_schedule(
@@ -46,15 +50,22 @@ def _greedy_schedule(
         end_day = start_day + duration_days
         tech_next_day[tech_id] = end_day
 
-        assignments.append({
-            "wo_id": wo["id"],
-            "technician_id": tech_id,
-            "start_day": start_day,
-            "end_day": end_day,
-        })
+        assignments.append(
+            {
+                "wo_id": wo["id"],
+                "technician_id": tech_id,
+                "start_day": start_day,
+                "end_day": end_day,
+            }
+        )
 
     makespan = max((a["end_day"] for a in assignments), default=0)
-    return {"assignments": assignments, "makespan_days": makespan, "solved": True, "fallback": True}
+    return {
+        "assignments": assignments,
+        "makespan_days": makespan,
+        "solved": True,
+        "fallback": True,
+    }
 
 
 def _ortools_schedule(
@@ -77,7 +88,10 @@ def _ortools_schedule(
         e = model.NewIntVar(min_start + dur, max_h + dur, f"end_{wo['id']}")
         model.Add(e == s + dur)
         t = model.NewIntVar(0, n_techs - 1, f"tech_{wo['id']}")
-        starts.append(s); ends.append(e); durations.append(dur); techs.append(t)
+        starts.append(s)
+        ends.append(e)
+        durations.append(dur)
+        techs.append(t)
 
     for tech_idx in range(n_techs):
         intervals = []
@@ -87,8 +101,7 @@ def _ortools_schedule(
             model.Add(techs[i] == tech_idx).OnlyEnforceIf(is_assigned)
             model.Add(techs[i] != tech_idx).OnlyEnforceIf(is_assigned.Not())
             opt_iv = model.NewOptionalIntervalVar(
-                starts[i], dur, ends[i], is_assigned,
-                f"interval_{wo['id']}_t{tech_idx}"
+                starts[i], dur, ends[i], is_assigned, f"interval_{wo['id']}_t{tech_idx}"
             )
             intervals.append(opt_iv)
         model.AddNoOverlap(intervals)
@@ -107,14 +120,21 @@ def _ortools_schedule(
         assignments = []
         for i, wo in enumerate(work_orders):
             tech_idx = solver.Value(techs[i])
-            assignments.append({
-                "wo_id": wo["id"],
-                "technician_id": technician_ids[tech_idx],
-                "start_day": solver.Value(starts[i]),
-                "end_day": solver.Value(ends[i]),
-            })
+            assignments.append(
+                {
+                    "wo_id": wo["id"],
+                    "technician_id": technician_ids[tech_idx],
+                    "start_day": solver.Value(starts[i]),
+                    "end_day": solver.Value(ends[i]),
+                }
+            )
         makespan = max((a["end_day"] for a in assignments), default=0)
-        return {"assignments": assignments, "makespan_days": makespan, "solved": True, "fallback": False}
+        return {
+            "assignments": assignments,
+            "makespan_days": makespan,
+            "solved": True,
+            "fallback": False,
+        }
 
     logger.warning("OR-Tools status %s — falling back to greedy", status)
     result = _greedy_schedule(work_orders, technician_ids, horizon_days)
@@ -130,7 +150,9 @@ def optimize_schedule(
 ) -> Dict[str, Any]:
     if not _ORTOOLS_AVAILABLE:
         return _greedy_schedule(work_orders, technician_ids, horizon_days)
-    return _ortools_schedule(work_orders, technician_ids, horizon_days, max_solve_seconds)
+    return _ortools_schedule(
+        work_orders, technician_ids, horizon_days, max_solve_seconds
+    )
 
 
 async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
@@ -142,14 +164,15 @@ async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
     if (
         _SCHEDULE_CACHE["data"] is not None
         and _SCHEDULE_CACHE["timestamp"] is not None
-        and (now - _SCHEDULE_CACHE["timestamp"]).total_seconds() < _SCHEDULE_CACHE["ttl"]
+        and (now - _SCHEDULE_CACHE["timestamp"]).total_seconds()
+        < _SCHEDULE_CACHE["ttl"]
     ):
         return _SCHEDULE_CACHE["data"]
 
     wo_res = await db.execute(
-        select(Ordres_travail).where(
-            Ordres_travail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS])
-        ).limit(100)
+        select(Ordres_travail)
+        .where(Ordres_travail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS]))
+        .limit(100)
     )
     wos_db = wo_res.scalars().all()
 
@@ -161,18 +184,20 @@ async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
             if 0 < h <= 168:
                 est = h
         priority = 3
-        if hasattr(wo, 'priority') and wo.priority:
+        if hasattr(wo, "priority") and wo.priority:
             try:
                 priority = int(wo.priority)
             except (ValueError, TypeError):
                 pass
-        work_orders.append({
-            "id": wo.id,
-            "priority": priority,
-            "estimated_hours": est,
-            "parts_ready": True,
-            "titre": wo.titre or f"WO #{wo.id}",
-        })
+        work_orders.append(
+            {
+                "id": wo.id,
+                "priority": priority,
+                "estimated_hours": est,
+                "parts_ready": True,
+                "titre": wo.titre or f"WO #{wo.id}",
+            }
+        )
 
     tech_res = await db.execute(
         select(Utilisateurs).where(Utilisateurs.role == "TECHNICIEN")

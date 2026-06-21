@@ -24,10 +24,10 @@ class Settings(BaseSettings):
 
     # Environment
     environment: str = "development"  # development, staging, production
-    
+
     # Database
     database_url: str = "sqlite+aiosqlite:///./app.db"
-    
+
     # JWT Configuration
     jwt_secret_key: str = "REDACTED_JWT_SECRET"
     jwt_algorithm: str = "HS256"
@@ -48,12 +48,15 @@ class Settings(BaseSettings):
         if self.is_lambda:
             # In Lambda environment, return the API Gateway URL
             return os.environ.get(
-                "PYTHON_BACKEND_URL", f"https://{self.lambda_function_name}.execute-api.{self.aws_region}.amazonaws.com"
+                "PYTHON_BACKEND_URL",
+                f"https://{self.lambda_function_name}.execute-api.{self.aws_region}.amazonaws.com",
             )
         else:
             # Use localhost for external callbacks instead of 0.0.0.0
             display_host = "127.0.0.1" if self.host == "0.0.0.0" else self.host
-            return os.environ.get("PYTHON_BACKEND_URL", f"http://{display_host}:{self.port}")
+            return os.environ.get(
+                "PYTHON_BACKEND_URL", f"http://{display_host}:{self.port}"
+            )
 
     class Config:
         case_sensitive = False
@@ -81,11 +84,15 @@ class Settings(BaseSettings):
             value = os.environ[env_var_name]
             # Cache the value in instance dict to avoid repeated lookups
             self.__dict__[name] = value
-            logger.debug(f"Read dynamic attribute {name} from environment variable {env_var_name}")
+            logger.debug(
+                f"Read dynamic attribute {name} from environment variable {env_var_name}"
+            )
             return value
 
         # If not found, raise AttributeError to maintain normal Python behavior
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
 
 # Global settings instance

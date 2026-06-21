@@ -17,7 +17,6 @@ Running `alembic upgrade head` is safe from any of the three parent revisions.
 
 from typing import Sequence, Union
 
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "merge_all_heads_final"

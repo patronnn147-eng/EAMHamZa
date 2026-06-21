@@ -12,6 +12,7 @@ Routes:
 - PUT    /api/v1/rag/documents/{id}             replace file + re-ingest (ADMIN)
 - DELETE /api/v1/rag/documents/{id}             delete doc + chunks + S3 (ADMIN)
 """
+
 import asyncio
 import hashlib
 import logging
@@ -37,10 +38,11 @@ router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50MB
-BULK_PARALLELISM = 4                    # concurrent ingests per bulk request
+BULK_PARALLELISM = 4  # concurrent ingests per bulk request
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────
+
 
 class DocumentResponse(BaseModel):
     id: str
@@ -61,14 +63,17 @@ class DocumentResponse(BaseModel):
 
 class BulkUploadResponse(BaseModel):
     succeeded: List[DocumentResponse]
-    failed: List[dict]   # [{filename, error}]
+    failed: List[dict]  # [{filename, error}]
     total: int
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
 
+
 def _require_admin(user: Utilisateurs) -> None:
-    role = (user.role.value if hasattr(user.role, "value") else str(user.role or "")).upper()
+    role = (
+        user.role.value if hasattr(user.role, "value") else str(user.role or "")
+    ).upper()
     if role != "ADMIN":
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -89,7 +94,9 @@ def _validate_file(filename: str, size: int) -> None:
             detail=f"File too large. Max: {MAX_FILE_SIZE_BYTES // 1024 // 1024}MB",
         )
     if size == 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file."
+        )
 
 
 async def _ingest_one(
@@ -145,7 +152,9 @@ async def _ingest_one(
     # 3. Persist S3 key on the documents row (rag-service uses its own doc_id)
     try:
         await db.execute(
-            text("UPDATE documents SET s3_object_key = :k WHERE id = CAST(:id AS uuid)"),
+            text(
+                "UPDATE documents SET s3_object_key = :k WHERE id = CAST(:id AS uuid)"
+            ),
             {"k": object_key, "id": doc_id},
         )
         await db.commit()
@@ -166,6 +175,7 @@ async def _ingest_one(
 
 
 # ── Endpoints ──────────────────────────────────────────────────────────────
+
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
 async def upload_document(
@@ -191,7 +201,9 @@ async def upload_document(
     # Dedup: reject before S3 upload if same bytes already ingested
     content_hash = hashlib.sha256(file_bytes).hexdigest()
     existing_row = await db.execute(
-        text("SELECT id::text, filename FROM documents WHERE content_hash = :h LIMIT 1"),
+        text(
+            "SELECT id::text, filename FROM documents WHERE content_hash = :h LIMIT 1"
+        ),
         {"h": content_hash},
     )
     existing = existing_row.first()
@@ -235,12 +247,15 @@ async def sync_from_minio(
         return BulkUploadResponse(succeeded=[], failed=[], total=0)
 
     # 2. Get already-known keys from DB
-    rows = await db.execute(text("SELECT s3_object_key FROM documents WHERE s3_object_key IS NOT NULL"))
+    rows = await db.execute(
+        text("SELECT s3_object_key FROM documents WHERE s3_object_key IS NOT NULL")
+    )
     known_keys = {row[0] for row in rows.fetchall()}
 
     # 3. Filter — keep only new objects, only PDF/TXT
     new_objects = [
-        o for o in objects
+        o
+        for o in objects
         if o["key"] not in known_keys
         and os.path.splitext(o["key"])[1].lower() in ALLOWED_EXTENSIONS
     ]
@@ -249,7 +264,7 @@ async def sync_from_minio(
         return BulkUploadResponse(succeeded=[], failed=[], total=0)
 
     succeeded: List[DocumentResponse] = []
-    failed:    List[dict] = []
+    failed: List[dict] = []
 
     # 4. Sequential ingest (sync is rare, no need to parallelize and stress S3)
     for obj in new_objects[:50]:  # cap at 50 per sync request
@@ -276,27 +291,33 @@ async def sync_from_minio(
             )
             doc_id = result["doc_id"]
             await db.execute(
-                text("UPDATE documents SET s3_object_key = :k WHERE id = CAST(:id AS uuid)"),
+                text(
+                    "UPDATE documents SET s3_object_key = :k WHERE id = CAST(:id AS uuid)"
+                ),
                 {"k": obj["key"], "id": doc_id},
             )
             await db.commit()
 
-            succeeded.append(DocumentResponse(
-                id=doc_id,
-                filename=result["filename"],
-                doc_type=doc_type,
-                description="Synced from S3",
-                machine_id=None,
-                chunk_count=result["chunk_count"],
-                file_size_bytes=len(file_bytes),
-                uploaded_by=current_user.id,
-                s3_object_key=obj["key"],
-            ))
+            succeeded.append(
+                DocumentResponse(
+                    id=doc_id,
+                    filename=result["filename"],
+                    doc_type=doc_type,
+                    description="Synced from S3",
+                    machine_id=None,
+                    chunk_count=result["chunk_count"],
+                    file_size_bytes=len(file_bytes),
+                    uploaded_by=current_user.id,
+                    s3_object_key=obj["key"],
+                )
+            )
         except Exception as e:
             logger.error(f"Sync failed for {obj['key']}: {e}")
             failed.append({"filename": obj["key"], "error": str(e)})
 
-    return BulkUploadResponse(succeeded=succeeded, failed=failed, total=len(new_objects))
+    return BulkUploadResponse(
+        succeeded=succeeded, failed=failed, total=len(new_objects)
+    )
 
 
 @router.post("/documents/bulk", response_model=BulkUploadResponse, status_code=201)
@@ -323,7 +344,7 @@ async def bulk_upload_documents(
 
     semaphore = asyncio.Semaphore(BULK_PARALLELISM)
     succeeded: List[DocumentResponse] = []
-    failed:    List[dict] = []
+    failed: List[dict] = []
 
     async def _process(f: UploadFile) -> None:
         async with semaphore:
@@ -332,15 +353,19 @@ async def bulk_upload_documents(
                 _validate_file(f.filename or "", len(file_bytes))
                 content_hash = hashlib.sha256(file_bytes).hexdigest()
                 dup_row = await db.execute(
-                    text("SELECT id::text FROM documents WHERE content_hash = :h LIMIT 1"),
+                    text(
+                        "SELECT id::text FROM documents WHERE content_hash = :h LIMIT 1"
+                    ),
                     {"h": content_hash},
                 )
                 dup = dup_row.first()
                 if dup:
-                    failed.append({
-                        "filename": f.filename,
-                        "error": f"Duplicate: already ingested as {dup[0]}",
-                    })
+                    failed.append(
+                        {
+                            "filename": f.filename,
+                            "error": f"Duplicate: already ingested as {dup[0]}",
+                        }
+                    )
                     return
                 result = await _ingest_one(
                     file_bytes=file_bytes,
@@ -388,15 +413,20 @@ async def list_documents(
     s3_map: dict[str, str] = {}
     if doc_ids:
         rows = await db.execute(
-            text("SELECT id::text AS id, s3_object_key FROM documents WHERE id::text = ANY(:ids)"),
+            text(
+                "SELECT id::text AS id, s3_object_key FROM documents WHERE id::text = ANY(:ids)"
+            ),
             {"ids": doc_ids},
         )
         for row in rows.mappings():
             if row["s3_object_key"]:
                 s3_map[row["id"]] = row["s3_object_key"]
 
-    role = (current_user.role.value if hasattr(current_user.role, "value")
-            else str(current_user.role or "")).upper()
+    role = (
+        current_user.role.value
+        if hasattr(current_user.role, "value")
+        else str(current_user.role or "")
+    ).upper()
     is_admin = role == "ADMIN"
 
     out: List[DocumentResponse] = []
@@ -405,11 +435,13 @@ async def list_documents(
         download_url = None
         if include_download_url and is_admin and key:
             download_url = rag_storage.presigned_download_url(key)
-        out.append(DocumentResponse(
-            **d,
-            s3_object_key=key,
-            download_url=download_url,
-        ))
+        out.append(
+            DocumentResponse(
+                **d,
+                s3_object_key=key,
+                download_url=download_url,
+            )
+        )
     return out
 
 

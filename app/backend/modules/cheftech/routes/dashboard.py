@@ -21,25 +21,35 @@ async def get_dashboard_stats(
     """Get dashboard statistics for CHEFTECH"""
     try:
         # Intervention statistics
-        total_interventions = await db.scalar(select(func.count(Ordres_intervention.id)))
+        total_interventions = await db.scalar(
+            select(func.count(Ordres_intervention.id))
+        )
         interventions_en_cours = await db.scalar(
-            select(func.count(Ordres_intervention.id)).where(Ordres_intervention.statut == "EN_COURS")
+            select(func.count(Ordres_intervention.id)).where(
+                Ordres_intervention.statut == "EN_COURS"
+            )
         )
 
         # Work order statistics
         total_ordres_travail = await db.scalar(select(func.count(Ordres_travail.id)))
         ordres_en_attente = await db.scalar(
-            select(func.count(Ordres_travail.id)).where(Ordres_travail.statut == OrdreStatut.SUBMITTED)
+            select(func.count(Ordres_travail.id)).where(
+                Ordres_travail.statut == OrdreStatut.SUBMITTED
+            )
         )
         ordres_en_cours = await db.scalar(
             select(func.count(Ordres_travail.id)).where(
-                Ordres_travail.statut.in_([OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+                Ordres_travail.statut.in_(
+                    [OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
+                )
             )
         )
 
         # Technician statistics
         total_techniciens = await db.scalar(
-            select(func.count(Utilisateurs.id)).where(Utilisateurs.role == UserRole.TECHNICIEN)
+            select(func.count(Utilisateurs.id)).where(
+                Utilisateurs.role == UserRole.TECHNICIEN
+            )
         )
         techniciens_disponibles = total_techniciens
 
@@ -58,7 +68,7 @@ async def get_dashboard_stats(
             total_techniciens=total_techniciens or 0,
             techniciens_disponibles=techniciens_disponibles or 0,
             total_machines=total_machines or 0,
-            machines_critiques=machines_critiques or 0
+            machines_critiques=machines_critiques or 0,
         )
     except Exception as e:
         print(f"Error in dashboard stats: {e}")

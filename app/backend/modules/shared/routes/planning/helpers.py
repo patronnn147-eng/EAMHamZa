@@ -4,10 +4,9 @@ from typing import List, Optional
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from models.utilisateurs import Utilisateurs, UserRole
-from models.plannings import Plannings, PlanningType, PlanningStatut, ShiftType
+from models.plannings import Plannings, PlanningType
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
 from services.notifications import NotificationsService
@@ -37,7 +36,7 @@ async def verify_admin(current_user: Utilisateurs):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action"
+            detail="Vous n'avez pas la permission pour cette action",
         )
 
 
@@ -46,7 +45,7 @@ async def verify_cheftech(current_user: Utilisateurs):
     if current_user.role != UserRole.CHEFTECH:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action"
+            detail="Vous n'avez pas la permission pour cette action",
         )
 
 
@@ -55,7 +54,7 @@ async def verify_chetop_or_cheftech(current_user: Utilisateurs):
     if current_user.role not in [UserRole.CHETOP, UserRole.CHEFTECH]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action"
+            detail="Vous n'avez pas la permission pour cette action",
         )
 
 
@@ -64,7 +63,7 @@ async def verify_cheftech_or_tech(current_user: Utilisateurs):
     if current_user.role not in [UserRole.CHEFTECH, UserRole.TECHNICIEN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action"
+            detail="Vous n'avez pas la permission pour cette action",
         )
 
 
@@ -87,17 +86,17 @@ async def validate_planning_data(db: AsyncSession, data):
         if not data.shift_type:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="shift_type is required for SHIFT planning"
+                detail="shift_type is required for SHIFT planning",
             )
         if not data.chef_operation_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="chef_operation_id is required for SHIFT planning"
+                detail="chef_operation_id is required for SHIFT planning",
             )
     elif data.shift_type:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="shift_type should only be provided for SHIFT planning"
+            detail="shift_type should only be provided for SHIFT planning",
         )
 
     # Validate chef_operation exists and has CHETOP role
@@ -106,12 +105,12 @@ async def validate_planning_data(db: AsyncSession, data):
         if not chef_op:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Chef Operation with ID {data.chef_operation_id} not found"
+                detail=f"Chef Operation with ID {data.chef_operation_id} not found",
             )
         if chef_op.role != UserRole.CHETOP:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chef Operation must have CHETOP role"
+                detail="Chef Operation must have CHETOP role",
             )
 
     # Validate chef_technique exists and has CHEFTECH role
@@ -120,12 +119,12 @@ async def validate_planning_data(db: AsyncSession, data):
         if not chef_tech:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Chef Technique with ID {data.chef_technique_id} not found"
+                detail=f"Chef Technique with ID {data.chef_technique_id} not found",
             )
         if chef_tech.role != UserRole.CHEFTECH:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chef Technique must have CHEFTECH role"
+                detail="Chef Technique must have CHEFTECH role",
             )
 
     # Validate all technicians exist and have TECHNICIEN role
@@ -134,24 +133,21 @@ async def validate_planning_data(db: AsyncSession, data):
         if not tech:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Technician with ID {tech_id} not found"
+                detail=f"Technician with ID {tech_id} not found",
             )
         if tech.role != UserRole.TECHNICIEN:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User {tech_id} must have TECHNICIEN role"
+                detail=f"User {tech_id} must have TECHNICIEN role",
             )
 
 
 async def send_planning_notifications(
-    db: AsyncSession,
-    planning_id: int,
-    identifiant_planning: str,
-    user_ids: List[int]
+    db: AsyncSession, planning_id: int, identifiant_planning: str, user_ids: List[int]
 ):
     """Send notifications to all assigned users"""
     notification_service = NotificationsService(db)
-    
+
     for user_id in user_ids:
         try:
             notification_data = {
@@ -161,10 +157,12 @@ async def send_planning_notifications(
                 "type": "PLANNING_ASSIGNMENT",
                 "message": f"You have been assigned to planning: {identifiant_planning}",
                 "date_envoi": datetime.now(),
-                "lu": False
+                "lu": False,
             }
             await notification_service.create(notification_data)
-            logger.info(f"Notification sent to user {user_id} for planning {planning_id}")
+            logger.info(
+                f"Notification sent to user {user_id} for planning {planning_id}"
+            )
         except Exception as e:
             logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
 
@@ -187,17 +185,25 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
             if not user or user.id in seen_user_ids:
                 continue
             seen_user_ids.add(user.id)
-            role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+            role_val = (
+                user.role.value if hasattr(user.role, "value") else str(user.role)
+            )
             shift_val = None
             if user.shift_type:
-                shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
-            assigned_users.append({
-                "id": user.id,
-                "nom": user.nom,
-                "email": user.email,
-                "role": role_val,
-                "shift_type": shift_val,
-            })
+                shift_val = (
+                    user.shift_type.value
+                    if hasattr(user.shift_type, "value")
+                    else str(user.shift_type)
+                )
+            assigned_users.append(
+                {
+                    "id": user.id,
+                    "nom": user.nom,
+                    "email": user.email,
+                    "role": role_val,
+                    "shift_type": shift_val,
+                }
+            )
     else:
         # Fallback: query the database (single-item endpoints)
         result = await db.execute(
@@ -209,22 +215,32 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
             if user.id in seen_user_ids:
                 continue
             seen_user_ids.add(user.id)
-            role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+            role_val = (
+                user.role.value if hasattr(user.role, "value") else str(user.role)
+            )
             shift_val = None
             if user.shift_type:
-                shift_val = user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type)
-            assigned_users.append({
-                "id": user.id,
-                "nom": user.nom,
-                "email": user.email,
-                "role": role_val,
-                "shift_type": shift_val,
-            })
+                shift_val = (
+                    user.shift_type.value
+                    if hasattr(user.shift_type, "value")
+                    else str(user.shift_type)
+                )
+            assigned_users.append(
+                {
+                    "id": user.id,
+                    "nom": user.nom,
+                    "email": user.email,
+                    "role": role_val,
+                    "shift_type": shift_val,
+                }
+            )
 
     # If planning_utilisateurs had no rows, recover chef users from the plannings table itself
     # (handles plannings whose bridge rows were wiped by a past bug)
     if not assigned_users:
-        chef_ids = list(filter(None, [planning.chef_operation_id, planning.chef_technique_id]))
+        chef_ids = list(
+            filter(None, [planning.chef_operation_id, planning.chef_technique_id])
+        )
         if chef_ids:
             chefs_result = await db.execute(
                 select(Utilisateurs).where(Utilisateurs.id.in_(chef_ids))
@@ -233,32 +249,57 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
                 if chef.id in seen_user_ids:
                     continue
                 seen_user_ids.add(chef.id)
-                role_val = chef.role.value if hasattr(chef.role, "value") else str(chef.role)
-                shift_val = chef.shift_type.value if getattr(chef, "shift_type", None) and hasattr(chef.shift_type, "value") else (str(chef.shift_type) if getattr(chef, "shift_type", None) else None)
-                assigned_users.append({
-                    "id": chef.id,
-                    "nom": chef.nom,
-                    "email": chef.email,
-                    "role": role_val,
-                    "shift_type": shift_val,
-                })
+                role_val = (
+                    chef.role.value if hasattr(chef.role, "value") else str(chef.role)
+                )
+                shift_val = (
+                    chef.shift_type.value
+                    if getattr(chef, "shift_type", None)
+                    and hasattr(chef.shift_type, "value")
+                    else (
+                        str(chef.shift_type)
+                        if getattr(chef, "shift_type", None)
+                        else None
+                    )
+                )
+                assigned_users.append(
+                    {
+                        "id": chef.id,
+                        "nom": chef.nom,
+                        "email": chef.email,
+                        "role": role_val,
+                        "shift_type": shift_val,
+                    }
+                )
 
     if pm_loaded:
         machine_ids = [pm.machine_id for pm in planning.planning_machines]
     else:
         machines_result = await db.execute(
-            select(Planning_machines.machine_id).where(Planning_machines.planning_id == planning.id)
+            select(Planning_machines.machine_id).where(
+                Planning_machines.planning_id == planning.id
+            )
         )
         machine_ids = [row[0] for row in machines_result.fetchall()]
-    
+
     # Safely handle enum values for planning
-    type_val = planning.type.value if hasattr(planning.type, "value") else str(planning.type)
+    type_val = (
+        planning.type.value if hasattr(planning.type, "value") else str(planning.type)
+    )
     planning_shift_val = None
     if planning.shift_type:
-        planning_shift_val = planning.shift_type.value if hasattr(planning.shift_type, "value") else str(planning.shift_type)
+        planning_shift_val = (
+            planning.shift_type.value
+            if hasattr(planning.shift_type, "value")
+            else str(planning.shift_type)
+        )
     planning_statut_val = None
     if planning.planning_statut:
-        planning_statut_val = planning.planning_statut.value if hasattr(planning.planning_statut, "value") else str(planning.planning_statut)
+        planning_statut_val = (
+            planning.planning_statut.value
+            if hasattr(planning.planning_statut, "value")
+            else str(planning.planning_statut)
+        )
 
     return {
         "id": planning.id,

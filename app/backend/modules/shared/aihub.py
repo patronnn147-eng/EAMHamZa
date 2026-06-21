@@ -130,7 +130,9 @@ async def generate_text(
                 finally:
                     yield "[DONE]"
 
-            return EventSourceResponse(event_generator(), media_type="text/event-stream")
+            return EventSourceResponse(
+                event_generator(), media_type="text/event-stream"
+            )
         else:
             # Non-streaming response
             response = await service.gentxt(request)
@@ -138,7 +140,10 @@ async def generate_text(
 
     except ValueError as e:
         logger.error(f"AI service configuration error: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=extract_error_message(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=extract_error_message(e),
+        )
     except Exception as e:
         logger.error(f"Text generation failed: {e}")
         raise HTTPException(
@@ -176,7 +181,10 @@ async def generate_image(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except ValueError as e:
         logger.error(f"AI service configuration error: {e}")
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=extract_error_message(e))
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=extract_error_message(e),
+        )
     except Exception as e:
         logger.error(f"Image generation failed: {e}")
         raise HTTPException(

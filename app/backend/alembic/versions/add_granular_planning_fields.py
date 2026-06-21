@@ -20,7 +20,9 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     # Adding columns directly without existence check to avoid bind.execute issues in async env
-    op.add_column("plannings", sa.Column("sous_zone", sa.String(length=100), nullable=True))
+    op.add_column(
+        "plannings", sa.Column("sous_zone", sa.String(length=100), nullable=True)
+    )
     op.add_column("plannings", sa.Column("ordre", sa.String(length=100), nullable=True))
 
 

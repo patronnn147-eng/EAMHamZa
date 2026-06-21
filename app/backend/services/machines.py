@@ -41,9 +41,9 @@ class MachinesService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,18 +51,20 @@ class MachinesService:
         try:
             query = select(Machines)
             count_query = select(func.count(Machines.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Machines, field):
                         query = query.where(getattr(Machines, field) == value)
-                        count_query = count_query.where(getattr(Machines, field) == value)
-            
+                        count_query = count_query.where(
+                            getattr(Machines, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Machines, field_name):
                         query = query.order_by(getattr(Machines, field_name).desc())
@@ -85,7 +87,9 @@ class MachinesService:
             logger.error(f"Error fetching machines list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Machines]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Machines]:
         """Update machines"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -121,7 +125,9 @@ class MachinesService:
             logger.error(f"Error deleting machines {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Machines]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Machines]:
         """Get machines by any field"""
         try:
             if not hasattr(Machines, field_name):

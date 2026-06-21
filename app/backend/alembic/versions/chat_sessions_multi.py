@@ -4,6 +4,7 @@ Revision ID: chat_sessions_multi
 Revises: upgrade_embedding_dim_1024
 Create Date: 2026-06-01
 """
+
 from alembic import op
 import sqlalchemy as sa
 

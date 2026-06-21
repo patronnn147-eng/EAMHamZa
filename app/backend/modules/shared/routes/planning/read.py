@@ -9,14 +9,14 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.plannings import Plannings, PlanningStatut
+from models.plannings import Plannings
 from models.planning_machines import Planning_machines
 from models.planning_utilisateurs import Planning_utilisateurs
 from models.planning_taches import Planning_taches
 from models.machines import Machines
 from services.plannings import PlanningsService
 from .schemas import PlanningResponse, PlanningMachineResponse, UserOption
-from .helpers import verify_admin, get_planning_with_users
+from .helpers import get_planning_with_users
 
 router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
 logger = logging.getLogger(__name__)
@@ -27,14 +27,14 @@ async def list_plannings(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(10, ge=1, le=100, description="Items per page"),
     current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """List plannings filtered by user role and assignments"""
     skip = (page - 1) * size
     limit = size
     try:
         service = PlanningsService(db)
-        
+
         # Admin can see all plannings
         if current_user.role == UserRole.ADMIN:
             result = await service.get_list(skip=skip, limit=limit, sort="-date_debut")
@@ -43,80 +43,83 @@ async def list_plannings(
             # Role-specific filtering for more precision
             if current_user.role == UserRole.CHETOP:
                 # Chef Opérateur sees plannings where they are responsible
-                query = select(Plannings.id).where(Plannings.chef_operation_id == current_user.id)
+                query = select(Plannings.id).where(
+                    Plannings.chef_operation_id == current_user.id
+                )
             elif current_user.role == UserRole.CHEFTECH:
                 # Chef Technique sees plannings where they are responsible
-                query = select(Plannings.id).where(Plannings.chef_technique_id == current_user.id)
+                query = select(Plannings.id).where(
+                    Plannings.chef_technique_id == current_user.id
+                )
             else:
                 # Technicians see plannings where they are explicitly assigned in planning_utilisateurs
                 query = select(Planning_utilisateurs.planning_id).where(
                     Planning_utilisateurs.utilisateur_id == current_user.id
                 )
-            
+
             planning_ids_result = await db.execute(query.distinct())
             planning_ids = [row[0] for row in planning_ids_result.fetchall()]
-            
+
             if not planning_ids:
                 # User has no assigned plannings
-                return PaginatedResponse.create(
-                    items=[],
-                    total=0,
-                    page=page,
-                    size=size
-                )
-            
+                return PaginatedResponse.create(items=[], total=0, page=page, size=size)
+
             # Get only the plannings where user is assigned
-            data_query = select(Plannings).where(Plannings.id.in_(planning_ids)).where(Plannings.archived_at.is_(None))
-            
+            data_query = (
+                select(Plannings)
+                .where(Plannings.id.in_(planning_ids))
+                .where(Plannings.archived_at.is_(None))
+            )
+
             # Eager load relationships to avoid N+1 in get_planning_with_users
             data_query = data_query.options(
-                selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
+                selectinload(Plannings.planning_utilisateurs).selectinload(
+                    Planning_utilisateurs.utilisateur
+                ),
                 selectinload(Plannings.planning_machines),
             )
-            
+
             # Apply sorting
             data_query = data_query.order_by(Plannings.date_debut.desc())
-            
+
             # Apply pagination
             data_query = data_query.offset(skip).limit(limit)
-            
+
             # Execute query
             plannings_result = await db.execute(data_query)
             plannings_objs = plannings_result.scalars().all()
-            
+
             # Get total count
-            count_query = select(func.count(Plannings.id)).where(Plannings.id.in_(planning_ids)).where(Plannings.archived_at.is_(None))
+            count_query = (
+                select(func.count(Plannings.id))
+                .where(Plannings.id.in_(planning_ids))
+                .where(Plannings.archived_at.is_(None))
+            )
             count_result = await db.execute(count_query)
             total = count_result.scalar() or 0
-            
+
             items = []
             for p in plannings_objs:
                 items.append(await get_planning_with_users(db, p))
-            
+
             return PaginatedResponse.create(
-                items=items,
-                total=total,
-                page=page,
-                size=size
+                items=items, total=total, page=page, size=size
             )
-            
+
         # Enrich with assigned users
         items_with_users = []
         for planning in result["items"]:
             planning_dict = await get_planning_with_users(db, planning)
             items_with_users.append(PlanningResponse(**planning_dict))
-        
+
         return PaginatedResponse.create(
-            items=items_with_users,
-            total=result["total"],
-            page=page,
-            size=size
+            items=items_with_users, total=result["total"], page=page, size=size
         )
     except Exception as e:
         logger.error(f"Error listing plannings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list plannings: {str(e)}"
+            detail=f"Failed to list plannings: {str(e)}",
         )
 
 
@@ -130,7 +133,7 @@ async def list_plannings_with_tasks(
         tasks_subquery = (
             select(
                 Planning_taches.planning_id,
-                func.count(Planning_taches.id).label('task_count')
+                func.count(Planning_taches.id).label("task_count"),
             )
             .where(Planning_taches.archived_at.is_(None))
             .group_by(Planning_taches.planning_id)
@@ -144,14 +147,14 @@ async def list_plannings_with_tasks(
                 Plannings.date_debut,
                 Plannings.date_fin,
                 Plannings.planning_statut,
-                func.coalesce(tasks_subquery.c.task_count, 0).label('task_count')
+                func.coalesce(tasks_subquery.c.task_count, 0).label("task_count"),
             )
             .outerjoin(tasks_subquery, Plannings.id == tasks_subquery.c.planning_id)
             .where(Plannings.archived_at.is_(None))
             .order_by(Plannings.date_debut.desc())
         )
         rows = result.all()
-        
+
         return [
             {
                 "id": row[0],
@@ -167,7 +170,7 @@ async def list_plannings_with_tasks(
         logger.error(f"Error listing plannings with tasks: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to list plannings: {str(e)}"
+            detail=f"Failed to list plannings: {str(e)}",
         )
 
 
@@ -175,19 +178,18 @@ async def list_plannings_with_tasks(
 async def get_planning(
     planning_id: int,
     current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     """Get planning details with role-based access control"""
     try:
         service = PlanningsService(db)
         planning = await service.get_by_id(planning_id)
-        
+
         if not planning:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Planning not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Planning not found"
             )
-        
+
         # Check if user has access to this planning
         if current_user.role != UserRole.ADMIN:
             has_access = False
@@ -195,23 +197,23 @@ async def get_planning(
                 has_access = planning.chef_operation_id == current_user.id
             elif current_user.role == UserRole.CHEFTECH:
                 has_access = planning.chef_technique_id == current_user.id
-            
+
             # If not already found as chef, check the bridge table (especially for technicians)
             if not has_access:
                 pu_result = await db.execute(
                     select(Planning_utilisateurs).where(
                         Planning_utilisateurs.planning_id == planning_id,
-                        Planning_utilisateurs.utilisateur_id == current_user.id
+                        Planning_utilisateurs.utilisateur_id == current_user.id,
                     )
                 )
                 has_access = pu_result.scalar_one_or_none() is not None
-            
+
             if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="You do not have access to this planning"
+                    detail="You do not have access to this planning",
                 )
-        
+
         planning_dict = await get_planning_with_users(db, planning)
         return PlanningResponse(**planning_dict)
     except HTTPException:
@@ -220,7 +222,7 @@ async def get_planning(
         logger.error(f"Error fetching planning {planning_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to fetch planning: {str(e)}"
+            detail=f"Failed to fetch planning: {str(e)}",
         )
 
 
@@ -248,7 +250,7 @@ async def get_planning_machines(
                 has_access = planning.chef_operation_id == current_user.id
             elif current_user.role == UserRole.CHEFTECH:
                 has_access = planning.chef_technique_id == current_user.id
-            
+
             # If not responsible, check if explicitly assigned (bridge table)
             if not has_access:
                 assignment_query = select(Planning_utilisateurs).where(
@@ -258,7 +260,7 @@ async def get_planning_machines(
                 assignment_result = await db.execute(assignment_query)
                 assignment = assignment_result.scalar_one_or_none()
                 has_access = assignment is not None
-            
+
             if not has_access:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -293,18 +295,23 @@ async def get_planning_users(
     try:
         result = await db.execute(
             select(Utilisateurs)
-            .join(Planning_utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
+            .join(
+                Planning_utilisateurs,
+                Planning_utilisateurs.utilisateur_id == Utilisateurs.id,
+            )
             .where(Planning_utilisateurs.planning_id == planning_id)
         )
         users = result.scalars().all()
-        
+
         return [
             UserOption(
                 id=user.id,
                 nom=user.nom,
                 email=user.email,
                 role=user.role.value,
-                shift_type=user.shift_type.value if hasattr(user.shift_type, "value") else str(user.shift_type),
+                shift_type=user.shift_type.value
+                if hasattr(user.shift_type, "value")
+                else str(user.shift_type),
             )
             for user in users
         ]

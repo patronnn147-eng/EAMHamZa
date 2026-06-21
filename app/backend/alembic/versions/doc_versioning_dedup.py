@@ -8,6 +8,7 @@ Revision ID: doc_versioning_dedup
 Revises: hybrid_search_tsvector
 Create Date: 2026-06-11
 """
+
 from typing import Sequence, Union
 
 from alembic import op

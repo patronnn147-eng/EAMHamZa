@@ -4,13 +4,13 @@ RAG document storage on MinIO/S3 (bucket: rag-docs).
 Server-side upload/download/delete + presigned URL generation for the
 admin UI. Falls back gracefully if MinIO is not configured.
 """
+
 import io
 import logging
 import mimetypes
 import os
-import uuid
-from datetime import timedelta, datetime, timezone
-from typing import Optional, Tuple
+from datetime import timedelta
+from typing import Optional
 from urllib.parse import urlparse
 
 from minio import Minio
@@ -23,26 +23,33 @@ RAG_BUCKET = os.getenv("RAG_BUCKET", "rag-docs")
 
 def _get_minio_client() -> Optional[Minio]:
     """Build a MinIO client from env vars (same vars as services.storage)."""
-    url        = os.getenv("OSS_SERVICE_URL", "")
+    url = os.getenv("OSS_SERVICE_URL", "")
     access_key = os.getenv("OSS_API_KEY", "")
     secret_key = os.getenv("OSS_SECRET_KEY", "")
 
     if not (url and access_key and secret_key):
         # Fall back to MINIO_ROOT_* (typical compose setup)
-        url        = url        or "http://minio:9000"
+        url = url or "http://minio:9000"
         access_key = access_key or os.getenv("MINIO_ROOT_USER", "")
         secret_key = secret_key or os.getenv("MINIO_ROOT_PASSWORD", "")
 
     if not (access_key and secret_key):
-        logger.warning("[rag_storage] MinIO credentials missing — RAG S3 storage disabled.")
+        logger.warning(
+            "[rag_storage] MinIO credentials missing — RAG S3 storage disabled."
+        )
         return None
 
     try:
         parsed = urlparse(url)
         endpoint = parsed.netloc or parsed.path
-        secure   = parsed.scheme == "https"
-        return Minio(endpoint, access_key=access_key, secret_key=secret_key,
-                     secure=secure, region="us-east-1")
+        secure = parsed.scheme == "https"
+        return Minio(
+            endpoint,
+            access_key=access_key,
+            secret_key=secret_key,
+            secure=secure,
+            region="us-east-1",
+        )
     except Exception as e:
         logger.error(f"[rag_storage] Failed to build MinIO client: {e}")
         return None
@@ -64,7 +71,9 @@ def build_object_key(doc_id: str, filename: str) -> str:
     return f"{doc_id}/{safe_name}"
 
 
-def upload_bytes(file_bytes: bytes, object_key: str, content_type: Optional[str] = None) -> str:
+def upload_bytes(
+    file_bytes: bytes, object_key: str, content_type: Optional[str] = None
+) -> str:
     """
     Upload bytes to the rag-docs bucket. Returns the S3 object key on success.
     Raises on failure — caller decides whether to abort ingest.
@@ -121,7 +130,9 @@ def list_bucket_objects() -> list[dict]:
             {
                 "key": o.object_name,
                 "size": o.size,
-                "last_modified": o.last_modified.isoformat() if o.last_modified else None,
+                "last_modified": o.last_modified.isoformat()
+                if o.last_modified
+                else None,
                 "etag": o.etag,
             }
             for o in objects
@@ -159,11 +170,20 @@ def presigned_download_url(object_key: str, expires_hours: int = 1) -> Optional[
         if public_url:
             parsed = urlparse(public_url)
             endpoint = parsed.netloc or parsed.path
-            secure   = parsed.scheme == "https"
-            access_key = os.getenv("OSS_API_KEY", "") or os.getenv("MINIO_ROOT_USER", "")
-            secret_key = os.getenv("OSS_SECRET_KEY", "") or os.getenv("MINIO_ROOT_PASSWORD", "")
-            client = Minio(endpoint, access_key=access_key, secret_key=secret_key,
-                           secure=secure, region="us-east-1")
+            secure = parsed.scheme == "https"
+            access_key = os.getenv("OSS_API_KEY", "") or os.getenv(
+                "MINIO_ROOT_USER", ""
+            )
+            secret_key = os.getenv("OSS_SECRET_KEY", "") or os.getenv(
+                "MINIO_ROOT_PASSWORD", ""
+            )
+            client = Minio(
+                endpoint,
+                access_key=access_key,
+                secret_key=secret_key,
+                secure=secure,
+                region="us-east-1",
+            )
         return client.presigned_get_object(
             RAG_BUCKET, object_key, expires=timedelta(hours=expires_hours)
         )

@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
+from datetime import datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,12 +14,15 @@ from services.planning_utilisateurs import Planning_utilisateursService
 # Set up logging
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/entities/planning_utilisateurs", tags=["planning_utilisateurs"])
+router = APIRouter(
+    prefix="/api/v1/entities/planning_utilisateurs", tags=["planning_utilisateurs"]
+)
 
 
 # ---------- Pydantic Schemas ----------
 class Planning_utilisateursData(BaseModel):
     """Entity data schema (for create/update)"""
+
     planning_id: int
     utilisateur_id: int
     created_at: Optional[datetime] = None
@@ -27,6 +30,7 @@ class Planning_utilisateursData(BaseModel):
 
 class Planning_utilisateursUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     planning_id: Optional[int] = None
     utilisateur_id: Optional[int] = None
     created_at: Optional[datetime] = None
@@ -34,6 +38,7 @@ class Planning_utilisateursUpdateData(BaseModel):
 
 class Planning_utilisateursResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     planning_id: int
     utilisateur_id: int
@@ -45,6 +50,7 @@ class Planning_utilisateursResponse(BaseModel):
 
 class Planning_utilisateursListResponse(BaseModel):
     """List response schema"""
+
     items: List[Planning_utilisateursResponse]
     total: int
     skip: int
@@ -53,22 +59,26 @@ class Planning_utilisateursListResponse(BaseModel):
 
 class Planning_utilisateursBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[Planning_utilisateursData]
 
 
 class Planning_utilisateursBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: Planning_utilisateursUpdateData
 
 
 class Planning_utilisateursBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[Planning_utilisateursBatchUpdateItem]
 
 
 class Planning_utilisateursBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]
 
 
@@ -78,13 +88,17 @@ async def query_planning_utilisateurss(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """Query planning_utilisateurss with filtering, sorting, and pagination"""
-    logger.debug(f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+    logger.debug(
+        f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
+
     service = Planning_utilisateursService(db)
     try:
         # Parse query JSON if provided
@@ -94,9 +108,9 @@ async def query_planning_utilisateurss(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -115,12 +129,16 @@ async def query_planning_utilisateurss_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     # Query planning_utilisateurss with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = Planning_utilisateursService(db)
     try:
@@ -133,10 +151,7 @@ async def query_planning_utilisateurss_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} planning_utilisateurss")
         return result
@@ -155,19 +170,23 @@ async def get_planning_utilisateurs(
 ):
     """Get a single planning_utilisateurs by ID"""
     logger.debug(f"Fetching planning_utilisateurs with id: {id}, fields={fields}")
-    
+
     service = Planning_utilisateursService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Planning_utilisateurs with id {id} not found")
-            raise HTTPException(status_code=404, detail="Planning_utilisateurs not found")
-        
+            raise HTTPException(
+                status_code=404, detail="Planning_utilisateurs not found"
+            )
+
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching planning_utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error fetching planning_utilisateurs {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -178,13 +197,15 @@ async def create_planning_utilisateurs(
 ):
     """Create a new planning_utilisateurs"""
     logger.debug(f"Creating new planning_utilisateurs with data: {data}")
-    
+
     service = Planning_utilisateursService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
-            raise HTTPException(status_code=400, detail="Failed to create planning_utilisateurs")
-        
+            raise HTTPException(
+                status_code=400, detail="Failed to create planning_utilisateurs"
+            )
+
         logger.info(f"Planning_utilisateurs created successfully with id: {result.id}")
         return result
     except ValueError as e:
@@ -195,23 +216,25 @@ async def create_planning_utilisateurs(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=List[Planning_utilisateursResponse], status_code=201)
+@router.post(
+    "/batch", response_model=List[Planning_utilisateursResponse], status_code=201
+)
 async def create_planning_utilisateurss_batch(
     request: Planning_utilisateursBatchCreateRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """Create multiple planning_utilisateurss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} planning_utilisateurss")
-    
+
     service = Planning_utilisateursService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch created {len(results)} planning_utilisateurss successfully")
         return results
     except Exception as e:
@@ -227,18 +250,20 @@ async def update_planning_utilisateurss_batch(
 ):
     """Update multiple planning_utilisateurss in a single request"""
     logger.debug(f"Batch updating {len(request.items)} planning_utilisateurss")
-    
+
     service = Planning_utilisateursService(db)
     results = []
-    
+
     try:
         for item in request.items:
             # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch updated {len(results)} planning_utilisateurss successfully")
         return results
     except Exception as e:
@@ -263,8 +288,10 @@ async def update_planning_utilisateurs(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Planning_utilisateurs with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Planning_utilisateurs not found")
-        
+            raise HTTPException(
+                status_code=404, detail="Planning_utilisateurs not found"
+            )
+
         logger.info(f"Planning_utilisateurs {id} updated successfully")
         return result
     except HTTPException:
@@ -273,7 +300,9 @@ async def update_planning_utilisateurs(
         logger.error(f"Validation error updating planning_utilisateurs {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating planning_utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error updating planning_utilisateurs {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -284,18 +313,23 @@ async def delete_planning_utilisateurss_batch(
 ):
     """Delete multiple planning_utilisateurss by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} planning_utilisateurss")
-    
+
     service = Planning_utilisateursService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id)
             if success:
                 deleted_count += 1
-        
-        logger.info(f"Batch deleted {deleted_count} planning_utilisateurss successfully")
-        return {"message": f"Successfully deleted {deleted_count} planning_utilisateurss", "deleted_count": deleted_count}
+
+        logger.info(
+            f"Batch deleted {deleted_count} planning_utilisateurss successfully"
+        )
+        return {
+            "message": f"Successfully deleted {deleted_count} planning_utilisateurss",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -309,18 +343,22 @@ async def delete_planning_utilisateurs(
 ):
     """Delete a single planning_utilisateurs by ID"""
     logger.debug(f"Deleting planning_utilisateurs with id: {id}")
-    
+
     service = Planning_utilisateursService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(f"Planning_utilisateurs with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Planning_utilisateurs not found")
-        
+            raise HTTPException(
+                status_code=404, detail="Planning_utilisateurs not found"
+            )
+
         logger.info(f"Planning_utilisateurs {id} deleted successfully")
         return {"message": "Planning_utilisateurs deleted successfully", "id": id}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting planning_utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error deleting planning_utilisateurs {id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

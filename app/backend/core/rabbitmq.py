@@ -9,7 +9,9 @@ from aio_pika import ExchangeType
 
 logger = logging.getLogger(__name__)
 
-RABBITMQ_URL = os.environ.get("CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//")
+RABBITMQ_URL = os.environ.get(
+    "CELERY_BROKER_URL", "amqp://guest:guest@localhost:5672//"
+)
 
 EXCHANGE_WORK_ORDERS = "work_orders"
 EXCHANGE_INTERVENTIONS = "interventions"
@@ -98,7 +100,9 @@ class RabbitMQService:
 
     async def publish_intervention_event(self, routing_key: str, payload: dict) -> None:
         if self._int_exchange is None:
-            logger.warning("RabbitMQ not connected, skipping intervention event publish")
+            logger.warning(
+                "RabbitMQ not connected, skipping intervention event publish"
+            )
             return
         try:
             message = aio_pika.Message(

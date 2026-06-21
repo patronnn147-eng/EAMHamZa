@@ -53,7 +53,9 @@ def upgrade() -> None:
     if not _table_exists("ml_prediction_logs"):
         op.create_table(
             "ml_prediction_logs",
-            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+            sa.Column(
+                "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
+            ),
             sa.Column("machine_id", sa.Integer(), nullable=False, index=True),
             sa.Column("machine_name", sa.String(), nullable=True),
             sa.Column("risk_level", sa.String(20), nullable=True),
@@ -61,12 +63,21 @@ def upgrade() -> None:
             sa.Column("rul_days", sa.Float(), nullable=True),
             sa.Column("predicted_failure_date", sa.String(), nullable=True),
             sa.Column("predicted_priority", sa.String(20), nullable=True),
-            sa.Column("is_anomaly", sa.Boolean(), nullable=True, server_default="false"),
+            sa.Column(
+                "is_anomaly", sa.Boolean(), nullable=True, server_default="false"
+            ),
             sa.Column("anomaly_score", sa.Float(), nullable=True),
             sa.Column("p2_failure_types", sa.Text(), nullable=True),
             sa.Column("data_points", sa.Integer(), nullable=True),
-            sa.Column("ml_model_used", sa.Boolean(), nullable=True, server_default="false"),
-            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+            sa.Column(
+                "ml_model_used", sa.Boolean(), nullable=True, server_default="false"
+            ),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.func.now(),
+                nullable=False,
+            ),
         )
 
     # 2. Add PDCA feedback columns to ordres_intervention

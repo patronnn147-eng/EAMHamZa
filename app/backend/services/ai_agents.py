@@ -10,9 +10,10 @@ Three sequential specialized agents, all using Groq (no extra deps):
 Each agent is a focused Groq call with a narrow system prompt.
 Results flow: collector → analyst → planner → final structured response.
 """
+
 import json
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,6 +70,7 @@ Reponds UNIQUEMENT avec le JSON valide, sans markdown ni explication."""
 # Agent 1 — Data Collector
 # ---------------------------------------------------------------------------
 
+
 async def run_collector(
     query: str,
     db: AsyncSession,
@@ -116,7 +118,9 @@ async def run_collector(
         try:
             result = await execute_tool(func_name, func_args, db)
             collected[func_name] = result
-            logger.info(f"Collector: {func_name} returned {len(result) if isinstance(result, list) else 1} items")
+            logger.info(
+                f"Collector: {func_name} returned {len(result) if isinstance(result, list) else 1} items"
+            )
         except Exception as e:
             logger.error(f"Collector: tool {func_name} failed: {e}")
             collected[func_name] = {"error": str(e)}
@@ -127,6 +131,7 @@ async def run_collector(
 # ---------------------------------------------------------------------------
 # Agent 2 — Analyst
 # ---------------------------------------------------------------------------
+
 
 def run_analyst(query: str, collected_data: Dict[str, Any]) -> str:
     """
@@ -152,8 +157,7 @@ def run_analyst(query: str, collected_data: Dict[str, Any]) -> str:
         {
             "role": "user",
             "content": (
-                f"Requete originale: {query}\n\n"
-                f"Donnees collectees:\n{data_summary}"
+                f"Requete originale: {query}\n\nDonnees collectees:\n{data_summary}"
             ),
         },
     ]
@@ -174,6 +178,7 @@ def run_analyst(query: str, collected_data: Dict[str, Any]) -> str:
 # Agent 3 — Planner
 # ---------------------------------------------------------------------------
 
+
 def run_planner(query: str, analysis: str) -> Dict[str, Any]:
     """
     Produces structured action plan from analyst output.
@@ -186,8 +191,7 @@ def run_planner(query: str, analysis: str) -> Dict[str, Any]:
         {
             "role": "user",
             "content": (
-                f"Requete originale: {query}\n\n"
-                f"Analyse de situation:\n{analysis}"
+                f"Requete originale: {query}\n\nAnalyse de situation:\n{analysis}"
             ),
         },
     ]
@@ -205,7 +209,7 @@ def run_planner(query: str, analysis: str) -> Dict[str, Any]:
         if content.startswith("```"):
             lines = content.split("\n")
             content = "\n".join(
-                l for l in lines if not l.strip().startswith("```")
+                ln for ln in lines if not ln.strip().startswith("```")
             ).strip()
 
         return json.loads(content)
@@ -231,6 +235,7 @@ def _fallback_plan(note: str) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Orchestrator — runs all three agents sequentially
 # ---------------------------------------------------------------------------
+
 
 async def run_eam_analysis(
     query: str,

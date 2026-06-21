@@ -2,9 +2,9 @@ import json
 import logging
 from typing import List, Optional
 
-from datetime import datetime, date
+from datetime import datetime
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,7 @@ router = APIRouter(prefix="/api/v1/entities/ordres", tags=["ordres"])
 # ---------- Pydantic Schemas ----------
 class OrdresData(BaseModel):
     """Entity data schema (for create/update)"""
+
     identifiant: str
     titre: str
     description: str = None
@@ -30,6 +31,7 @@ class OrdresData(BaseModel):
 
 class OrdresUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     identifiant: Optional[str] = None
     titre: Optional[str] = None
     description: Optional[str] = None
@@ -40,6 +42,7 @@ class OrdresUpdateData(BaseModel):
 
 class OrdresResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     identifiant: str
     titre: str
@@ -54,6 +57,7 @@ class OrdresResponse(BaseModel):
 
 class OrdresListResponse(BaseModel):
     """List response schema"""
+
     items: List[OrdresResponse]
     total: int
     skip: int
@@ -62,22 +66,26 @@ class OrdresListResponse(BaseModel):
 
 class OrdresBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[OrdresData]
 
 
 class OrdresBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: OrdresUpdateData
 
 
 class OrdresBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[OrdresBatchUpdateItem]
 
 
 class OrdresBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]
 
 
@@ -87,13 +95,17 @@ async def query_ordress(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     """Query ordress with filtering, sorting, and pagination"""
-    logger.debug(f"Querying ordress: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
-    
+    logger.debug(
+        f"Querying ordress: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
+
     service = OrdresService(db)
     try:
         # Parse query JSON if provided
@@ -103,9 +115,9 @@ async def query_ordress(
                 query_dict = json.loads(query)
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
-        
+
         result = await service.get_list(
-            skip=skip, 
+            skip=skip,
             limit=limit,
             query_dict=query_dict,
             sort=sort,
@@ -124,12 +136,16 @@ async def query_ordress_all(
     query: str = Query(None, description="Query conditions (JSON string)"),
     sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(20, ge=1, le=2000, description="Max number of records to return"),
+    limit: int = Query(
+        20, ge=1, le=2000, description="Max number of records to return"
+    ),
     fields: str = Query(None, description="Comma-separated list of fields to return"),
     db: AsyncSession = Depends(get_db),
 ):
     # Query ordress with filtering, sorting, and pagination without user limitation
-    logger.debug(f"Querying ordress: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}")
+    logger.debug(
+        f"Querying ordress: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+    )
 
     service = OrdresService(db)
     try:
@@ -142,10 +158,7 @@ async def query_ordress_all(
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
         result = await service.get_list(
-            skip=skip,
-            limit=limit,
-            query_dict=query_dict,
-            sort=sort
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
         logger.debug(f"Found {result['total']} ordress")
         return result
@@ -164,14 +177,14 @@ async def get_ordres(
 ):
     """Get a single ordres by ID"""
     logger.debug(f"Fetching ordres with id: {id}, fields={fields}")
-    
+
     service = OrdresService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Ordres with id {id} not found")
             raise HTTPException(status_code=404, detail="Ordres not found")
-        
+
         return result
     except HTTPException:
         raise
@@ -187,13 +200,13 @@ async def create_ordres(
 ):
     """Create a new ordres"""
     logger.debug(f"Creating new ordres with data: {data}")
-    
+
     service = OrdresService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create ordres")
-        
+
         logger.info(f"Ordres created successfully with id: {result.id}")
         return result
     except ValueError as e:
@@ -211,16 +224,16 @@ async def create_ordress_batch(
 ):
     """Create multiple ordress in a single request"""
     logger.debug(f"Batch creating {len(request.items)} ordress")
-    
+
     service = OrdresService(db)
     results = []
-    
+
     try:
         for item_data in request.items:
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch created {len(results)} ordress successfully")
         return results
     except Exception as e:
@@ -236,18 +249,20 @@ async def update_ordress_batch(
 ):
     """Update multiple ordress in a single request"""
     logger.debug(f"Batch updating {len(request.items)} ordress")
-    
+
     service = OrdresService(db)
     results = []
-    
+
     try:
         for item in request.items:
             # Only include non-None values for partial updates
-            update_dict = {k: v for k, v in item.updates.model_dump().items() if v is not None}
+            update_dict = {
+                k: v for k, v in item.updates.model_dump().items() if v is not None
+            }
             result = await service.update(item.id, update_dict)
             if result:
                 results.append(result)
-        
+
         logger.info(f"Batch updated {len(results)} ordress successfully")
         return results
     except Exception as e:
@@ -273,7 +288,7 @@ async def update_ordres(
         if not result:
             logger.warning(f"Ordres with id {id} not found for update")
             raise HTTPException(status_code=404, detail="Ordres not found")
-        
+
         logger.info(f"Ordres {id} updated successfully")
         return result
     except HTTPException:
@@ -293,18 +308,21 @@ async def delete_ordress_batch(
 ):
     """Delete multiple ordress by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} ordress")
-    
+
     service = OrdresService(db)
     deleted_count = 0
-    
+
     try:
         for item_id in request.ids:
             success = await service.delete(item_id)
             if success:
                 deleted_count += 1
-        
+
         logger.info(f"Batch deleted {deleted_count} ordress successfully")
-        return {"message": f"Successfully deleted {deleted_count} ordress", "deleted_count": deleted_count}
+        return {
+            "message": f"Successfully deleted {deleted_count} ordress",
+            "deleted_count": deleted_count,
+        }
     except Exception as e:
         await db.rollback()
         logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
@@ -318,14 +336,14 @@ async def delete_ordres(
 ):
     """Delete a single ordres by ID"""
     logger.debug(f"Deleting ordres with id: {id}")
-    
+
     service = OrdresService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(f"Ordres with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail="Ordres not found")
-        
+
         logger.info(f"Ordres {id} deleted successfully")
         return {"message": "Ordres deleted successfully", "id": id}
     except HTTPException:

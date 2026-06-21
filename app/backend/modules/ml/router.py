@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, asc, cast, String
+from sqlalchemy import select, desc, cast, String, and_
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
@@ -13,11 +13,14 @@ from .logging import ShadowLogger
 from .rul_calculator import RULCalculator
 from .services.ml_retraining import RetrainingService
 from core.ml_client import ml_client, is_ml_service_available, get_model_metrics
-from services.inventory.pieces import batch_get_parts_readiness, get_machine_parts_readiness
+from services.inventory.pieces import (
+    batch_get_parts_readiness,
+    get_machine_parts_readiness,
+)
 from services.ai_prompts import build_sensor_status
 
 from pydantic import BaseModel
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from schemas.pagination import PaginatedResponse
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
@@ -39,7 +42,7 @@ router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 _fleet_cache = {
     "data": None,
     "timestamp": None,
-    "ttl_seconds": 300  # 5 minutes cache
+    "ttl_seconds": 300,  # 5 minutes cache
 }
 
 # ── C8 Forecast cache ──────────────────────────────────────────────────────
@@ -52,7 +55,6 @@ class TelemetryUpdate(BaseModel):
     rotational_speed: Optional[int] = None
     torque: Optional[float] = None
     tool_wear: Optional[int] = None
-
 
 
 async def _get_telemetry_history(machine_id: int, db: AsyncSession):
@@ -72,14 +74,14 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     entries = list(reversed(result.scalars().all()))
     log_dicts = [
         {
-            "machine_id":           machine_id,
-            "air_temperature":      e.air_temperature,
-            "process_temperature":  e.process_temperature,
-            "rotational_speed":     e.rotational_speed,
-            "torque":               e.torque,
-            "tool_wear":            e.tool_wear,
-            "created_at":           e.recorded_at.isoformat() if e.recorded_at else "",
-            "risk_level":           "LOW",
+            "machine_id": machine_id,
+            "air_temperature": e.air_temperature,
+            "process_temperature": e.process_temperature,
+            "rotational_speed": e.rotational_speed,
+            "torque": e.torque,
+            "tool_wear": e.tool_wear,
+            "created_at": e.recorded_at.isoformat() if e.recorded_at else "",
+            "risk_level": "LOW",
         }
         for e in entries
     ]
@@ -87,7 +89,9 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
 
 
 @router.get("/machines/{machine_id}/unified-health")
-async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_unified_health(
+    machine_id: int, db: AsyncSession = Depends(get_db)
+) -> Dict:
     """
     Get the DST-fused unified health score for a machine.
 
@@ -118,34 +122,44 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     interventions = list(execute_result.scalars().all())
 
     from sqlalchemy import func as sa_func
+
     wo_query = select(sa_func.count(Ordres_travail.id)).where(
         Ordres_travail.machine_id == machine_id,
-        cast(Ordres_travail.statut, String).notin_(["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"])
+        cast(Ordres_travail.statut, String).notin_(
+            ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
+        ),
     )
     wo_result = await db.execute(wo_query)
     open_wo_count = wo_result.scalar() or 0
 
     from datetime import datetime, timedelta, timezone
+
     now_dt = datetime.now(timezone.utc)
     thirty_days_ago = now_dt - timedelta(days=30)
-    recent_count = len([
-        i for i in interventions
-        if i.date_intervention and (
-            i.date_intervention.replace(tzinfo=timezone.utc)
-            if i.date_intervention.tzinfo is None else i.date_intervention
-        ) > thirty_days_ago
-    ])
+    recent_count = len(
+        [
+            i
+            for i in interventions
+            if i.date_intervention
+            and (
+                i.date_intervention.replace(tzinfo=timezone.utc)
+                if i.date_intervention.tzinfo is None
+                else i.date_intervention
+            )
+            > thirty_days_ago
+        ]
+    )
 
     # Query telemetry history; derive scalars from latest entry or use defaults
     telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
 
     if telemetry_entries:
         latest = telemetry_entries[-1]
-        _air   = float(latest.air_temperature)
-        _proc  = float(latest.process_temperature)
-        _rpm   = int(latest.rotational_speed)
-        _torq  = float(latest.torque)
-        _wear  = float(latest.tool_wear)
+        _air = float(latest.air_temperature)
+        _proc = float(latest.process_temperature)
+        _rpm = int(latest.rotational_speed)
+        _torq = float(latest.torque)
+        _wear = float(latest.tool_wear)
     else:
         _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
 
@@ -181,15 +195,20 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "machine_id": machine_id,
         "machine_name": machine.nom,
         "unified_health_score": prediction.get(
-            "health_score",
-            prediction.get("unified_health_score", 0.0)
+            "health_score", prediction.get("unified_health_score", 0.0)
         ),
-        "score_source": prediction.get("health_breakdown", {}).get("score_source", "fallback_additive"),
+        "score_source": prediction.get("health_breakdown", {}).get(
+            "score_source", "fallback_additive"
+        ),
         "dst_verdict": prediction.get("health_breakdown", {}).get("dst_verdict"),
-        "conflict_factor_K": prediction.get("health_breakdown", {}).get("conflict_factor_K"),
+        "conflict_factor_K": prediction.get("health_breakdown", {}).get(
+            "conflict_factor_K"
+        ),
         "kalman_hi": fusion_result.get("kalman_hi") if fusion_result else None,
         "kalman_rul": fusion_result.get("kalman_rul") if fusion_result else None,
-        "sensor_fault_flag": fusion_result.get("sensor_fault_flag", False) if fusion_result else False,
+        "sensor_fault_flag": fusion_result.get("sensor_fault_flag", False)
+        if fusion_result
+        else False,
         "model_outputs": fusion_result.get("model_outputs") if fusion_result else None,
         "rul_days": prediction.get("rul_days"),
         "failure_probability": prediction.get("failure_probability"),
@@ -199,7 +218,9 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "reliability_score": prediction.get("reliability_score"),
         "explanations": prediction.get("explanations", []),
         "is_anomaly": prediction.get("is_anomaly", False),
-        "p4_anomaly_score": fusion_result.get("p4_anomaly_score", 0.0) if fusion_result else 0.0,
+        "p4_anomaly_score": fusion_result.get("p4_anomaly_score", 0.0)
+        if fusion_result
+        else 0.0,
         "predicted_priority": prediction.get("predicted_priority"),
         # Latest telemetry readings
         "air_temperature": _air,
@@ -208,7 +229,9 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
         "torque": _torq,
         "tool_wear": int(_wear),
         # maintenance_event: true when tool_wear reset detected — Mahal excluded from DST that step
-        "maintenance_event": fusion_result.get("maintenance_event", False) if fusion_result else False,
+        "maintenance_event": fusion_result.get("maintenance_event", False)
+        if fusion_result
+        else False,
     }
 
     # Inventory: parts availability for this machine
@@ -220,13 +243,17 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
 
     # P6: maintenance schedule (days until next recommended maintenance)
     _schedule_days = fusion_result.get("p6_schedule_days") if fusion_result else None
-    response["p6_schedule_days"] = round(_schedule_days, 1) if _schedule_days is not None else None
+    response["p6_schedule_days"] = (
+        round(_schedule_days, 1) if _schedule_days is not None else None
+    )
 
     # Side-effect: persist date_prochaine_maintenance on every ML call
     if _schedule_days and _schedule_days > 0:
         try:
             base = machine.date_derniere_maintenance or datetime.now().astimezone()
-            machine.date_prochaine_maintenance = base + timedelta(days=round(_schedule_days))
+            machine.date_prochaine_maintenance = base + timedelta(
+                days=round(_schedule_days)
+            )
             await db.commit()
         except Exception:
             pass  # never break the response
@@ -238,6 +265,7 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     # P7: emit PARTS_SHORTAGE alert if shortfall detected (non-fatal, deduped)
     try:
         from modules.ml.services.parts_alerts import emit_shortfall_alert
+
         await emit_shortfall_alert(machine_id, _parts_demand, db)
     except Exception:
         pass  # alert failure never breaks the response
@@ -246,7 +274,10 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
     # the snapshot taken at the most recent work order's creation.
     try:
         from services.ml.recovery import PostMaintenanceRecoveryService
-        recovery = await PostMaintenanceRecoveryService(db).get_latest_recovery_for_machine(
+
+        recovery = await PostMaintenanceRecoveryService(
+            db
+        ).get_latest_recovery_for_machine(
             machine_id=machine_id,
             current_score=response.get("unified_health_score"),
         )
@@ -274,7 +305,9 @@ async def get_unified_health(machine_id: int, db: AsyncSession = Depends(get_db)
 
 
 @router.get("/machines/{machine_id}/prediction")
-async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_machine_prediction(
+    machine_id: int, db: AsyncSession = Depends(get_db)
+) -> Dict:
     """
     Get ML-based predictive maintenance data for a specific machine.
     Uses intervention history + the trained .pkl model to estimate:
@@ -301,35 +334,45 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
     # 3. Fetch count of open work orders (Ordres de travail)
     from datetime import datetime, timedelta, timezone
     from sqlalchemy import func
+
     now_dt = datetime.now(timezone.utc)
 
     # Open = not TERMINÉ or ANNULÉ
     wo_query = select(func.count(Ordres_travail.id)).where(
         Ordres_travail.machine_id == machine_id,
-        cast(Ordres_travail.statut, String).notin_(["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"])
+        cast(Ordres_travail.statut, String).notin_(
+            ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
+        ),
     )
     wo_result = await db.execute(wo_query)
     open_wo_count = wo_result.scalar() or 0
 
     # 4. Count recent interventions (last 30 days)
     thirty_days_ago = now_dt - timedelta(days=30)
-    recent_interventions_count = len([
-        i for i in interventions
-        if i.date_intervention and (
-            i.date_intervention.replace(tzinfo=timezone.utc) if i.date_intervention.tzinfo is None else i.date_intervention
-        ) > thirty_days_ago
-    ])
+    recent_interventions_count = len(
+        [
+            i
+            for i in interventions
+            if i.date_intervention
+            and (
+                i.date_intervention.replace(tzinfo=timezone.utc)
+                if i.date_intervention.tzinfo is None
+                else i.date_intervention
+            )
+            > thirty_days_ago
+        ]
+    )
 
     # 5. Query telemetry history; derive scalars from latest entry or use defaults
     telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
 
     if telemetry_entries:
         latest = telemetry_entries[-1]
-        _air   = float(latest.air_temperature)
-        _proc  = float(latest.process_temperature)
-        _rpm   = int(latest.rotational_speed)
-        _torq  = float(latest.torque)
-        _wear  = float(latest.tool_wear)
+        _air = float(latest.air_temperature)
+        _proc = float(latest.process_temperature)
+        _rpm = int(latest.rotational_speed)
+        _torq = float(latest.torque)
+        _wear = float(latest.tool_wear)
     else:
         _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
 
@@ -371,8 +414,13 @@ async def get_machine_prediction(machine_id: int, db: AsyncSession = Depends(get
         return prediction
     except Exception as e:
         import logging
-        logging.getLogger(__name__).error(f"ML Calculation Error: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erreur lors du calcul ML: {str(e)}")
+
+        logging.getLogger(__name__).error(
+            f"ML Calculation Error: {str(e)}", exc_info=True
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Erreur lors du calcul ML: {str(e)}"
+        )
 
 
 @router.get("/machines/{machine_id}/failure-probability")
@@ -409,7 +457,12 @@ async def get_failure_probability(
             torque=torque,
             tool_wear=wear,
         )
-        probability = float(ml_result.get("failure_probability", ml_result.get("prediction", {}).get("failure_probability", 0.0)))
+        probability = float(
+            ml_result.get(
+                "failure_probability",
+                ml_result.get("prediction", {}).get("failure_probability", 0.0),
+            )
+        )
     except Exception:
         probability = 0.0
 
@@ -443,7 +496,14 @@ async def get_failure_type(
 
     # Features: [air, process, rpm, torque, wear, temp_delta]
     temp_delta = process - air
-    features = [float(air), float(process), float(rpm), float(torque), float(wear), float(temp_delta)]
+    [
+        float(air),
+        float(process),
+        float(rpm),
+        float(torque),
+        float(wear),
+        float(temp_delta),
+    ]
 
     # Delegate to ML microservice
     try:
@@ -461,7 +521,7 @@ async def get_failure_type(
     return {
         "machine_id": machine_id,
         "machine_name": machine.nom,
-        "failure_types": failure_types
+        "failure_types": failure_types,
     }
 
 
@@ -510,7 +570,9 @@ async def _process_single_machine(
         interventions = interventions_by_machine.get(machine.id, [])
     else:
         execute_result = await db.execute(
-            select(Ordres_intervention).where(Ordres_intervention.machine_id == machine.id)
+            select(Ordres_intervention).where(
+                Ordres_intervention.machine_id == machine.id
+            )
         )
         interventions = execute_result.scalars().all()
 
@@ -523,11 +585,13 @@ async def _process_single_machine(
         if log is not None:
             fusion_result = {
                 "p1_failure_probability": float(log.failure_probability or 0.0),
-                "p3_rul_days":           float(log.rul_days) if log.rul_days is not None else None,
-                "p4_is_anomaly":         bool(log.is_anomaly or False),
-                "p4_anomaly_score":      float(log.anomaly_score or 0.0),
+                "p3_rul_days": float(log.rul_days)
+                if log.rul_days is not None
+                else None,
+                "p4_is_anomaly": bool(log.is_anomaly or False),
+                "p4_anomaly_score": float(log.anomaly_score or 0.0),
                 "p5_predicted_priority": log.predicted_priority,
-                "p2_failure_types":      {},
+                "p2_failure_types": {},
             }
 
     # Build telemetry_entries list from latest snapshot (for degradation rate).
@@ -559,9 +623,12 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     now = datetime.utcnow()
 
     # Check cache
-    if (_fleet_cache["data"] is not None and
-        _fleet_cache["timestamp"] is not None and
-        (now - _fleet_cache["timestamp"]).total_seconds() < _fleet_cache["ttl_seconds"]):
+    if (
+        _fleet_cache["data"] is not None
+        and _fleet_cache["timestamp"] is not None
+        and (now - _fleet_cache["timestamp"]).total_seconds()
+        < _fleet_cache["ttl_seconds"]
+    ):
         return _fleet_cache["data"]
 
     # Build dashboard fresh - parallel processing
@@ -578,6 +645,7 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     # Batch-fetch latest MlPredictionLog per machine (one query, no ML calls).
     # Subquery: for each machine_id, get the id of the most recent log row.
     from sqlalchemy import func as sa_func
+
     latest_log_subq = (
         select(
             MlPredictionLog.machine_id,
@@ -626,7 +694,8 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     # Process all machines in parallel
     tasks = [
         _process_single_machine(
-            m, db,
+            m,
+            db,
             _interventions_by_machine,
             _latest_logs_by_machine,
             _latest_telem_by_machine,
@@ -641,7 +710,9 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
 
     # Sort: CRITICAL first, then HIGH, then MEDIUM, then LOW
     risk_order = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
-    sorted_dashboard = sorted(dashboard, key=lambda x: (risk_order.get(x["risk_level"], 4), x["rul_days"]))
+    sorted_dashboard = sorted(
+        dashboard, key=lambda x: (risk_order.get(x["risk_level"], 4), x["rul_days"])
+    )
 
     # Cache result
     _fleet_cache["data"] = sorted_dashboard
@@ -655,12 +726,20 @@ async def refresh_fleet_dashboard():
     """Force refresh the fleet dashboard cache."""
     _fleet_cache["data"] = None
     _fleet_cache["timestamp"] = None
-    return {"status": "cache_cleared", "message": "Dashboard cache cleared. Next request will rebuild."}
+    return {
+        "status": "cache_cleared",
+        "message": "Dashboard cache cleared. Next request will rebuild.",
+    }
 
 
 @router.get("/inventory/demand-forecast")
 async def get_demand_forecast(
-    horizon_days: int = Query(60, ge=7, le=180, description="Only include machines failing within this many days"),
+    horizon_days: int = Query(
+        60,
+        ge=7,
+        le=180,
+        description="Only include machines failing within this many days",
+    ),
     limit: int = Query(20, ge=1, le=100, description="Max items to return"),
     db: AsyncSession = Depends(get_db),
 ) -> Dict:
@@ -669,6 +748,7 @@ async def get_demand_forecast(
     Cached 1 hour. Use POST /inventory/demand-forecast/refresh to bust.
     """
     from .services.demand_forecast import compute_demand_forecast
+
     return await compute_demand_forecast(db, horizon_days=horizon_days, limit=limit)
 
 
@@ -676,6 +756,7 @@ async def get_demand_forecast(
 async def refresh_demand_forecast():
     """Bust the demand forecast cache. Next GET will recompute."""
     from .services.demand_forecast import invalidate_forecast_cache
+
     invalidate_forecast_cache()
     return {"status": "cache_cleared", "message": "Demand forecast cache cleared."}
 
@@ -685,7 +766,9 @@ async def get_shadow_logs(
     page: int = Query(1, ge=1, description="Page number"),
     size: int = Query(100, ge=1, le=1000, description="Items per page"),
     machine_id: int = Query(None, description="Filter by machine ID"),
-    risk_level: str = Query(None, description="Filter by risk level (CRITICAL, HIGH, MEDIUM, LOW)"),
+    risk_level: str = Query(
+        None, description="Filter by risk level (CRITICAL, HIGH, MEDIUM, LOW)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> PaginatedResponse[Dict]:
     """
@@ -730,7 +813,9 @@ async def get_shadow_logs(
         for log in logs
     ]
 
-    return PaginatedResponse.create(items=items, total=total_count, page=page, size=size)
+    return PaginatedResponse.create(
+        items=items, total=total_count, page=page, size=size
+    )
 
 
 @router.patch("/machines/{machine_id}/telemetry")
@@ -798,7 +883,11 @@ async def trigger_retraining(
     _require_admin(current_user)
     try:
         result = await RetrainingService.run_retraining_pipeline(db)
-        return result if result is not None else {"status": "success", "message": "Retraining pipeline completed."}
+        return (
+            result
+            if result is not None
+            else {"status": "success", "message": "Retraining pipeline completed."}
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -813,12 +902,14 @@ async def ml_service_status():
     return {
         "ml_service_available": available,
         "ml_service_url": "http://ml-service:8000",
-        "fallback": "Local calculation" if not available else "ML Container"
+        "fallback": "Local calculation" if not available else "ML Container",
     }
 
 
 @router.get("/machines/{machine_id}/readiness")
-async def get_machine_readiness(machine_id: int, db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_machine_readiness(
+    machine_id: int, db: AsyncSession = Depends(get_db)
+) -> Dict:
     """
     P7.5: 0-100 readiness score for a machine.
     Blends health score + inventory coverage + shortage risk + maintenance recency.
@@ -833,6 +924,7 @@ async def get_machine_readiness(machine_id: int, db: AsyncSession = Depends(get_
 
     # Last ML prediction log for health score proxy
     from models.ml_prediction_log import MlPredictionLog
+
     pred_q = await db.execute(
         select(MlPredictionLog)
         .where(MlPredictionLog.machine_id == machine_id)
@@ -841,7 +933,9 @@ async def get_machine_readiness(machine_id: int, db: AsyncSession = Depends(get_
     )
     pred = pred_q.scalar_one_or_none()
     # health_score = invert failure_probability as rough proxy
-    health_proxy = max(0.0, 100.0 - (pred.failure_probability or 50.0)) if pred else 50.0
+    health_proxy = (
+        max(0.0, 100.0 - (pred.failure_probability or 50.0)) if pred else 50.0
+    )
 
     readiness = await get_readiness_for_machine(machine_id, health_proxy, None, db)
     return {"success": True, "machine_id": machine_id, **readiness}
@@ -861,7 +955,12 @@ async def get_machine_timeline(
         raise HTTPException(status_code=404, detail="Machine not found")
 
     events = await get_timeline_for_machine(machine_id, db, limit=limit)
-    return {"success": True, "machine_id": machine_id, "events": events, "count": len(events)}
+    return {
+        "success": True,
+        "machine_id": machine_id,
+        "events": events,
+        "count": len(events),
+    }
 
 
 @router.get("/kpis")
@@ -885,15 +984,13 @@ async def get_p7_kpis(db: AsyncSession = Depends(get_db)) -> Dict:
     # Machines with active PARTS_SHORTAGE
     shortage_q = await db.execute(
         select(func.count(distinct(Alert.machine_id))).where(
-            and_(Alert.alert_type == AlertType.PARTS_SHORTAGE, Alert.is_active == True)
+            and_(Alert.alert_type == AlertType.PARTS_SHORTAGE, Alert.is_active)
         )
     )
     shortage_count = shortage_q.scalar() or 0
 
     # Machines with at least one prediction log
-    pred_q = await db.execute(
-        select(func.count(distinct(MlPredictionLog.machine_id)))
-    )
+    pred_q = await db.execute(select(func.count(distinct(MlPredictionLog.machine_id))))
     predicted_machines = pred_q.scalar() or 0
 
     # Draft WOs pending approval
@@ -904,19 +1001,21 @@ async def get_p7_kpis(db: AsyncSession = Depends(get_db)) -> Dict:
     )
     draft_count = draft_q.scalar() or 0
 
-    stock_readiness_rate = round(100.0 * (total_machines - shortage_count) / total_machines, 1)
-    adoption_rate        = round(100.0 * predicted_machines / total_machines, 1)
+    stock_readiness_rate = round(
+        100.0 * (total_machines - shortage_count) / total_machines, 1
+    )
+    adoption_rate = round(100.0 * predicted_machines / total_machines, 1)
 
     return {
         "success": True,
         "kpis": {
-            "stock_readiness_rate":  stock_readiness_rate,
-            "adoption_rate":         adoption_rate,
-            "active_shortages":      shortage_count,
-            "draft_wos_pending":     draft_count,
-            "total_machines":        total_machines,
+            "stock_readiness_rate": stock_readiness_rate,
+            "adoption_rate": adoption_rate,
+            "active_shortages": shortage_count,
+            "draft_wos_pending": draft_count,
+            "total_machines": total_machines,
             "machines_with_predictions": predicted_machines,
-        }
+        },
     }
 
 
@@ -936,7 +1035,7 @@ async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
         .where(
             and_(
                 Alert.alert_type == AlertType.PARTS_SHORTAGE,
-                Alert.is_active == True,
+                Alert.is_active,
             )
         )
         .order_by(Alert.created_at.desc())
@@ -945,12 +1044,14 @@ async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
 
     items = [
         {
-            "alert_id":    row.Alert.alert_id,
-            "machine_id":  row.Alert.machine_id,
+            "alert_id": row.Alert.alert_id,
+            "machine_id": row.Alert.machine_id,
             "machine_name": row.Machines.nom,
-            "severity":    row.Alert.severity.value,
-            "message":     row.Alert.message,
-            "created_at":  row.Alert.created_at.isoformat() if row.Alert.created_at else None,
+            "severity": row.Alert.severity.value,
+            "message": row.Alert.message,
+            "created_at": row.Alert.created_at.isoformat()
+            if row.Alert.created_at
+            else None,
         }
         for row in rows
     ]
@@ -969,7 +1070,6 @@ async def create_procurement_draft_endpoint(
     Human must approve before any reservation commits.
     """
     from modules.ml.services.parts_drafts import create_procurement_draft
-    from modules.ml.services.parts_alerts import extract_shortage_items
 
     # Re-fetch parts_demand from the active PARTS_SHORTAGE alert's context.
     # Simplest approach: call unified-health and extract parts_demand.
@@ -983,24 +1083,38 @@ async def create_procurement_draft_endpoint(
             and_(
                 Alert.machine_id == machine_id,
                 Alert.alert_type == AlertType.PARTS_SHORTAGE,
-                Alert.is_active  == True,
+                Alert.is_active,
             )
         )
     )
     alert = alert_q.scalar_one_or_none()
     if not alert:
-        raise HTTPException(status_code=404, detail="No active PARTS_SHORTAGE alert for this machine")
+        raise HTTPException(
+            status_code=404, detail="No active PARTS_SHORTAGE alert for this machine"
+        )
 
     if alert.work_order_id:
-        return {"success": False, "message": "Draft already exists", "wo_id": alert.work_order_id}
+        return {
+            "success": False,
+            "message": "Draft already exists",
+            "wo_id": alert.work_order_id,
+        }
 
     # Build minimal parts_demand from alert message (real data comes at T26 persistence)
     # For now create draft with placeholder so the WO is created and linked
     placeholder_demand = {
         "horizon_days": 30,
         "source": "p7_model",
-        "items": [{"piece_id": 0, "name": "see alert message", "expected_qty": 1.0,
-                   "on_hand": 0, "shortfall": 1.0, "driver": "condition"}],
+        "items": [
+            {
+                "piece_id": 0,
+                "name": "see alert message",
+                "expected_qty": 1.0,
+                "on_hand": 0,
+                "shortfall": 1.0,
+                "driver": "condition",
+            }
+        ],
     }
 
     wo_id = await create_procurement_draft(
@@ -1010,9 +1124,16 @@ async def create_procurement_draft_endpoint(
         db=db,
     )
     if wo_id is None:
-        return {"success": False, "message": "Draft already exists or no items to draft"}
+        return {
+            "success": False,
+            "message": "Draft already exists or no items to draft",
+        }
     await db.commit()
-    return {"success": True, "wo_id": wo_id, "message": "Draft work order created — awaiting approval"}
+    return {
+        "success": True,
+        "wo_id": wo_id,
+        "message": "Draft work order created — awaiting approval",
+    }
 
 
 @router.patch("/procurement/draft/{wo_id}/approve")
@@ -1023,7 +1144,10 @@ async def approve_procurement_draft_endpoint(
 ) -> Dict:
     """P7.4: Approve draft → SUBMITTED. Enters normal WO workflow."""
     from modules.ml.services.parts_drafts import approve_procurement_draft
-    return await approve_procurement_draft(wo_id, current_user.id if current_user else 0, db)
+
+    return await approve_procurement_draft(
+        wo_id, current_user.id if current_user else 0, db
+    )
 
 
 @router.delete("/procurement/draft/{wo_id}")
@@ -1033,6 +1157,7 @@ async def reject_procurement_draft_endpoint(
 ) -> Dict:
     """P7.4: Reject/discard draft → ANNULÉ. Unlinks from PARTS_SHORTAGE alert."""
     from modules.ml.services.parts_drafts import reject_procurement_draft
+
     return await reject_procurement_draft(wo_id, db)
 
 
@@ -1049,8 +1174,11 @@ async def quick_action_endpoint(
     previews without writing.
     """
     # ADMIN guard (mirrors rag_docs._require_admin).
-    role = (current_user.role.value if hasattr(current_user.role, "value")
-            else str(current_user.role or "")).upper()
+    role = (
+        current_user.role.value
+        if hasattr(current_user.role, "value")
+        else str(current_user.role or "")
+    ).upper()
     if role != "ADMIN":
         raise HTTPException(status_code=403, detail="Only ADMIN can run Quick Action.")
 
@@ -1084,17 +1212,14 @@ async def get_ml_model_metrics():
         return {
             "success": True,
             "model": "p1_failure",
-            "metrics": metrics.get("metrics", {})
+            "metrics": metrics.get("metrics", {}),
         }
-    return {
-        "success": False,
-        "error": "Could not retrieve model metrics"
-    }
+    return {"success": False, "error": "Could not retrieve model metrics"}
 
 
-from modules.ml.services.model_registry import scan_models, check_sync
-from modules.ml.services.drift import compute_drift, SENSORS
-from modules.ml.services.retraining_advisor import recommend_retraining
+from modules.ml.services.model_registry import scan_models, check_sync  # noqa: E402
+from modules.ml.services.drift import compute_drift, SENSORS  # noqa: E402
+from modules.ml.services.retraining_advisor import recommend_retraining  # noqa: E402
 
 
 def _require_admin(current_user: Utilisateurs):
@@ -1104,9 +1229,11 @@ def _require_admin(current_user: Utilisateurs):
 
 async def _drift_rows(db: AsyncSession, start, end):
     cols = [getattr(MlPredictionLog, s) for s in SENSORS]
-    stmt = select(*cols).where(
-        MlPredictionLog.created_at >= start, MlPredictionLog.created_at < end
-    ).limit(2000)
+    stmt = (
+        select(*cols)
+        .where(MlPredictionLog.created_at >= start, MlPredictionLog.created_at < end)
+        .limit(2000)
+    )
     res = await db.execute(stmt)
     return [dict(zip(SENSORS, row)) for row in res.all()]
 
@@ -1121,7 +1248,9 @@ async def model_health(
     divergences = check_sync(_BACKEND_MODELS, _MICRO_MODELS)
     now = datetime.now(timezone.utc)
     try:
-        baseline = await _drift_rows(db, now - timedelta(days=60), now - timedelta(days=30))
+        baseline = await _drift_rows(
+            db, now - timedelta(days=60), now - timedelta(days=30)
+        )
         recent = await _drift_rows(db, now - timedelta(days=14), now)
         drift = compute_drift(baseline, recent)
     except Exception:
@@ -1136,21 +1265,29 @@ async def model_health(
     except Exception:
         ndp = 0
     retrain = recommend_retraining(ndp, drift["verdict"])
-    return {"models": models, "divergences": divergences,
-            "metrics": metrics, "drift": drift, "retrain": retrain}
+    return {
+        "models": models,
+        "divergences": divergences,
+        "metrics": metrics,
+        "drift": drift,
+        "retrain": retrain,
+    }
 
 
 # ── C8 helpers ─────────────────────────────────────────────────────────────
+
 
 def _require_planner(current_user: Utilisateurs) -> None:
     """Allow CHEFTECH or ADMIN only."""
     if not current_user.role or current_user.role.value not in ("CHEFTECH", "ADMIN"):
         raise HTTPException(status_code=403, detail="Accès réservé aux planificateurs.")
 
+
 _VALID_HORIZONS = {7, 30, 60}
 
 
 # ── C8 Forecast Endpoints ──────────────────────────────────────────────────
+
 
 @router.get("/forecast/summary")
 async def get_forecast_summary(
@@ -1168,7 +1305,8 @@ async def get_forecast_summary(
     if (
         _FORECAST_SUMMARY_CACHE["data"] is not None
         and _FORECAST_SUMMARY_CACHE["ts"] is not None
-        and (now - _FORECAST_SUMMARY_CACHE["ts"]).total_seconds() < _FORECAST_SUMMARY_CACHE["ttl"]
+        and (now - _FORECAST_SUMMARY_CACHE["ts"]).total_seconds()
+        < _FORECAST_SUMMARY_CACHE["ttl"]
     ):
         return _FORECAST_SUMMARY_CACHE["data"]
 
@@ -1178,8 +1316,12 @@ async def get_forecast_summary(
     tech_count = len(tech_res.scalars().all())
 
     open_wo_res = await db.execute(
-        select(func.count()).select_from(Ordres_travail).where(
-            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        select(func.count())
+        .select_from(Ordres_travail)
+        .where(
+            Ordres_travail.statut.in_(
+                [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
+            )
         )
     )
     open_wo_count = open_wo_res.scalar_one() or 0
@@ -1223,6 +1365,7 @@ async def get_forecast_downtime(
     if horizon not in _VALID_HORIZONS:
         raise HTTPException(400, detail="horizon must be 7, 30 or 60")
     from .services.downtime_forecast import compute_fleet_downtime
+
     return await compute_fleet_downtime(db, horizon_days=horizon)
 
 
@@ -1244,8 +1387,12 @@ async def get_forecast_labor(
     tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
     tech_count = len(tech_res.scalars().all())
     open_wo_res = await db.execute(
-        select(func.count()).select_from(Ordres_travail).where(
-            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        select(func.count())
+        .select_from(Ordres_travail)
+        .where(
+            Ordres_travail.statut.in_(
+                [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
+            )
         )
     )
     open_wo_count = open_wo_res.scalar_one() or 0
@@ -1272,12 +1419,18 @@ async def get_forecast_budget(
     tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
     tech_count = len(tech_res.scalars().all())
     open_wo_res = await db.execute(
-        select(func.count()).select_from(Ordres_travail).where(
-            Ordres_travail.statut.in_([OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS])
+        select(func.count())
+        .select_from(Ordres_travail)
+        .where(
+            Ordres_travail.statut.in_(
+                [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
+            )
         )
     )
     open_wo_count = open_wo_res.scalar_one() or 0
-    labor = forecast_labor(downtime["machines"], open_wo_count, 4.0, tech_count, horizon)
+    labor = forecast_labor(
+        downtime["machines"], open_wo_count, 4.0, tech_count, horizon
+    )
     demand_data = await compute_demand_forecast(db, horizon_days=horizon, limit=50)
     return forecast_budget(labor["demand_hours"], demand_data.get("items", []))
 
@@ -1293,6 +1446,7 @@ async def post_optimize_schedule(
     if horizon not in _VALID_HORIZONS:
         raise HTTPException(400, detail="horizon must be 7, 30 or 60")
     from .services.schedule_optimizer import compute_schedule
+
     return await compute_schedule(db, horizon_days=horizon)
 
 
@@ -1303,9 +1457,11 @@ async def get_my_schedule(
 ) -> dict:
     """TECHNICIEN: returns their own assignments from the cached schedule."""
     from .services.schedule_optimizer import compute_schedule
+
     schedule = await compute_schedule(db, horizon_days=30)
     my_assignments = [
-        a for a in schedule.get("assignments", [])
+        a
+        for a in schedule.get("assignments", [])
         if a.get("technician_id") == current_user.id
     ]
     return {

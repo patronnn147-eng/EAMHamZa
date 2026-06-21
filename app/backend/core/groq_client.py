@@ -7,6 +7,7 @@ with a 10-minute TTL. Cache key is a SHA-256 hash of the JSON-serialized inputs.
 Skipped automatically when `tools` are provided (tool calls are stateful and
 should not be replayed).
 """
+
 import hashlib
 import json
 import logging
@@ -59,7 +60,9 @@ class GroqClient:
     """Wrapper for Groq API calls."""
 
     def __init__(self):
-        api_key = getattr(settings, "groq_api_key", None) or getattr(settings, "GROQ_API_KEY", None)
+        api_key = getattr(settings, "groq_api_key", None) or getattr(
+            settings, "GROQ_API_KEY", None
+        )
         if not api_key:
             raise ValueError("GROQ_API_KEY not configured")
         self.client = Groq(api_key=api_key)

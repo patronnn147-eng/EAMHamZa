@@ -7,6 +7,7 @@ Mirrors the platform safety property: never raises. LLM down -> template.
 Single-service deployment: an in-process dict cache is sufficient (no
 cross-worker sharing needed).
 """
+
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -104,7 +105,11 @@ def make_briefing(
 
     hit = _CACHE.get(key)
     if hit:
-        return {"text": hit["text"], "generated_at": hit["generated_at"], "source": "cache"}
+        return {
+            "text": hit["text"],
+            "generated_at": hit["generated_at"],
+            "source": "cache",
+        }
 
     try:
         text = llm_call(facts)

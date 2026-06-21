@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
-from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs, UserRole
@@ -31,9 +30,11 @@ async def get_completed_work_orders(
 ):
     """Get all completed Work Orders enriched with technician and machine info."""
     skip = (page - 1) * size
-    
+
     query = select(Ordres_travail).where(
-        Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED])
+        Ordres_travail.statut.in_(
+            [OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]
+        )
     )
     query = query.options(
         selectinload(Ordres_travail.machine),
@@ -64,7 +65,9 @@ async def get_completed_work_orders(
 
     if user_ids:
         users_res = await db.execute(
-            select(Utilisateurs.id, Utilisateurs.nom, Utilisateurs.email).where(Utilisateurs.id.in_(user_ids))
+            select(Utilisateurs.id, Utilisateurs.nom, Utilisateurs.email).where(
+                Utilisateurs.id.in_(user_ids)
+            )
         )
         for row in users_res.all():
             user_map[row.id] = {"nom": row.nom, "email": row.email}
@@ -84,26 +87,28 @@ async def get_completed_work_orders(
             duration = int(delta.total_seconds() / 60)
 
         tech = user_map.get(wo.utilisateur_id, {})
-        items.append(CompletedWorkOrderItem(
-            id=wo.id,
-            titre=wo.titre,
-            description=wo.description,
-            statut=wo.statut,
-            priorite=wo.priorite,
-            machine_id=wo.machine_id,
-            machine_nom=machine_map.get(wo.machine_id),
-            utilisateur_id=wo.utilisateur_id,
-            technician_nom=tech.get("nom"),
-            technician_email=tech.get("email"),
-            date_echeance=wo.date_echeance,
-            date_debut=wo.date_debut,
-            date_fin=wo.date_fin,
-            rapport=wo.rapport,
-            failure_type=wo.failure_type,
-            cheftech_feedback=wo.cheftech_feedback,
-            created_at=wo.created_at,
-            duration_minutes=duration,
-        ))
+        items.append(
+            CompletedWorkOrderItem(
+                id=wo.id,
+                titre=wo.titre,
+                description=wo.description,
+                statut=wo.statut,
+                priorite=wo.priorite,
+                machine_id=wo.machine_id,
+                machine_nom=machine_map.get(wo.machine_id),
+                utilisateur_id=wo.utilisateur_id,
+                technician_nom=tech.get("nom"),
+                technician_email=tech.get("email"),
+                date_echeance=wo.date_echeance,
+                date_debut=wo.date_debut,
+                date_fin=wo.date_fin,
+                rapport=wo.rapport,
+                failure_type=wo.failure_type,
+                cheftech_feedback=wo.cheftech_feedback,
+                created_at=wo.created_at,
+                duration_minutes=duration,
+            )
+        )
 
     return items
 
@@ -117,19 +122,32 @@ async def add_cheftech_feedback(
 ):
     """Add ChefTech feedback to a completed Work Order. Does not alter execution data."""
     if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN]:
-        raise HTTPException(status_code=403, detail="Accès refusé. ChefTech ou Admin requis.")
+        raise HTTPException(
+            status_code=403, detail="Accès refusé. ChefTech ou Admin requis."
+        )
 
     ordre = await db.scalar(select(Ordres_travail).where(Ordres_travail.id == ordre_id))
     if not ordre:
         raise HTTPException(status_code=404, detail="Ordre de travail non trouvé")
 
-    if ordre.statut not in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED):
-        raise HTTPException(status_code=400, detail="Le feedback ne peut être ajouté qu'aux ordres terminés")
+    if ordre.statut not in (
+        OrdreStatut.COMPLETED,
+        OrdreStatut.VALIDATED,
+        OrdreStatut.CLOSED,
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Le feedback ne peut être ajouté qu'aux ordres terminés",
+        )
 
     ordre.cheftech_feedback = data.feedback.strip()
     await db.commit()
 
-    return {"status": "success", "ordre_id": ordre_id, "feedback": ordre.cheftech_feedback}
+    return {
+        "status": "success",
+        "ordre_id": ordre_id,
+        "feedback": ordre.cheftech_feedback,
+    }
 
 
 @router.get("/reports/kpi")
@@ -141,7 +159,9 @@ async def get_kpi_report(
 ):
     """KPI summary for completed Work Orders. Available to ChefTech and Admin."""
     base_query = select(Ordres_travail).where(
-        Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED])
+        Ordres_travail.statut.in_(
+            [OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]
+        )
     )
     base_query = base_query.options(
         selectinload(Ordres_travail.machine),
@@ -175,7 +195,9 @@ async def get_kpi_report(
         "avg_duration_minutes": avg_duration,
         "failures_by_type": failure_counts,
         "feedback_count": feedback_count,
-        "feedback_coverage_pct": round((feedback_count / total * 100) if total else 0, 1),
+        "feedback_coverage_pct": round(
+            (feedback_count / total * 100) if total else 0, 1
+        ),
     }
 
 
@@ -190,7 +212,7 @@ async def get_cheftech_analytics_dashboard(
     to compute the PDCA stages and performance trends.
     """
     from models.ordres_intervention import Ordres_intervention
-    
+
     # 1. Fetch all work orders and interventions
     w_result = await db.execute(
         select(Ordres_travail)
@@ -208,9 +230,22 @@ async def get_cheftech_analytics_dashboard(
 
     # Metrics computation
     total_assigned = len(all_wos)
-    completed_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED)]
-    pending_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.SUBMITTED, OrdreStatut.APPROVED)]
-    in_progress_wos = [wo for wo in all_wos if wo.statut in (OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS)]
+    completed_wos = [
+        wo
+        for wo in all_wos
+        if wo.statut
+        in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED)
+    ]
+    pending_wos = [
+        wo
+        for wo in all_wos
+        if wo.statut in (OrdreStatut.SUBMITTED, OrdreStatut.APPROVED)
+    ]
+    in_progress_wos = [
+        wo
+        for wo in all_wos
+        if wo.statut in (OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS)
+    ]
 
     durations = [
         int((wo.date_fin - wo.date_debut).total_seconds() / 60)
@@ -259,7 +294,13 @@ async def get_cheftech_analytics_dashboard(
         },
         "trends": trend_chart,
         "alerts": {
-            "late_wos": sum(1 for wo in completed_wos if wo.date_fin and wo.date_echeance and wo.date_fin > wo.date_echeance),
-            "top_failure": max(failure_counts, key=failure_counts.get) if failure_counts else "N/A"
-        }
+            "late_wos": sum(
+                1
+                for wo in completed_wos
+                if wo.date_fin and wo.date_echeance and wo.date_fin > wo.date_echeance
+            ),
+            "top_failure": max(failure_counts, key=failure_counts.get)
+            if failure_counts
+            else "N/A",
+        },
     }

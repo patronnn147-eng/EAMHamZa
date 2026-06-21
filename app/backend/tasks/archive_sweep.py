@@ -5,6 +5,7 @@
 - `tasks.purge_archive_old` — weekly: hard-delete rows whose `archived_at`
   is older than the retention window (default 30 days).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -17,7 +18,9 @@ from celery import shared_task
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="tasks.archive_past_due", bind=True, max_retries=2, default_retry_delay=300)
+@shared_task(
+    name="tasks.archive_past_due", bind=True, max_retries=2, default_retry_delay=300
+)
 def archive_past_due(self) -> Dict[str, Any]:
     try:
         loop = asyncio.new_event_loop()
@@ -31,7 +34,9 @@ def archive_past_due(self) -> Dict[str, Any]:
         raise self.retry(exc=exc)
 
 
-@shared_task(name="tasks.purge_archive_old", bind=True, max_retries=1, default_retry_delay=600)
+@shared_task(
+    name="tasks.purge_archive_old", bind=True, max_retries=1, default_retry_delay=600
+)
 def purge_archive_old(self) -> Dict[str, Any]:
     days = int(os.getenv("ARCHIVE_RETENTION_DAYS", "30"))
     try:
@@ -47,6 +52,7 @@ def purge_archive_old(self) -> Dict[str, Any]:
 
 
 # ─── Async helpers ──────────────────────────────────────────────────────
+
 
 async def _archive_run() -> Dict[str, int]:
     from core.database import db_manager

@@ -14,7 +14,6 @@ from core.rabbitmq import (
     ROUTING_KEY_INT_REQUESTED,
     ROUTING_KEY_INT_STATUS_CHANGED,
 )
-from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.planning_taches import Planning_taches
@@ -24,7 +23,11 @@ from tasks.intervention_events import (
     notify_intervention_requested,
     notify_intervention_status_changed,
 )
-from ..schemas import InterventionResponse, InterventionStatusUpdate, InterventionRequestPayload
+from ..schemas import (
+    InterventionResponse,
+    InterventionStatusUpdate,
+    InterventionRequestPayload,
+)
 
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 logger = logging.getLogger(__name__)
@@ -39,15 +42,23 @@ async def list_my_interventions(
     db: AsyncSession = Depends(get_db),
 ):
     skip = (page - 1) * size
-    
+
     # Count total
-    count_query = select(func.count(Ordres_intervention.id)).where(Ordres_intervention.technician_id == _current_user.id).where(Ordres_intervention.archived_at.is_(None))
+    count_query = (
+        select(func.count(Ordres_intervention.id))
+        .where(Ordres_intervention.technician_id == _current_user.id)
+        .where(Ordres_intervention.archived_at.is_(None))
+    )
     if statut:
         count_query = count_query.where(Ordres_intervention.statut == statut)
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    query = select(Ordres_intervention).where(Ordres_intervention.technician_id == _current_user.id).where(Ordres_intervention.archived_at.is_(None))
+    query = (
+        select(Ordres_intervention)
+        .where(Ordres_intervention.technician_id == _current_user.id)
+        .where(Ordres_intervention.archived_at.is_(None))
+    )
     if statut:
         query = query.where(Ordres_intervention.statut == statut)
 
@@ -55,15 +66,23 @@ async def list_my_interventions(
         selectinload(Ordres_intervention.machine),
         selectinload(Ordres_intervention.ordre_travail),
     )
-    query = query.order_by(Ordres_intervention.date_intervention.desc()).offset(skip).limit(size)
+    query = (
+        query.order_by(Ordres_intervention.date_intervention.desc())
+        .offset(skip)
+        .limit(size)
+    )
     result = await db.execute(query)
     interventions = list(result.scalars().all())
 
-    ordre_ids = [i.ordre_travail_id for i in interventions if i.ordre_travail_id is not None]
+    ordre_ids = [
+        i.ordre_travail_id for i in interventions if i.ordre_travail_id is not None
+    ]
     due_map = {}
     if ordre_ids:
         ordres_res = await db.execute(
-            select(Ordres_travail.id, Ordres_travail.date_echeance).where(Ordres_travail.id.in_(ordre_ids))
+            select(Ordres_travail.id, Ordres_travail.date_echeance).where(
+                Ordres_travail.id.in_(ordre_ids)
+            )
         )
         due_map = {row.id: row.date_echeance for row in ordres_res.all()}
 
@@ -72,7 +91,7 @@ async def list_my_interventions(
     for i in interventions:
         due = due_map.get(i.ordre_travail_id)
         is_done = (i.statut or "") in {"TERMINÉ"} or i.date_fin is not None
-        status = (i.statut or "")
+        status = i.statut or ""
         eligible = status in {"APPROVED", "EN_COURS", "BLOQUÉ"}
         overdue = bool(eligible and due and (due < now) and (not is_done))
 
@@ -84,15 +103,12 @@ async def list_my_interventions(
             }
         )
 
-    return PaginatedResponse.create(
-        items=enriched,
-        total=total,
-        page=page,
-        size=size
-    )
+    return PaginatedResponse.create(items=enriched, total=total, page=page, size=size)
 
 
-@router.put("/interventions/{intervention_id}/status", response_model=InterventionResponse)
+@router.put(
+    "/interventions/{intervention_id}/status", response_model=InterventionResponse
+)
 async def update_intervention_status(
     intervention_id: int,
     data: InterventionStatusUpdate,
@@ -110,15 +126,33 @@ async def update_intervention_status(
     if not intervention:
         raise HTTPException(status_code=404, detail="Intervention not found")
 
-    valid_statuses = {"EN_ATTENTE", "EN_COURS", "TERMINÉ", "BLOQUÉ", "PENDING_APPROVAL", "APPROVED", "DECLINED"}
+    valid_statuses = {
+        "EN_ATTENTE",
+        "EN_COURS",
+        "TERMINÉ",
+        "BLOQUÉ",
+        "PENDING_APPROVAL",
+        "APPROVED",
+        "DECLINED",
+    }
     if data.statut not in valid_statuses:
-        raise HTTPException(status_code=400, detail=f"Invalid statut. Allowed: {sorted(valid_statuses)}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid statut. Allowed: {sorted(valid_statuses)}"
+        )
 
-    if data.statut == "EN_COURS" and intervention.statut not in {"APPROVED", "EN_COURS"}:
-        raise HTTPException(status_code=400, detail="Intervention must be approved by ChefTech before starting")
+    if data.statut == "EN_COURS" and intervention.statut not in {
+        "APPROVED",
+        "EN_COURS",
+    }:
+        raise HTTPException(
+            status_code=400,
+            detail="Intervention must be approved by ChefTech before starting",
+        )
 
     if intervention.statut == "DECLINED" and data.statut in {"EN_COURS", "TERMINÉ"}:
-        raise HTTPException(status_code=400, detail="Declined intervention cannot be started")
+        raise HTTPException(
+            status_code=400, detail="Declined intervention cannot be started"
+        )
 
     now = datetime.now(timezone.utc)
     old_status = intervention.statut
@@ -158,6 +192,7 @@ async def update_intervention_status(
     if data.statut in ("TERMINÉ", "VALIDATED") and intervention.legacy_parts_text:
         try:
             from modules.ml.services.p7_feedback import record_p7_feedback
+
             await record_p7_feedback(intervention.id, db)
         except Exception as _fb_err:
             logger.debug(f"[P7-feedback] non-fatal error: {_fb_err}")
@@ -169,16 +204,23 @@ async def update_intervention_status(
             "ordre_travail_id": intervention.ordre_travail_id,
             "statut": intervention.statut,
         }
-        changer_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+        changer_payload = {
+            "id": current_user.id,
+            "nom": current_user.nom,
+            "email": current_user.email,
+        }
 
         try:
             rmq = await get_rabbitmq()
-            await rmq.publish_intervention_event(ROUTING_KEY_INT_STATUS_CHANGED, {
-                "intervention": int_payload,
-                "old_status": old_status,
-                "new_status": data.statut,
-                "changed_by": changer_payload,
-            })
+            await rmq.publish_intervention_event(
+                ROUTING_KEY_INT_STATUS_CHANGED,
+                {
+                    "intervention": int_payload,
+                    "old_status": old_status,
+                    "new_status": data.statut,
+                    "changed_by": changer_payload,
+                },
+            )
         except Exception as rmq_err:
             logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
 
@@ -203,9 +245,15 @@ async def update_intervention_status(
         stats = await db.execute(
             select(
                 func.count(Ordres_intervention.id).label("total"),
-                func.sum(case((Ordres_intervention.statut == "TERMINÉ", 1), else_=0)).label("done"),
-                func.sum(case((Ordres_intervention.statut == "EN_COURS", 1), else_=0)).label("in_progress"),
-                func.sum(case((Ordres_intervention.statut == "BLOQUÉ", 1), else_=0)).label("blocked"),
+                func.sum(
+                    case((Ordres_intervention.statut == "TERMINÉ", 1), else_=0)
+                ).label("done"),
+                func.sum(
+                    case((Ordres_intervention.statut == "EN_COURS", 1), else_=0)
+                ).label("in_progress"),
+                func.sum(
+                    case((Ordres_intervention.statut == "BLOQUÉ", 1), else_=0)
+                ).label("blocked"),
             ).where(Ordres_intervention.ordre_travail_id == ordre_id)
         )
         row = stats.first()
@@ -228,7 +276,9 @@ async def update_intervention_status(
     return intervention
 
 
-@router.post("/interventions/request", response_model=InterventionResponse, status_code=201)
+@router.post(
+    "/interventions/request", response_model=InterventionResponse, status_code=201
+)
 async def request_intervention(
     payload: InterventionRequestPayload,
     current_user: Utilisateurs = Depends(verify_technicien),
@@ -275,18 +325,25 @@ async def request_intervention(
         await db.flush()
 
     if payload.planning_tache_id:
-        tache = await db.scalar(select(Planning_taches).where(Planning_taches.id == payload.planning_tache_id))
+        tache = await db.scalar(
+            select(Planning_taches).where(
+                Planning_taches.id == payload.planning_tache_id
+            )
+        )
         if tache and tache.statut == "DRAFT":
             tache.statut = "IN_PROGRESS"
     else:
         if intervention.statut not in {"EN_ATTENTE", "PENDING_APPROVAL", "DECLINED"}:
-            raise HTTPException(status_code=400, detail="Intervention cannot be requested in its current status")
+            raise HTTPException(
+                status_code=400,
+                detail="Intervention cannot be requested in its current status",
+            )
         intervention.statut = "PENDING_APPROVAL"
         intervention.requested_at = now
         intervention.approved_by = None
         intervention.approved_at = None
         intervention.rejection_reason = None
-        
+
         intervention.machine_id = payload.machine_id
         intervention.problem_description = payload.problem_description
         intervention.priority = payload.priority
@@ -316,14 +373,21 @@ async def request_intervention(
         "required_materials": payload.required_materials,
         "machine_id": payload.machine_id,
     }
-    tech_payload = {"id": current_user.id, "nom": current_user.nom, "email": current_user.email}
+    tech_payload = {
+        "id": current_user.id,
+        "nom": current_user.nom,
+        "email": current_user.email,
+    }
 
     try:
         rmq = await get_rabbitmq()
-        await rmq.publish_intervention_event(ROUTING_KEY_INT_REQUESTED, {
-            "intervention": int_payload,
-            "requested_by": tech_payload,
-        })
+        await rmq.publish_intervention_event(
+            ROUTING_KEY_INT_REQUESTED,
+            {
+                "intervention": int_payload,
+                "requested_by": tech_payload,
+            },
+        )
     except Exception as rmq_err:
         logger.warning(f"RabbitMQ publish failed (non-blocking): {rmq_err}")
 
@@ -335,7 +399,9 @@ async def request_intervention(
             {"email": u.email, "nom": u.nom} for u in ct_result.scalars().all()
         ]
         if cheftech_recipients:
-            notify_intervention_requested.delay(int_payload, tech_payload, cheftech_recipients)
+            notify_intervention_requested.delay(
+                int_payload, tech_payload, cheftech_recipients
+            )
     except Exception as task_err:
         logger.warning(f"Celery task dispatch failed (non-blocking): {task_err}")
 

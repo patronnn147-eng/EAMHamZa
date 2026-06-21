@@ -28,11 +28,11 @@ def send_task_assignment_email(
                 <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
                     <tr>
                         <td style="padding: 8px; font-weight: bold; width: 140px;">Tâche</td>
-                        <td style="padding: 8px;">{task.get('titre', '')}</td>
+                        <td style="padding: 8px;">{task.get("titre", "")}</td>
                     </tr>
                     <tr style="background:#f9fafb;">
                         <td style="padding: 8px; font-weight: bold;">Type</td>
-                        <td style="padding: 8px;">{task.get('task_type', '')}</td>
+                        <td style="padding: 8px;">{task.get("task_type", "")}</td>
                     </tr>
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Machine</td>
@@ -44,11 +44,11 @@ def send_task_assignment_email(
                     </tr>
                     <tr>
                         <td style="padding: 8px; font-weight: bold;">Début</td>
-                        <td style="padding: 8px;">{task.get('date_debut', '')}</td>
+                        <td style="padding: 8px;">{task.get("date_debut", "")}</td>
                     </tr>
                     <tr style="background:#f9fafb;">
                         <td style="padding: 8px; font-weight: bold;">Fin</td>
-                        <td style="padding: 8px;">{task.get('date_fin', '')}</td>
+                        <td style="padding: 8px;">{task.get("date_fin", "")}</td>
                     </tr>
                 </table>
                 <p>Connectez-vous à l'application pour consulter les détails et demander une intervention si nécessaire.</p>

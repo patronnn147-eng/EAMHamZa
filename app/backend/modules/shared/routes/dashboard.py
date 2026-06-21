@@ -1,4 +1,5 @@
 """Dashboard command-center endpoints. Auto-discovered via main.py router scan."""
+
 import logging
 from datetime import datetime, timezone, timedelta
 from typing import List
@@ -72,28 +73,41 @@ async def _gather_facts(role: str, user_id, db: AsyncSession) -> dict:
     if role == "TECHNICIEN" and user_id is not None:
         base_wo = base_wo.where(Ordres_travail.utilisateur_id == user_id)
 
-    urgent = await _count(base_wo.where(
-        Ordres_travail.priorite == "URGENTE",
-        Ordres_travail.statut.notin_(_TERMINAL)))
+    urgent = await _count(
+        base_wo.where(
+            Ordres_travail.priorite == "URGENTE",
+            Ordres_travail.statut.notin_(_TERMINAL),
+        )
+    )
     pending = await _count(base_wo.where(Ordres_travail.statut.in_(_PENDING)))
-    completed = await _count(base_wo.where(
-        Ordres_travail.statut.in_(_COMPLETED),
-        Ordres_travail.created_at >= week_ago))
+    completed = await _count(
+        base_wo.where(
+            Ordres_travail.statut.in_(_COMPLETED), Ordres_travail.created_at >= week_ago
+        )
+    )
 
-    overdue = await _count(select(func.count()).select_from(Machines).where(
-        Machines.date_prochaine_maintenance < now))
+    overdue = await _count(
+        select(func.count())
+        .select_from(Machines)
+        .where(Machines.date_prochaine_maintenance < now)
+    )
 
     degraded: List[str] = []
     try:
         res = await db.execute(
-            select(Machines.nom).where(Machines.statut.in_(_DOWN)).limit(3))
+            select(Machines.nom).where(Machines.statut.in_(_DOWN)).limit(3)
+        )
         degraded = [r[0] for r in res.all()]
     except Exception:
         degraded = []
 
     return compute_facts(
-        urgent_wos=urgent, pending_wos=pending, completed_week=completed,
-        overdue_pms=overdue, degraded_machines=degraded, active_alerts=0,
+        urgent_wos=urgent,
+        pending_wos=pending,
+        completed_week=completed,
+        overdue_pms=overdue,
+        degraded_machines=degraded,
+        active_alerts=0,
     )
 
 
@@ -117,7 +131,11 @@ async def get_briefing(
 
     facts = await _gather_facts(role, current_user.id, db)
     result = make_briefing(
-        facts, scope=scope, scope_id=scope_id, site=site,
-        today=today, llm_call=_llm_call,
+        facts,
+        scope=scope,
+        scope_id=scope_id,
+        site=site,
+        today=today,
+        llm_call=_llm_call,
     )
     return BriefingResponse(**result, facts=facts)

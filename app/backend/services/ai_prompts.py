@@ -1,4 +1,5 @@
 """System prompt templates and context builders for AI chat."""
+
 import json
 from typing import Dict, List, Any, Optional, Union
 
@@ -147,32 +148,32 @@ def build_rag_context(chunks: List[Any]) -> str:
 # Inside warn band = NORMAL; outside warn but inside crit = ATTENTION; outside crit = CRITIQUE.
 _SENSOR_THRESHOLDS: Dict[str, Dict[str, tuple]] = {
     "reflow": {
-        "air_temperature":     (None, 306, None, 310),
+        "air_temperature": (None, 306, None, 310),
         "process_temperature": (490, 525, 485, 530),
-        "rotational_speed":    (500, 1400, 400, 1600),
-        "torque":              (None, 28, None, 35),
-        "tool_wear":           (None, 200, None, 240),
+        "rotational_speed": (500, 1400, 400, 1600),
+        "torque": (None, 28, None, 35),
+        "tool_wear": (None, 200, None, 240),
     },
     "wave": {
-        "air_temperature":     (None, 306, None, 310),
+        "air_temperature": (None, 306, None, 310),
         "process_temperature": (515, 536, 510, 540),
-        "rotational_speed":    (700, 1700, 600, 1800),
-        "torque":              (None, 40, None, 48),
-        "tool_wear":           (None, 200, None, 240),
+        "rotational_speed": (700, 1700, 600, 1800),
+        "torque": (None, 40, None, 48),
+        "tool_wear": (None, 200, None, 240),
     },
     "pickplace": {
-        "air_temperature":     (None, 305, None, 310),
+        "air_temperature": (None, 305, None, 310),
         "process_temperature": (None, 315, None, 320),
-        "rotational_speed":    (None, 2400, None, 2600),
-        "torque":              (None, 18, None, 22),
-        "tool_wear":           (None, 180, None, 220),
+        "rotational_speed": (None, 2400, None, 2600),
+        "torque": (None, 18, None, 22),
+        "tool_wear": (None, 180, None, 220),
     },
     "_default": {
-        "air_temperature":     (None, 305, None, 310),
+        "air_temperature": (None, 305, None, 310),
         "process_temperature": (None, 315, None, 320),
-        "rotational_speed":    (None, 1700, None, 2000),
-        "torque":              (None, 60, None, 75),
-        "tool_wear":           (None, 200, None, 250),
+        "rotational_speed": (None, 1700, None, 2000),
+        "torque": (None, 60, None, 75),
+        "tool_wear": (None, 200, None, 250),
     },
 }
 
@@ -201,11 +202,11 @@ def _sensor_status(value: float, th: tuple) -> str:
 
 # Plain labels + units per sensor (FR, operator-facing). Temps reported in °C.
 _SENSOR_META = [
-    ("air_temperature",     "Température air",     "°C",     True),
-    ("process_temperature", "Température procédé", "°C",     True),
-    ("rotational_speed",    "Vitesse rotation",    "tr/min", False),
-    ("torque",              "Couple",              "Nm",     False),
-    ("tool_wear",           "Usure outil",         "min",    False),
+    ("air_temperature", "Température air", "°C", True),
+    ("process_temperature", "Température procédé", "°C", True),
+    ("rotational_speed", "Vitesse rotation", "tr/min", False),
+    ("torque", "Couple", "Nm", False),
+    ("tool_wear", "Usure outil", "min", False),
 ]
 
 
@@ -226,7 +227,7 @@ def build_sensor_status(machine_type: str, machine_name: str, readings: dict) ->
             fv = float(v)
         except (TypeError, ValueError):
             continue
-        th = thresholds[key]              # (warn_lo, warn_hi, crit_lo, crit_hi)
+        th = thresholds[key]  # (warn_lo, warn_hi, crit_lo, crit_hi)
         status = _sensor_status(fv, th)
         warn_hi = th[1]
         if is_temp:
@@ -235,8 +236,16 @@ def build_sensor_status(machine_type: str, machine_name: str, readings: dict) ->
         else:
             value = round(fv, 1)
             target = warn_hi
-        out.append({"key": key, "label": label, "value": value,
-                    "unit": unit, "status": status, "target": target})
+        out.append(
+            {
+                "key": key,
+                "label": label,
+                "value": value,
+                "unit": unit,
+                "status": status,
+                "target": target,
+            }
+        )
     return out
 
 
@@ -250,9 +259,7 @@ def build_ml_context(snapshot: Optional[Dict]) -> str:
         return ""
 
     name = snapshot.get("machine_name") or "(inconnue)"
-    category = _resolve_threshold_category(
-        snapshot.get("machine_type") or "", name
-    )
+    category = _resolve_threshold_category(snapshot.get("machine_type") or "", name)
     thresholds = _SENSOR_THRESHOLDS[category]
 
     def num(key, fmt, suffix=""):
@@ -262,14 +269,20 @@ def build_ml_context(snapshot: Optional[Dict]) -> str:
     lines = [
         f"[ETAT ML EN TEMPS REEL] Machine: {name}",
         f"Score sante unifie: {num('health_score', '.0f', '/100')}"
-        + (f"  |  Verdict: {snapshot['dst_verdict']}" if snapshot.get("dst_verdict") else ""),
+        + (
+            f"  |  Verdict: {snapshot['dst_verdict']}"
+            if snapshot.get("dst_verdict")
+            else ""
+        ),
         f"Probabilite de defaillance: {num('failure_probability', '.1f', '%')}"
         + f"  |  Niveau de risque: {snapshot.get('risk_level') or 'N/D'}",
         f"Duree de vie restante estimee (RUL): {num('rul_days', '.0f', ' jours')}",
     ]
 
     if snapshot.get("p6_schedule_days") is not None:
-        lines.append(f"Prochaine maintenance recommandee: dans {snapshot['p6_schedule_days']:.0f} jours")
+        lines.append(
+            f"Prochaine maintenance recommandee: dans {snapshot['p6_schedule_days']:.0f} jours"
+        )
     if snapshot.get("predicted_priority"):
         lines.append(f"Priorite predite: {snapshot['predicted_priority']}")
 
@@ -287,11 +300,11 @@ def build_ml_context(snapshot: Optional[Dict]) -> str:
 
     # Sensor readings with NORMAL/ATTENTION/CRITIQUE status
     sensor_defs = [
-        ("Temperature air",     "air_temperature",     "K",      True),
-        ("Temperature process", "process_temperature",  "K",      True),
-        ("Vitesse rotation",    "rotational_speed",     "tr/min", False),
-        ("Couple",              "torque",               "Nm",     False),
-        ("Usure outil",         "tool_wear",            "min",    False),
+        ("Temperature air", "air_temperature", "K", True),
+        ("Temperature process", "process_temperature", "K", True),
+        ("Vitesse rotation", "rotational_speed", "tr/min", False),
+        ("Couple", "torque", "Nm", False),
+        ("Usure outil", "tool_wear", "min", False),
     ]
     sensor_lines = []
     for label, key, unit, is_temp in sensor_defs:
@@ -300,7 +313,9 @@ def build_ml_context(snapshot: Optional[Dict]) -> str:
             continue
         status = _sensor_status(float(v), thresholds[key])
         if is_temp:
-            sensor_lines.append(f"  {label}: {float(v) - 273.15:.1f}C ({float(v):.0f} {unit}) -> {status}")
+            sensor_lines.append(
+                f"  {label}: {float(v) - 273.15:.1f}C ({float(v):.0f} {unit}) -> {status}"
+            )
         else:
             sensor_lines.append(f"  {label}: {v} {unit} -> {status}")
     if sensor_lines:

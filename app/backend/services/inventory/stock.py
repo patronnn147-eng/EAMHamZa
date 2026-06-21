@@ -5,6 +5,7 @@ chain multiple stock operations within a single parent transaction
 (work-order completion, reservation fulfillment, etc.). Use `auto_commit=True`
 (the default) for standalone REST calls.
 """
+
 import logging
 from decimal import Decimal
 from typing import Optional, Dict, Any, Union
@@ -37,7 +38,9 @@ class StockService:
     async def get_stock_levels(self, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
         """Get current stock levels for all pieces with pagination."""
         try:
-            count_query = select(func.count(Stock.id)).join(Piece, Stock.piece_id == Piece.id)
+            count_query = select(func.count(Stock.id)).join(
+                Piece, Stock.piece_id == Piece.id
+            )
             count_result = await self.db.execute(count_query)
             total = count_result.scalar() or 0
 
@@ -53,7 +56,8 @@ class StockService:
                 )
                 .join(Piece, Stock.piece_id == Piece.id)
                 .order_by(Piece.name)
-                .offset(skip).limit(limit)
+                .offset(skip)
+                .limit(limit)
             )
             result = await self.db.execute(query)
             rows = result.fetchall()
@@ -99,10 +103,14 @@ class StockService:
                     raise ValueError(f"Piece {piece_id} not found")
                 unit = piece.default_unit or "pcs"
 
-            stock = await self.db.scalar(select(Stock).where(Stock.piece_id == piece_id))
+            stock = await self.db.scalar(
+                select(Stock).where(Stock.piece_id == piece_id)
+            )
             if stock:
                 # Coerce existing INT column safely; ORM will handle Numeric
-                stock.quantity = (Decimal(str(stock.quantity or 0)) + qty).quantize(Decimal("0.01"))
+                stock.quantity = (Decimal(str(stock.quantity or 0)) + qty).quantize(
+                    Decimal("0.01")
+                )
             else:
                 stock = Stock(piece_id=piece_id, quantity=qty)
                 self.db.add(stock)
@@ -122,8 +130,14 @@ class StockService:
                 await self.db.commit()
                 await self.db.refresh(stock)
 
-            logger.info(f"Added {qty} {unit} stock for piece {piece_id} (commit={auto_commit})")
-            return {"id": stock.id, "piece_id": stock.piece_id, "quantity": stock.quantity}
+            logger.info(
+                f"Added {qty} {unit} stock for piece {piece_id} (commit={auto_commit})"
+            )
+            return {
+                "id": stock.id,
+                "piece_id": stock.piece_id,
+                "quantity": stock.quantity,
+            }
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
@@ -155,7 +169,9 @@ class StockService:
                     raise ValueError(f"Piece {piece_id} not found")
                 unit = piece.default_unit or "pcs"
 
-            stock = await self.db.scalar(select(Stock).where(Stock.piece_id == piece_id))
+            stock = await self.db.scalar(
+                select(Stock).where(Stock.piece_id == piece_id)
+            )
             if not stock:
                 raise ValueError(f"No stock entry found for piece {piece_id}")
             current_qty = Decimal(str(stock.quantity or 0))
@@ -166,7 +182,9 @@ class StockService:
 
             stock.quantity = (current_qty - qty).quantize(Decimal("0.01"))
 
-            ref = reference or (f"intervention-{intervention_id}" if intervention_id else None)
+            ref = reference or (
+                f"intervention-{intervention_id}" if intervention_id else None
+            )
             movement = MouvementStock(
                 piece_id=piece_id,
                 quantity=qty,
@@ -182,8 +200,14 @@ class StockService:
                 await self.db.commit()
                 await self.db.refresh(stock)
 
-            logger.info(f"Consumed {qty} {unit} stock for piece {piece_id} (commit={auto_commit})")
-            return {"id": stock.id, "piece_id": stock.piece_id, "quantity": stock.quantity}
+            logger.info(
+                f"Consumed {qty} {unit} stock for piece {piece_id} (commit={auto_commit})"
+            )
+            return {
+                "id": stock.id,
+                "piece_id": stock.piece_id,
+                "quantity": stock.quantity,
+            }
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
@@ -203,7 +227,9 @@ class StockService:
             reserved_sub = (
                 select(
                     Piece.id.label("piece_id"),
-                    func.coalesce(func.sum(_active_reservation_sum_col()), 0).label("reserved"),
+                    func.coalesce(func.sum(_active_reservation_sum_col()), 0).label(
+                        "reserved"
+                    ),
                 )
                 .select_from(Piece)
                 .outerjoin(
@@ -219,7 +245,8 @@ class StockService:
                 .join(Piece, Stock.piece_id == Piece.id)
                 .outerjoin(reserved_sub, reserved_sub.c.piece_id == Piece.id)
                 .where(
-                    (Stock.quantity - func.coalesce(reserved_sub.c.reserved, 0)) < Piece.min_stock
+                    (Stock.quantity - func.coalesce(reserved_sub.c.reserved, 0))
+                    < Piece.min_stock
                 )
             )
             total = (await self.db.execute(count_query)).scalar() or 0
@@ -236,24 +263,30 @@ class StockService:
                 .join(Piece, Stock.piece_id == Piece.id)
                 .outerjoin(reserved_sub, reserved_sub.c.piece_id == Piece.id)
                 .where(
-                    (Stock.quantity - func.coalesce(reserved_sub.c.reserved, 0)) < Piece.min_stock
+                    (Stock.quantity - func.coalesce(reserved_sub.c.reserved, 0))
+                    < Piece.min_stock
                 )
                 .order_by(Stock.quantity)
-                .offset(skip).limit(limit)
+                .offset(skip)
+                .limit(limit)
             )
             result = await self.db.execute(query)
             rows = result.fetchall()
             items = []
             for row in rows:
-                available = Decimal(str(row.current_quantity or 0)) - Decimal(str(row.reserved or 0))
-                items.append({
-                    "piece_id": row.piece_id,
-                    "piece_name": row.piece_name,
-                    "piece_reference": row.piece_reference,
-                    "current_quantity": available,  # report AVAILABLE not raw
-                    "min_stock": row.min_stock,
-                    "deficit": Decimal(row.min_stock) - available,
-                })
+                available = Decimal(str(row.current_quantity or 0)) - Decimal(
+                    str(row.reserved or 0)
+                )
+                items.append(
+                    {
+                        "piece_id": row.piece_id,
+                        "piece_name": row.piece_name,
+                        "piece_reference": row.piece_reference,
+                        "current_quantity": available,  # report AVAILABLE not raw
+                        "min_stock": row.min_stock,
+                        "deficit": Decimal(row.min_stock) - available,
+                    }
+                )
             return {"items": items, "total": total}
         except Exception as e:
             logger.error(f"Error fetching stock alerts: {str(e)}")
@@ -287,7 +320,8 @@ class StockService:
                 )
                 .outerjoin(Piece, MouvementStock.piece_id == Piece.id)
                 .order_by(MouvementStock.id.desc())
-                .offset(skip).limit(limit)
+                .offset(skip)
+                .limit(limit)
             )
             if piece_id:
                 query = query.where(MouvementStock.piece_id == piece_id)
@@ -318,11 +352,14 @@ class StockService:
 # Module-level helpers to keep get_alerts query readable. Importing RequiredPiece
 # at module scope would create a circular import via services.inventory; lazy import.
 
+
 def _active_reservation_source():
     from models.required_pieces import RequiredPiece  # noqa: WPS433 (intentional lazy)
+
     return RequiredPiece.__table__
 
 
 def _active_reservation_sum_col():
     from models.required_pieces import RequiredPiece  # noqa: WPS433
+
     return RequiredPiece.quantity_reserved

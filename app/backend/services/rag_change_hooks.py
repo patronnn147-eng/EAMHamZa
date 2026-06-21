@@ -15,6 +15,7 @@ Why this design:
 
 Disable via env: RAG_HOOKS_ENABLED=false
 """
+
 from __future__ import annotations
 
 import logging
@@ -32,13 +33,19 @@ _PENDING_ATTR = "_rag_pending_changes"
 
 
 def _hooks_enabled() -> bool:
-    return os.getenv("RAG_HOOKS_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+    return os.getenv("RAG_HOOKS_ENABLED", "true").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def _enqueue_sync(table: str, row_id: int) -> None:
     """Send the sync task to Celery via the existing broker."""
     try:
         from tasks.rag_db_sync import rag_sync_row
+
         rag_sync_row.delay(table, row_id)
     except Exception as e:
         logger.warning(f"[rag_hooks] failed to enqueue sync_row({table},{row_id}): {e}")
@@ -47,13 +54,17 @@ def _enqueue_sync(table: str, row_id: int) -> None:
 def _enqueue_delete(table: str, row_id: int) -> None:
     try:
         from tasks.rag_db_sync import rag_delete_row
+
         rag_delete_row.delay(table, row_id)
     except Exception as e:
-        logger.warning(f"[rag_hooks] failed to enqueue delete_row({table},{row_id}): {e}")
+        logger.warning(
+            f"[rag_hooks] failed to enqueue delete_row({table},{row_id}): {e}"
+        )
 
 
 def _make_listener(table: str, op: str):
     """Build a mapper-level listener that records the change on the session."""
+
     def listener(mapper, connection, target):
         if not _hooks_enabled():
             return
@@ -68,6 +79,7 @@ def _make_listener(table: str, op: str):
         if row_id is None:
             return
         pending.append((table, op, row_id))
+
     return listener
 
 
@@ -113,8 +125,11 @@ def register_rag_hooks() -> None:
     from models.ordres_travail import Ordres_travail
     from models.alertes import Alert
     from models.pieces import Piece
+
     try:
-        from models.maintenances_planifiees import Maintenances_planifiees as MaintenancesPlanifiees
+        from models.maintenances_planifiees import (
+            Maintenances_planifiees as MaintenancesPlanifiees,
+        )
     except Exception:
         MaintenancesPlanifiees = None  # type: ignore
 

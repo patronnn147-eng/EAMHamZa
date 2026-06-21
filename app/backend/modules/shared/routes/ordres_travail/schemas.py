@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class Ordres_travailData(BaseModel):
     """Entity data schema (for create/update) - US-CHETOP-001"""
+
     titre: Optional[str] = None
     description: Optional[str] = None
     priorite: str = "MOYENNE"
@@ -14,11 +15,14 @@ class Ordres_travailData(BaseModel):
     statut: str = "DRAFT"  # Full workflow: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
     created_at: Optional[datetime] = None
     # Phase 2: Link to intervention
-    intervention_id: Optional[int] = None  # Source intervention for work order generation
+    intervention_id: Optional[int] = (
+        None  # Source intervention for work order generation
+    )
 
 
 class Ordres_travailUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
+
     titre: Optional[str] = None
     description: Optional[str] = None
     date_echeance: Optional[datetime] = None
@@ -38,6 +42,7 @@ class Ordres_travailUpdateData(BaseModel):
 
 class Ordres_travailResponse(BaseModel):
     """Entity response schema"""
+
     id: int
     titre: str
     description: str
@@ -67,6 +72,7 @@ class Ordres_travailValidationData(BaseModel):
 
 class Ordres_travailListResponse(BaseModel):
     """List response schema"""
+
     items: List[Ordres_travailResponse]
     total: int
     skip: int
@@ -75,20 +81,24 @@ class Ordres_travailListResponse(BaseModel):
 
 class Ordres_travailBatchCreateRequest(BaseModel):
     """Batch create request"""
+
     items: List[Ordres_travailData]
 
 
 class Ordres_travailBatchUpdateItem(BaseModel):
     """Batch update item"""
+
     id: int
     updates: Ordres_travailUpdateData
 
 
 class Ordres_travailBatchUpdateRequest(BaseModel):
     """Batch update request"""
+
     items: List[Ordres_travailBatchUpdateItem]
 
 
 class Ordres_travailBatchDeleteRequest(BaseModel):
     """Batch delete request"""
+
     ids: List[int]

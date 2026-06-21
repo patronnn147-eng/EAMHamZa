@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
-from models.rapports import Rapports
 from services.rapports import RapportsService
 
 logger = logging.getLogger(__name__)
@@ -122,13 +121,15 @@ async def update_scheduled_report(
         existing_config = existing.schedule_config or {}
         schedule_config = {
             "frequency": update.frequency or existing_config.get("frequency", "weekly"),
-            "day_of_week": update.day_of_week if update.day_of_week is not None else existing_config.get("day_of_week"),
+            "day_of_week": update.day_of_week
+            if update.day_of_week is not None
+            else existing_config.get("day_of_week"),
             "time": update.time or existing_config.get("time", "08:00"),
             "recipients": update.recipients or existing_config.get("recipients", []),
         }
         update_data["schedule_config"] = schedule_config
 
-    updated = await service.update(report_id, update_data)
+    await service.update(report_id, update_data)
     return {"status": "updated", "id": report_id}
 
 
@@ -198,7 +199,7 @@ async def send_test_email(
     """
 
     # Send to user's email
-    user_email = getattr(current_user, 'email', None)
+    user_email = getattr(current_user, "email", None)
     if not user_email:
         raise HTTPException(status_code=400, detail="User email not found")
 
@@ -207,4 +208,4 @@ async def send_test_email(
     return {"sent": sent, "email": user_email}
 
 
-import json
+import json  # noqa: E402

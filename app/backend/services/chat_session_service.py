@@ -9,12 +9,13 @@ existing callers working — they target the user's most-recent session.
 New helpers (`list_for_user`, `create`, `get_by_id`, `delete`, `rename`)
 power the multi-conversation sidebar.
 """
+
 import logging
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
-from sqlalchemy import select, delete, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.chat_sessions import ChatSession
@@ -55,7 +56,8 @@ class ChatSessionService:
         return [
             {
                 "id": str(s.id),
-                "title": s.title or _auto_title(s.last_query or "Nouvelle conversation"),
+                "title": s.title
+                or _auto_title(s.last_query or "Nouvelle conversation"),
                 "message_count": s.message_count or 0,
                 "last_query": s.last_query,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -64,7 +66,9 @@ class ChatSessionService:
             for s in sessions
         ]
 
-    async def create(self, utilisateur_id: int, title: Optional[str] = None) -> ChatSession:
+    async def create(
+        self, utilisateur_id: int, title: Optional[str] = None
+    ) -> ChatSession:
         """Create a fresh empty session and return it."""
         session = ChatSession(
             utilisateur_id=utilisateur_id,
@@ -152,7 +156,10 @@ class ChatSessionService:
                 first_user = user_msgs[-1].get("content", "")
                 session.last_query = first_user[:500]
                 # Auto-set title from first user message if still default/empty
-                if not session.title or session.title in ("Nouvelle conversation", "Conversation"):
+                if not session.title or session.title in (
+                    "Nouvelle conversation",
+                    "Conversation",
+                ):
                     session.title = _auto_title(first_user)
 
             session.updated_at = datetime.utcnow()
@@ -208,7 +215,9 @@ class ChatSessionService:
             "title": session.title or "Nouvelle conversation",
             "message_count": len(messages),
             "last_query": session.last_query,
-            "updated_at": session.updated_at.isoformat() if session.updated_at else None,
+            "updated_at": session.updated_at.isoformat()
+            if session.updated_at
+            else None,
             "history": messages[-20:],
             "total": len(messages),
         }

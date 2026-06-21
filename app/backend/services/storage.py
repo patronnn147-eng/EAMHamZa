@@ -34,7 +34,9 @@ class StorageService:
 
     def __init__(self):
         if not settings.oss_service_url or not settings.oss_api_key:
-            raise ValueError("OSS service not configured. Set OSS_SERVICE_URL and OSS_API_KEY.")
+            raise ValueError(
+                "OSS service not configured. Set OSS_SERVICE_URL and OSS_API_KEY."
+            )
 
         # If OSS_SECRET_KEY is provided, we assume S3/MinIO mode for presigned URLs.
         # The existing code path that calls `/api/v1/infra/client/oss/...` is for a custom OSS gateway,
@@ -43,9 +45,11 @@ class StorageService:
         if getattr(settings, "oss_secret_key", ""):
             parsed = urlparse(settings.oss_service_url)
             endpoint = parsed.netloc or parsed.path
-            secure = (parsed.scheme == "https")
+            secure = parsed.scheme == "https"
             if not endpoint:
-                raise ValueError("Invalid OSS_SERVICE_URL. Expected something like http://minio:9000/")
+                raise ValueError(
+                    "Invalid OSS_SERVICE_URL. Expected something like http://minio:9000/"
+                )
             self._minio_client = Minio(
                 endpoint,
                 access_key=settings.oss_api_key,
@@ -81,7 +85,7 @@ class StorageService:
         if not endpoint:
             return self._minio_client
 
-        secure = (parsed.scheme == "https")
+        secure = parsed.scheme == "https"
         return Minio(
             endpoint,
             access_key=settings.oss_api_key,
@@ -109,7 +113,10 @@ class StorageService:
         payload = {"bucket_name": request.bucket_name, "visibility": request.visibility}
         try:
             result = await self._apost_oss_service(endpoint, payload)
-            return BucketResponse(bucket_name=result.get("bucket_name"), created_at=result.get("created_at"))
+            return BucketResponse(
+                bucket_name=result.get("bucket_name"),
+                created_at=result.get("created_at"),
+            )
         except Exception as e:
             logger.error(f"Failed to create bucket: {e}")
             raise
@@ -123,7 +130,11 @@ class StorageService:
             result = await self._aget_oss_service(endpoint=endpoint, params={})
             list_buckets = BucketListResponse()
             for item in result["buckets"]:
-                list_buckets.buckets.append(BucketInfo(bucket_name=item["bucket_name"], visibility=item["visibility"]))
+                list_buckets.buckets.append(
+                    BucketInfo(
+                        bucket_name=item["bucket_name"], visibility=item["visibility"]
+                    )
+                )
             return list_buckets
         except Exception as e:
             logger.error(f"Failed to list buckets: {e}")
@@ -172,7 +183,9 @@ class StorageService:
             raise
 
     async def rename_object(self, request: RenameRequest) -> dict:
-        endpoint = f"api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/rename"
+        endpoint = (
+            f"api/v1/infra/client/oss/buckets/{request.bucket_name}/objects/rename"
+        )
         payload = {
             "overwrite_key": request.overwrite_key,
             "source_key": request.source_key,
@@ -230,7 +243,9 @@ class StorageService:
             logger.error(f"Failed to create MinIO upload URL: {e}")
             raise
 
-    async def create_download_url(self, request: FileUpDownRequest) -> FileUpDownResponse:
+    async def create_download_url(
+        self, request: FileUpDownRequest
+    ) -> FileUpDownResponse:
         """
         Create presigned URL for file download with access URL.
         """
@@ -275,10 +290,14 @@ class StorageService:
     async def _aget_oss_service(self, endpoint: str, params: dict) -> dict:
         return await self._arequest_oss_service("GET", endpoint, params=params)
 
-    async def _apost_oss_service(self, endpoint: str, payload: dict) -> Union[dict, list]:
+    async def _apost_oss_service(
+        self, endpoint: str, payload: dict
+    ) -> Union[dict, list]:
         return await self._arequest_oss_service("POST", endpoint, payload=payload)
 
-    async def _adelete_oss_service(self, endpoint: str, payload: dict) -> Union[dict, list]:
+    async def _adelete_oss_service(
+        self, endpoint: str, payload: dict
+    ) -> Union[dict, list]:
         return await self._arequest_oss_service("DELETE", endpoint, payload=payload)
 
     async def _arequest_oss_service(
@@ -307,7 +326,9 @@ class StorageService:
                     logger.warning(f"ObjectStorage service error: {result}")
                     error_msg = result.get("error", "Unknown error")
                     message = result.get("message", "")
-                    raise ValueError(f"ObjectStorage service error: {error_msg}. {message}")
+                    raise ValueError(
+                        f"ObjectStorage service error: {error_msg}. {message}"
+                    )
 
                 return result.get("data", [])
         except httpx.HTTPStatusError as e:

@@ -7,8 +7,9 @@ intervention's parts panel:
 - pending_pieces (uncatalogued items linked to this intervention)
 - aggregate parts_replaced JSON (from the view)
 """
+
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, text
@@ -25,7 +26,9 @@ from models.utilisateurs import Utilisateurs
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/inventory/intervention", tags=["inventory-intervention"])
+router = APIRouter(
+    prefix="/api/v1/inventory/intervention", tags=["inventory-intervention"]
+)
 
 ROLES_READ = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 
@@ -46,12 +49,14 @@ async def get_intervention_parts(
 
     try:
         # Required pieces
-        required_rows = (await db.execute(
-            select(RequiredPiece, Piece.name, Piece.reference, Piece.default_unit)
-            .join(Piece, Piece.id == RequiredPiece.piece_id)
-            .where(RequiredPiece.intervention_id == intervention_id)
-            .order_by(RequiredPiece.id)
-        )).all()
+        required_rows = (
+            await db.execute(
+                select(RequiredPiece, Piece.name, Piece.reference, Piece.default_unit)
+                .join(Piece, Piece.id == RequiredPiece.piece_id)
+                .where(RequiredPiece.intervention_id == intervention_id)
+                .order_by(RequiredPiece.id)
+            )
+        ).all()
         required = [
             {
                 "id": rp.id,
@@ -61,7 +66,9 @@ async def get_intervention_parts(
                 "quantity_planned": str(rp.quantity_planned),
                 "unit": rp.unit or default_unit or "pcs",
                 "quantity_reserved": str(rp.quantity_reserved),
-                "reservation_expires_at": rp.reservation_expires_at.isoformat() if rp.reservation_expires_at else None,
+                "reservation_expires_at": rp.reservation_expires_at.isoformat()
+                if rp.reservation_expires_at
+                else None,
                 "approved": rp.approved,
                 "created_at": rp.created_at.isoformat() if rp.created_at else None,
             }
@@ -69,12 +76,14 @@ async def get_intervention_parts(
         ]
 
         # Consumed pieces
-        consumed_rows = (await db.execute(
-            select(ConsumedPiece, Piece.name, Piece.reference)
-            .join(Piece, Piece.id == ConsumedPiece.piece_id)
-            .where(ConsumedPiece.intervention_id == intervention_id)
-            .order_by(ConsumedPiece.id)
-        )).all()
+        consumed_rows = (
+            await db.execute(
+                select(ConsumedPiece, Piece.name, Piece.reference)
+                .join(Piece, Piece.id == ConsumedPiece.piece_id)
+                .where(ConsumedPiece.intervention_id == intervention_id)
+                .order_by(ConsumedPiece.id)
+            )
+        ).all()
         consumed = [
             {
                 "id": cp.id,
@@ -94,12 +103,14 @@ async def get_intervention_parts(
         ]
 
         # Pending pieces
-        pending_rows = (await db.execute(
-            select(PendingPiece, Piece.name.label("matched_name"))
-            .outerjoin(Piece, Piece.id == PendingPiece.matched_piece_id)
-            .where(PendingPiece.intervention_id == intervention_id)
-            .order_by(PendingPiece.id)
-        )).all()
+        pending_rows = (
+            await db.execute(
+                select(PendingPiece, Piece.name.label("matched_name"))
+                .outerjoin(Piece, Piece.id == PendingPiece.matched_piece_id)
+                .where(PendingPiece.intervention_id == intervention_id)
+                .order_by(PendingPiece.id)
+            )
+        ).all()
         pending = [
             {
                 "id": pp.id,
@@ -119,10 +130,14 @@ async def get_intervention_parts(
         ]
 
         # Aggregate summary from the VIEW (single source of truth)
-        summary_row = (await db.execute(
-            text("SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"),
-            {"iid": intervention_id},
-        )).first()
+        summary_row = (
+            await db.execute(
+                text(
+                    "SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"
+                ),
+                {"iid": intervention_id},
+            )
+        ).first()
         parts_replaced_json = summary_row[0] if summary_row else None
 
         return {
@@ -134,7 +149,10 @@ async def get_intervention_parts(
             "parts_replaced_json": parts_replaced_json,
         }
     except Exception as e:
-        logger.error(f"get_intervention_parts failed for itv {intervention_id}: {e}", exc_info=True)
+        logger.error(
+            f"get_intervention_parts failed for itv {intervention_id}: {e}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -146,7 +164,9 @@ async def get_parts_by_work_order(
 ):
     """Same payload as `/intervention/{id}/parts` but keyed by work_order_id."""
     itv_id = await db.scalar(
-        select(Ordres_intervention.id).where(Ordres_intervention.ordre_travail_id == work_order_id)
+        select(Ordres_intervention.id).where(
+            Ordres_intervention.ordre_travail_id == work_order_id
+        )
     )
     if itv_id is None:
         # No linked intervention — return empty shell so UI can degrade gracefully

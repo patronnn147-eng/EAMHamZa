@@ -9,23 +9,28 @@ class MlPredictionLog(Base):
     Every time the backend computes a prediction, a row is logged here.
     Used for auditing model accuracy against real-world outcomes.
     """
+
     __tablename__ = "ml_prediction_logs"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     machine_id = Column(Integer, nullable=False, index=True)
     machine_name = Column(String, nullable=True)
 
     # P1: Failure Risk
-    risk_level = Column(String(20), nullable=True)          # CRITICAL / HIGH / MEDIUM / LOW
-    failure_probability = Column(Float, nullable=True)      # 0-100
+    risk_level = Column(String(20), nullable=True)  # CRITICAL / HIGH / MEDIUM / LOW
+    failure_probability = Column(Float, nullable=True)  # 0-100
 
     # P3: Remaining Useful Life
     rul_days = Column(Float, nullable=True)
-    predicted_failure_date = Column(String, nullable=True)   # ISO timestamp
+    predicted_failure_date = Column(String, nullable=True)  # ISO timestamp
 
     # P5: Work Order Priority
-    predicted_priority = Column(String(20), nullable=True)   # Critical / High / Medium / Low
+    predicted_priority = Column(
+        String(20), nullable=True
+    )  # Critical / High / Medium / Low
 
     # P4: Anomaly Detection
     is_anomaly = Column(Boolean, nullable=True, default=False)
@@ -47,4 +52,6 @@ class MlPredictionLog(Base):
     # Metadata
     data_points = Column(Integer, nullable=True)
     ml_model_used = Column(Boolean, nullable=True, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

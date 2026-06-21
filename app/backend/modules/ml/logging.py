@@ -4,7 +4,6 @@ from models.ml_prediction_log import MlPredictionLog
 
 
 class ShadowLogger:
-
     @staticmethod
     def _serialise_parts_demand(parts_demand: Optional[Dict]) -> Optional[str]:
         """Serialise parts_demand contract to JSON string for Text column."""

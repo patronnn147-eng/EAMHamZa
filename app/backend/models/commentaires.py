@@ -6,7 +6,9 @@ class Commentaires(Base):
     __tablename__ = "commentaires"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     ordre_travail_id = Column(Integer, nullable=False)
     utilisateur_id = Column(Integer, nullable=False)
     contenu = Column(String, nullable=False)

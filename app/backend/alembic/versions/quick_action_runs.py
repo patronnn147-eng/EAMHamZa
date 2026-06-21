@@ -6,6 +6,7 @@ Create Date: 2026-06-13
 
 Idempotent guard via information_schema (mirrors p7_parts_demand_column.py).
 """
+
 from typing import Sequence, Union
 
 from alembic import op
@@ -32,14 +33,25 @@ def upgrade() -> None:
         return
     op.create_table(
         "quick_action_runs",
-        sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+        sa.Column(
+            "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
+        ),
         sa.Column("machine_id", sa.Integer(), nullable=False),
         sa.Column("hash", sa.String(length=64), nullable=False),
         sa.Column("result_json", sa.Text(), nullable=False),
-        sa.Column("executed_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "executed_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.now(),
+            nullable=False,
+        ),
     )
-    op.create_unique_constraint("uq_quick_action_runs_hash", "quick_action_runs", ["hash"])
-    op.create_index("ix_quick_action_runs_machine_id", "quick_action_runs", ["machine_id"])
+    op.create_unique_constraint(
+        "uq_quick_action_runs_hash", "quick_action_runs", ["hash"]
+    )
+    op.create_index(
+        "ix_quick_action_runs_machine_id", "quick_action_runs", ["machine_id"]
+    )
 
 
 def downgrade() -> None:

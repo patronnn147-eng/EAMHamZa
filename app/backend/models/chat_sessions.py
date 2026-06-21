@@ -2,6 +2,7 @@
 ChatSession model — persists per-user conversation history in DB.
 Replaces the in-memory CHAT_HISTORY dict.
 """
+
 from datetime import datetime
 
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
@@ -16,7 +17,9 @@ class ChatSession(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    utilisateur_id = Column(Integer, ForeignKey("utilisateurs.id"), nullable=False, index=True)
+    utilisateur_id = Column(
+        Integer, ForeignKey("utilisateurs.id"), nullable=False, index=True
+    )
     # Conversation title — auto-derived from first user message, user-editable
     title = Column(String(200), nullable=True)
     # Full message list stored as JSONB: [{"role": "user"|"assistant", "content": "..."}]
@@ -25,4 +28,6 @@ class ChatSession(Base):
     last_query = Column(Text, nullable=True)
     message_count = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
-    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(
+        DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow
+    )

@@ -25,7 +25,9 @@ async def get_work_orders(
 ):
     skip = (page - 1) * size
 
-    count_query = select(func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None))
+    count_query = select(func.count(Ordres_travail.id)).where(
+        Ordres_travail.archived_at.is_(None)
+    )
     query = select(Ordres_travail).where(Ordres_travail.archived_at.is_(None))
 
     if statut:

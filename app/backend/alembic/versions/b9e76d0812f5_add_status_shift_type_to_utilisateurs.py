@@ -5,25 +5,25 @@ Revises: b7c8d9e0f1a3
 Create Date: 2026-03-28 14:28:15.123456
 
 """
+
 from typing import Sequence, Union
 
 from alembic import op
-import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'b9e76d0812f5'
-down_revision: Union[str, Sequence[str], None] = 'b7c8d9e0f1a3'
+revision: str = "b9e76d0812f5"
+down_revision: Union[str, Sequence[str], None] = "b7c8d9e0f1a3"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
     # Create ENUM types first
-    userstatus = postgresql.ENUM('PENDING', 'APPROVED', 'REJECTED', name='userstatus')
+    userstatus = postgresql.ENUM("PENDING", "APPROVED", "REJECTED", name="userstatus")
     userstatus.create(op.get_bind(), checkfirst=True)
-    
-    usershifttype = postgresql.ENUM('MORNING', 'NIGHT', name='usershifttype')
+
+    usershifttype = postgresql.ENUM("MORNING", "NIGHT", name="usershifttype")
     usershifttype.create(op.get_bind(), checkfirst=True)
 
     # Use raw SQL to make it idempotent
@@ -51,9 +51,9 @@ def downgrade() -> None:
         ALTER TABLE utilisateurs DROP COLUMN IF EXISTS shift_type;
         ALTER TABLE utilisateurs DROP COLUMN IF EXISTS updated_at;
     """)
-    
-    userstatus = postgresql.ENUM('PENDING', 'APPROVED', 'REJECTED', name='userstatus')
+
+    userstatus = postgresql.ENUM("PENDING", "APPROVED", "REJECTED", name="userstatus")
     userstatus.drop(op.get_bind(), checkfirst=True)
-    
-    usershifttype = postgresql.ENUM('MORNING', 'NIGHT', name='usershifttype')
+
+    usershifttype = postgresql.ENUM("MORNING", "NIGHT", name="usershifttype")
     usershifttype.drop(op.get_bind(), checkfirst=True)

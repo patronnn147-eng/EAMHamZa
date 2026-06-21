@@ -2,6 +2,7 @@
 AWS Lambda handler for unified frontend and backend with Nginx reverse proxy
 This handler simulates Nginx routing logic within Lambda
 """
+
 import asyncio
 import base64
 import json
@@ -17,10 +18,14 @@ from mangum import Mangum
 logger = logging.getLogger()
 if logger.hasHandlers():
     logger.handlers.clear()
-fmt = logging.Formatter("%(asctime)s - %(module)s.%(funcName)s - %(levelname)s - %(pathname)s:%(lineno)d - %(message)s")
+fmt = logging.Formatter(
+    "%(asctime)s - %(module)s.%(funcName)s - %(levelname)s - %(pathname)s:%(lineno)d - %(message)s"
+)
 h = logging.StreamHandler()
 h.setFormatter(fmt)
-logger.setLevel(getattr(logging, os.environ.get("LOG_LEVEL", "DEBUG").upper(), logging.DEBUG))
+logger.setLevel(
+    getattr(logging, os.environ.get("LOG_LEVEL", "DEBUG").upper(), logging.DEBUG)
+)
 logger.addHandler(h)
 
 # Global variables for app instances
@@ -44,32 +49,32 @@ def format_traceback() -> str:
 def initialize_dynamic_routes():
     """Initialize dynamic routes by scanning frontend dist directory"""
     global dynamic_routes_initialized, seo_paths
-    
+
     if dynamic_routes_initialized:
         return
-    
+
     dist_path = "/var/task/frontend/dist"
-    
+
     try:
         if os.path.exists(dist_path):
             for root, dirs, files in os.walk(dist_path):
                 if "index.html" in files:
                     rel_path = os.path.relpath(root, dist_path)
-                    
+
                     # Skip root index.html (for SPA)
                     if rel_path == ".":
                         continue
-                    
+
                     url_path = "/" + rel_path.replace(os.sep, "/")
-                    
+
                     # Only register SEO paths
                     if url_path == "/blog" or url_path.startswith("/blog/"):
                         seo_paths.add(url_path)
                         logger.info(f"Registered SEO route: {url_path}")
-        
+
         dynamic_routes_initialized = True
         logger.info(f"Dynamic routes initialized: seo_paths={len(seo_paths)}")
-        
+
     except Exception as e:
         logger.error(f"Failed to initialize dynamic routes: {e}\n{format_traceback()}")
         dynamic_routes_initialized = True
@@ -169,7 +174,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     try:
         # Initialize dynamic routes on first request (cold start)
         initialize_dynamic_routes()
-        
+
         # Extract request information from the event
         # Support both API Gateway v1 and v2 event formats
         if "version" in event and event["version"] == "2.0":
@@ -207,7 +212,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         # Extract real request domain for SEO content replacement
         # Priority: mgx-external-domain > x-forwarded-host > host
         proto = headers.get("x-forwarded-proto", "https")
-        host = headers.get("mgx-external-domain") or headers.get("x-forwarded-host") or headers.get("host", "")
+        host = (
+            headers.get("mgx-external-domain")
+            or headers.get("x-forwarded-host")
+            or headers.get("host", "")
+        )
         request_domain = f"{proto}://{host}" if host else ""
 
         # Update the event with decoded and normalized path for downstream handlers
@@ -229,7 +238,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif path == "/health":
             return {
                 "statusCode": 200,
-                "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
                 "body": json.dumps({"status": "healthy"}),
             }
 
@@ -237,38 +249,63 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         elif path.startswith("/database"):
             return {
                 "statusCode": 404,
-                "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
+                "headers": {
+                    "Content-Type": "application/json",
+                    "Access-Control-Allow-Origin": "*",
+                },
                 "body": json.dumps({"error": "Not found"}),
             }
         elif path.endswith(
-            (".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg", ".woff", ".woff2", ".ttf", ".eot")
+            (
+                ".js",
+                ".css",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".ico",
+                ".svg",
+                ".woff",
+                ".woff2",
+                ".ttf",
+                ".eot",
+            )
         ):
             # Serve static files
             return serve_static_file(path)
-        
+
         elif path == "/sitemap.xml":
             return serve_sitemap(request_domain)
-        
+
         elif path == "/robots.txt":
             return serve_robots()
-        
+
         # Dynamically registered routes: SEO HTML pages (only if exact path is registered)
         # Normalize path by removing trailing slash for matching
         elif path.rstrip("/") in seo_paths:
             return serve_seo_html(path, request_domain)
-        
+
         else:
             # Route to frontend (SPA) - ALL other paths go to frontend
             result = serve_frontend()
             return result
 
     except Exception as e:
-        error_info = f"{e}\n{format_traceback()}" if os.getenv("ENVIRONMENT", "prod").lower() == "dev" else str(e)
+        error_info = (
+            f"{e}\n{format_traceback()}"
+            if os.getenv("ENVIRONMENT", "prod").lower() == "dev"
+            else str(e)
+        )
         logger.error(f"Lambda handler error: {error_info}")
         return {
             "statusCode": 500,
-            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": error_info, "message": "Internal server error"}),
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps(
+                {"error": error_info, "message": "Internal server error"}
+            ),
         }
 
 
@@ -315,7 +352,10 @@ def serve_frontend() -> Dict[str, Any]:
             html_content = f.read()
         response = {
             "statusCode": 200,
-            "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"},
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+            },
             "body": html_content,
         }
         return response
@@ -357,7 +397,10 @@ def serve_frontend() -> Dict[str, Any]:
 
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"},
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+            },
             "body": html_content,
         }
 
@@ -387,7 +430,10 @@ def serve_static_file(path: str) -> Dict[str, Any]:
             content = f.read()
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": content_type, "Access-Control-Allow-Origin": "*"},
+            "headers": {
+                "Content-Type": content_type,
+                "Access-Control-Allow-Origin": "*",
+            },
             "body": content.decode("utf-8")
             if content_type.startswith("text/")
             else base64.b64encode(content).decode("utf-8"),
@@ -396,7 +442,10 @@ def serve_static_file(path: str) -> Dict[str, Any]:
     else:
         return {
             "statusCode": 404,
-            "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"},
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
             "body": "File not found",
         }
 
@@ -408,8 +457,13 @@ def handle_config_request(headers: dict, query_params: dict) -> Dict[str, Any]:
     if not validation_result["isValid"]:
         return {
             "statusCode": 403,
-            "headers": {"Content-Type": "application/json", "Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": "Access denied", "message": "Invalid request"}),
+            "headers": {
+                "Content-Type": "application/json",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": json.dumps(
+                {"error": "Access denied", "message": "Invalid request"}
+            ),
         }
 
     # Security: Only return frontend-required configuration
@@ -474,7 +528,11 @@ def is_valid_referer(referer: str) -> bool:
         from urllib.parse import urlparse
 
         parsed_url = urlparse(referer)
-        return any(domain in parsed_url.hostname for domain in allowed_domains if parsed_url.hostname)
+        return any(
+            domain in parsed_url.hostname
+            for domain in allowed_domains
+            if parsed_url.hostname
+        )
     except:  # noqa: E722
         return False
 
@@ -496,7 +554,9 @@ def sanitize_config(config: dict) -> dict:
             if key == "API_BASE_URL":
                 # Ensure it's a valid URL format
                 url = config[key]
-                if isinstance(url, str) and (url.startswith("http://") or url.startswith("https://")):
+                if isinstance(url, str) and (
+                    url.startswith("http://") or url.startswith("https://")
+                ):
                     sanitized[key] = url
                 else:
                     logger.debug(f"Invalid API_BASE_URL format: {url}")
@@ -518,61 +578,115 @@ def serve_sitemap(request_domain: str = "") -> Dict[str, Any]:
     """Serve sitemap.xml file"""
     sitemap_path = "/var/task/frontend/dist/sitemap.xml"
     if not os.path.exists(sitemap_path):
-        return {"statusCode": 404, "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}, "body": "sitemap.xml not found"}
-    
+        return {
+            "statusCode": 404,
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "sitemap.xml not found",
+        }
+
     try:
         with open(sitemap_path, "r", encoding="utf-8") as f:
             content = replace_seo_domain(f.read(), request_domain)
-        
+
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": "application/xml", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache"},
+            "headers": {
+                "Content-Type": "application/xml",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-cache",
+            },
             "body": content,
         }
     except Exception as e:
         logger.error(f"Failed to read sitemap.xml: {e}")
-        return {"statusCode": 500, "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}, "body": "Internal server error"}
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "Internal server error",
+        }
 
 
 def serve_robots() -> Dict[str, Any]:
     """Serve robots.txt file"""
     robots_path = "/var/task/frontend/dist/robots.txt"
     if not os.path.exists(robots_path):
-        return {"statusCode": 404, "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}, "body": "robots.txt not found"}
-    
+        return {
+            "statusCode": 404,
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "robots.txt not found",
+        }
+
     try:
         with open(robots_path, "r", encoding="utf-8") as f:
             content = f.read()
-        
+
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache"},
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-cache",
+            },
             "body": content,
         }
     except Exception as e:
         logger.error(f"Failed to read robots.txt: {e}")
-        return {"statusCode": 500, "headers": {"Content-Type": "text/plain", "Access-Control-Allow-Origin": "*"}, "body": "Internal server error"}
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "Internal server error",
+        }
 
 
 def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
     """Serve SEO HTML files from index.html"""
     html_path = f"/var/task/frontend/dist{path.rstrip('/')}/index.html"
-    
+
     if not os.path.exists(html_path):
-        return {"statusCode": 404, "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"}, "body": "<html><body><h1>404 Not Found</h1></body></html>"}
-    
+        return {
+            "statusCode": 404,
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "<html><body><h1>404 Not Found</h1></body></html>",
+        }
+
     try:
         with open(html_path, "r", encoding="utf-8") as f:
             content = replace_seo_domain(f.read(), request_domain)
-        
+
         return {
             "statusCode": 200,
-            "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-cache"},
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+                "Cache-Control": "no-cache",
+            },
             "body": content,
         }
     except Exception as e:
         logger.error(f"Failed to read SEO HTML file {html_path}: {e}")
-        return {"statusCode": 500, "headers": {"Content-Type": "text/html", "Access-Control-Allow-Origin": "*"}, "body": "<html><body><h1>500 Internal Server Error</h1></body></html>"}
+        return {
+            "statusCode": 500,
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "<html><body><h1>500 Internal Server Error</h1></body></html>",
+        }
 
 
 # Export the handler for AWS Lambda

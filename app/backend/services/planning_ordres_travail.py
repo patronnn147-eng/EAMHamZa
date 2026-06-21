@@ -33,7 +33,9 @@ class Planning_ordres_travailService:
     async def get_by_id(self, obj_id: int) -> Optional[Planning_ordres_travail]:
         """Get planning_ordres_travail by ID"""
         try:
-            query = select(Planning_ordres_travail).where(Planning_ordres_travail.id == obj_id)
+            query = select(Planning_ordres_travail).where(
+                Planning_ordres_travail.id == obj_id
+            )
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -41,9 +43,9 @@ class Planning_ordres_travailService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,21 +53,27 @@ class Planning_ordres_travailService:
         try:
             query = select(Planning_ordres_travail)
             count_query = select(func.count(Planning_ordres_travail.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Planning_ordres_travail, field):
-                        query = query.where(getattr(Planning_ordres_travail, field) == value)
-                        count_query = count_query.where(getattr(Planning_ordres_travail, field) == value)
-            
+                        query = query.where(
+                            getattr(Planning_ordres_travail, field) == value
+                        )
+                        count_query = count_query.where(
+                            getattr(Planning_ordres_travail, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Planning_ordres_travail, field_name):
-                        query = query.order_by(getattr(Planning_ordres_travail, field_name).desc())
+                        query = query.order_by(
+                            getattr(Planning_ordres_travail, field_name).desc()
+                        )
                 else:
                     if hasattr(Planning_ordres_travail, sort):
                         query = query.order_by(getattr(Planning_ordres_travail, sort))
@@ -85,7 +93,9 @@ class Planning_ordres_travailService:
             logger.error(f"Error fetching planning_ordres_travail list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Planning_ordres_travail]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Planning_ordres_travail]:
         """Update planning_ordres_travail"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -110,7 +120,9 @@ class Planning_ordres_travailService:
         try:
             obj = await self.get_by_id(obj_id)
             if not obj:
-                logger.warning(f"Planning_ordres_travail {obj_id} not found for deletion")
+                logger.warning(
+                    f"Planning_ordres_travail {obj_id} not found for deletion"
+                )
                 return False
             await self.db.delete(obj)
             await self.db.commit()
@@ -121,17 +133,25 @@ class Planning_ordres_travailService:
             logger.error(f"Error deleting planning_ordres_travail {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Planning_ordres_travail]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Planning_ordres_travail]:
         """Get planning_ordres_travail by any field"""
         try:
             if not hasattr(Planning_ordres_travail, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Planning_ordres_travail")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Planning_ordres_travail"
+                )
             result = await self.db.execute(
-                select(Planning_ordres_travail).where(getattr(Planning_ordres_travail, field_name) == field_value)
+                select(Planning_ordres_travail).where(
+                    getattr(Planning_ordres_travail, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching planning_ordres_travail by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching planning_ordres_travail by {field_name}: {str(e)}"
+            )
             raise
 
     async def list_by_field(
@@ -140,7 +160,9 @@ class Planning_ordres_travailService:
         """Get list of planning_ordres_travails filtered by field"""
         try:
             if not hasattr(Planning_ordres_travail, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Planning_ordres_travail")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Planning_ordres_travail"
+                )
             result = await self.db.execute(
                 select(Planning_ordres_travail)
                 .where(getattr(Planning_ordres_travail, field_name) == field_value)
@@ -150,5 +172,7 @@ class Planning_ordres_travailService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching planning_ordres_travails by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching planning_ordres_travails by {field_name}: {str(e)}"
+            )
             raise

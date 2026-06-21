@@ -15,6 +15,7 @@ Disposition is a human-readable summary tag:
   wasted      — ruined entirely (e.g., dropped, damaged on install)
   returned    — returned to stock unused
 """
+
 from core.database import Base
 from sqlalchemy import (
     Column,
@@ -32,7 +33,9 @@ class ConsumedPiece(Base):
     __tablename__ = "consumed_pieces"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     intervention_id = Column(
         Integer,
         ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
@@ -57,4 +60,6 @@ class ConsumedPiece(Base):
     unit = Column(String(20), nullable=False, default="pcs")
     disposition = Column(String(20), nullable=False)
     notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

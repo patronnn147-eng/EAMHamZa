@@ -4,6 +4,7 @@ Revision ID: add_pgvector_rag
 Revises: add_chat_sessions
 Create Date: 2026-05-11
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql

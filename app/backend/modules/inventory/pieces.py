@@ -46,7 +46,9 @@ async def list_pieces(
             except json.JSONDecodeError:
                 raise HTTPException(status_code=400, detail="Invalid query JSON format")
 
-        result = await service.get_list(skip=skip, limit=limit, query_dict=query_dict, sort=sort)
+        result = await service.get_list(
+            skip=skip, limit=limit, query_dict=query_dict, sort=sort
+        )
         return result
     except HTTPException:
         raise
@@ -89,7 +91,9 @@ async def create_piece(data: PieceCreate, db: AsyncSession = Depends(get_db)):
 
 
 @router.put("/{piece_id}", response_model=PieceResponse)
-async def update_piece(piece_id: int, data: PieceUpdate, db: AsyncSession = Depends(get_db)):
+async def update_piece(
+    piece_id: int, data: PieceUpdate, db: AsyncSession = Depends(get_db)
+):
     """Update an existing spare part."""
     service = PieceService(db)
     try:
@@ -123,11 +127,12 @@ async def delete_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-
 # ---------- Operational scope: machines worth linking pieces to ----------
 @router.get("/scope/machines", tags=["inventory-pieces"])
 async def list_in_scope_machines(
-    days: int = Query(90, ge=1, le=365, description="Recency window (days) for WO inclusion"),
+    days: int = Query(
+        90, ge=1, le=365, description="Recency window (days) for WO inclusion"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Return machines that are operationally relevant for piece linking.
@@ -139,7 +144,7 @@ async def list_in_scope_machines(
     Used by the admin link-piece-to-machine UI as the default filter — admins
     can toggle to "all machines" if they need to link to one outside scope.
     """
-    from sqlalchemy import or_, distinct, select
+    from sqlalchemy import distinct, select
     from datetime import datetime, timedelta
     from models.machines import Machines
     from models.planning_machines import Planning_machines
@@ -157,16 +162,17 @@ async def list_in_scope_machines(
 
     in_scope_ids = planned.union(recent_wo).subquery()
 
-    rows = (await db.execute(
-        select(Machines.id, Machines.nom, Machines.zone, Machines.statut)
-        .where(Machines.id.in_(select(in_scope_ids)))
-        .order_by(Machines.nom)
-    )).all()
+    rows = (
+        await db.execute(
+            select(Machines.id, Machines.nom, Machines.zone, Machines.statut)
+            .where(Machines.id.in_(select(in_scope_ids)))
+            .order_by(Machines.nom)
+        )
+    ).all()
 
     return {
         "items": [
-            {"id": r.id, "nom": r.nom, "zone": r.zone, "statut": r.statut}
-            for r in rows
+            {"id": r.id, "nom": r.nom, "zone": r.zone, "statut": r.statut} for r in rows
         ],
         "scope_days": days,
         "total": len(rows),
@@ -182,7 +188,9 @@ async def get_piece_machines(piece_id: int, db: AsyncSession = Depends(get_db)):
         machine_ids = await service.get_linked_machines(piece_id)
         return {"piece_id": piece_id, "machine_ids": machine_ids}
     except Exception as e:
-        logger.error(f"Error fetching machines for piece {piece_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error fetching machines for piece {piece_id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -196,7 +204,10 @@ async def link_piece_to_machine(
         await service.link_machine(piece_id, data.machine_id)
         return {"message": f"Piece {piece_id} linked to machine {data.machine_id}"}
     except Exception as e:
-        logger.error(f"Error linking piece {piece_id} to machine {data.machine_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"Error linking piece {piece_id} to machine {data.machine_id}: {str(e)}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -220,10 +231,13 @@ async def unlink_piece_from_machine(
 
 # ---------- Smart-suggest + by-machine (for PiecePicker UI) ----------
 
+
 @router.get("/suggest/lookup", tags=["inventory-pieces"])
 async def suggest_pieces(
     q: str = Query(..., min_length=1, max_length=200, description="Search text"),
-    machine_id: Optional[int] = Query(None, description="Boost pieces compatible with this machine"),
+    machine_id: Optional[int] = Query(
+        None, description="Boost pieces compatible with this machine"
+    ),
     threshold_low: float = Query(0.40, ge=0.0, le=1.0),
     threshold_high: float = Query(0.80, ge=0.0, le=1.0),
     limit: int = Query(10, ge=1, le=50),
@@ -270,5 +284,8 @@ async def list_pieces_by_machine(
             include_all_search=search,
         )
     except Exception as e:
-        logger.error(f"list_pieces_by_machine failed for machine {machine_id}: {str(e)}", exc_info=True)
+        logger.error(
+            f"list_pieces_by_machine failed for machine {machine_id}: {str(e)}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail="Internal server error")

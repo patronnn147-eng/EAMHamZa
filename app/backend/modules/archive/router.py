@@ -14,11 +14,12 @@ Role scoping:
 - CHEFTECH/CHETOP see all items in their scope
 - ADMIN sees everything
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, select
@@ -38,8 +39,8 @@ VALID_MODULES = {r.module for r in ARCHIVE_RULES}
 
 # Role → which column gates user-visibility for archived items
 SCOPE_COLUMN_BY_MODULE_ROLE = {
-    ("planning_taches", "TECHNICIEN"):    "technicien_id",
-    ("ordres_travail", "TECHNICIEN"):     "utilisateur_id",
+    ("planning_taches", "TECHNICIEN"): "technicien_id",
+    ("ordres_travail", "TECHNICIEN"): "utilisateur_id",
     ("ordres_intervention", "TECHNICIEN"): "technician_id",
     # CHEFTECH/CHETOP/ADMIN see all by default
 }
@@ -54,7 +55,7 @@ async def get_archive_counts(
     counts: Dict[str, int] = {}
     role = (current_user.role or "").upper()
 
-    svc = ArchiveService(db)
+    ArchiveService(db)
     for rule in ARCHIVE_RULES:
         scope_col = SCOPE_COLUMN_BY_MODULE_ROLE.get((rule.module, role))
         archived_col = getattr(rule.model, "archived_at")
@@ -105,15 +106,31 @@ async def list_archived(
         for it in items:
             row: Dict[str, Any] = {
                 "id": it.id,
-                "archived_at": it.archived_at.isoformat() if getattr(it, "archived_at", None) else None,
+                "archived_at": it.archived_at.isoformat()
+                if getattr(it, "archived_at", None)
+                else None,
                 "archive_reason": getattr(it, "archive_reason", None),
             }
             # Common identity fields
-            for attr in ("titre", "identifiant_planning", "rapport", "description",
-                         "problem_description", "priorite", "priority", "statut",
-                         "planning_statut", "date_echeance", "date_fin",
-                         "date_debut", "date_intervention", "machine_id",
-                         "technicien_id", "technician_id", "utilisateur_id"):
+            for attr in (
+                "titre",
+                "identifiant_planning",
+                "rapport",
+                "description",
+                "problem_description",
+                "priorite",
+                "priority",
+                "statut",
+                "planning_statut",
+                "date_echeance",
+                "date_fin",
+                "date_debut",
+                "date_intervention",
+                "machine_id",
+                "technicien_id",
+                "technician_id",
+                "utilisateur_id",
+            ):
                 if hasattr(it, attr):
                     v = getattr(it, attr)
                     if isinstance(v, datetime):
@@ -121,7 +138,12 @@ async def list_archived(
                     else:
                         # Skip non-serializable enum-like objects gracefully
                         try:
-                            row[attr] = v.value if hasattr(v, "value") and not isinstance(v, (int, str, float)) else v
+                            row[attr] = (
+                                v.value
+                                if hasattr(v, "value")
+                                and not isinstance(v, (int, str, float))
+                                else v
+                            )
                         except Exception:
                             row[attr] = str(v) if v is not None else None
             out.append(row)
@@ -154,9 +176,13 @@ async def reactivate_archived(
         raise HTTPException(status_code=404, detail=f"Module inconnu: {module}")
 
     try:
-        ok = await ArchiveService(db).reactivate(module=module, item_id=item_id, auto_commit=True)
+        ok = await ArchiveService(db).reactivate(
+            module=module, item_id=item_id, auto_commit=True
+        )
         if not ok:
-            raise HTTPException(status_code=404, detail="Item non archivé ou introuvable")
+            raise HTTPException(
+                status_code=404, detail="Item non archivé ou introuvable"
+            )
         return {"module": module, "item_id": item_id, "status": "reactivated"}
     except HTTPException:
         raise
@@ -191,8 +217,15 @@ async def trigger_purge_now(
     DANGEROUS: hard-deletes archived rows older than retention_days.
     """
     try:
-        results = await ArchiveService(db).purge_old(retention_days=retention_days, auto_commit=True)
-        return {"status": "ok", "purged": results, "total": sum(results.values()), "retention_days": retention_days}
+        results = await ArchiveService(db).purge_old(
+            retention_days=retention_days, auto_commit=True
+        )
+        return {
+            "status": "ok",
+            "purged": results,
+            "total": sum(results.values()),
+            "retention_days": retention_days,
+        }
     except Exception as e:
         logger.error(f"manual archive purge failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

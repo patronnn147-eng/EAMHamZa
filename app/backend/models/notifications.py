@@ -6,7 +6,9 @@ class Notifications(Base):
     __tablename__ = "notifications"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     utilisateur_id = Column(Integer, nullable=False)
     titre = Column(String, nullable=False)  # Title of the notification
     priorite = Column(String, nullable=True)  # Priority of the notification

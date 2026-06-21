@@ -9,6 +9,7 @@ A required_piece row carries:
 Quantities use Numeric(10,2) so consumables (oil, grease, cable) can use
 fractional units. CHECK constraints enforced at DB level — see migration.
 """
+
 from core.database import Base
 from sqlalchemy import (
     Column,
@@ -26,7 +27,9 @@ class RequiredPiece(Base):
     __tablename__ = "required_pieces"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     intervention_id = Column(
         Integer,
         ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
@@ -43,5 +46,9 @@ class RequiredPiece(Base):
     unit = Column(String(20), nullable=False, default="pcs")
     quantity_reserved = Column(Numeric(10, 2), nullable=False, default=0)
     reservation_expires_at = Column(DateTime(timezone=True), nullable=True)
-    approved = Column(Boolean, nullable=True)  # NULL=pending, True=approved, False=rejected
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    approved = Column(
+        Boolean, nullable=True
+    )  # NULL=pending, True=approved, False=rejected
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )

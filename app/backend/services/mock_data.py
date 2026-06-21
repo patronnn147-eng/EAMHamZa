@@ -18,7 +18,9 @@ MAX_CONCURRENT_LOADS = 5
 async def initialize_mock_data():
     """Populate tables with mock JSON data when they are empty."""
     if not db_manager.engine:
-        logger.warning("Database engine is not ready; skipping mock data initialization")
+        logger.warning(
+            "Database engine is not ready; skipping mock data initialization"
+        )
         return
 
     if not MOCK_DATA_DIR.exists():
@@ -82,7 +84,10 @@ def _coerce_temporal_value(value: Any, column) -> Any:
 
     if isinstance(column_type, DateTime):
         val_wo_z = value.replace("Z", "+00:00")
-        for parser in (lambda v: datetime.fromisoformat(v), lambda v: datetime.strptime(v, "%Y-%m-%d %H:%M:%S")):
+        for parser in (
+            lambda v: datetime.fromisoformat(v),
+            lambda v: datetime.strptime(v, "%Y-%m-%d %H:%M:%S"),
+        ):
             try:
                 return parser(val_wo_z)
             except ValueError:
@@ -124,7 +129,9 @@ async def _load_table_from_file(data_file: Path):
         try:
             table = await _reflect_table(conn, table_name)
         except NoSuchTableError:
-            logger.warning("Table %s does not exist; skipping %s", table_name, data_file.name)
+            logger.warning(
+                "Table %s does not exist; skipping %s", table_name, data_file.name
+            )
             return
         except SQLAlchemyError as exc:
             logger.error("Failed to reflect table %s: %s", table_name, exc)
@@ -132,7 +139,11 @@ async def _load_table_from_file(data_file: Path):
 
         row_count = await conn.scalar(select(func.count()).select_from(table))
         if row_count and row_count > 0:
-            logger.info("Table %s already has %d rows; skipping mock insert", table_name, row_count)
+            logger.info(
+                "Table %s already has %d rows; skipping mock insert",
+                table_name,
+                row_count,
+            )
             return
 
         try:
@@ -143,7 +154,9 @@ async def _load_table_from_file(data_file: Path):
 
         records = _prepare_records(raw_records, table)
         if not records:
-            logger.warning("No valid records found in %s after preparing data", data_file.name)
+            logger.warning(
+                "No valid records found in %s after preparing data", data_file.name
+            )
             return
 
         try:

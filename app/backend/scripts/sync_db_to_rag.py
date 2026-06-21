@@ -18,6 +18,7 @@ Idempotency:
 Run inside container:
     docker compose exec backend python scripts/sync_db_to_rag.py
 """
+
 from __future__ import annotations
 
 import argparse
@@ -27,7 +28,7 @@ import logging
 import os
 import sys
 from datetime import datetime
-from typing import Callable, Iterable
+from typing import Callable
 
 import httpx
 from sqlalchemy import text
@@ -53,16 +54,19 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://postgres:postgres@postgres:5432/asset_management",
 )
 RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://rag-service:8003")
-INGEST_BATCH = int(os.getenv("DB2RAG_BATCH", "2"))       # parallel HTTP uploads — embed pipeline is heavy, keep low
+INGEST_BATCH = int(
+    os.getenv("DB2RAG_BATCH", "2")
+)  # parallel HTTP uploads — embed pipeline is heavy, keep low
 HTTP_TIMEOUT = float(os.getenv("DB2RAG_TIMEOUT", "120"))
 
-DOC_TYPE = "report"      # one of: manual | sop | report
+DOC_TYPE = "report"  # one of: manual | sop | report
 FILENAME_PREFIX = "db:"  # marks auto-synced docs for --delete-stale
 
 
 # ---------------------------------------------------------------------------
 # Row → text formatters
 # ---------------------------------------------------------------------------
+
 
 def _fmt_dt(v) -> str:
     if v is None:
@@ -98,7 +102,11 @@ def _fmt_ordre_travail(r) -> str:
         f"- Validated: {_fmt_dt(r.date_validation)}\n"
         f"\n## Description\n{r.description}\n"
         + (f"\n## Report\n{r.rapport}\n" if r.rapport else "")
-        + (f"\n## Chief tech feedback\n{r.cheftech_feedback}\n" if r.cheftech_feedback else "")
+        + (
+            f"\n## Chief tech feedback\n{r.cheftech_feedback}\n"
+            if r.cheftech_feedback
+            else ""
+        )
     )
 
 
@@ -208,6 +216,7 @@ ROW_FETCH: dict[str, str] = {
 # Sync core
 # ---------------------------------------------------------------------------
 
+
 async def fetch_rows(db: AsyncSession, sql: str):
     result = await db.execute(text(sql))
     return result.fetchall()
@@ -229,7 +238,9 @@ async def delete_stale_docs(
     if targets:
         ids = [d["id"] for d in targets]
         result = await db.execute(
-            text("SELECT id::text AS id, s3_object_key FROM documents WHERE id::text = ANY(:ids)"),
+            text(
+                "SELECT id::text AS id, s3_object_key FROM documents WHERE id::text = ANY(:ids)"
+            ),
             {"ids": ids},
         )
         key_map = {r.id: r.s3_object_key for r in result.fetchall()}
@@ -352,12 +363,16 @@ async def sync_table(
     return ok, fail
 
 
-async def _delete_existing(client: httpx.AsyncClient, db: AsyncSession, table: str, row_id: int) -> None:
+async def _delete_existing(
+    client: httpx.AsyncClient, db: AsyncSession, table: str, row_id: int
+) -> None:
     """Delete any previously-synced doc(s) for this exact row + their S3 objects."""
     filename = f"{FILENAME_PREFIX}{table}:{row_id}"
     # Look up doc(s) by filename prefix (with .txt suffix from previous sync)
     result = await db.execute(
-        text("SELECT id::text AS id, s3_object_key FROM documents WHERE filename LIKE :pat"),
+        text(
+            "SELECT id::text AS id, s3_object_key FROM documents WHERE filename LIKE :pat"
+        ),
         {"pat": filename + "%"},
     )
     rows = result.fetchall()
@@ -450,8 +465,13 @@ async def run_sync(
                     h.raise_for_status()
                 except Exception as e:
                     log.error(f"RAG service unreachable at {RAG_SERVICE_URL}: {e}")
-                    return {"ok": 0, "fail": 0, "tables": targets,
-                            "skipped_unknown": unknown, "error": "rag-service unreachable"}
+                    return {
+                        "ok": 0,
+                        "fail": 0,
+                        "tables": targets,
+                        "skipped_unknown": unknown,
+                        "error": "rag-service unreachable",
+                    }
 
             async with SessionMaker() as db:
                 if delete_stale and not dry_run:
@@ -460,7 +480,9 @@ async def run_sync(
 
                 for table in targets:
                     sql, fmt, mid_attr = TABLES[table]
-                    ok, fail = await sync_table(client, db, table, sql, fmt, mid_attr, dry_run)
+                    ok, fail = await sync_table(
+                        client, db, table, sql, fmt, mid_attr, dry_run
+                    )
                     total_ok += ok
                     total_fail += fail
     finally:
@@ -477,11 +499,17 @@ async def run_sync(
 
 async def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--tables", default=",".join(TABLES.keys()),
-                        help=f"Comma list. Choices: {','.join(TABLES.keys())}")
+    parser.add_argument(
+        "--tables",
+        default=",".join(TABLES.keys()),
+        help=f"Comma list. Choices: {','.join(TABLES.keys())}",
+    )
     parser.add_argument("--dry-run", action="store_true", help="print docs, no upload")
-    parser.add_argument("--delete-stale", action="store_true",
-                        help="delete previously-synced docs before re-ingest")
+    parser.add_argument(
+        "--delete-stale",
+        action="store_true",
+        help="delete previously-synced docs before re-ingest",
+    )
     args = parser.parse_args()
 
     targets = [t.strip() for t in args.tables.split(",") if t.strip()]

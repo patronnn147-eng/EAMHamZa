@@ -3,7 +3,6 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum, JSON
-from sqlalchemy.orm import relationship
 from core.database import Base
 import enum
 
@@ -33,25 +32,29 @@ class AuditLog(Base):
     __table_args__ = {"extend_existing": True}
 
     id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    
+
     action_type = Column(Enum(AuditActionType), nullable=False, index=True)
     entity_type = Column(Enum(AuditEntityType), nullable=False, index=True)
     entity_id = Column(Integer, nullable=False, index=True)
     entity_name = Column(String(255), nullable=True)
-    
-    user_id = Column(Integer, ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True)
+
+    user_id = Column(
+        Integer, ForeignKey("utilisateurs.id", ondelete="SET NULL"), nullable=True
+    )
     user_name = Column(String(255), nullable=True)
-    
+
     changes = Column(JSON, nullable=True)
     old_values = Column(JSON, nullable=True)
     new_values = Column(JSON, nullable=True)
-    
+
     ip_address = Column(String(45), nullable=True)
     user_agent = Column(Text, nullable=True)
-    
+
     description = Column(Text, nullable=True)
-    
-    created_at = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow, index=True)
+
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=datetime.utcnow, index=True
+    )
 
 
 class AuditService:
@@ -95,7 +98,9 @@ class AuditService:
             self.db.add(entry)
             await self.db.commit()
             await self.db.refresh(entry)
-            logger.info(f"Audit log created: {entry.id} - {action_type} {entity_type}:{entity_id}")
+            logger.info(
+                f"Audit log created: {entry.id} - {action_type} {entity_type}:{entity_id}"
+            )
             return entry
         except Exception as e:
             await self.db.rollback()
@@ -141,7 +146,7 @@ class AuditService:
         for key in set(list(old_values.keys()) + list(new_values.keys())):
             if old_values.get(key) != new_values.get(key):
                 changes[key] = {"old": old_values.get(key), "new": new_values.get(key)}
-        
+
         return await self.log_audit(
             entity_type=entity_type,
             entity_id=entity_id,
@@ -258,7 +263,9 @@ class AuditService:
             # SQLite-compatible case-insensitive substring match
             pattern = f"%{user_search.lower()}%"
             query = query.where(func.lower(AuditLog.user_name).like(pattern))
-            count_query = count_query.where(func.lower(AuditLog.user_name).like(pattern))
+            count_query = count_query.where(
+                func.lower(AuditLog.user_name).like(pattern)
+            )
 
         if user_role == UserRole.CHEFTECH:
             query, count_query = self._apply_cheftech_scope(query, count_query)
@@ -284,45 +291,40 @@ class AuditService:
     ) -> Dict[str, Any]:
         """Get audit statistics"""
         from sqlalchemy import select, func
-        
+
         base_filter = []
         if entity_type:
             base_filter.append(AuditLog.entity_type == entity_type)
         if entity_id:
             base_filter.append(AuditLog.entity_id == entity_id)
-        
-        by_action_query = select(
-            AuditLog.action_type,
-            func.count(AuditLog.id)
-        ).where(*base_filter) if base_filter else select(
-            AuditLog.action_type,
-            func.count(AuditLog.id)
+
+        by_action_query = (
+            select(AuditLog.action_type, func.count(AuditLog.id)).where(*base_filter)
+            if base_filter
+            else select(AuditLog.action_type, func.count(AuditLog.id))
         )
         by_action_query = by_action_query.group_by(AuditLog.action_type)
-        
+
         action_result = await self.db.execute(by_action_query)
         by_action = {row[0]: row[1] for row in action_result.all()}
-        
-        by_user_query = select(
-            AuditLog.user_name,
-            func.count(AuditLog.id)
-        ).where(*base_filter) if base_filter else select(
-            AuditLog.user_name,
-            func.count(AuditLog.id)
+
+        by_user_query = (
+            select(AuditLog.user_name, func.count(AuditLog.id)).where(*base_filter)
+            if base_filter
+            else select(AuditLog.user_name, func.count(AuditLog.id))
         )
         by_user_query = by_user_query.group_by(AuditLog.user_name)
-        
+
         user_result = await self.db.execute(by_user_query)
         by_user = {row[0]: row[1] for row in user_result.all() if row[0]}
-        
+
         by_entity_query = select(
-            AuditLog.entity_type,
-            func.count(AuditLog.id)
+            AuditLog.entity_type, func.count(AuditLog.id)
         ).group_by(AuditLog.entity_type)
-        
+
         entity_result = await self.db.execute(by_entity_query)
         by_entity = {row[0]: row[1] for row in entity_result.all()}
-        
+
         return {
             "by_action": by_action,
             "by_user": by_user,
@@ -338,11 +340,13 @@ class AuditService:
     ) -> List[AuditLog]:
         """Get complete history for an entity"""
         from sqlalchemy import select
-        
-        query = select(AuditLog).where(
-            AuditLog.entity_type == entity_type,
-            AuditLog.entity_id == entity_id
-        ).order_by(AuditLog.created_at.desc()).limit(limit)
-        
+
+        query = (
+            select(AuditLog)
+            .where(AuditLog.entity_type == entity_type, AuditLog.entity_id == entity_id)
+            .order_by(AuditLog.created_at.desc())
+            .limit(limit)
+        )
+
         result = await self.db.execute(query)
         return result.scalars().all()

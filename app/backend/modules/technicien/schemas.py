@@ -1,12 +1,6 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from pydantic import BaseModel
-
-from .schemas_telemetry import (
-    MachineTelemetryCreate,
-    MachineTelemetryResponse,
-    MachineTelemetryLatest,
-)
 
 
 class InterventionResponse(BaseModel):
@@ -77,7 +71,7 @@ class InterventionRequestPayload(BaseModel):
     priority: str
     estimated_duration_minutes: Optional[int] = None
     required_materials: Optional[str] = None
-    
+
     # Enhanced Fields from ChefOp flow
     machine_category: Optional[str] = None
     symptoms: Optional[str] = None

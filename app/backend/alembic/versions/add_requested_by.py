@@ -5,18 +5,22 @@ Revises: more_perf_indexes_v2
 Create Date: 2024-01-01 00:00:00.000000
 
 """
+
 from alembic import op
-import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'add_requested_by'
-down_revision = 'more_perf_indexes_v2'
+revision = "add_requested_by"
+down_revision = "more_perf_indexes_v2"
 branch_labels = None
 depends_on = None
 
+
 def upgrade() -> None:
     # Use IF NOT EXISTS to avoid errors if column already added in a previous run.
-    op.execute("ALTER TABLE ordres_intervention ADD COLUMN IF NOT EXISTS requested_by INTEGER")
+    op.execute(
+        "ALTER TABLE ordres_intervention ADD COLUMN IF NOT EXISTS requested_by INTEGER"
+    )
+
 
 def downgrade() -> None:
     # Drop the column if it exists.

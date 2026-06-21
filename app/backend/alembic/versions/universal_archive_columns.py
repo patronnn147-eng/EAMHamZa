@@ -14,6 +14,7 @@ Soft-archive design — archived rows stay in their original table with a
 non-null `archived_at`. Active queries filter `WHERE archived_at IS NULL`.
 Partial index on `archived_at IS NULL` keeps active scans fast.
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -29,7 +30,9 @@ TABLES = ["planning_taches", "ordres_travail", "ordres_intervention", "plannings
 
 def upgrade() -> None:
     for tbl in TABLES:
-        op.add_column(tbl, sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True))
+        op.add_column(
+            tbl, sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True)
+        )
         op.add_column(tbl, sa.Column("archive_reason", sa.String(50), nullable=True))
         # Partial index: only rows where archived_at is NULL — fast for active queries
         op.create_index(

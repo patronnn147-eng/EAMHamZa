@@ -35,19 +35,40 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     if not _column_exists("machines", "air_temperature"):
-        op.add_column("machines", sa.Column("air_temperature", sa.Float(), nullable=True, server_default="300.0"))
-    
+        op.add_column(
+            "machines",
+            sa.Column(
+                "air_temperature", sa.Float(), nullable=True, server_default="300.0"
+            ),
+        )
+
     if not _column_exists("machines", "process_temperature"):
-        op.add_column("machines", sa.Column("process_temperature", sa.Float(), nullable=True, server_default="310.0"))
-        
+        op.add_column(
+            "machines",
+            sa.Column(
+                "process_temperature", sa.Float(), nullable=True, server_default="310.0"
+            ),
+        )
+
     if not _column_exists("machines", "rotational_speed"):
-        op.add_column("machines", sa.Column("rotational_speed", sa.Integer(), nullable=True, server_default="1500"))
-        
+        op.add_column(
+            "machines",
+            sa.Column(
+                "rotational_speed", sa.Integer(), nullable=True, server_default="1500"
+            ),
+        )
+
     if not _column_exists("machines", "torque"):
-        op.add_column("machines", sa.Column("torque", sa.Float(), nullable=True, server_default="40.0"))
-        
+        op.add_column(
+            "machines",
+            sa.Column("torque", sa.Float(), nullable=True, server_default="40.0"),
+        )
+
     if not _column_exists("machines", "tool_wear"):
-        op.add_column("machines", sa.Column("tool_wear", sa.Integer(), nullable=True, server_default="0"))
+        op.add_column(
+            "machines",
+            sa.Column("tool_wear", sa.Integer(), nullable=True, server_default="0"),
+        )
 
 
 def downgrade() -> None:

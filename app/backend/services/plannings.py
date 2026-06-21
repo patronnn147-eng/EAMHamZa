@@ -35,10 +35,16 @@ class PlanningsService:
     async def get_by_id(self, obj_id: int) -> Optional[Plannings]:
         """Get plannings by ID"""
         try:
-            query = select(Plannings).options(
-            selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
-            selectinload(Plannings.planning_machines)
-        ).where(Plannings.id == obj_id)
+            query = (
+                select(Plannings)
+                .options(
+                    selectinload(Plannings.planning_utilisateurs).selectinload(
+                        Planning_utilisateurs.utilisateur
+                    ),
+                    selectinload(Plannings.planning_machines),
+                )
+                .where(Plannings.id == obj_id)
+            )
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -46,28 +52,32 @@ class PlanningsService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Get paginated list of planningss"""
         try:
             query = select(Plannings).where(Plannings.archived_at.is_(None))
-            count_query = select(func.count(Plannings.id)).where(Plannings.archived_at.is_(None))
-            
+            count_query = select(func.count(Plannings.id)).where(
+                Plannings.archived_at.is_(None)
+            )
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Plannings, field):
                         query = query.where(getattr(Plannings, field) == value)
-                        count_query = count_query.where(getattr(Plannings, field) == value)
-            
+                        count_query = count_query.where(
+                            getattr(Plannings, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Plannings, field_name):
                         query = query.order_by(getattr(Plannings, field_name).desc())
@@ -79,9 +89,13 @@ class PlanningsService:
 
             result = await self.db.execute(
                 query.options(
-                    selectinload(Plannings.planning_utilisateurs).selectinload(Planning_utilisateurs.utilisateur),
+                    selectinload(Plannings.planning_utilisateurs).selectinload(
+                        Planning_utilisateurs.utilisateur
+                    ),
                     selectinload(Plannings.planning_machines),
-                ).offset(skip).limit(limit)
+                )
+                .offset(skip)
+                .limit(limit)
             )
             items = result.scalars().all()
 
@@ -95,7 +109,9 @@ class PlanningsService:
             logger.error(f"Error fetching plannings list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Plannings]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Plannings]:
         """Update plannings"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -131,7 +147,9 @@ class PlanningsService:
             logger.error(f"Error deleting plannings {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Plannings]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Plannings]:
         """Get plannings by any field"""
         try:
             if not hasattr(Plannings, field_name):

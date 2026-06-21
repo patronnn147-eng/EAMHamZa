@@ -1,4 +1,5 @@
 """Plain-language 'Why?' explanation endpoint. Cached LLM, never raises."""
+
 import hashlib
 import json
 import logging
@@ -34,7 +35,9 @@ def _llm(reasons: List[str]) -> str:
     return resp["choices"][0]["message"]["content"]
 
 
-def make_explanation(reasons: List[str], *, llm_call: Callable[[List[str]], str]) -> dict:
+def make_explanation(
+    reasons: List[str], *, llm_call: Callable[[List[str]], str]
+) -> dict:
     """Cache-first plain-language phrasing. Never raises."""
     safe = [r for r in (reasons or []) if r and r.strip()]
     if not safe:

@@ -3,6 +3,7 @@ P7 Parts Shortage Alert Service.
 Emits PARTS_SHORTAGE alerts when parts_demand reveals shortfalls.
 Dedup is handled by AlertService.create_alert (one active per machine+type).
 """
+
 import logging
 from typing import Optional, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,8 +19,7 @@ def _build_shortage_message(items_with_shortfall: list) -> str:
         return "Parts shortage detected."
     top = items_with_shortfall[:3]
     names = ", ".join(
-        i.get("name", f"Part {i.get('piece_id', '?')}").title()
-        for i in top
+        i.get("name", f"Part {i.get('piece_id', '?')}").title() for i in top
     )
     extra = len(items_with_shortfall) - len(top)
     suffix = f" (+{extra} more)" if extra > 0 else ""
@@ -65,7 +65,7 @@ async def emit_shortfall_alert(
     try:
         from services.alertes import AlertService  # local import avoids circular dep
 
-        message  = _build_shortage_message(shortage_items)
+        message = _build_shortage_message(shortage_items)
         severity = _determine_severity(shortage_items)
 
         await AlertService(db).create_alert(

@@ -1,4 +1,5 @@
 """CI gate: fail if the two model dirs diverge. Exit 1 on divergence, else 0."""
+
 import sys
 from pathlib import Path
 

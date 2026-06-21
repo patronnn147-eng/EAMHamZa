@@ -1,12 +1,11 @@
 """Pending pieces router — submission + admin review queue."""
+
 import logging
-from decimal import Decimal
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.auth import get_current_user
 from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs
@@ -63,7 +62,11 @@ async def submit_pending_piece(
             await AuditService(db).log_create(
                 entity_type=AuditEntityType.INVENTORY,
                 entity_id=pp.id,
-                new_values={"name": pp.name, "quantity": float(pp.quantity), "intervention_id": intervention_id},
+                new_values={
+                    "name": pp.name,
+                    "quantity": float(pp.quantity),
+                    "intervention_id": intervention_id,
+                },
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=pp.name,
@@ -71,25 +74,27 @@ async def submit_pending_piece(
         except Exception:
             logger.warning("Audit log failed for pending piece submit")
 
-        return PendingPieceResponse.model_validate({
-            "id": pp.id,
-            "intervention_id": pp.intervention_id,
-            "submitted_by": pp.submitted_by,
-            "submitted_by_name": current_user.nom,
-            "name": pp.name,
-            "category": pp.category,
-            "quantity": pp.quantity,
-            "unit": pp.unit,
-            "photo_object_key": pp.photo_object_key,
-            "notes": pp.notes,
-            "status": pp.status,
-            "matched_piece_id": pp.matched_piece_id,
-            "matched_piece_name": None,
-            "reviewed_by": pp.reviewed_by,
-            "reviewed_at": pp.reviewed_at,
-            "rejection_reason": pp.rejection_reason,
-            "created_at": pp.created_at,
-        })
+        return PendingPieceResponse.model_validate(
+            {
+                "id": pp.id,
+                "intervention_id": pp.intervention_id,
+                "submitted_by": pp.submitted_by,
+                "submitted_by_name": current_user.nom,
+                "name": pp.name,
+                "category": pp.category,
+                "quantity": pp.quantity,
+                "unit": pp.unit,
+                "photo_object_key": pp.photo_object_key,
+                "notes": pp.notes,
+                "status": pp.status,
+                "matched_piece_id": pp.matched_piece_id,
+                "matched_piece_name": None,
+                "reviewed_by": pp.reviewed_by,
+                "reviewed_at": pp.reviewed_at,
+                "rejection_reason": pp.rejection_reason,
+                "created_at": pp.created_at,
+            }
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -99,7 +104,9 @@ async def submit_pending_piece(
 
 @router.get("", response_model=PaginatedResponse[PendingPieceResponse])
 async def list_pending(
-    status: Optional[str] = Query("PENDING_REVIEW", description="Filter by status (or 'ALL')"),
+    status: Optional[str] = Query(
+        "PENDING_REVIEW", description="Filter by status (or 'ALL')"
+    ),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=200),
     _current_user: Utilisateurs = Depends(require_role(ROLES_REVIEW)),
@@ -112,7 +119,9 @@ async def list_pending(
         filter_status: Optional[str] = status if status and status != "ALL" else None
         result = await svc.list_pending(status=filter_status, skip=skip, limit=size)
         items = [PendingPieceResponse.model_validate(r) for r in result["items"]]
-        return PaginatedResponse.create(items=items, total=result["total"], page=page, size=size)
+        return PaginatedResponse.create(
+            items=items, total=result["total"], page=page, size=size
+        )
     except Exception as e:
         logger.error(f"list_pending failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -139,7 +148,10 @@ async def match_pending(
                 entity_type=AuditEntityType.INVENTORY,
                 entity_id=pp.id,
                 old_values={"status": "PENDING_REVIEW"},
-                new_values={"status": "MATCHED", "matched_piece_id": pp.matched_piece_id},
+                new_values={
+                    "status": "MATCHED",
+                    "matched_piece_id": pp.matched_piece_id,
+                },
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=pp.name,
@@ -147,25 +159,27 @@ async def match_pending(
         except Exception:
             logger.warning("Audit log failed for pending piece match")
 
-        return PendingPieceResponse.model_validate({
-            "id": pp.id,
-            "intervention_id": pp.intervention_id,
-            "submitted_by": pp.submitted_by,
-            "submitted_by_name": None,
-            "name": pp.name,
-            "category": pp.category,
-            "quantity": pp.quantity,
-            "unit": pp.unit,
-            "photo_object_key": pp.photo_object_key,
-            "notes": pp.notes,
-            "status": pp.status,
-            "matched_piece_id": pp.matched_piece_id,
-            "matched_piece_name": None,
-            "reviewed_by": pp.reviewed_by,
-            "reviewed_at": pp.reviewed_at,
-            "rejection_reason": pp.rejection_reason,
-            "created_at": pp.created_at,
-        })
+        return PendingPieceResponse.model_validate(
+            {
+                "id": pp.id,
+                "intervention_id": pp.intervention_id,
+                "submitted_by": pp.submitted_by,
+                "submitted_by_name": None,
+                "name": pp.name,
+                "category": pp.category,
+                "quantity": pp.quantity,
+                "unit": pp.unit,
+                "photo_object_key": pp.photo_object_key,
+                "notes": pp.notes,
+                "status": pp.status,
+                "matched_piece_id": pp.matched_piece_id,
+                "matched_piece_name": None,
+                "reviewed_by": pp.reviewed_by,
+                "reviewed_at": pp.reviewed_at,
+                "rejection_reason": pp.rejection_reason,
+                "created_at": pp.created_at,
+            }
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -194,7 +208,10 @@ async def create_from_pending(
                 entity_type=AuditEntityType.INVENTORY,
                 entity_id=pp.id,
                 old_values={"status": "PENDING_REVIEW"},
-                new_values={"status": "CREATED", "matched_piece_id": pp.matched_piece_id},
+                new_values={
+                    "status": "CREATED",
+                    "matched_piece_id": pp.matched_piece_id,
+                },
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=pp.name,
@@ -202,25 +219,27 @@ async def create_from_pending(
         except Exception:
             logger.warning("Audit log failed for create_from_pending")
 
-        return PendingPieceResponse.model_validate({
-            "id": pp.id,
-            "intervention_id": pp.intervention_id,
-            "submitted_by": pp.submitted_by,
-            "submitted_by_name": None,
-            "name": pp.name,
-            "category": pp.category,
-            "quantity": pp.quantity,
-            "unit": pp.unit,
-            "photo_object_key": pp.photo_object_key,
-            "notes": pp.notes,
-            "status": pp.status,
-            "matched_piece_id": pp.matched_piece_id,
-            "matched_piece_name": None,
-            "reviewed_by": pp.reviewed_by,
-            "reviewed_at": pp.reviewed_at,
-            "rejection_reason": pp.rejection_reason,
-            "created_at": pp.created_at,
-        })
+        return PendingPieceResponse.model_validate(
+            {
+                "id": pp.id,
+                "intervention_id": pp.intervention_id,
+                "submitted_by": pp.submitted_by,
+                "submitted_by_name": None,
+                "name": pp.name,
+                "category": pp.category,
+                "quantity": pp.quantity,
+                "unit": pp.unit,
+                "photo_object_key": pp.photo_object_key,
+                "notes": pp.notes,
+                "status": pp.status,
+                "matched_piece_id": pp.matched_piece_id,
+                "matched_piece_name": None,
+                "reviewed_by": pp.reviewed_by,
+                "reviewed_at": pp.reviewed_at,
+                "rejection_reason": pp.rejection_reason,
+                "created_at": pp.created_at,
+            }
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
@@ -249,7 +268,10 @@ async def reject_pending(
                 entity_type=AuditEntityType.INVENTORY,
                 entity_id=pp.id,
                 old_values={"status": "PENDING_REVIEW"},
-                new_values={"status": "REJECTED", "rejection_reason": pp.rejection_reason},
+                new_values={
+                    "status": "REJECTED",
+                    "rejection_reason": pp.rejection_reason,
+                },
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=pp.name,
@@ -257,25 +279,27 @@ async def reject_pending(
         except Exception:
             logger.warning("Audit log failed for reject_pending")
 
-        return PendingPieceResponse.model_validate({
-            "id": pp.id,
-            "intervention_id": pp.intervention_id,
-            "submitted_by": pp.submitted_by,
-            "submitted_by_name": None,
-            "name": pp.name,
-            "category": pp.category,
-            "quantity": pp.quantity,
-            "unit": pp.unit,
-            "photo_object_key": pp.photo_object_key,
-            "notes": pp.notes,
-            "status": pp.status,
-            "matched_piece_id": pp.matched_piece_id,
-            "matched_piece_name": None,
-            "reviewed_by": pp.reviewed_by,
-            "reviewed_at": pp.reviewed_at,
-            "rejection_reason": pp.rejection_reason,
-            "created_at": pp.created_at,
-        })
+        return PendingPieceResponse.model_validate(
+            {
+                "id": pp.id,
+                "intervention_id": pp.intervention_id,
+                "submitted_by": pp.submitted_by,
+                "submitted_by_name": None,
+                "name": pp.name,
+                "category": pp.category,
+                "quantity": pp.quantity,
+                "unit": pp.unit,
+                "photo_object_key": pp.photo_object_key,
+                "notes": pp.notes,
+                "status": pp.status,
+                "matched_piece_id": pp.matched_piece_id,
+                "matched_piece_name": None,
+                "reviewed_by": pp.reviewed_by,
+                "reviewed_at": pp.reviewed_at,
+                "rejection_reason": pp.rejection_reason,
+                "created_at": pp.created_at,
+            }
+        )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:

@@ -8,6 +8,7 @@ NOTE: Existing doc_chunks rows are deleted before altering the column type.
       Old 384-dim vectors are incompatible with 1024-dim — re-ingest all documents after
       running this migration.
 """
+
 from alembic import op
 
 revision = "upgrade_embedding_dim_1024"

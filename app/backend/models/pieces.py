@@ -2,11 +2,14 @@ from core.database import Base
 from sqlalchemy import Column, Integer, String, Float, Text, DateTime, Boolean
 from sqlalchemy.sql import func
 
+
 class Piece(Base):
     __tablename__ = "pieces"
     __table_args__ = {"extend_existing": True}
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     reference = Column(String, nullable=False, unique=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)

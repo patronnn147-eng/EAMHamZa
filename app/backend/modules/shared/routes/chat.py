@@ -21,7 +21,12 @@ from schemas.ai_chat import (
     RenameSessionRequest,
 )
 from services.ai_tools import get_tool_definitions, execute_tool
-from services.ai_prompts import build_full_system_prompt, format_tool_result, build_rag_context, build_ml_context
+from services.ai_prompts import (
+    build_full_system_prompt,
+    format_tool_result,
+    build_rag_context,
+    build_ml_context,
+)
 from modules.ml.services.chat_context import get_ml_snapshot
 import services.rag_client as rag_client
 from services.ai_memory import AIMemoryService
@@ -86,6 +91,7 @@ async def get_suggestions(
 # Cache debug — ADMIN only
 # ---------------------------------------------------------------------------
 
+
 @router.get("/cache-stats")
 async def get_cache_stats(
     current_user: Utilisateurs = Depends(get_current_user),
@@ -108,6 +114,7 @@ async def post_cache_clear(
 # ---------------------------------------------------------------------------
 # History — DB-backed, survives restarts
 # ---------------------------------------------------------------------------
+
 
 @router.get("/history")
 async def get_history(
@@ -162,6 +169,7 @@ async def clear_history(
 # ---------------------------------------------------------------------------
 # Multi-conversation sessions — sidebar CRUD
 # ---------------------------------------------------------------------------
+
 
 @router.get("/sessions", response_model=List[ChatSessionSummary])
 async def list_sessions(
@@ -240,6 +248,7 @@ async def rename_session(
 # ---------------------------------------------------------------------------
 # AI chat — LLM + tool calling + memory + DB history
 # ---------------------------------------------------------------------------
+
 
 @router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(
@@ -337,24 +346,28 @@ async def ai_chat(
     # RAG is best for descriptive / procedural questions.
     if rag_chunks:
         rag_text = build_rag_context(rag_chunks)
-        messages.append({
-            "role": "user",
-            "content": (
-                f"[BASE DOCUMENTAIRE] Extraits pertinents de la documentation:\n"
-                f"{rag_text}\n\n"
-                "Utilise ces extraits comme contexte. "
-                "Si la question demande une liste exhaustive, un comptage, "
-                "ou des donnees structurees (machines, ordres, alertes, pieces), "
-                "appelle l'outil approprie pour obtenir la donnee complete depuis la base."
-            ),
-        })
-        messages.append({
-            "role": "assistant",
-            "content": (
-                "Compris. J'utilise la documentation comme contexte et "
-                "j'appelle les outils quand la question necessite des donnees completes."
-            ),
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"[BASE DOCUMENTAIRE] Extraits pertinents de la documentation:\n"
+                    f"{rag_text}\n\n"
+                    "Utilise ces extraits comme contexte. "
+                    "Si la question demande une liste exhaustive, un comptage, "
+                    "ou des donnees structurees (machines, ordres, alertes, pieces), "
+                    "appelle l'outil approprie pour obtenir la donnee complete depuis la base."
+                ),
+            }
+        )
+        messages.append(
+            {
+                "role": "assistant",
+                "content": (
+                    "Compris. J'utilise la documentation comme contexte et "
+                    "j'appelle les outils quand la question necessite des donnees completes."
+                ),
+            }
+        )
 
     # ── 4c. ML pre-turn: live machine state injected right before the query ──
     # Placed last (recency bias) so the LLM grounds its answer in the live
@@ -364,26 +377,32 @@ async def ai_chat(
         ml_text = build_ml_context(ml_snapshot)
         if ml_text:
             ml_context_injected = True
-            messages.append({
-                "role": "user",
-                "content": (
-                    f"{ml_text}\n\n"
-                    "Ces donnees ML sont en temps reel pour la machine concernee. "
-                    "Combine cet etat actuel avec la documentation pour donner "
-                    "un diagnostic precis et actionnable. Mentionne les capteurs "
-                    "en ATTENTION ou CRITIQUE si pertinent."
-                ),
-            })
-            messages.append({
-                "role": "assistant",
-                "content": (
-                    "Compris. Je dispose de l'etat ML en temps reel de cette machine "
-                    "et je l'integre dans mon analyse avec la documentation technique."
-                ),
-            })
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        f"{ml_text}\n\n"
+                        "Ces donnees ML sont en temps reel pour la machine concernee. "
+                        "Combine cet etat actuel avec la documentation pour donner "
+                        "un diagnostic precis et actionnable. Mentionne les capteurs "
+                        "en ATTENTION ou CRITIQUE si pertinent."
+                    ),
+                }
+            )
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": (
+                        "Compris. Je dispose de l'etat ML en temps reel de cette machine "
+                        "et je l'integre dans mon analyse avec la documentation technique."
+                    ),
+                }
+            )
 
     if machine_id is not None:
-        logger.info(f"[ml_bridge] machine_id={machine_id} ml_context_used={ml_context_injected}")
+        logger.info(
+            f"[ml_bridge] machine_id={machine_id} ml_context_used={ml_context_injected}"
+        )
 
     messages.append({"role": "user", "content": request.message})
 
@@ -435,16 +454,20 @@ async def ai_chat(
 
             sources.append({"tool": func_name, "result": result})
 
-            messages.append({
-                "role": "assistant",
-                "content": None,
-                "tool_calls": [tool_call],
-            })
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call["id"],
-                "content": format_tool_result(func_name, result),
-            })
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [tool_call],
+                }
+            )
+            messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": tool_call["id"],
+                    "content": format_tool_result(func_name, result),
+                }
+            )
 
         # ── 6. Second Groq call with tool results ─────────────────────────
         try:
@@ -452,7 +475,8 @@ async def ai_chat(
             final_choices = final_response.get("choices", [])
             if final_choices:
                 content = (
-                    final_choices[0].get("message", {}).get("content", content) or content
+                    final_choices[0].get("message", {}).get("content", content)
+                    or content
                 )
         except Exception as e:
             logger.warning(f"Final Groq call failed: {e}")
@@ -523,6 +547,7 @@ async def ai_chat(
 # Multi-agent deep analysis
 # ---------------------------------------------------------------------------
 
+
 class AnalyzeRequest(BaseModel):
     query: str
 
@@ -586,7 +611,10 @@ async def analyze(
             current_user.id,
             [
                 {"role": "user", "content": f"[ANALYSE] {request.query}"},
-                {"role": "assistant", "content": f"[PLAN] {plan_summary}\n\n{result['analysis']}"},
+                {
+                    "role": "assistant",
+                    "content": f"[PLAN] {plan_summary}\n\n{result['analysis']}",
+                },
             ],
         )
     except Exception as e:

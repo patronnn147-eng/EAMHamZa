@@ -51,16 +51,28 @@ def upgrade() -> None:
     if not _table_exists("planning_machines"):
         op.create_table(
             "planning_machines",
-            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+            sa.Column(
+                "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
+            ),
             sa.Column("planning_id", sa.Integer(), nullable=False),
             sa.Column("machine_id", sa.Integer(), nullable=False),
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         )
 
     if not _index_exists("ix_planning_machines_planning_id"):
-        op.create_index("ix_planning_machines_planning_id", "planning_machines", ["planning_id"], unique=False)
+        op.create_index(
+            "ix_planning_machines_planning_id",
+            "planning_machines",
+            ["planning_id"],
+            unique=False,
+        )
     if not _index_exists("ix_planning_machines_machine_id"):
-        op.create_index("ix_planning_machines_machine_id", "planning_machines", ["machine_id"], unique=False)
+        op.create_index(
+            "ix_planning_machines_machine_id",
+            "planning_machines",
+            ["machine_id"],
+            unique=False,
+        )
 
     op.create_unique_constraint(
         "uq_planning_machines_planning_machine",
@@ -70,7 +82,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_planning_machines_planning_machine", "planning_machines", type_="unique")
+    op.drop_constraint(
+        "uq_planning_machines_planning_machine", "planning_machines", type_="unique"
+    )
     op.drop_index("ix_planning_machines_machine_id", table_name="planning_machines")
     op.drop_index("ix_planning_machines_planning_id", table_name="planning_machines")
     op.drop_table("planning_machines")

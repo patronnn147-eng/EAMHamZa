@@ -8,7 +8,7 @@ Covers:
 
 No DB, no HTTP needed — pure function tests.
 """
-import pytest
+
 import sys
 import os
 
@@ -18,13 +18,13 @@ RAG_SERVICE_PATH = os.path.join(
 )
 sys.path.insert(0, os.path.abspath(RAG_SERVICE_PATH))
 
-from ingestor import chunk_text, CHUNK_SIZE, CHUNK_OVERLAP
+from ingestor import chunk_text, CHUNK_SIZE, CHUNK_OVERLAP  # noqa: E402
 
 
 # ── chunk_text ────────────────────────────────────────────────────────────────
 
-class TestChunkText:
 
+class TestChunkText:
     def test_short_text_single_chunk(self):
         text = "Le depileur alimente la ligne. Il transfere les cartes."
         chunks = chunk_text(text)
@@ -39,7 +39,9 @@ class TestChunkText:
     def test_chunks_respect_word_limit(self):
         """Each chunk must not exceed CHUNK_SIZE words."""
         # Generate text clearly longer than CHUNK_SIZE
-        sentence = "Le depileur alimente la ligne en cartes PCB vierges automatiquement. "
+        sentence = (
+            "Le depileur alimente la ligne en cartes PCB vierges automatiquement. "
+        )
         long_text = sentence * (CHUNK_SIZE // 10 + 10)
         chunks = chunk_text(long_text)
         for i, chunk in enumerate(chunks):
@@ -138,6 +140,7 @@ class TestChunkText:
 
 # ── retriever SQL parameter pattern ──────────────────────────────────────────
 
+
 class TestRetrieverSqlPattern:
     """
     Verify that the retriever.py SQL avoids the asyncpg '::' cast bug.
@@ -165,7 +168,7 @@ class TestRetrieverSqlPattern:
         source = self.get_retriever_source()
         assert "CAST(:machine_id AS integer)" in source, (
             "Expected CAST(:machine_id AS integer) in retriever.py SQL. "
-            f"Found none. Check retriever.py."
+            "Found none. Check retriever.py."
         )
 
     def test_threshold_default_is_permissive(self):
@@ -176,6 +179,7 @@ class TestRetrieverSqlPattern:
         source = self.get_retriever_source()
         # Find 'threshold: float = X.XX' in source
         import re
+
         match = re.search(r"threshold:\s*float\s*=\s*([\d.]+)", source)
         assert match is not None, "Could not find threshold default in retriever.py"
         threshold_value = float(match.group(1))
@@ -193,6 +197,7 @@ class TestRetrieverSqlPattern:
         with open(source_path) as f:
             source = f.read()
         import re
+
         match = re.search(r"CHUNK_SIZE\s*=\s*(\d+)", source)
         assert match is not None, "CHUNK_SIZE not found in ingestor.py"
         chunk_size = int(match.group(1))

@@ -1,12 +1,11 @@
 from datetime import datetime
 import io
 import logging
-from typing import List, Optional
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, cast, String, func, text
+from sqlalchemy import select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from schemas.pagination import PaginatedResponse
 
@@ -19,7 +18,9 @@ from models.ordres_intervention import Ordres_intervention
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/cheftech/work-orders-table", tags=["cheftech-work-orders"])
+router = APIRouter(
+    prefix="/api/v1/cheftech/work-orders-table", tags=["cheftech-work-orders"]
+)
 
 
 def _require_cheftech(current_user: Utilisateurs):
@@ -41,24 +42,34 @@ async def list_cheftech_work_orders(
         skip = (page - 1) * size
 
         # Count total
-        count_query = select(func.count(Ordres_travail.id)).where(Ordres_travail.archived_at.is_(None))
+        count_query = select(func.count(Ordres_travail.id)).where(
+            Ordres_travail.archived_at.is_(None)
+        )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         # Get all WOs assigned to technicians
-        query = select(
-            Ordres_travail,
-            Machines.nom.label("machine_nom"),
-            Utilisateurs.nom.label("technicien_nom"),
-            Utilisateurs.email.label("technicien_email"),
-            Ordres_intervention
-        ).outerjoin(
-            Machines, Ordres_travail.machine_id == Machines.id
-        ).outerjoin(
-            Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
-        ).outerjoin(
-            Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
-        ).where(Ordres_travail.archived_at.is_(None)).order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
+        query = (
+            select(
+                Ordres_travail,
+                Machines.nom.label("machine_nom"),
+                Utilisateurs.nom.label("technicien_nom"),
+                Utilisateurs.email.label("technicien_email"),
+                Ordres_intervention,
+            )
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .outerjoin(
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+            )
+            .outerjoin(
+                Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
+            )
+            .where(Ordres_travail.archived_at.is_(None))
+            .order_by(Ordres_travail.created_at.desc())
+            .offset(skip)
+            .limit(size)
+        )
 
         result = await db.execute(query)
         rows = result.all()
@@ -73,48 +84,75 @@ async def list_cheftech_work_orders(
                 live_seconds = None
             elif wo.date_debut:
                 duration_min = None
-                live_seconds = int((now - wo.date_debut.replace(tzinfo=None)).total_seconds())
+                live_seconds = int(
+                    (now - wo.date_debut.replace(tzinfo=None)).total_seconds()
+                )
             else:
                 duration_min = None
                 live_seconds = None
 
-            output.append({
-                "id": wo.id,
-                "titre": wo.titre,
-                "machine_nom": m_nom or "N/A",
-                "technicien_id": itv.technician_id if itv else None,
-                "technicien_nom": u_nom or "N/A",
-                "technicien_email": u_email or "N/A",
-                "intervention_id": itv.id if itv else None,
-                "statut": wo.statut,
-                "priorite": wo.priorite,
-                "created_at": wo.created_at.isoformat() if wo.created_at else None,
-                "date_debut": wo.date_debut.isoformat() if wo.date_debut else None,
-                "date_fin": wo.date_fin.isoformat() if wo.date_fin else None,
-                "duration_min": duration_min,
-                "live_seconds": live_seconds,
-                "rapport": wo.rapport,
-                # PDCA
-                "intervention_type": getattr(itv, "intervention_type", None) if itv else None,
-                "machine_status_after": getattr(itv, "machine_status_after", None) if itv else None,
-                "plan_hypothesis": getattr(itv, "plan_hypothesis", None) if itv else None,
-                "root_cause_category": getattr(itv, "root_cause_category", None) if itv else None,
-                "root_cause_description": getattr(itv, "root_cause_description", None) if itv else None,
-                "actions_performed": getattr(itv, "actions_performed", None) if itv else None,
-                "parts_replaced": (getattr(itv, "legacy_parts_text", None) if itv else None),
-                "tools_used": getattr(itv, "tools_used", None) if itv else None,
-                "check_resolved": getattr(itv, "check_resolved", None) if itv else None,
-                "check_verification_method": getattr(itv, "check_verification_method", None) if itv else None,
-                "act_preventive_actions": getattr(itv, "act_preventive_actions", None) if itv else None,
-                "act_recommendations": getattr(itv, "act_recommendations", None) if itv else None,
-            })
+            output.append(
+                {
+                    "id": wo.id,
+                    "titre": wo.titre,
+                    "machine_nom": m_nom or "N/A",
+                    "technicien_id": itv.technician_id if itv else None,
+                    "technicien_nom": u_nom or "N/A",
+                    "technicien_email": u_email or "N/A",
+                    "intervention_id": itv.id if itv else None,
+                    "statut": wo.statut,
+                    "priorite": wo.priorite,
+                    "created_at": wo.created_at.isoformat() if wo.created_at else None,
+                    "date_debut": wo.date_debut.isoformat() if wo.date_debut else None,
+                    "date_fin": wo.date_fin.isoformat() if wo.date_fin else None,
+                    "duration_min": duration_min,
+                    "live_seconds": live_seconds,
+                    "rapport": wo.rapport,
+                    # PDCA
+                    "intervention_type": getattr(itv, "intervention_type", None)
+                    if itv
+                    else None,
+                    "machine_status_after": getattr(itv, "machine_status_after", None)
+                    if itv
+                    else None,
+                    "plan_hypothesis": getattr(itv, "plan_hypothesis", None)
+                    if itv
+                    else None,
+                    "root_cause_category": getattr(itv, "root_cause_category", None)
+                    if itv
+                    else None,
+                    "root_cause_description": getattr(
+                        itv, "root_cause_description", None
+                    )
+                    if itv
+                    else None,
+                    "actions_performed": getattr(itv, "actions_performed", None)
+                    if itv
+                    else None,
+                    "parts_replaced": (
+                        getattr(itv, "legacy_parts_text", None) if itv else None
+                    ),
+                    "tools_used": getattr(itv, "tools_used", None) if itv else None,
+                    "check_resolved": getattr(itv, "check_resolved", None)
+                    if itv
+                    else None,
+                    "check_verification_method": getattr(
+                        itv, "check_verification_method", None
+                    )
+                    if itv
+                    else None,
+                    "act_preventive_actions": getattr(
+                        itv, "act_preventive_actions", None
+                    )
+                    if itv
+                    else None,
+                    "act_recommendations": getattr(itv, "act_recommendations", None)
+                    if itv
+                    else None,
+                }
+            )
 
-        return PaginatedResponse.create(
-            items=output,
-            total=total,
-            page=page,
-            size=size
-        )
+        return PaginatedResponse.create(items=output, total=total, page=page, size=size)
 
     except Exception as e:
         logger.error(f"Error listing cheftech work orders: {str(e)}")
@@ -131,19 +169,24 @@ async def export_cheftech_work_order_report(
     _require_cheftech(current_user)
 
     try:
-        query = select(
-            Ordres_travail,
-            Machines.nom.label("machine_nom"),
-            Utilisateurs.nom.label("technicien_nom"),
-            Utilisateurs.email.label("technicien_email"),
-            Ordres_intervention
-        ).outerjoin(
-            Machines, Ordres_travail.machine_id == Machines.id
-        ).outerjoin(
-            Ordres_intervention, Ordres_travail.id == Ordres_intervention.ordre_travail_id
-        ).outerjoin(
-            Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
-        ).where(Ordres_travail.id == order_id)
+        query = (
+            select(
+                Ordres_travail,
+                Machines.nom.label("machine_nom"),
+                Utilisateurs.nom.label("technicien_nom"),
+                Utilisateurs.email.label("technicien_email"),
+                Ordres_intervention,
+            )
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .outerjoin(
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+            )
+            .outerjoin(
+                Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
+            )
+            .where(Ordres_travail.id == order_id)
+        )
 
         result = await db.execute(query)
         row = result.first()
@@ -155,27 +198,42 @@ async def export_cheftech_work_order_report(
 
         def itv_get(attr, default="N/A"):
             return getattr(itv, attr, None) or default if itv else default
+
         # Fetch consumed-pieces summary from the canonical VIEW
         consumed_summary = None
         if itv is not None:
             try:
-                _row = (await db.execute(
-                    text("SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"),
-                    {"iid": itv.id},
-                )).first()
+                _row = (
+                    await db.execute(
+                        text(
+                            "SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"
+                        ),
+                        {"iid": itv.id},
+                    )
+                ).first()
                 if _row and _row[0]:
                     import json as _json
-                    _data = _row[0] if isinstance(_row[0], list) else _json.loads(_row[0])
+
+                    _data = (
+                        _row[0] if isinstance(_row[0], list) else _json.loads(_row[0])
+                    )
                     consumed_summary = ", ".join(
-                        f"{x.get('piece_name','?')} ({x.get('used','0')}{x.get('unit','')}"
-                        + (f", retour={x.get('returned','0')}" if float(x.get('returned',0) or 0) else "")
-                        + (f", rebut={x.get('wasted','0')}" if float(x.get('wasted',0) or 0) else "")
+                        f"{x.get('piece_name', '?')} ({x.get('used', '0')}{x.get('unit', '')}"
+                        + (
+                            f", retour={x.get('returned', '0')}"
+                            if float(x.get("returned", 0) or 0)
+                            else ""
+                        )
+                        + (
+                            f", rebut={x.get('wasted', '0')}"
+                            if float(x.get("wasted", 0) or 0)
+                            else ""
+                        )
                         + ")"
                         for x in _data
                     )
             except Exception:
                 pass
-
 
         duration_min = "N/A"
         if wo.date_fin and wo.date_debut:
@@ -188,9 +246,15 @@ async def export_cheftech_work_order_report(
             "Machine": m_nom or "N/A",
             "Technicien": u_nom or "N/A",
             "Email Technicien": u_email or "N/A",
-            "Date Création": wo.created_at.strftime("%Y-%m-%d %H:%M") if wo.created_at else "N/A",
-            "Date Début": wo.date_debut.strftime("%Y-%m-%d %H:%M") if wo.date_debut else "N/A",
-            "Date Fin": wo.date_fin.strftime("%Y-%m-%d %H:%M") if wo.date_fin else "N/A",
+            "Date Création": wo.created_at.strftime("%Y-%m-%d %H:%M")
+            if wo.created_at
+            else "N/A",
+            "Date Début": wo.date_debut.strftime("%Y-%m-%d %H:%M")
+            if wo.date_debut
+            else "N/A",
+            "Date Fin": wo.date_fin.strftime("%Y-%m-%d %H:%M")
+            if wo.date_fin
+            else "N/A",
             "Durée (min)": duration_min,
             "Statut OT": wo.statut,
             "Priorité": wo.priorite,
@@ -209,9 +273,13 @@ async def export_cheftech_work_order_report(
             "DO - Catégorie Cause Racine": itv_get("root_cause_category"),
             "DO - Description Cause Racine": itv_get("root_cause_description"),
             "DO - Rapport d'intervention": itv_get("actions_performed"),
-            "DO - Pièces Remplacées": (consumed_summary or itv_get("legacy_parts_text") or "N/A"),
+            "DO - Pièces Remplacées": (
+                consumed_summary or itv_get("legacy_parts_text") or "N/A"
+            ),
             "DO - Outils Utilisés": itv_get("tools_used"),
-            "CHECK - Problème Résolu?": "OUI" if itv_get("check_resolved", False) else "NON",
+            "CHECK - Problème Résolu?": "OUI"
+            if itv_get("check_resolved", False)
+            else "NON",
             "CHECK - Méthode de Vérification": itv_get("check_verification_method"),
             "ACT - Actions Préventives": itv_get("act_preventive_actions"),
             "ACT - Recommandations": itv_get("act_recommendations"),
@@ -226,7 +294,7 @@ async def export_cheftech_work_order_report(
             for col_cells in worksheet.columns:
                 max_length = max(
                     (len(str(cell.value)) for cell in col_cells if cell.value),
-                    default=0
+                    default=0,
                 )
                 col_letter = col_cells[0].column_letter
                 worksheet.column_dimensions[col_letter].width = min(max_length + 4, 60)
@@ -237,7 +305,7 @@ async def export_cheftech_work_order_report(
         return StreamingResponse(
             output,
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
     except HTTPException:

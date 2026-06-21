@@ -7,6 +7,7 @@ Create Date: 2026-05-30
 Moves the RAG document blob from in-memory-only to S3-backed.
 The `documents` table keeps metadata + new `s3_object_key` pointer.
 """
+
 from typing import Sequence, Union
 
 from alembic import op

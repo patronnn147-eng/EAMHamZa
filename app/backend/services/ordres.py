@@ -41,9 +41,9 @@ class OrdresService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,18 +51,18 @@ class OrdresService:
         try:
             query = select(Ordres)
             count_query = select(func.count(Ordres.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Ordres, field):
                         query = query.where(getattr(Ordres, field) == value)
                         count_query = count_query.where(getattr(Ordres, field) == value)
-            
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Ordres, field_name):
                         query = query.order_by(getattr(Ordres, field_name).desc())
@@ -85,7 +85,9 @@ class OrdresService:
             logger.error(f"Error fetching ordres list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Ordres]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Ordres]:
         """Update ordres"""
         try:
             obj = await self.get_by_id(obj_id)

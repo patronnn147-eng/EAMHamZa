@@ -1,4 +1,5 @@
 """Pydantic schemas for inventory stock, reservations, and consumption."""
+
 from decimal import Decimal
 from datetime import datetime
 from typing import List, Optional
@@ -7,6 +8,7 @@ from pydantic import BaseModel, Field, validator
 
 
 # ── Existing schemas (kept for backwards compat) ─────────────────────────────
+
 
 class StockResponse(BaseModel):
     id: int
@@ -25,8 +27,12 @@ class StockResponse(BaseModel):
 class StockAddRequest(BaseModel):
     piece_id: int = Field(..., description="ID of the spare part")
     quantity: Decimal = Field(..., gt=0, description="Quantity to add")
-    unit: Optional[str] = Field(None, description="Optional unit override (defaults to piece.default_unit)")
-    reference: Optional[str] = Field(None, max_length=200, description="Optional reference (purchase order…)")
+    unit: Optional[str] = Field(
+        None, description="Optional unit override (defaults to piece.default_unit)"
+    )
+    reference: Optional[str] = Field(
+        None, max_length=200, description="Optional reference (purchase order…)"
+    )
 
 
 class StockConsumeRequest(BaseModel):
@@ -78,6 +84,7 @@ PENDING_STATUS_VALUES = ("PENDING_REVIEW", "MATCHED", "CREATED", "REJECTED")
 
 class RequiredPieceItem(BaseModel):
     """One catalog piece planned for an intervention."""
+
     piece_id: int = Field(..., gt=0)
     quantity_planned: Decimal = Field(..., gt=0, le=Decimal("99999999.99"))
     unit: Optional[str] = Field(None, max_length=20)
@@ -85,6 +92,7 @@ class RequiredPieceItem(BaseModel):
 
 class PendingPieceItem(BaseModel):
     """One uncatalogued piece submitted by a technician."""
+
     name: str = Field(..., min_length=1, max_length=200)
     quantity: Decimal = Field(..., gt=0, le=Decimal("99999999.99"))
     unit: str = Field("pcs", max_length=20)
@@ -102,6 +110,7 @@ class ConsumedPieceItem(BaseModel):
       - sum(used + returned + wasted) ≤ planned (enforced server-side by DB trigger)
       - disposition value valid
     """
+
     required_piece_id: int = Field(..., gt=0)
     quantity_used: Decimal = Field(Decimal(0), ge=0)
     quantity_returned: Decimal = Field(Decimal(0), ge=0)
@@ -122,6 +131,7 @@ class ConsumedPieceItem(BaseModel):
 
 
 # ── Responses ────────────────────────────────────────────────────────────────
+
 
 class RequiredPieceResponse(BaseModel):
     id: int
@@ -193,6 +203,7 @@ class PendingPieceRejectRequest(BaseModel):
 
 class PieceSuggestion(BaseModel):
     """A fuzzy-match suggestion returned by /pieces/suggest."""
+
     piece_id: int
     name: str
     reference: str
@@ -211,6 +222,7 @@ class AvailabilityResponse(BaseModel):
 
 # ── Reservation deficit reporting ────────────────────────────────────────────
 
+
 class DeficitItem(BaseModel):
     piece_id: int
     piece_name: str
@@ -223,6 +235,7 @@ class ReservationDeficitError(BaseModel):
     detail: str = "Stock insuffisant"
     missing: List[DeficitItem]
 
+
 class ConsumedPieceDirect(BaseModel):
     """Ad-hoc consumption at WO completion time (no prior reservation).
 
@@ -230,6 +243,7 @@ class ConsumedPieceDirect(BaseModel):
     that wasn't planned. Handler creates a required_piece (approved=True,
     reserved=0) and a consumed_pieces row atomically.
     """
+
     piece_id: int = Field(..., gt=0)
     quantity: Decimal = Field(..., gt=0, le=Decimal("99999999.99"))
     unit: Optional[str] = Field(None, max_length=20)
@@ -242,9 +256,9 @@ class ConsumedPieceDirect(BaseModel):
 
 class PendingPieceDirect(BaseModel):
     """Ad-hoc uncatalogued piece request at WO completion time."""
+
     name: str = Field(..., min_length=1, max_length=200)
     quantity: Decimal = Field(..., gt=0, le=Decimal("99999999.99"))
     unit: str = Field("pcs", max_length=20)
     category: Optional[str] = Field(None, max_length=50)
     notes: Optional[str] = Field(None, max_length=2000)
-

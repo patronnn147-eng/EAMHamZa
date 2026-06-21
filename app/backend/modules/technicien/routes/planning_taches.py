@@ -40,16 +40,22 @@ async def get_my_planning_tasks(
     current_user=Depends(verify_technicien),
 ):
     result = await db.execute(
-        select(Planning_taches).where(Planning_taches.technicien_id == current_user.id).where(Planning_taches.archived_at.is_(None))
+        select(Planning_taches)
+        .where(Planning_taches.technicien_id == current_user.id)
+        .where(Planning_taches.archived_at.is_(None))
     )
     tasks = result.scalars().all()
 
     output = []
     for t in tasks:
-        machine_result = await db.execute(select(Machines).where(Machines.id == t.machine_id))
+        machine_result = await db.execute(
+            select(Machines).where(Machines.id == t.machine_id)
+        )
         machine = machine_result.scalar_one_or_none()
 
-        planning_result = await db.execute(select(Plannings).where(Plannings.id == t.planning_id))
+        planning_result = await db.execute(
+            select(Plannings).where(Plannings.id == t.planning_id)
+        )
         planning = planning_result.scalar_one_or_none()
 
         item = TechnicianTaskResponse.model_validate(t)

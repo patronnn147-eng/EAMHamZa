@@ -1,5 +1,15 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Enum, Integer, String, Float, Boolean, ForeignKey, Text
+from sqlalchemy import (
+    Column,
+    DateTime,
+    Enum,
+    Integer,
+    String,
+    Float,
+    Boolean,
+    ForeignKey,
+    Text,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
@@ -23,8 +33,12 @@ class AlertSeverity(str, enum.Enum):
 class Alert(Base):
     __tablename__ = "alertes"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
-    alert_id = Column(String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
+    alert_id = Column(
+        String(36), unique=True, nullable=False, default=lambda: str(uuid.uuid4())
+    )
     machine_id = Column(Integer, ForeignKey("machines.id"), nullable=False)
     alert_type = Column(Enum(AlertType), nullable=False)
     severity = Column(Enum(AlertSeverity), nullable=False)
@@ -33,9 +47,15 @@ class Alert(Base):
     failure_probability = Column(Float, nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
     is_linked_to_wo = Column(Boolean, default=False, nullable=False)
-    work_order_id = Column(Integer, ForeignKey("ordres_travail.id", ondelete="SET NULL"), nullable=True)
-    priority = Column(String(20), nullable=True, default="MEDIUM")  # LOW, MEDIUM, HIGH, URGENT
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
+    work_order_id = Column(
+        Integer, ForeignKey("ordres_travail.id", ondelete="SET NULL"), nullable=True
+    )
+    priority = Column(
+        String(20), nullable=True, default="MEDIUM"
+    )  # LOW, MEDIUM, HIGH, URGENT
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
     dismissed_at = Column(DateTime(timezone=True), nullable=True)
     dismissed_by = Column(Integer, ForeignKey("utilisateurs.id"), nullable=True)
 
@@ -48,7 +68,9 @@ class Alert(Base):
 class AlertConfig(Base):
     __tablename__ = "alertes_config"
 
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True, nullable=False)
+    id = Column(
+        Integer, primary_key=True, index=True, autoincrement=True, nullable=False
+    )
     rul_threshold_days = Column(Float, nullable=False, default=7.0)
     failure_probability_threshold = Column(Float, nullable=False, default=0.7)
     enable_rul_alerts = Column(Boolean, default=True, nullable=False)
@@ -56,6 +78,15 @@ class AlertConfig(Base):
     enable_anomaly_alerts = Column(Boolean, default=True, nullable=False)
     notification_in_app = Column(Boolean, default=True, nullable=False)
     notification_email = Column(Boolean, default=False, nullable=False)
-    frequency = Column(String(20), nullable=False, default="real-time")  # real-time, daily, weekly
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=True)
+    frequency = Column(
+        String(20), nullable=False, default="real-time"
+    )  # real-time, daily, weekly
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=True
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=True,
+    )

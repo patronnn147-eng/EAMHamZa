@@ -2,10 +2,11 @@
 Downtime forecast — pure functions.
 Blends RUL proximity and failure probability into p_failure per horizon.
 """
+
 from __future__ import annotations
 import logging
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 
 logger = logging.getLogger(__name__)
 
@@ -59,11 +60,15 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     avg_repair = 8.0
     try:
         wo_result = await db.execute(
-            select(Ordres_travail).where(
+            select(Ordres_travail)
+            .where(
                 Ordres_travail.date_debut.isnot(None),
                 Ordres_travail.date_fin.isnot(None),
-                Ordres_travail.statut.in_([OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]),
-            ).limit(200)
+                Ordres_travail.statut.in_(
+                    [OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]
+                ),
+            )
+            .limit(200)
         )
         wos = wo_result.scalars().all()
         if wos:
@@ -104,11 +109,13 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
         rul = float(log.rul_days or 90)
         prob = float(log.failure_probability or 0)
         est = estimate_downtime_hours(rul, prob, horizon_days, avg_repair)
-        results.append({
-            "machine_id": mid,
-            "machine_name": machine_names.get(mid, f"Machine {mid}"),
-            **est,
-        })
+        results.append(
+            {
+                "machine_id": mid,
+                "machine_name": machine_names.get(mid, f"Machine {mid}"),
+                **est,
+            }
+        )
 
     results.sort(key=lambda x: x["p_failure"], reverse=True)
     total = round(sum(r["expected_downtime_hours"] for r in results), 2)

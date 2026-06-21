@@ -33,7 +33,9 @@ class Planning_utilisateursService:
     async def get_by_id(self, obj_id: int) -> Optional[Planning_utilisateurs]:
         """Get planning_utilisateurs by ID"""
         try:
-            query = select(Planning_utilisateurs).where(Planning_utilisateurs.id == obj_id)
+            query = select(Planning_utilisateurs).where(
+                Planning_utilisateurs.id == obj_id
+            )
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
@@ -41,9 +43,9 @@ class Planning_utilisateursService:
             raise
 
     async def get_list(
-        self, 
-        skip: int = 0, 
-        limit: int = 20, 
+        self,
+        skip: int = 0,
+        limit: int = 20,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -51,21 +53,27 @@ class Planning_utilisateursService:
         try:
             query = select(Planning_utilisateurs)
             count_query = select(func.count(Planning_utilisateurs.id))
-            
+
             if query_dict:
                 for field, value in query_dict.items():
                     if hasattr(Planning_utilisateurs, field):
-                        query = query.where(getattr(Planning_utilisateurs, field) == value)
-                        count_query = count_query.where(getattr(Planning_utilisateurs, field) == value)
-            
+                        query = query.where(
+                            getattr(Planning_utilisateurs, field) == value
+                        )
+                        count_query = count_query.where(
+                            getattr(Planning_utilisateurs, field) == value
+                        )
+
             count_result = await self.db.execute(count_query)
             total = count_result.scalar()
 
             if sort:
-                if sort.startswith('-'):
+                if sort.startswith("-"):
                     field_name = sort[1:]
                     if hasattr(Planning_utilisateurs, field_name):
-                        query = query.order_by(getattr(Planning_utilisateurs, field_name).desc())
+                        query = query.order_by(
+                            getattr(Planning_utilisateurs, field_name).desc()
+                        )
                 else:
                     if hasattr(Planning_utilisateurs, sort):
                         query = query.order_by(getattr(Planning_utilisateurs, sort))
@@ -85,7 +93,9 @@ class Planning_utilisateursService:
             logger.error(f"Error fetching planning_utilisateurs list: {str(e)}")
             raise
 
-    async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Planning_utilisateurs]:
+    async def update(
+        self, obj_id: int, update_data: Dict[str, Any]
+    ) -> Optional[Planning_utilisateurs]:
         """Update planning_utilisateurs"""
         try:
             obj = await self.get_by_id(obj_id)
@@ -121,17 +131,25 @@ class Planning_utilisateursService:
             logger.error(f"Error deleting planning_utilisateurs {obj_id}: {str(e)}")
             raise
 
-    async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Planning_utilisateurs]:
+    async def get_by_field(
+        self, field_name: str, field_value: Any
+    ) -> Optional[Planning_utilisateurs]:
         """Get planning_utilisateurs by any field"""
         try:
             if not hasattr(Planning_utilisateurs, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Planning_utilisateurs")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Planning_utilisateurs"
+                )
             result = await self.db.execute(
-                select(Planning_utilisateurs).where(getattr(Planning_utilisateurs, field_name) == field_value)
+                select(Planning_utilisateurs).where(
+                    getattr(Planning_utilisateurs, field_name) == field_value
+                )
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching planning_utilisateurs by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching planning_utilisateurs by {field_name}: {str(e)}"
+            )
             raise
 
     async def list_by_field(
@@ -140,7 +158,9 @@ class Planning_utilisateursService:
         """Get list of planning_utilisateurss filtered by field"""
         try:
             if not hasattr(Planning_utilisateurs, field_name):
-                raise ValueError(f"Field {field_name} does not exist on Planning_utilisateurs")
+                raise ValueError(
+                    f"Field {field_name} does not exist on Planning_utilisateurs"
+                )
             result = await self.db.execute(
                 select(Planning_utilisateurs)
                 .where(getattr(Planning_utilisateurs, field_name) == field_value)
@@ -150,5 +170,7 @@ class Planning_utilisateursService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching planning_utilisateurss by {field_name}: {str(e)}")
+            logger.error(
+                f"Error fetching planning_utilisateurss by {field_name}: {str(e)}"
+            )
             raise
