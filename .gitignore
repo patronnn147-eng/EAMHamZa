@@ -60,3 +60,4 @@ backup/
 # Claude / AI configs
 .claude/
 *.local.json
+claude-code/

@@ -1,0 +1,136 @@
+name: Source Code Security
+
+on:
+  push:
+    branches:
+      - Phase_1
+      - clean_Phase_1
+      - main
+  pull_request:
+    branches:
+      - Phase_1
+      - clean_Phase_1
+      - main
+
+jobs:
+  # ─── Stage 1: Secret Scan ─────────────────────────────────────────────────
+
+  scan-secrets:
+    name: Secret Scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
+  # ─── Stage 2: SCA Backend ─────────────────────────────────────────────────
+
+  audit-backend:
+    name: SCA Backend (pip-audit)
+    runs-on: ubuntu-latest
+    needs: scan-secrets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pip-audit
+        run: pip install pip-audit
+      - name: Audit backend dependencies
+        run: pip-audit -r app/backend/requirements.txt --severity critical --severity high
+
+  # ─── Stage 2: SCA Frontend ────────────────────────────────────────────────
+
+  audit-frontend:
+    name: SCA Frontend (pnpm audit)
+    runs-on: ubuntu-latest
+    needs: scan-secrets
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: pnpm install --frozen-lockfile
+      - name: Audit frontend dependencies
+        working-directory: app/frontend
+        run: pnpm audit --audit-level=high
+
+  # ─── Stage 3: Lint Backend (non-blocking) ─────────────────────────────────
+
+  lint-backend:
+    name: Lint Backend (ruff)
+    runs-on: ubuntu-latest
+    needs: [audit-backend]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: pip install ruff
+      - name: Ruff check
+        run: ruff check app/backend/ --output-format=github
+      - name: Ruff format check
+        run: ruff format --check app/backend/
+
+  # ─── Stage 3: Lint Frontend (non-blocking) ────────────────────────────────
+
+  lint-frontend:
+    name: Lint Frontend (eslint)
+    runs-on: ubuntu-latest
+    needs: [audit-frontend]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+      - name: Install dependencies
+        working-directory: app/frontend
+        run: pnpm install --frozen-lockfile
+      - name: Run ESLint
+        working-directory: app/frontend
+        run: pnpm run lint
+
+  # ─── Stage 4: Quality Gate ────────────────────────────────────────────────
+
+  quality-gate:
+    name: Quality Gate
+    runs-on: ubuntu-latest
+    needs: [scan-secrets, audit-backend, audit-frontend, lint-backend, lint-frontend]
+    if: always()
+    steps:
+      - name: Check blocking gates
+        run: |
+          FAILED=0
+          if [[ "${{ needs.scan-secrets.result }}" == "failure" ]]; then
+            echo "BLOCKED: Secret scan failed — commit contains credentials"
+            FAILED=1
+          fi
+          if [[ "${{ needs.audit-backend.result }}" == "failure" ]]; then
+            echo "BLOCKED: Backend SCA found CRITICAL/HIGH CVEs in requirements.txt"
+            FAILED=1
+          fi
+          if [[ "${{ needs.audit-frontend.result }}" == "failure" ]]; then
+            echo "BLOCKED: Frontend SCA found CRITICAL/HIGH CVEs in package.json"
+            FAILED=1
+          fi
+          if [[ $FAILED -eq 1 ]]; then
+            exit 1
+          fi
+          echo "All blocking gates passed."
+          echo "Lint (non-blocking): backend=${{ needs.lint-backend.result }}, frontend=${{ needs.lint-frontend.result }}"

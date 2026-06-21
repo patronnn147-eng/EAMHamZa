@@ -1,0 +1,24 @@
+# EAMSagemCom — Code Owners
+# All PRs to paths below require review from @hamzAmbarki2
+
+# Self-protecting: changes to CODEOWNERS itself require owner approval
+CODEOWNERS @hamzAmbarki2
+
+# Application code
+app/backend/           @hamzAmbarki2
+app/frontend/          @hamzAmbarki2
+app/ml-microservice/   @hamzAmbarki2
+app/rag-service/       @hamzAmbarki2
+
+# Infrastructure
+docker-compose.yml     @hamzAmbarki2
+Makefile               @hamzAmbarki2
+
+# CI/CD
+.github/               @hamzAmbarki2
+.gitlab-ci.yml         @hamzAmbarki2
+
+# Security configs
+.gitleaks.toml         @hamzAmbarki2
+.pre-commit-config.yaml @hamzAmbarki2
+renovate.json          @hamzAmbarki2

@@ -1,0 +1,38 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["every weekend"],
+  "timezone": "Africa/Tunis",
+  "assignees": ["hamzAmbarki2"],
+  "reviewers": ["hamzAmbarki2"],
+  "dependencyDashboard": true,
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["*"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "all non-major dependencies",
+      "groupSlug": "all-minor-patch",
+      "automerge": false
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "groupName": null,
+      "automerge": false,
+      "labels": ["major-update", "review-required"]
+    }
+  ],
+  "pip_requirements": {
+    "fileMatch": ["app/backend/requirements\\.txt"]
+  },
+  "npm": {
+    "fileMatch": ["app/frontend/package\\.json"]
+  },
+  "docker": {
+    "fileMatch": [
+      "app/backend/Dockerfile",
+      "app/frontend/Dockerfile",
+      "app/ml-microservice/Dockerfile",
+      "app/rag-service/Dockerfile"
+    ]
+  }
+}

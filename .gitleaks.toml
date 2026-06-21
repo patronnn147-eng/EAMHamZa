@@ -1,0 +1,66 @@
+title = "EAMSagemCom Gitleaks Config"
+
+[extend]
+useDefault = true
+
+# ─── Project-specific rules ──────────────────────────────────────────────────
+
+[[rules]]
+id = "minio-access-key"
+description = "MinIO Access Key"
+regex = '''(?i)(MINIO_ACCESS_KEY)\s*[=:]\s*['"]?([A-Za-z0-9]{16,})['"]?'''
+tags = ["minio", "credentials"]
+
+[[rules]]
+id = "minio-secret-key"
+description = "MinIO Secret Key"
+regex = '''(?i)(MINIO_SECRET_KEY)\s*[=:]\s*['"]?([A-Za-z0-9+/=]{30,})['"]?'''
+tags = ["minio", "credentials"]
+
+[[rules]]
+id = "fastapi-secret-key"
+description = "FastAPI SECRET_KEY or JWT_SECRET"
+regex = '''(?i)(SECRET_KEY|JWT_SECRET|JWT_SECRET_KEY)\s*[=:]\s*['"]?([A-Za-z0-9+/=._\-]{16,})['"]?'''
+tags = ["jwt", "fastapi"]
+
+[[rules]]
+id = "postgresql-dsn"
+description = "PostgreSQL connection string with credentials"
+regex = '''postgresql(\+asyncpg)?://[^:@\s]+:[^@\s]+@[^\s'"]+'''
+tags = ["database", "postgresql"]
+
+[[rules]]
+id = "openai-api-key"
+description = "OpenAI API Key (used by RAG service)"
+regex = '''sk-[A-Za-z0-9]{32,}'''
+tags = ["openai", "llm"]
+
+[[rules]]
+id = "huggingface-token"
+description = "HuggingFace API Token (used by ML microservice)"
+regex = '''hf_[A-Za-z0-9]{32,}'''
+tags = ["huggingface", "llm"]
+
+# ─── Allowlist ───────────────────────────────────────────────────────────────
+
+[allowlist]
+description = "Safe files and placeholder patterns"
+files = [
+  ".env.example",
+  ".gitleaks.toml",
+  "CLAUDE.md",
+]
+paths = [
+  "docs/",
+  "tests/",
+  ".planning/",
+  "presentation/",
+]
+regexes = [
+  '''CHANGE_ME''',
+  '''your.?secret.?here''',
+  '''example.?key''',
+  '''<YOUR_''',
+  '''changeme''',
+  '''placeholder''',
+]

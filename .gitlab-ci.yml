@@ -1,0 +1,124 @@
+# EAMSagemCom — Phase 1: Source Code Security Pipeline
+# Stages: secret-scan → sca-deps → lint → gate
+# Blocking: secret-scan, sca-deps, gate
+# Non-blocking: lint (allow_failure: true)
+
+stages:
+  - secret-scan
+  - sca-deps
+  - lint
+  - gate
+
+default:
+  interruptible: true
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+
+# ─── Stage 1: Secret Scan ────────────────────────────────────────────────────
+
+scan-secrets:
+  stage: secret-scan
+  image:
+    name: zricethezav/gitleaks:v8.18.4
+    entrypoint: [""]
+  script:
+    - gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
+# ─── Stage 2: SCA Dependencies ───────────────────────────────────────────────
+
+audit-backend:
+  stage: sca-deps
+  needs: [scan-secrets]
+  image: python:3.11-slim
+  before_script:
+    - pip install pip-audit --quiet
+  script:
+    - pip-audit -r app/backend/requirements.txt --severity critical --severity high
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
+audit-frontend:
+  stage: sca-deps
+  needs: [scan-secrets]
+  image: node:18-alpine
+  before_script:
+    - npm install -g pnpm --quiet
+    - cd app/frontend && pnpm install --frozen-lockfile
+  script:
+    - pnpm audit --audit-level=high
+  artifacts:
+    paths:
+      - app/frontend/pnpm-audit.json
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
+# ─── Stage 3: Lint (non-blocking) ────────────────────────────────────────────
+
+lint-backend:
+  stage: lint
+  image: python:3.11-slim
+  before_script:
+    - pip install ruff --quiet
+  script:
+    - ruff check app/backend/ --output-format=github
+    - ruff format --check app/backend/
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 5 minutes
+  allow_failure: true
+
+lint-frontend:
+  stage: lint
+  image: node:18-alpine
+  before_script:
+    - npm install -g pnpm --quiet
+    - cd app/frontend && pnpm install --frozen-lockfile
+  script:
+    - cd app/frontend && pnpm run lint
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 5 minutes
+  allow_failure: true
+
+# ─── Stage 4: Quality Gate ───────────────────────────────────────────────────
+
+quality-gate:
+  stage: gate
+  image: alpine:3.19
+  needs:
+    - scan-secrets
+    - audit-backend
+    - audit-frontend
+    - job: lint-backend
+      optional: true
+    - job: lint-frontend
+      optional: true
+  script:
+    - |
+      echo "All blocking security gates passed."
+      echo "  Secret scan   -- PASSED"
+      echo "  Backend SCA   -- PASSED"
+      echo "  Frontend SCA  -- PASSED"
+      echo "  Lint jobs are non-blocking (warn only)"
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 2 minutes
+  allow_failure: false

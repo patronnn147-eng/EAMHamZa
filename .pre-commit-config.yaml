@@ -1,0 +1,39 @@
+repos:
+  # Secret scanning — runs first, blocks commit on any finding
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
+
+  # Python backend — ruff lint + format check
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^app/backend/
+      - id: ruff-format
+        files: ^app/backend/
+
+  # General hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: check-yaml
+        args: [--unsafe]
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=500"]
+
+  # Frontend ESLint (uses existing app/frontend/eslint.config.js)
+  - repo: local
+    hooks:
+      - id: eslint-frontend
+        name: ESLint (frontend)
+        entry: bash -c "cd app/frontend && npx eslint --quiet ."
+        language: system
+        types: [file]
+        files: ^app/frontend/.*\.(ts|tsx|js|jsx)$
+        pass_filenames: false
