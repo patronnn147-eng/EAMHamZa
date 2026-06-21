@@ -80,7 +80,9 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
         try {
           const errData = await response.json();
           msg = errData.detail || msg;
-        } catch (e) {}
+        } catch (_e) {
+          // ignore JSON parse error, use fallback message
+        }
         throw new Error(msg);
       }
 

@@ -65,9 +65,9 @@ function HeroScene({ healthScore, riskLevel, wrapperRef }: HeroSceneProps) {
 }
 
 export function MachineHero3D({ machine, mlPrediction }: MachineHero3DProps) {
-  if (!machine) return null;
-
   const wrapperRef = useRef<HTMLDivElement>(null!);
+
+  if (!machine) return null;
   const healthScore = mlPrediction?.health_score ?? 50;
   const riskLevel =
     (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(mlPrediction?.risk_level ?? '')

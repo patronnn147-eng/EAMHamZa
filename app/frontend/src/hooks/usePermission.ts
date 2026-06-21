@@ -63,14 +63,18 @@ export const useUserRole = (): UserRole | null => {
  * Check if user has ANY of the given permissions
  */
 export const useHasAnyPermission = (permissions: Permission[]): boolean => {
-  return permissions.some(p => useHasPermission(p));
+  const { user } = useAuth();
+  if (!user) return false;
+  return permissions.some(p => PERMISSIONS[p].includes(user.role as UserRole));
 };
 
 /**
- * Check if user has ALL of the given permissions  
+ * Check if user has ALL of the given permissions
  */
 export const useHasAllPermissions = (permissions: Permission[]): boolean => {
-  return permissions.every(p => useHasPermission(p));
+  const { user } = useAuth();
+  if (!user) return false;
+  return permissions.every(p => PERMISSIONS[p].includes(user.role as UserRole));
 };
 
 // French permission messages
