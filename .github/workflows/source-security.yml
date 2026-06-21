@@ -42,7 +42,7 @@ jobs:
       - name: Install pip-audit
         run: pip install pip-audit
       - name: Audit backend dependencies
-        run: pip-audit -r app/backend/requirements.txt --severity critical --severity high
+        run: pip-audit -r app/backend/requirements.txt
 
   # ─── Stage 2: SCA Frontend ────────────────────────────────────────────────
 
