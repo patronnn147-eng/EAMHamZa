@@ -1,6 +1,6 @@
 # Makefile for Asset Management System Docker operations
 
-.PHONY: help build up down restart logs clean rebuild
+.PHONY: help build up down restart logs clean rebuild setup
 
 help:
 	@echo "Asset Management System - Docker Commands"
@@ -19,6 +19,13 @@ help:
 	@echo "  backend    - View backend logs"
 	@echo "  frontend   - View frontend logs"
 	@echo "  db         - Connect to PostgreSQL database"
+	@echo "  setup      - Install pre-commit hooks (run once after cloning)"
+
+setup:
+	@echo "Installing pre-commit..."
+	pip install pre-commit
+	pre-commit install
+	@echo "Pre-commit hooks installed. Secret scan + lint will run on every git commit."
 
 build:
 	docker-compose --env-file .env.docker build

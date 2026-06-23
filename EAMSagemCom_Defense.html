@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EAM SagemCom — Predictive Maintenance Platform</title>
+<link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+<link rel="stylesheet" href="https://api.fontshare.com/v2/css?f[]=clash-display@400,500,600,700&f[]=satoshi@400,500,700&display=swap" />
+<style>
+/* ============================================================
+   DESIGN TOKENS
+   ============================================================ */
+:root{
+  --color-bg:        #06080f;
+  --color-bg-2:      #0a0e1a;
+  --color-surface:   rgba(255,255,255,0.045);
+  --color-stroke:    rgba(255,255,255,0.10);
+  --color-primary:   #22d3ee;   /* electric cyan — intelligence */
+  --color-secondary: #fbbf24;   /* amber — alert / industrial */
+  --color-accent:    #a78bfa;   /* violet — AI / data */
+  --color-good:      #34d399;
+  --color-text:      #eef2ff;
+  --color-muted:     #8b94b3;
+
+  --z-scene: 0; --z-content: 10; --z-nav: 100;
+
+  --stage-w: 1920px; --stage-h: 1080px;
+  --safe-x: 132px; --safe-y: 96px;
+
+  --font-display: 'Clash Display', sans-serif;
+  --font-body: 'Satoshi', sans-serif;
+
+  --ease: cubic-bezier(.2,.8,.2,1);
+}
+
+/* ============================================================
+   VIEWPORT-BASE (fixed 16:9 stage)
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;background:#000;font-family:var(--font-body);color:var(--color-text)}
+
+#viewport{
+  position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+  background:
+    radial-gradient(1200px 800px at 80% -10%, rgba(34,211,238,.10), transparent 60%),
+    radial-gradient(1000px 700px at -10% 110%, rgba(167,139,250,.10), transparent 60%),
+    var(--color-bg);
+}
+#stage{
+  position:absolute; top:50%; left:50%;
+  width:var(--stage-w); height:var(--stage-h);
+  transform-origin:center center;
+  background:
+    radial-gradient(1400px 900px at 70% 10%, rgba(34,211,238,.06), transparent 55%),
+    linear-gradient(160deg, var(--color-bg-2), var(--color-bg));
+  overflow:hidden;
+}
+
+/* shared WebGL canvas behind all content */
+#gl{position:absolute;inset:0;width:100%;height:100%;z-index:var(--z-scene);pointer-events:none}
+
+.slide{
+  position:absolute; inset:0; padding:var(--safe-y) var(--safe-x);
+  z-index:var(--z-content);
+  visibility:hidden; opacity:0; pointer-events:none;
+  transition:opacity .6s var(--ease);
+  display:flex; flex-direction:column; justify-content:center;
+}
+.slide.active{visibility:visible; opacity:1; pointer-events:auto}
+
+/* reveal stagger */
+.reveal{opacity:0; transform:translateY(26px);
+  transition:opacity .7s var(--ease), transform .7s var(--ease);
+  transition-delay:var(--d,0s)}
+.slide.active .reveal{opacity:1; transform:none}
+
+/* ============================================================
+   TYPOGRAPHY
+   ============================================================ */
+h1,h2,h3,.display{font-family:var(--font-display);font-weight:600;line-height:1.02;letter-spacing:-.02em}
+.eyebrow{font-family:var(--font-body);font-weight:700;font-size:18px;letter-spacing:.32em;
+  text-transform:uppercase;color:var(--color-primary)}
+.kicker-num{font-family:var(--font-display);font-weight:500;font-size:20px;color:var(--color-muted);letter-spacing:.1em}
+.hero{font-size:118px;font-weight:600}
+.h1{font-size:84px}
+.h2{font-size:60px}
+.h3{font-size:34px;font-weight:500}
+.lead{font-size:27px;line-height:1.5;color:var(--color-muted);font-weight:400;max-width:1100px}
+.small{font-size:20px;color:var(--color-muted);line-height:1.5}
+.tiny{font-size:16px;color:var(--color-muted)}
+.grad{background:linear-gradient(100deg,var(--color-primary),var(--color-accent) 60%,var(--color-secondary));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.amber{color:var(--color-secondary)} .cyan{color:var(--color-primary)} .violet{color:var(--color-accent)} .good{color:var(--color-good)}
+
+/* ============================================================
+   GLASS COMPONENTS
+   ============================================================ */
+.glass{
+  background:linear-gradient(150deg, rgba(255,255,255,.07), rgba(255,255,255,.015));
+  border:1px solid var(--color-stroke);
+  border-radius:22px; backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+  box-shadow:0 24px 70px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
+}
+.chip{display:inline-flex;align-items:center;gap:10px;padding:11px 20px;border-radius:999px;
+  background:rgba(255,255,255,.05);border:1px solid var(--color-stroke);font-size:18px;font-weight:500}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--color-primary);box-shadow:0 0 14px var(--color-primary)}
+
+.grid{display:grid;gap:26px}
+.cols-2{grid-template-columns:1fr 1fr}
+.cols-3{grid-template-columns:repeat(3,1fr)}
+.cols-4{grid-template-columns:repeat(4,1fr)}
+
+.card{padding:30px 32px}
+.card h3{font-size:25px;margin-bottom:10px}
+.card .ico{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;margin-bottom:18px;
+  background:rgba(34,211,238,.12);border:1px solid rgba(34,211,238,.28)}
+.card .ico svg{width:28px;height:28px;stroke:var(--color-primary);fill:none;stroke-width:1.8}
+
+/* KPI */
+.kpi{display:flex;flex-direction:column;gap:6px;padding:28px 30px}
+.kpi .num{font-family:var(--font-display);font-weight:600;font-size:60px;line-height:1}
+.kpi .lbl{font-size:18px;color:var(--color-muted)}
+
+/* header block */
+.head{margin-bottom:46px}
+.head .eyebrow{margin-bottom:18px;display:block}
+
+/* progress + nav */
+#progress{position:absolute;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--color-primary),var(--color-accent));
+  width:0;z-index:var(--z-nav);transition:width .5s var(--ease);box-shadow:0 0 12px var(--color-primary)}
+#counter{position:absolute;bottom:38px;right:54px;z-index:var(--z-nav);font-size:18px;color:var(--color-muted);
+  font-family:var(--font-display);letter-spacing:.1em}
+#counter b{color:var(--color-text)}
+.foot{position:absolute;bottom:38px;left:54px;z-index:var(--z-nav);font-size:15px;color:var(--color-muted);letter-spacing:.18em;text-transform:uppercase}
+
+/* list */
+.flist{list-style:none;display:flex;flex-direction:column;gap:18px}
+.flist li{display:flex;gap:16px;align-items:flex-start;font-size:23px;line-height:1.4}
+.flist li .mk{flex:0 0 auto;margin-top:5px;width:22px;height:22px;border-radius:7px;
+  background:rgba(34,211,238,.14);border:1px solid rgba(34,211,238,.35);display:grid;place-items:center}
+.flist li .mk::after{content:"";width:8px;height:8px;border-radius:2px;background:var(--color-primary)}
+.flist.amberlist li .mk{background:rgba(251,191,36,.14);border-color:rgba(251,191,36,.35)}
+.flist.amberlist li .mk::after{background:var(--color-secondary)}
+
+/* table */
+.tbl{width:100%;border-collapse:separate;border-spacing:0}
+.tbl th,.tbl td{text-align:left;padding:20px 24px;font-size:21px;border-bottom:1px solid var(--color-stroke)}
+.tbl th{font-family:var(--font-display);font-weight:500;font-size:18px;color:var(--color-muted);text-transform:uppercase;letter-spacing:.08em}
+.tbl td:first-child{font-weight:600;color:var(--color-text)}
+.tag{display:inline-block;padding:5px 13px;border-radius:8px;font-size:15px;font-weight:600}
+.tag.pro{background:rgba(52,211,153,.14);color:var(--color-good)}
+.tag.con{background:rgba(248,113,113,.14);color:#f87171}
+
+/* pipeline / flow */
+.flow{display:flex;align-items:stretch;gap:0;width:100%}
+.node{flex:1;padding:24px 18px;text-align:center;position:relative}
+.node .nt{font-family:var(--font-display);font-weight:500;font-size:21px;margin-bottom:6px}
+.node .nd{font-size:15px;color:var(--color-muted);line-height:1.35}
+.arrow{flex:0 0 56px;display:grid;place-items:center;color:var(--color-primary);font-size:30px}
+
+/* badges row */
+.tech{display:flex;flex-wrap:wrap;gap:16px}
+.tech .t{padding:16px 22px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--color-stroke);
+  font-size:20px;font-weight:500;display:flex;align-items:center;gap:12px}
+.tech .t i{width:10px;height:10px;border-radius:3px;display:inline-block}
+
+/* gantt */
+.gantt{display:flex;flex-direction:column;gap:14px}
+.grow{display:grid;grid-template-columns:230px 1fr;align-items:center;gap:18px}
+.grow .gl{font-size:19px;font-weight:500}
+.gtrack{position:relative;height:34px;background:rgba(255,255,255,.04);border-radius:10px;border:1px solid var(--color-stroke)}
+.gbar{position:absolute;top:5px;bottom:5px;border-radius:7px;display:flex;align-items:center;padding:0 14px;font-size:14px;font-weight:600;color:#04121a;
+  background:linear-gradient(90deg,var(--color-primary),var(--color-accent))}
+.gbar.s2{background:linear-gradient(90deg,var(--color-accent),var(--color-secondary));color:#1a1206}
+.gscale{display:grid;grid-template-columns:230px 1fr}
+.gscale .gm{display:flex;justify-content:space-between;color:var(--color-muted);font-size:14px;padding-left:4px}
+
+/* actors */
+.actor{padding:28px;display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+.actor .av{width:62px;height:62px;border-radius:16px;display:grid;place-items:center;
+  background:linear-gradient(150deg,rgba(34,211,238,.2),rgba(167,139,250,.12));border:1px solid var(--color-stroke)}
+.actor .av svg{width:32px;height:32px;stroke:var(--color-primary);fill:none;stroke-width:1.7}
+.actor .rname{font-family:var(--font-display);font-size:24px;font-weight:600}
+.actor .rrole{font-size:17px;color:var(--color-primary);letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+
+/* class diagram svg text */
+svg .cn{font-family:var(--font-display);font-size:15px;font-weight:600;fill:var(--color-text)}
+svg .cf{font-family:var(--font-body);font-size:11.5px;fill:var(--color-muted)}
+svg .cl{stroke:var(--color-muted);stroke-width:1.2;fill:none}
+svg .rel{font-family:var(--font-body);font-size:11px;fill:var(--color-primary)}
+
+/* reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .reveal{transition:none!important;opacity:1!important;transform:none!important}
+  .slide{transition:none!important}
+}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+    <canvas id="gl"></canvas>
+    <div id="progress"></div>
+    <div class="foot">EAM&nbsp;·&nbsp;SagemCom</div>
+    <div id="counter"><b>01</b> / 23</div>
+
+<!-- ============================================================
+     SLIDE 1 — COVER
+     ============================================================ -->
+<section class="slide active" data-scene="hero" id="s1">
+  <div style="max-width:1400px">
+    <div class="chip reveal" style="--d:.05s"><span class="dot"></span>Engineering Project Defense · 2026</div>
+    <h1 class="hero reveal" style="--d:.18s;margin:34px 0 24px">Maintenance that<br><span class="grad">predicts the future.</span></h1>
+    <p class="lead reveal" style="--d:.34s">An AI-native Enterprise Asset Management platform for SagemCom — turning sensor data into decisions before machines fail.</p>
+    <div class="reveal" style="--d:.5s;margin-top:46px;display:flex;gap:14px;flex-wrap:wrap">
+      <span class="chip"><span class="dot" style="background:var(--color-secondary);box-shadow:0 0 14px var(--color-secondary)"></span>Predictive ML</span>
+      <span class="chip"><span class="dot" style="background:var(--color-accent);box-shadow:0 0 14px var(--color-accent)"></span>RAG Assistant</span>
+      <span class="chip"><span class="dot" style="background:var(--color-good);box-shadow:0 0 14px var(--color-good)"></span>DevSecOps</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — GENERAL INTRODUCTION
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s2">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">01 — General Introduction</span>
+    <h2 class="h1 reveal" style="--d:.15s">Industry 4.0 runs on<br>data it never reads.</h2>
+  </div>
+  <div class="grid cols-3">
+    <div class="glass kpi reveal" style="--d:.28s"><span class="num grad">$50B</span><span class="lbl">Lost yearly to unplanned downtime worldwide</span></div>
+    <div class="glass kpi reveal" style="--d:.4s"><span class="num grad">82%</span><span class="lbl">Of factories still maintain reactively or on fixed calendars</span></div>
+    <div class="glass kpi reveal" style="--d:.52s"><span class="num grad">3–5×</span><span class="lbl">Cost of a failure vs. a planned intervention</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — COMPANY (SAGEMCOM)
+     ============================================================ -->
+<section class="slide" data-scene="sphere" id="s3">
+  <div class="grid cols-2" style="align-items:center;gap:70px;height:100%">
+    <div>
+      <span class="eyebrow reveal" style="--d:.05s">02 — The Company</span>
+      <h2 class="h1 reveal" style="--d:.15s;margin:18px 0 26px">Sagemcom</h2>
+      <p class="lead reveal" style="--d:.3s">A French global leader in communicating terminals and IoT — broadband, energy, and connected devices deployed across the planet.</p>
+    </div>
+    <div class="grid cols-2 reveal" style="--d:.42s">
+      <div class="glass kpi"><span class="num cyan">6,500+</span><span class="lbl">Employees worldwide</span></div>
+      <div class="glass kpi"><span class="num cyan">€2.6B</span><span class="lbl">Annual revenue</span></div>
+      <div class="glass kpi"><span class="num cyan">50+</span><span class="lbl">Countries served</span></div>
+      <div class="glass kpi"><span class="num cyan">#1</span><span class="lbl">EU energy & broadband terminals</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — PROJECT CONTEXT
+     ============================================================ -->
+<section class="slide" data-scene="panels" id="s4">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">03 — Project Context</span>
+    <h2 class="h1 reveal" style="--d:.15s">Production lines packed<br>with sensors. No brain.</h2>
+  </div>
+  <div class="grid cols-3">
+    <div class="glass card reveal" style="--d:.3s"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 9h6v6H9z"/></svg></div><h3>Machines everywhere</h3><p class="small">Industrial assets stream temperature, torque, RPM and wear continuously.</p></div>
+    <div class="glass card reveal" style="--d:.42s"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-8 4 16 3-8h4"/></svg></div><h3>Data with no decisions</h3><p class="small">Signals are logged, then ignored until something breaks loudly.</p></div>
+    <div class="glass card reveal" style="--d:.54s"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg></div><h3>The mission</h3><p class="small">Build the platform that closes the loop — sensor → prediction → action.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — PROBLEM STATEMENT
+     ============================================================ -->
+<section class="slide" data-scene="fragment" id="s5">
+  <div style="max-width:1300px">
+    <span class="eyebrow reveal" style="--d:.05s;color:var(--color-secondary)">04 — Problem Statement</span>
+    <h2 class="hero reveal" style="--d:.18s;font-size:96px;margin:24px 0 30px">We fix things<br><span class="amber">after they break.</span></h2>
+    <p class="lead reveal" style="--d:.36s">Reactive maintenance means surprise downtime, emergency parts, idle technicians, and no memory of why a machine failed last time.</p>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — EXISTING SOLUTIONS
+     ============================================================ -->
+<section class="slide" data-scene="network" id="s6">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">05 — Existing Solutions</span>
+    <h2 class="h1 reveal" style="--d:.15s">The market already<br>has EAM tools.</h2>
+  </div>
+  <div class="grid cols-4">
+    <div class="glass card reveal" style="--d:.28s"><h3 class="grad">SAP EAM</h3><p class="small">Enterprise-grade, deeply integrated ERP suite.</p></div>
+    <div class="glass card reveal" style="--d:.38s"><h3 class="grad">IBM Maximo</h3><p class="small">Powerful asset lifecycle &amp; work-order engine.</p></div>
+    <div class="glass card reveal" style="--d:.48s"><h3 class="grad">GMAO / Fiix</h3><p class="small">Lightweight cloud CMMS for SMB maintenance.</p></div>
+    <div class="glass card reveal" style="--d:.58s"><h3 class="grad">Excel + paper</h3><p class="small">Still the real "system" on most shop floors.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — EXISTING SOLUTIONS ANALYSIS
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s7">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">06 — Comparative Analysis</span>
+    <h2 class="h2 reveal" style="--d:.15s">Strong tools — but none fit our reality.</h2>
+  </div>
+  <div class="glass reveal" style="--d:.3s;padding:14px 20px">
+    <table class="tbl">
+      <thead><tr><th>Solution</th><th>Strength</th><th>Limitation</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>SAP / Maximo</td><td><span class="tag pro">Complete</span></td><td><span class="tag con">Costly · heavy · slow to deploy</span></td><td class="small">Over-scaled for one site</td></tr>
+        <tr><td>Cloud CMMS</td><td><span class="tag pro">Easy &amp; cheap</span></td><td><span class="tag con">No real AI / prediction</span></td><td class="small">Just digital paperwork</td></tr>
+        <tr><td>Excel / paper</td><td><span class="tag pro">Zero cost</span></td><td><span class="tag con">No traceability · no foresight</span></td><td class="small">Doesn't scale</td></tr>
+        <tr><td style="border:none"><b class="cyan">EAM SagemCom</b></td><td style="border:none"><span class="tag pro">AI-native · tailored</span></td><td style="border:none"><span class="tag pro">Built for this floor</span></td><td style="border:none" class="small good">Our justification ✓</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — PROPOSED SOLUTION & ADDED VALUE
+     ============================================================ -->
+<section class="slide" data-scene="converge" id="s8">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">07 — Proposed Solution</span>
+    <h2 class="h1 reveal" style="--d:.15s">One platform.<br><span class="grad">From signal to action.</span></h2>
+  </div>
+  <div class="grid cols-4">
+    <div class="glass card reveal" style="--d:.3s"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div><h3>Predict</h3><p class="small">7 ML models forecast failure, RUL, anomalies before they hit.</p></div>
+    <div class="glass card reveal" style="--d:.4s"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></div><h3>Plan</h3><p class="small">Auto-drafted work orders, priorities &amp; schedules — guarded by humans.</p></div>
+    <div class="glass card reveal" style="--d:.5s"><div class="ico"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><h3>Explain</h3><p class="small">A RAG assistant answers in plain language, grounded in live machine state.</p></div>
+    <div class="glass card reveal" style="--d:.6s"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/></svg></div><h3>Secure</h3><p class="small">Role-based access, audited pipelines, secrets &amp; scans in CI.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — SYSTEM ACTORS
+     ============================================================ -->
+<section class="slide" data-scene="network" id="s9">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">08 — System Actors</span>
+    <h2 class="h1 reveal" style="--d:.15s">Four roles, one workflow.</h2>
+  </div>
+  <div class="grid cols-4">
+    <div class="glass actor reveal" style="--d:.3s"><div class="av"><svg viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5 3.5 8 8 10 4.5-2 8-5 8-10V6z"/><path d="M9 12l2 2 4-4"/></svg></div><span class="rrole">ADMIN</span><span class="rname">Administrator</span><p class="small">Users, documents, full configuration &amp; RAG knowledge base.</p></div>
+    <div class="glass actor reveal" style="--d:.4s"><div class="av"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8"/></svg></div><span class="rrole">CHEFTECH</span><span class="rname">Tech Lead</span><p class="small">Approves drafts, assigns &amp; prioritizes interventions.</p></div>
+    <div class="glass actor reveal" style="--d:.5s"><div class="av"><svg viewBox="0 0 24 24"><path d="M14 2 6 14h6l-2 8 8-12h-6z"/></svg></div><span class="rrole">TECHNICIEN</span><span class="rname">Technician</span><p class="small">Executes work orders, closes the feedback loop on parts.</p></div>
+    <div class="glass actor reveal" style="--d:.6s"><div class="av"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></div><span class="rrole">CHETOP</span><span class="rname">Ops Manager</span><p class="small">Reads KPIs, readiness scores &amp; the procurement queue.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — FUNCTIONAL REQUIREMENTS
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s10">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">09 — Requirements · Functional</span>
+    <h2 class="h2 reveal" style="--d:.15s">What the system must do.</h2>
+  </div>
+  <div class="grid cols-2" style="gap:60px">
+    <ul class="flist reveal" style="--d:.3s">
+      <li><span class="mk"></span>Manage machines, work orders &amp; interventions</li>
+      <li><span class="mk"></span>Predict failure, type, RUL &amp; anomalies (P1–P6)</li>
+      <li><span class="mk"></span>Auto-draft procurement &amp; maintenance schedules</li>
+    </ul>
+    <ul class="flist reveal" style="--d:.45s">
+      <li><span class="mk"></span>Role-based dashboards &amp; alert routing</li>
+      <li><span class="mk"></span>RAG document Q&amp;A grounded in live ML state</li>
+      <li><span class="mk"></span>Readiness scoring, KPIs &amp; maintenance timeline</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — NON-FUNCTIONAL REQUIREMENTS
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s11">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">09 — Requirements · Non-Functional</span>
+    <h2 class="h2 reveal" style="--d:.15s">How well it must do it.</h2>
+  </div>
+  <div class="grid cols-3">
+    <div class="glass card reveal" style="--d:.3s"><h3 class="cyan">Performance</h3><p class="small">Parallel RAG + ML fetch; graceful rule-based fallback when the ML service is down.</p></div>
+    <div class="glass card reveal" style="--d:.4s"><h3 class="cyan">Security</h3><p class="small">JWT auth, server-side role guards, S3 object isolation, secrets out of code.</p></div>
+    <div class="glass card reveal" style="--d:.5s"><h3 class="cyan">Reliability</h3><p class="small">Non-fatal alerts, deduped drafts, 99 passing tests in CI.</p></div>
+    <div class="glass card reveal" style="--d:.6s"><h3 class="cyan">Scalability</h3><p class="small">Containerized microservices, independently deployable.</p></div>
+    <div class="glass card reveal" style="--d:.7s"><h3 class="cyan">Usability</h3><p class="small">Business language only — never "P4" or "Weibull" to users.</p></div>
+    <div class="glass card reveal" style="--d:.8s"><h3 class="cyan">Maintainability</h3><p class="small">Two-pipeline ML design, versioned models, linted code.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — SCRUM METHODOLOGY
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s12">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">10 — Methodology</span>
+    <h2 class="h1 reveal" style="--d:.15s">Built in Scrum.</h2>
+  </div>
+  <div class="flow glass reveal" style="--d:.3s;padding:18px 10px">
+    <div class="node"><div class="nt cyan">Product Backlog</div><div class="nd">Prioritized user stories</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">Sprint Planning</div><div class="nd">2-week commitments</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">Daily Standup</div><div class="nd">Sync &amp; unblock</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">Sprint Review</div><div class="nd">Demo increment</div></div>
+    <div class="arrow">↻</div>
+    <div class="node"><div class="nt amber">Retrospective</div><div class="nd">Improve, repeat</div></div>
+  </div>
+  <div class="grid cols-3 reveal" style="--d:.5s;margin-top:34px">
+    <div class="glass kpi"><span class="num grad">6</span><span class="lbl">Sprints delivered</span></div>
+    <div class="glass kpi"><span class="num grad">7</span><span class="lbl">Phases (P7 build)</span></div>
+    <div class="glass kpi"><span class="num grad">100%</span><span class="lbl">Phases complete</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — ARCHITECTURE (Physical & Logical)
+     ============================================================ -->
+<section class="slide" data-scene="network" id="s13">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">11 — Physical &amp; Logical Architecture</span>
+    <h2 class="h2 reveal" style="--d:.15s">Microservices, cleanly separated.</h2>
+  </div>
+  <div class="reveal" style="--d:.3s">
+    <div class="grid cols-3" style="margin-bottom:26px">
+      <div class="glass card"><h3 class="cyan">Next.js Frontend</h3><p class="small">TypeScript UI · role-aware dashboards · :3000</p></div>
+      <div class="glass card"><h3 class="cyan">FastAPI Backend</h3><p class="small">SQLAlchemy · orchestrates ML + RAG · :8000</p></div>
+      <div class="glass card"><h3 class="cyan">ML Microservice</h3><p class="small">Flask · sklearn / XGBoost · P1–P6 + DST</p></div>
+    </div>
+    <div class="grid cols-4">
+      <div class="glass card" style="padding:22px 26px"><h3 class="violet" style="font-size:22px">RAG Service</h3><p class="tiny">Ingest + chat</p></div>
+      <div class="glass card" style="padding:22px 26px"><h3 class="violet" style="font-size:22px">PostgreSQL</h3><p class="tiny">System of record</p></div>
+      <div class="glass card" style="padding:22px 26px"><h3 class="violet" style="font-size:22px">MinIO / S3</h3><p class="tiny">Docs &amp; attachments</p></div>
+      <div class="glass card" style="padding:22px 26px"><h3 class="violet" style="font-size:22px">Docker Compose</h3><p class="tiny">One-command stack</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — AI / ML ENGINE
+     ============================================================ -->
+<section class="slide" data-scene="bars" id="s14">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">12 — The AI Engine</span>
+    <h2 class="h2 reveal" style="--d:.15s">Seven models. Two pipelines. One verdict.</h2>
+  </div>
+  <div class="grid cols-2" style="gap:50px;align-items:start">
+    <div class="glass card reveal" style="--d:.3s">
+      <h3 class="cyan" style="margin-bottom:18px">Pipeline A · P1–P6</h3>
+      <ul class="flist" style="gap:13px">
+        <li style="font-size:20px"><span class="mk"></span>P1 Failure probability · P2 Failure type</li>
+        <li style="font-size:20px"><span class="mk"></span>P3 RUL (XGBoost) · P4 Behavioral anomaly</li>
+        <li style="font-size:20px"><span class="mk"></span>P5 Priority · P6 Maintenance schedule</li>
+      </ul>
+    </div>
+    <div class="glass card reveal" style="--d:.45s">
+      <h3 class="violet" style="margin-bottom:18px">Pipeline B · Wave 2 — DST Fusion</h3>
+      <ul class="flist amberlist" style="gap:13px">
+        <li style="font-size:20px"><span class="mk"></span>CUSUM · Kalman · Cox survival</li>
+        <li style="font-size:20px"><span class="mk"></span>Mahalanobis health · PINN</li>
+        <li style="font-size:20px"><span class="mk"></span>Dempster-Shafer → <b class="amber">unified health score</b></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 15 — RAG + ML BRIDGE
+     ============================================================ -->
+<section class="slide" data-scene="converge" id="s15">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">12 — RAG &amp; the ML↔RAG Bridge</span>
+    <h2 class="h2 reveal" style="--d:.15s">An assistant that knows the machine.</h2>
+  </div>
+  <div class="flow glass reveal" style="--d:.3s;padding:22px 8px">
+    <div class="node"><div class="nt">Question</div><div class="nd">"Why flag machine 42?"</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">RAG retrieval</div><div class="nd">Docs from MinIO + vectors</div></div>
+    <div class="arrow">+</div>
+    <div class="node"><div class="nt amber">Live ML snapshot</div><div class="nd">Real-time sensor verdict</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt violet">LLM answer</div><div class="nd">Grounded, plain language</div></div>
+  </div>
+  <p class="lead reveal" style="--d:.5s;margin-top:30px">Fetched in parallel — and even when the ML container is down, a rule-based fallback still injects a valid context block.</p>
+</section>
+
+<!-- ============================================================
+     SLIDE 16 — DEVSECOPS
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s16">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">12 — DevSecOps</span>
+    <h2 class="h2 reveal" style="--d:.15s">Security baked into the pipeline.</h2>
+  </div>
+  <div class="flow glass reveal" style="--d:.3s;padding:22px 8px">
+    <div class="node"><div class="nt">Commit</div><div class="nd">Git branch</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">Lint</div><div class="nd">Ruff · ESLint</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt cyan">Test</div><div class="nd">99 tests pass</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt amber">Audit / Scan</div><div class="nd">Deps &amp; secrets</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt good">Build</div><div class="nd">Docker images</div></div>
+    <div class="arrow">→</div>
+    <div class="node"><div class="nt violet">Deploy</div><div class="nd">Compose stack</div></div>
+  </div>
+  <div class="grid cols-3 reveal" style="--d:.5s;margin-top:34px">
+    <div class="glass card" style="padding:22px 26px"><h3 class="cyan" style="font-size:21px">Shift-left</h3><p class="tiny">Lint &amp; scan before merge</p></div>
+    <div class="glass card" style="padding:22px 26px"><h3 class="cyan" style="font-size:21px">Least privilege</h3><p class="tiny">Server-side role guards</p></div>
+    <div class="glass card" style="padding:22px 26px"><h3 class="cyan" style="font-size:21px">Secrets hygiene</h3><p class="tiny">.env · S3 keys, never in code</p></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 17 — CLASS DIAGRAM (rebuilt clean SVG)
+     ============================================================ -->
+<section class="slide" data-scene="quiet" id="s17">
+  <div class="head" style="margin-bottom:20px">
+    <span class="eyebrow reveal" style="--d:.05s">13 — Class Diagram</span>
+    <h2 class="h2 reveal" style="--d:.13s">The domain model.</h2>
+  </div>
+  <div class="glass reveal" style="--d:.26s;padding:20px;flex:1;display:flex;align-items:center;justify-content:center">
+    <svg viewBox="0 0 1640 720" style="width:100%;height:100%">
+      <defs>
+        <marker id="tri" markerWidth="14" markerHeight="14" refX="11" refY="6" orient="auto">
+          <path d="M1 1 L12 6 L1 11 Z" fill="none" stroke="var(--color-primary)" stroke-width="1.3"/>
+        </marker>
+      </defs>
+      <!-- relationship lines -->
+      <line class="cl" x1="430" y1="150" x2="700" y2="150" marker-end="url(#tri)"/>
+      <line class="cl" x1="1140" y1="150" x2="980" y2="150" marker-end="url(#tri)"/>
+      <line class="cl" x1="430" y1="320" x2="700" y2="230"/>
+      <line class="cl" x1="980" y1="210" x2="1230" y2="210"/>
+      <line class="cl" x1="700" y1="270" x2="500" y2="420"/>
+      <line class="cl" x1="820" y1="290" x2="700" y2="560"/>
+      <line class="cl" x1="430" y1="600" x2="240" y2="600"/>
+      <line class="cl" x1="700" y1="600" x2="900" y2="600"/>
+      <text class="rel" x="540" y="142">généralise</text>
+      <text class="rel" x="1000" y="142">contient *</text>
+      <text class="rel" x="560" y="248">liéeÀ</text>
+      <text class="rel" x="1010" y="200">planifiéDans</text>
+      <text class="rel" x="560" y="370">archive</text>
+      <text class="rel" x="610" y="430">assigne</text>
+      <text class="rel" x="300" y="592">appartient</text>
+      <text class="rel" x="760" y="640">consulte</text>
+
+      <!-- Ordre (abstract) -->
+      <g><rect class="glass-rect" x="120" y="60" width="310" height="120" rx="10" fill="rgba(34,211,238,.07)" stroke="var(--color-primary)" stroke-width="1.3"/>
+        <text class="cn" x="230" y="88">«abstract» Ordre</text>
+        <line x1="120" y1="100" x2="430" y2="100" stroke="var(--color-stroke)"/>
+        <text class="cf" x="132" y="120">- identifiant, titre, description</text>
+        <text class="cf" x="132" y="138">- dateCréation, statut</text>
+        <line x1="120" y1="150" x2="430" y2="150" stroke="var(--color-stroke)"/>
+        <text class="cf" x="132" y="170">+ mettreÀJourStatut()</text></g>
+
+      <!-- OrdreIntervention -->
+      <g><rect x="1140" y="90" width="300" height="100" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--color-stroke)"/>
+        <text class="cn" x="1200" y="116">OrdreIntervention</text>
+        <line x1="1140" y1="128" x2="1440" y2="128" stroke="var(--color-stroke)"/>
+        <text class="cf" x="1152" y="150">- dateIntervention</text>
+        <text class="cf" x="1152" y="168">- rapport</text></g>
+
+      <!-- OrdreTravail -->
+      <g><rect x="700" y="100" width="280" height="130" rx="10" fill="rgba(167,139,250,.08)" stroke="var(--color-accent)" stroke-width="1.3"/>
+        <text class="cn" x="775" y="126">OrdreTravail</text>
+        <line x1="700" y1="138" x2="980" y2="138" stroke="var(--color-stroke)"/>
+        <text class="cf" x="712" y="158">- dateÉchéance, priorité</text>
+        <text class="cf" x="712" y="176">- machine, assignéÀ</text>
+        <line x1="700" y1="186" x2="980" y2="186" stroke="var(--color-stroke)"/>
+        <text class="cf" x="712" y="206">+ assignerÀUtilisateur()</text></g>
+
+      <!-- Machine -->
+      <g><rect x="120" y="240" width="310" height="130" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--color-stroke)"/>
+        <text class="cn" x="240" y="266">Machine</text>
+        <line x1="120" y1="278" x2="430" y2="278" stroke="var(--color-stroke)"/>
+        <text class="cf" x="132" y="298">- identifiantMachine, nom, type</text>
+        <text class="cf" x="132" y="316">- statut, emplacement</text>
+        <text class="cf" x="132" y="334">- dernière / prochaineMaintenance</text></g>
+
+      <!-- Planning -->
+      <g><rect x="1230" y="160" width="290" height="120" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--color-stroke)"/>
+        <text class="cn" x="1320" y="186">Planning</text>
+        <line x1="1230" y1="198" x2="1520" y2="198" stroke="var(--color-stroke)"/>
+        <text class="cf" x="1242" y="218">- identifiantPlanning, type</text>
+        <text class="cf" x="1242" y="236">- dateDébut, dateFin</text>
+        <text class="cf" x="1242" y="256">+ obtenirOrdresPlanifiés()</text></g>
+
+      <!-- Archive -->
+      <g><rect x="120" y="420" width="300" height="120" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--color-stroke)"/>
+        <text class="cn" x="220" y="446">Archive</text>
+        <line x1="120" y1="458" x2="420" y2="458" stroke="var(--color-stroke)"/>
+        <text class="cf" x="132" y="478">- identifiantArchive, nom, type</text>
+        <text class="cf" x="132" y="500">+ ajouterDocument()</text>
+        <text class="cf" x="132" y="518">+ obtenirDocumentsArchivés()</text></g>
+
+      <!-- Utilisateur -->
+      <g><rect x="430" y="540" width="300" height="130" rx="10" fill="rgba(34,211,238,.07)" stroke="var(--color-primary)" stroke-width="1.3"/>
+        <text class="cn" x="520" y="566">Utilisateur</text>
+        <line x1="430" y1="578" x2="730" y2="578" stroke="var(--color-stroke)"/>
+        <text class="cf" x="442" y="598">- identifiant, nomUtilisateur</text>
+        <text class="cf" x="442" y="616">- motDePasseChiffré, rôle</text>
+        <line x1="430" y1="626" x2="730" y2="626" stroke="var(--color-stroke)"/>
+        <text class="cf" x="442" y="646">+ authentifier()</text></g>
+
+      <!-- Rapport -->
+      <g><rect x="900" y="540" width="280" height="120" rx="10" fill="rgba(255,255,255,.05)" stroke="var(--color-stroke)"/>
+        <text class="cn" x="985" y="566">Rapport</text>
+        <line x1="900" y1="578" x2="1180" y2="578" stroke="var(--color-stroke)"/>
+        <text class="cf" x="912" y="598">- identifiantRapport, titre</text>
+        <text class="cf" x="912" y="616">- dateGénération, contenu</text>
+        <text class="cf" x="912" y="640">+ générerContenu()</text></g>
+
+      <!-- Enums -->
+      <g><rect x="1240" y="430" width="150" height="110" rx="8" fill="rgba(251,191,36,.08)" stroke="var(--color-secondary)"/>
+        <text class="cn" x="1265" y="454" style="font-size:13px">«enum» Rôle</text>
+        <text class="cf" x="1252" y="476">ADMIN · CHEFTECH</text>
+        <text class="cf" x="1252" y="494">TECHNICIEN · CHETOP</text></g>
+      <g><rect x="1410" y="430" width="150" height="110" rx="8" fill="rgba(251,191,36,.08)" stroke="var(--color-secondary)"/>
+        <text class="cn" x="1430" y="454" style="font-size:13px">«enum» Statut</text>
+        <text class="cf" x="1422" y="476">EN_ATTENTE · EN_COURS</text>
+        <text class="cf" x="1422" y="494">TERMINÉ · ANNULÉ</text></g>
+      <g><rect x="1240" y="560" width="320" height="110" rx="8" fill="rgba(251,191,36,.08)" stroke="var(--color-secondary)"/>
+        <text class="cn" x="1265" y="584" style="font-size:13px">«enum» Priorité / TypePlanning</text>
+        <text class="cf" x="1252" y="606">BASSE · MOYENNE · ÉLEVÉE · URGENTE</text>
+        <text class="cf" x="1252" y="626">JOURNALIER · HEBDO · MENSUEL · MAINT.</text></g>
+    </svg>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 18 — GANTT
+     ============================================================ -->
+<section class="slide" data-scene="field" id="s18">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">14 — Gantt · Project Timeline</span>
+    <h2 class="h2 reveal" style="--d:.15s">From kickoff to defense.</h2>
+  </div>
+  <div class="glass reveal" style="--d:.3s;padding:34px 38px">
+    <div class="gscale" style="margin-bottom:14px"><div></div><div class="gm"><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span></div></div>
+    <div class="gantt">
+      <div class="grow"><span class="gl">Analysis &amp; Design</span><div class="gtrack"><div class="gbar" style="left:0%;width:22%">UML · specs</div></div></div>
+      <div class="grow"><span class="gl">Core EAM (CRUD)</span><div class="gtrack"><div class="gbar" style="left:14%;width:26%">machines · WO</div></div></div>
+      <div class="grow"><span class="gl">ML Models P1–P6</span><div class="gtrack"><div class="gbar s2" style="left:32%;width:28%">train · serve</div></div></div>
+      <div class="grow"><span class="gl">RAG + ML Bridge</span><div class="gtrack"><div class="gbar s2" style="left:50%;width:24%">ingest · chat</div></div></div>
+      <div class="grow"><span class="gl">P7 Parts System</span><div class="gtrack"><div class="gbar" style="left:62%;width:24%">6 phases</div></div></div>
+      <div class="grow"><span class="gl">DevSecOps &amp; Polish</span><div class="gtrack"><div class="gbar" style="left:78%;width:20%">CI · lint</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 19 — TECHNOLOGIES
+     ============================================================ -->
+<section class="slide" data-scene="torus" id="s19">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">15 — Technologies Used</span>
+    <h2 class="h1 reveal" style="--d:.15s">The stack.</h2>
+  </div>
+  <div class="grid cols-2" style="gap:40px">
+    <div class="reveal" style="--d:.3s">
+      <p class="small" style="margin-bottom:14px;letter-spacing:.1em;text-transform:uppercase">Frontend &amp; Backend</p>
+      <div class="tech">
+        <span class="t"><i style="background:#22d3ee"></i>Next.js</span>
+        <span class="t"><i style="background:#3178c6"></i>TypeScript</span>
+        <span class="t"><i style="background:#009688"></i>FastAPI</span>
+        <span class="t"><i style="background:#d71f00"></i>SQLAlchemy</span>
+        <span class="t"><i style="background:#336791"></i>PostgreSQL</span>
+      </div>
+    </div>
+    <div class="reveal" style="--d:.45s">
+      <p class="small" style="margin-bottom:14px;letter-spacing:.1em;text-transform:uppercase">AI / ML</p>
+      <div class="tech">
+        <span class="t"><i style="background:#f7931e"></i>scikit-learn</span>
+        <span class="t"><i style="background:#a78bfa"></i>XGBoost</span>
+        <span class="t"><i style="background:#000"></i>Flask</span>
+        <span class="t"><i style="background:#fbbf24"></i>RAG / LLM</span>
+        <span class="t"><i style="background:#ff6f00"></i>Jupyter</span>
+      </div>
+    </div>
+    <div class="reveal" style="--d:.6s">
+      <p class="small" style="margin-bottom:14px;letter-spacing:.1em;text-transform:uppercase">Infra &amp; DevSecOps</p>
+      <div class="tech">
+        <span class="t"><i style="background:#2496ed"></i>Docker Compose</span>
+        <span class="t"><i style="background:#c72e49"></i>MinIO / S3</span>
+        <span class="t"><i style="background:#34d399"></i>Alembic</span>
+        <span class="t"><i style="background:#6e40c9"></i>GitHub CI</span>
+        <span class="t"><i style="background:#d7ff64"></i>Ruff · ESLint</span>
+      </div>
+    </div>
+    <div class="reveal" style="--d:.75s">
+      <p class="small" style="margin-bottom:14px;letter-spacing:.1em;text-transform:uppercase">Testing &amp; Quality</p>
+      <div class="tech">
+        <span class="t"><i style="background:#3776ab"></i>pytest · 99 tests</span>
+        <span class="t"><i style="background:#22d3ee"></i>JWT Auth</span>
+        <span class="t"><i style="background:#34d399"></i>Dempster-Shafer</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 20 — PROJECT PROGRESS
+     ============================================================ -->
+<section class="slide" data-scene="bars" id="s20">
+  <div class="head">
+    <span class="eyebrow reveal" style="--d:.05s">16 — Project Progress</span>
+    <h2 class="h2 reveal" style="--d:.15s">What's live today.</h2>
+  </div>
+  <div class="grid cols-4">
+    <div class="glass card reveal" style="--d:.28s"><h3 class="good" style="font-size:22px">ML Intelligence Tab ✓</h3><p class="tiny">Failure, RUL, Behavioral Anomaly cards in the machine view.</p></div>
+    <div class="glass card reveal" style="--d:.38s"><h3 class="good" style="font-size:22px">P7 Parts System ✓</h3><p class="tiny">Demand forecast → guarded auto-draft → readiness score.</p></div>
+    <div class="glass card reveal" style="--d:.48s"><h3 class="good" style="font-size:22px">RAG Documents ✓</h3><p class="tiny">S3-backed admin upload, replace, chat — English UI.</p></div>
+    <div class="glass card reveal" style="--d:.58s"><h3 class="good" style="font-size:22px">AI Assistant ✓</h3><p class="tiny">Machine-aware chat, live-verified bridge to ML.</p></div>
+  </div>
+  <div class="grid cols-4 reveal" style="--d:.7s;margin-top:26px">
+    <div class="glass kpi" style="padding:22px 26px"><span class="num grad" style="font-size:46px">7</span><span class="lbl">ML models shipped</span></div>
+    <div class="glass kpi" style="padding:22px 26px"><span class="num grad" style="font-size:46px">6/6</span><span class="lbl">P7 phases complete</span></div>
+    <div class="glass kpi" style="padding:22px 26px"><span class="num grad" style="font-size:46px">99</span><span class="lbl">Tests passing</span></div>
+    <div class="glass kpi" style="padding:22px 26px"><span class="num grad" style="font-size:46px">5</span><span class="lbl">Microservices</span></div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 21 — CONCLUSION
+     ============================================================ -->
+<section class="slide" data-scene="hero" id="s21">
+  <div style="max-width:1300px">
+    <span class="eyebrow reveal" style="--d:.05s">Conclusion</span>
+    <h2 class="hero reveal" style="--d:.18s;font-size:92px;margin:24px 0 28px">From reactive<br>to <span class="grad">predictive.</span></h2>
+    <p class="lead reveal" style="--d:.36s">A working, AI-native EAM platform — predicting failures, drafting work, and explaining itself in plain language. Next: live sensor ingestion and field pilot.</p>
+    <div class="reveal" style="--d:.52s;margin-top:40px;display:flex;gap:14px;flex-wrap:wrap">
+      <span class="chip"><span class="dot"></span>Predict</span>
+      <span class="chip"><span class="dot" style="background:var(--color-accent);box-shadow:0 0 14px var(--color-accent)"></span>Plan</span>
+      <span class="chip"><span class="dot" style="background:var(--color-secondary);box-shadow:0 0 14px var(--color-secondary)"></span>Explain</span>
+      <span class="chip"><span class="dot" style="background:var(--color-good);box-shadow:0 0 14px var(--color-good)"></span>Secure</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 22 — THANK YOU
+     ============================================================ -->
+<section class="slide" data-scene="hero" id="s22">
+  <div style="text-align:center;width:100%">
+    <h2 class="hero reveal" style="--d:.1s;font-size:128px"><span class="grad">Thank you.</span></h2>
+    <p class="lead reveal" style="--d:.3s;margin:24px auto 0;text-align:center">EAM SagemCom — Predictive Maintenance Platform · Questions welcome.</p>
+  </div>
+</section>
+
+  </div><!-- /stage -->
+</div><!-- /viewport -->
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.166/build/three.module.js';
+
+/* ============================================================
+   STAGE SCALING
+   ============================================================ */
+const stage = document.getElementById('stage');
+function scaleStage(){
+  const s = Math.min(innerWidth/1920, innerHeight/1080);
+  stage.style.transform = `translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize', scaleStage); scaleStage();
+
+/* ============================================================
+   SLIDE NAVIGATION
+   ============================================================ */
+const slides = [...document.querySelectorAll('.slide')];
+const progress = document.getElementById('progress');
+const counter = document.getElementById('counter');
+let cur = 0;
+function pad(n){return String(n+1).padStart(2,'0')}
+function go(i){
+  i = Math.max(0, Math.min(slides.length-1, i));
+  slides[cur].classList.remove('active');
+  cur = i;
+  slides[cur].classList.add('active');
+  progress.style.width = ((cur)/(slides.length-1)*100)+'%';
+  counter.innerHTML = `<b>${pad(cur)}</b> / ${slides.length}`;
+  setScene(slides[cur].dataset.scene);
+}
+addEventListener('keydown', e=>{
+  if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){e.preventDefault();go(cur+1)}
+  if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(cur-1)}
+  if(e.key==='Home')go(0); if(e.key==='End')go(slides.length-1);
+});
+stage.addEventListener('click', e=>{ if(e.clientX < innerWidth*0.32) go(cur-1); else go(cur+1); });
+let tx=0; addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx; if(Math.abs(dx)>50) go(cur + (dx<0?1:-1));},{passive:true});
+
+/* ============================================================
+   THREE.JS — shared renderer, per-slide scene
+   ============================================================ */
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({canvas, alpha:true, antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(1920,1080,false);
+
+const style = getComputedStyle(document.documentElement);
+const C_PRI = style.getPropertyValue('--color-primary').trim();
+const C_SEC = style.getPropertyValue('--color-secondary').trim();
+const C_ACC = style.getPropertyValue('--color-accent').trim();
+
+function newCam(){const c=new THREE.PerspectiveCamera(45,1920/1080,0.1,100);c.position.z=6;return c;}
+
+/* ---- scene builders ---- */
+function buildHero(){
+  const sc=new THREE.Scene(), cam=newCam(); cam.position.z=6;
+  const geo=new THREE.IcosahedronGeometry(2.1,1);
+  const mesh=new THREE.Mesh(geo,new THREE.MeshStandardMaterial({color:C_PRI,metalness:.85,roughness:.25,transparent:true,opacity:.55,flatShading:true}));
+  const wire=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:C_ACC,wireframe:true,transparent:true,opacity:.25}));
+  sc.add(mesh,wire);
+  sc.add(new THREE.AmbientLight(0xffffff,.5));
+  const d=new THREE.DirectionalLight(C_PRI,1.6); d.position.set(5,6,5); sc.add(d);
+  const d2=new THREE.DirectionalLight(C_ACC,1.0); d2.position.set(-5,-3,2); sc.add(d2);
+  mesh.position.x=wire.position.x=2.6;
+  return {sc,cam,update:(dt,t)=>{mesh.rotation.y=t*.18;mesh.rotation.x=Math.sin(t*.13)*.35;wire.rotation.copy(mesh.rotation);}};
+}
+function buildField(spread=14,color=C_PRI,n=900){
+  const sc=new THREE.Scene(), cam=newCam();
+  const pos=new Float32Array(n*3);
+  for(let i=0;i<n*3;i++) pos[i]=(Math.random()-.5)*spread;
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const pts=new THREE.Points(g,new THREE.PointsMaterial({color,size:.035,transparent:true,opacity:.55}));
+  sc.add(pts);
+  return {sc,cam,update:(dt,t)=>{pts.rotation.y=t*.04;pts.rotation.x=Math.sin(t*.05)*.15;}};
+}
+function buildParticles(mode){ // 'fragment' | 'converge'
+  const sc=new THREE.Scene(), cam=newCam(); const n=2600;
+  const sph=new Float32Array(n*3), frag=new Float32Array(n*3), pos=new Float32Array(n*3);
+  for(let i=0;i<n;i++){
+    const phi=Math.acos(2*Math.random()-1), th=Math.random()*Math.PI*2, r=2.2;
+    sph[i*3]=Math.sin(phi)*Math.cos(th)*r; sph[i*3+1]=Math.sin(phi)*Math.sin(th)*r; sph[i*3+2]=Math.cos(phi)*r;
+    frag[i*3]=(Math.random()-.5)*15; frag[i*3+1]=(Math.random()-.5)*15; frag[i*3+2]=(Math.random()-.5)*15;
+  }
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  const col= mode==='fragment'? C_SEC : C_PRI;
+  const pts=new THREE.Points(g,new THREE.PointsMaterial({color:col,size:.04,transparent:true,opacity:.75}));
+  sc.add(pts);
+  const glow=new THREE.PointLight(C_PRI,0,8); sc.add(glow);
+  const arr=g.attributes.position.array;
+  return {sc,cam,update:(dt,t)=>{
+    const cyc=t%8, p=cyc<4?cyc/4:1-(cyc-4)/4;
+    const e=1-Math.pow(1-p,3);
+    for(let i=0;i<n*3;i++){ const a= mode==='fragment'? sph[i]:frag[i]; const b= mode==='fragment'? frag[i]:sph[i]; arr[i]=a+(b-a)*e; }
+    g.attributes.position.needsUpdate=true; pts.rotation.y=t*.06; glow.intensity= mode==='converge'? e*2.2:0;
+  }};
+}
+function buildNetwork(){
+  const sc=new THREE.Scene(), cam=newCam(); const N=9;
+  const nodes=Array.from({length:N},(_,i)=>{const a=(i/N)*Math.PI*2;return new THREE.Vector3(Math.cos(a)*2.8,Math.sin(a)*1.7,(Math.random()-.5)*1.4);});
+  const meshes=[];
+  nodes.forEach(p=>{const m=new THREE.Mesh(new THREE.SphereGeometry(.13,18,18),new THREE.MeshStandardMaterial({color:C_PRI,emissive:C_PRI,emissiveIntensity:.5,metalness:.4,roughness:.4}));m.position.copy(p);sc.add(m);meshes.push(m);});
+  const lm=new THREE.LineBasicMaterial({color:C_ACC,transparent:true,opacity:.18});
+  nodes.forEach((a,i)=>nodes.forEach((b,j)=>{if(j<=i)return; if(Math.random()>.55)return; sc.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a,b]),lm));}));
+  sc.add(new THREE.AmbientLight(0xffffff,.6));
+  return {sc,cam,update:(dt,t)=>{sc.rotation.y=t*.12;sc.rotation.x=Math.sin(t*.1)*.2;meshes.forEach((m,i)=>{const s=1+Math.sin(t*2+i)*.18;m.scale.setScalar(s);});}};
+}
+function buildBars(){
+  const sc=new THREE.Scene(), cam=newCam(); cam.position.set(2,1.5,6); cam.lookAt(0,0,0);
+  const data=[.35,.5,.45,.7,.62,.85,1];
+  data.forEach((v,i)=>{const h=v*3.2;const m=new THREE.Mesh(new THREE.BoxGeometry(.42,h,.42),new THREE.MeshStandardMaterial({color:new THREE.Color(C_PRI).lerp(new THREE.Color(C_SEC),v),metalness:.35,roughness:.5}));m.position.x=(i-data.length/2)*.7;m.position.y=h/2-1.6;sc.add(m);});
+  sc.add(new THREE.AmbientLight(0xffffff,.55)); const d=new THREE.DirectionalLight(C_PRI,1.4);d.position.set(4,6,5);sc.add(d);
+  return {sc,cam,update:(dt,t)=>{sc.rotation.y=Math.sin(t*.18)*.35;}};
+}
+function buildPanels(){
+  const sc=new THREE.Scene(), cam=newCam();
+  const offs=[[-2.6,.6,-1],[0,0,0],[2.6,-.4,-.6]], rots=[[-.1,.35,0],[0,0,0],[.06,-.3,0]];
+  const panels=[];
+  offs.forEach((p,i)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(3,2),new THREE.MeshBasicMaterial({color:C_PRI,wireframe:true,transparent:true,opacity:.28}));m.position.set(...p);m.rotation.set(...rots[i]);sc.add(m);panels.push(m);});
+  return {sc,cam,update:(dt,t)=>{panels.forEach((m,i)=>m.position.y+=Math.sin(t*1.2+i*2)*.0016*60*dt);sc.rotation.y=Math.sin(t*.1)*.12;}};
+}
+function buildSphere(){
+  const sc=new THREE.Scene(), cam=newCam();
+  const wire=new THREE.Mesh(new THREE.SphereGeometry(2.2,24,24),new THREE.MeshBasicMaterial({color:C_PRI,wireframe:true,transparent:true,opacity:.3}));
+  const core=new THREE.Mesh(new THREE.SphereGeometry(2.0,32,32),new THREE.MeshStandardMaterial({color:C_ACC,transparent:true,opacity:.12,metalness:.5,roughness:.3}));
+  sc.add(wire,core); sc.add(new THREE.AmbientLight(0xffffff,.6)); const d=new THREE.DirectionalLight(C_PRI,1.2);d.position.set(5,4,5);sc.add(d);
+  wire.position.x=core.position.x=2.4;
+  return {sc,cam,update:(dt,t)=>{wire.rotation.y=t*.1;core.rotation.y=-t*.06;}};
+}
+function buildTorus(){
+  const sc=new THREE.Scene(), cam=newCam();
+  const m=new THREE.Mesh(new THREE.TorusKnotGeometry(1.5,.4,140,18),new THREE.MeshStandardMaterial({color:C_PRI,metalness:.8,roughness:.25,transparent:true,opacity:.6}));
+  m.position.x=2.6; sc.add(m); sc.add(new THREE.AmbientLight(0xffffff,.5));
+  const d=new THREE.DirectionalLight(C_ACC,1.6);d.position.set(-4,4,5);sc.add(d); const d2=new THREE.DirectionalLight(C_SEC,.8);d2.position.set(5,-3,2);sc.add(d2);
+  return {sc,cam,update:(dt,t)=>{m.rotation.x=t*.25;m.rotation.y=t*.2;}};
+}
+
+/* scene registry (lazy) */
+const cache={};
+function getScene(name){
+  if(cache[name]) return cache[name];
+  let s;
+  switch(name){
+    case 'hero': s=buildHero(); break;
+    case 'sphere': s=buildSphere(); break;
+    case 'panels': s=buildPanels(); break;
+    case 'fragment': s=buildParticles('fragment'); break;
+    case 'converge': s=buildParticles('converge'); break;
+    case 'network': s=buildNetwork(); break;
+    case 'bars': s=buildBars(); break;
+    case 'torus': s=buildTorus(); break;
+    case 'quiet': s=buildField(16,C_ACC,420); break;
+    case 'field': default: s=buildField(14,C_PRI,820); break;
+  }
+  cache[name]=s; return s;
+}
+let active = getScene('hero');
+function setScene(name){ active = getScene(name||'field'); }
+
+/* render loop */
+const clock=new THREE.Clock(); let running=true;
+function animate(){
+  requestAnimationFrame(animate);
+  if(!running) return;
+  const dt=clock.getDelta(), t=clock.getElapsedTime();
+  if(active){ if(!reduce) active.update(dt,t); renderer.render(active.sc,active.cam); }
+}
+animate();
+document.addEventListener('visibilitychange',()=>{ running=!document.hidden; if(running)clock.getDelta(); });
+
+/* init */
+go(0);
+</script>
+</body>
+</html>
