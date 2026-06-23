@@ -11,6 +11,7 @@ on:
       - Phase_1
       - clean_Phase_1
       - main
+  workflow_dispatch:
 
 jobs:
   # ─── Stage 1: Secret Scan ─────────────────────────────────────────────────
