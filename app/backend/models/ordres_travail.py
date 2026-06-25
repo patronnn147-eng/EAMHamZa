@@ -38,8 +38,12 @@ class Ordres_travail(Base):
         DateTime(timezone=True), nullable=True
     )  # US-CHETOP-001: Due date
     statut = Column(
-        SQLEnum(OrdreStatut), nullable=False, default=OrdreStatut.DRAFT
+        SQLEnum(OrdreStatut, native_enum=False, length=20),
+        nullable=False,
+        default=OrdreStatut.DRAFT,
     )  # Full workflow: DRAFT → SUBMITTED → APPROVED → ASSIGNED → IN_PROGRESS → COMPLETED → VALIDATED → CLOSED
+    # native_enum=False: DB column is character varying (not PG enum type).
+    # Without this, SQLAlchemy casts params to ::ordrestatut → "varchar = ordrestatut" → UndefinedFunctionError (500).
     created_by = Column(Integer, nullable=True)
     validated_by = Column(Integer, nullable=True)
     date_validation = Column(DateTime(timezone=True), nullable=True)

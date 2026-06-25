@@ -121,9 +121,6 @@ function QuickActionsPanel({
     onConsume,
     onGoToAlerts,
 }: QuickActionsPanelProps) {
-    const criticalAlerts = alerts.filter((a) => a.current_quantity === 0);
-    const lowAlerts = alerts.filter((a) => a.current_quantity > 0);
-
     return (
         <Card className="border-blue-500/30 bg-gradient-to-br from-slate-900 to-blue-950/40">
             <CardContent className="py-4 px-5">
@@ -181,67 +178,6 @@ function QuickActionsPanel({
                     )}
                 </div>
 
-                {/* Row 2 – Contextual: out-of-stock urgencies (one click = dialog pre-filled) */}
-                {criticalAlerts.length > 0 && canManage && (
-                    <div className="mt-3 pt-3 border-t border-red-500/20">
-                        <div className="flex items-start gap-3 flex-wrap">
-                            <span className="flex items-center gap-1 text-red-400 text-xs font-semibold pt-1 whitespace-nowrap">
-                                <AlertTriangle className="h-3.5 w-3.5" />
-                                Rupture totale :
-                            </span>
-                            {criticalAlerts.map((alert) => (
-                                <button
-                                    key={alert.piece_id}
-                                    onClick={() => onAddStock(alert.piece_id, alert.deficit)}
-                                    className="group flex items-center gap-1.5 rounded-md border border-red-500/40 bg-red-950/30
-                                               px-3 py-1.5 text-xs text-red-300 hover:bg-red-500/20 hover:border-red-400
-                                               hover:text-red-200 transition-all"
-                                >
-                                    <ArrowUpCircle className="h-3 w-3" />
-                                    <span className="font-medium">{alert.piece_name}</span>
-                                    <span className="text-red-500 font-mono">×0</span>
-                                    <span className="text-red-400">→ commander {alert.deficit}</span>
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Row 3 – Low stock warnings */}
-                {lowAlerts.length > 0 && canManage && (
-                    <div className="mt-3 pt-3 border-t border-orange-500/20">
-                        <div className="flex items-start gap-3 flex-wrap">
-                            <span className="flex items-center gap-1 text-orange-400 text-xs font-semibold pt-1 whitespace-nowrap">
-                                <TrendingDown className="h-3.5 w-3.5" />
-                                Stock bas :
-                            </span>
-                            {lowAlerts.slice(0, 5).map((alert) => (
-                                <button
-                                    key={alert.piece_id}
-                                    onClick={() => onAddStock(alert.piece_id, alert.deficit)}
-                                    className="group flex items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-950/30
-                                               px-3 py-1.5 text-xs text-orange-300 hover:bg-orange-500/20 hover:border-orange-400
-                                               hover:text-orange-200 transition-all"
-                                >
-                                    <ArrowUpCircle className="h-3 w-3" />
-                                    <span className="font-medium">{alert.piece_name}</span>
-                                    <span className="text-orange-500 font-mono">{alert.current_quantity}/{alert.min_stock}</span>
-                                    <span className="text-orange-400">+{alert.deficit}</span>
-                                    <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </button>
-                            ))}
-                            {lowAlerts.length > 5 && (
-                                <button
-                                    onClick={onGoToAlerts}
-                                    className="text-xs text-orange-400 hover:text-orange-300 underline underline-offset-2"
-                                >
-                                    +{lowAlerts.length - 5} autres →
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                )}
             </CardContent>
         </Card>
     );
@@ -347,7 +283,7 @@ export default function InventoryPage() {
 
     const fetchStockLevels = useCallback(async () => {
         try {
-            const r = await fetch(`${apiBase}/api/v1/inventory/stock`, { headers: getAuthHeaders() });
+            const r = await fetch(`${apiBase}/api/v1/inventory/stock?size=500`, { headers: getAuthHeaders() });
             const d = await r.json();
             setStockLevels(d.items || []);
         } catch { /* silent */ }
@@ -355,7 +291,7 @@ export default function InventoryPage() {
 
     const fetchAlerts = useCallback(async () => {
         try {
-            const r = await fetch(`${apiBase}/api/v1/inventory/stock/alertes`, { headers: getAuthHeaders() });
+            const r = await fetch(`${apiBase}/api/v1/inventory/stock/alertes?size=500`, { headers: getAuthHeaders() });
             const d = await r.json();
             setAlerts(d.items || []);
         } catch { /* silent */ }
@@ -481,7 +417,7 @@ export default function InventoryPage() {
                     : `-${qty} unité(s) consommée(s) — ${selectedPieceInfo?.name ?? ''}`,
             });
             setStockDialogOpen(false);
-            fetchAll();
+            await fetchAll();
         } catch (e) {
             toast({ title: 'Erreur', description: e instanceof Error ? e.message : 'Erreur', variant: 'destructive' });
         }
@@ -494,10 +430,19 @@ export default function InventoryPage() {
         (p.category || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    const filteredStock = stockLevels.filter((s) =>
-        (s.piece_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.piece_reference || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // ── Derived alerts: backend alerts + pieces with zero stock entry ──────────
+    const stockedPieceIds = new Set(stockLevels.map((s) => s.piece_id));
+    const noStockAlerts: StockAlert[] = pieces
+        .filter((p) => !stockedPieceIds.has(p.id))
+        .map((p) => ({
+            piece_id: p.id,
+            piece_name: p.name,
+            piece_reference: p.reference,
+            current_quantity: 0,
+            min_stock: p.min_stock ?? 0,
+            deficit: p.min_stock ?? 0,
+        }));
+    const allAlerts = [...alerts, ...noStockAlerts];
 
     // ── Loading ────────────────────────────────────────────────────────────────
     if (loading) {
@@ -541,7 +486,7 @@ export default function InventoryPage() {
 
             {/* ── Quick Actions Panel (always visible, context-aware) ── */}
             <QuickActionsPanel
-                alerts={alerts}
+                alerts={allAlerts}
                 canManage={canManage}
                 canConsume={canConsume}
                 onNewPiece={openCreatePiece}
@@ -569,16 +514,16 @@ export default function InventoryPage() {
                     </CardHeader>
                 </Card>
                 <Card
-                    className={`cursor-pointer transition-colors ${alerts.length > 0 ? 'border-orange-400 bg-orange-950/20 hover:border-orange-300' : 'hover:border-gray-400'}`}
+                    className={`cursor-pointer transition-colors ${allAlerts.length > 0 ? 'border-orange-400 bg-orange-950/20 hover:border-orange-300' : 'hover:border-gray-400'}`}
                     onClick={() => setActiveTab('alerts')}
                 >
                     <CardHeader className="pb-2 pt-3 px-4">
-                        <CardDescription className={`text-xs flex items-center gap-1 ${alerts.length > 0 ? 'text-orange-400' : ''}`}>
-                            {alerts.length > 0 && <AlertTriangle className="h-3 w-3" />}
+                        <CardDescription className={`text-xs flex items-center gap-1 ${allAlerts.length > 0 ? 'text-orange-400' : ''}`}>
+                            {allAlerts.length > 0 && <AlertTriangle className="h-3 w-3" />}
                             Alertes stock
                         </CardDescription>
-                        <CardTitle className={`text-2xl ${alerts.length > 0 ? 'text-orange-400' : ''}`}>
-                            {alerts.length}
+                        <CardTitle className={`text-2xl ${allAlerts.length > 0 ? 'text-orange-400' : ''}`}>
+                            {allAlerts.length}
                         </CardTitle>
                     </CardHeader>
                 </Card>
@@ -595,17 +540,14 @@ export default function InventoryPage() {
                 <div className="flex items-center justify-between flex-wrap gap-3">
                     <TabsList>
                         <TabsTrigger value="stock">
-                            <Package className="mr-1.5 h-3.5 w-3.5" /> Niveaux de stock
-                        </TabsTrigger>
-                        <TabsTrigger value="catalog">
-                            <BoxIcon className="mr-1.5 h-3.5 w-3.5" /> Catalogue
+                            <Package className="mr-1.5 h-3.5 w-3.5" /> Pièces & Stock
                         </TabsTrigger>
                         <TabsTrigger value="alerts" className="relative">
                             <AlertTriangle className="mr-1.5 h-3.5 w-3.5" />
                             Alertes
-                            {alerts.length > 0 && (
+                            {allAlerts.length > 0 && (
                                 <Badge variant="destructive" className="ml-1.5 text-[10px] px-1.5 py-0 leading-4">
-                                    {alerts.length}
+                                    {allAlerts.length}
                                 </Badge>
                             )}
                         </TabsTrigger>
@@ -625,80 +567,8 @@ export default function InventoryPage() {
                     </div>
                 </div>
 
-                {/* ── Stock Levels Tab (default) ─────────────────────────────── */}
+                {/* ── Pièces & Stock Tab (unified: all pieces + stock info) ──── */}
                 <TabsContent value="stock" className="mt-3">
-                    <div className="border rounded-lg overflow-hidden">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Référence</TableHead>
-                                    <TableHead>Pièce</TableHead>
-                                    <TableHead className="text-center">Qté</TableHead>
-                                    <TableHead className="text-center">Min.</TableHead>
-                                    <TableHead>Statut</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredStock.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-blue-300 py-10">
-                                            Aucun stock enregistré
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredStock.map((s) => {
-                                        const isOut  = s.quantity === 0;
-                                        const isLow  = !isOut && s.min_stock != null && s.quantity < s.min_stock;
-                                        const deficit = (isOut || isLow) && s.min_stock ? s.min_stock - s.quantity : 0;
-                                        return (
-                                            <TableRow
-                                                key={s.id}
-                                                className={isOut ? 'bg-red-950/20' : isLow ? 'bg-orange-950/15' : ''}
-                                            >
-                                                <TableCell className="font-mono text-xs text-blue-300">{s.piece_reference}</TableCell>
-                                                <TableCell className="font-medium">{s.piece_name}</TableCell>
-                                                <TableCell className="text-center">
-                                                    <span className={`font-bold text-base ${isOut ? 'text-red-400' : isLow ? 'text-orange-400' : 'text-green-400'}`}>
-                                                        {s.quantity}
-                                                    </span>
-                                                </TableCell>
-                                                <TableCell className="text-center text-blue-300">{s.min_stock ?? '—'}</TableCell>
-                                                <TableCell>
-                                                    {isOut ? (
-                                                        <Badge className="bg-red-900/60 text-red-300 border border-red-500/40 text-xs">
-                                                            Rupture
-                                                        </Badge>
-                                                    ) : isLow ? (
-                                                        <Badge className="bg-orange-900/60 text-orange-300 border border-orange-500/40 text-xs">
-                                                            Bas — manque {deficit}
-                                                        </Badge>
-                                                    ) : (
-                                                        <Badge className="bg-green-900/60 text-green-300 border border-green-500/40 text-xs">
-                                                            OK
-                                                        </Badge>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <InlineStockControl
-                                                        stock={s}
-                                                        canManage={canManage}
-                                                        canConsume={canConsume}
-                                                        onAdd={(id) => openStockDialog('add', id, isLow || isOut ? deficit : undefined)}
-                                                        onConsume={(id) => openStockDialog('consume', id)}
-                                                    />
-                                                </TableCell>
-                                            </TableRow>
-                                        );
-                                    })
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </TabsContent>
-
-                {/* ── Catalog Tab ────────────────────────────────────────────── */}
-                <TabsContent value="catalog" className="mt-3">
                     <div className="border rounded-lg overflow-hidden">
                         <Table>
                             <TableHeader>
@@ -707,23 +577,33 @@ export default function InventoryPage() {
                                     <TableHead>Nom</TableHead>
                                     <TableHead>Catégorie</TableHead>
                                     <TableHead>Prix</TableHead>
-                                    <TableHead className="text-center">Stock</TableHead>
+                                    <TableHead className="text-center">Qté</TableHead>
+                                    <TableHead className="text-center">Min.</TableHead>
+                                    <TableHead>Statut</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {filteredPieces.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center text-blue-300 py-10">
+                                        <TableCell colSpan={8} className="text-center text-blue-300 py-10">
                                             Aucune pièce trouvée
                                         </TableCell>
                                     </TableRow>
                                 ) : (
                                     filteredPieces.map((piece) => {
                                         const stock = stockLevels.find((s) => s.piece_id === piece.id);
-                                        const isLow = stock && piece.min_stock != null && stock.quantity < piece.min_stock;
+                                        const qty = stock?.quantity ?? null;
+                                        const minStock = piece.min_stock ?? stock?.min_stock ?? null;
+                                        const noStock = qty === null;
+                                        const isOut  = qty === 0;
+                                        const isLow  = !noStock && !isOut && minStock !== null && qty < minStock;
+                                        const deficit = (isOut || isLow) && minStock ? minStock - (qty ?? 0) : 0;
                                         return (
-                                            <TableRow key={piece.id}>
+                                            <TableRow
+                                                key={piece.id}
+                                                className={isOut ? 'bg-red-950/20' : isLow ? 'bg-orange-950/15' : ''}
+                                            >
                                                 <TableCell className="font-mono text-xs text-blue-300">{piece.reference}</TableCell>
                                                 <TableCell className="font-medium">{piece.name}</TableCell>
                                                 <TableCell>
@@ -733,23 +613,33 @@ export default function InventoryPage() {
                                                     {piece.unit_price ? `${piece.unit_price.toFixed(2)} €` : '—'}
                                                 </TableCell>
                                                 <TableCell className="text-center">
-                                                    {stock ? (
-                                                        <span className={`font-semibold ${isLow ? 'text-orange-400' : 'text-green-400'}`}>
-                                                            {stock.quantity}
-                                                            {isLow && <AlertTriangle className="inline ml-1 h-3 w-3" />}
-                                                        </span>
-                                                    ) : <span className="text-blue-500 text-sm">—</span>}
+                                                    {noStock
+                                                        ? <span className="text-slate-500 text-sm">—</span>
+                                                        : <span className={`font-bold text-base ${isOut ? 'text-red-400' : isLow ? 'text-orange-400' : 'text-green-400'}`}>{qty}</span>
+                                                    }
+                                                </TableCell>
+                                                <TableCell className="text-center text-blue-300">{minStock ?? '—'}</TableCell>
+                                                <TableCell>
+                                                    {noStock ? (
+                                                        <Badge className="bg-slate-800 text-slate-400 border border-slate-600 text-xs">Pas de stock</Badge>
+                                                    ) : isOut ? (
+                                                        <Badge className="bg-red-900/60 text-red-300 border border-red-500/40 text-xs">Rupture</Badge>
+                                                    ) : isLow ? (
+                                                        <Badge className="bg-orange-900/60 text-orange-300 border border-orange-500/40 text-xs">Bas — manque {deficit}</Badge>
+                                                    ) : (
+                                                        <Badge className="bg-green-900/60 text-green-300 border border-green-500/40 text-xs">OK</Badge>
+                                                    )}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-1 justify-end">
                                                         {canManage && (
                                                             <button
-                                                                onClick={() => openStockDialog('add', piece.id)}
+                                                                onClick={() => openStockDialog('add', piece.id, isLow || isOut ? deficit : undefined)}
                                                                 className="flex items-center gap-0.5 rounded border border-green-500/40 bg-green-950/30
                                                                            px-2 py-1 text-xs text-green-400 hover:bg-green-500/20 transition-all"
                                                                 title="Entrée stock"
                                                             >
-                                                                <Plus className="h-3 w-3" />
+                                                                <Plus className="h-3 w-3" /> Entrée
                                                             </button>
                                                         )}
                                                         {canConsume && stock && stock.quantity > 0 && (
@@ -759,7 +649,7 @@ export default function InventoryPage() {
                                                                            px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 transition-all"
                                                                 title="Sortie stock"
                                                             >
-                                                                <Minus className="h-3 w-3" />
+                                                                <Minus className="h-3 w-3" /> Sortie
                                                             </button>
                                                         )}
                                                         {canManage && (
@@ -803,7 +693,7 @@ export default function InventoryPage() {
 
                 {/* ── Alerts Tab ─────────────────────────────────────────────── */}
                 <TabsContent value="alerts" className="mt-3 space-y-3">
-                    {alerts.length === 0 ? (
+                    {allAlerts.length === 0 ? (
                         <Card>
                             <CardContent className="flex flex-col items-center justify-center py-16 gap-3 text-green-400">
                                 <CheckCircle2 className="h-12 w-12" />
@@ -812,7 +702,7 @@ export default function InventoryPage() {
                             </CardContent>
                         </Card>
                     ) : (
-                        alerts.map((alert) => (
+                        allAlerts.map((alert) => (
                             <Card
                                 key={alert.piece_id}
                                 className={`border-l-4 ${alert.current_quantity === 0 ? 'border-l-red-500 bg-red-950/10' : 'border-l-orange-400 bg-orange-950/10'}`}

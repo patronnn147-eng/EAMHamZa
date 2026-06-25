@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/v1/inventory/stock", tags=["inventory-stock"])
 @router.get("", response_model=PaginatedResponse[StockResponse])
 async def list_stock_levels(
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ):
     """Get current stock levels for all parts with pagination."""
@@ -83,7 +83,7 @@ async def consume_stock(data: StockConsumeRequest, db: AsyncSession = Depends(ge
 @router.get("/alertes", response_model=PaginatedResponse[AlerteStockResponse])
 async def get_stock_alerts(
     page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
+    size: int = Query(10, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
 ):
     """Get alerts for parts with stock below minimum threshold with pagination."""

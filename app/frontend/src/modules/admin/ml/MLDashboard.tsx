@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import {
     BrainCircuit,
     RefreshCcw,
@@ -11,7 +12,14 @@ import {
     TrendingUp,
     History,
     AlertCircle,
-    Activity
+    Activity,
+    Zap,
+    Wrench,
+    Clock,
+    Radar,
+    ListOrdered,
+    CalendarClock,
+    PackageSearch,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModelHealthTable } from './ModelHealthTable';
@@ -206,6 +214,102 @@ export default function MLDashboard() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Model Explainer for non-technical users */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <BrainCircuit className="h-4 w-4 text-purple-400" />
+                        Comprendre vos 7 modèles IA
+                    </CardTitle>
+                    <CardDescription className="text-xs">
+                        Ce que chaque modèle fait concrètement — sans jargon technique.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Accordion type="multiple" className="space-y-1">
+                        {[
+                            {
+                                id: 'p1',
+                                icon: <Zap className="h-4 w-4 text-red-400" />,
+                                label: 'Probabilité de panne',
+                                badge: 'P1',
+                                badgeColor: 'bg-red-600/20 text-red-300 border-red-500/30',
+                                summary: 'Évalue le risque qu\'une machine tombe en panne prochainement.',
+                                detail: 'Ce modèle analyse 7 mesures en temps réel (température, couple, vitesse…) et calcule un pourcentage de risque de défaillance. C\'est comme un médecin qui lit vos analyses de sang : il ne dit pas exactement quand vous tomberez malade, mais il lève un drapeau rouge quand les signes s\'accumulent. Un score élevé déclenche automatiquement une alerte pour anticiper la panne avant qu\'elle arrive.',
+                            },
+                            {
+                                id: 'p2',
+                                icon: <Wrench className="h-4 w-4 text-orange-400" />,
+                                label: 'Type de panne',
+                                badge: 'P2',
+                                badgeColor: 'bg-orange-600/20 text-orange-300 border-orange-500/30',
+                                summary: 'Identifie quelle panne est la plus probable parmi 5 catégories.',
+                                detail: 'Quand une panne est détectée, ce modèle la classe automatiquement : surchauffe, usure d\'outil, dissipation thermique, défaillance mécanique ou électrique. C\'est comme un médecin généraliste qui vous dit "c\'est probablement une angine, pas une pneumonie" avant même de faire tous les examens. Le technicien arrive sur place avec les bons outils et les bonnes pièces, sans perdre de temps à diagnostiquer sur place.',
+                            },
+                            {
+                                id: 'p3',
+                                icon: <Clock className="h-4 w-4 text-yellow-400" />,
+                                label: 'Durée de vie restante',
+                                badge: 'P3',
+                                badgeColor: 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30',
+                                summary: 'Estime en jours combien de temps la machine peut encore fonctionner.',
+                                detail: 'Ce modèle calcule le nombre de jours d\'utilisation restants avant qu\'une intervention devienne nécessaire. Imaginez la jauge d\'essence de votre voiture, mais au lieu du carburant, elle mesure l\'usure globale de la machine. Un résultat de "14 jours" signifie : planifiez la maintenance avant cette date pour éviter une panne imprévue. Cela permet d\'organiser les interventions à l\'avance, sans perturber la production.',
+                            },
+                            {
+                                id: 'p4',
+                                icon: <Radar className="h-4 w-4 text-cyan-400" />,
+                                label: 'Détection d\'anomalie comportementale',
+                                badge: 'P4',
+                                badgeColor: 'bg-cyan-600/20 text-cyan-300 border-cyan-500/30',
+                                summary: 'Détecte un comportement anormal même sans panne visible.',
+                                detail: 'Ce modèle surveille en permanence les capteurs et compare le comportement actuel de la machine à son comportement habituel. Il peut repérer qu\'une machine "vibre différemment" ou "chauffe un peu plus que d\'habitude" bien avant que quiconque le remarque — même si tout semble normal en surface. C\'est un système de surveillance 24h/24 qui ne se fatigue jamais et ne rate aucun signe avant-coureur subtil.',
+                            },
+                            {
+                                id: 'p5',
+                                icon: <ListOrdered className="h-4 w-4 text-green-400" />,
+                                label: 'Priorité des interventions',
+                                badge: 'P5',
+                                badgeColor: 'bg-green-600/20 text-green-300 border-green-500/30',
+                                summary: 'Classe automatiquement les ordres de travail par ordre d\'urgence.',
+                                detail: 'Quand plusieurs machines nécessitent une intervention en même temps, ce modèle décide laquelle traiter en premier. Il prend en compte la criticité de la machine pour la production, la gravité du problème et le risque si on attend. C\'est comme le triage aux urgences : le patient en arrêt cardiaque passe avant celui avec une fracture. Vos équipes ne perdent plus de temps à se demander "par où commencer ?".',
+                            },
+                            {
+                                id: 'p6',
+                                icon: <CalendarClock className="h-4 w-4 text-blue-400" />,
+                                label: 'Planification de la maintenance',
+                                badge: 'P6',
+                                badgeColor: 'bg-blue-600/20 text-blue-300 border-blue-500/30',
+                                summary: 'Suggère les meilleures dates pour la maintenance préventive.',
+                                detail: 'Ce modèle propose un calendrier d\'entretien intelligent en tenant compte de l\'état réel de chaque machine (pas juste un calendrier fixe tous les 3 mois). Si une machine est en bonne santé, on peut reculer la maintenance. Si elle montre des signes de fatigue, on l\'avance. C\'est la différence entre changer l\'huile de voiture tous les 10 000 km exactement et la changer quand votre voiture en a vraiment besoin.',
+                            },
+                            {
+                                id: 'p7',
+                                icon: <PackageSearch className="h-4 w-4 text-purple-400" />,
+                                label: 'Besoin en pièces de rechange',
+                                badge: 'P7',
+                                badgeColor: 'bg-purple-600/20 text-purple-300 border-purple-500/30',
+                                summary: 'Prédit quelles pièces commander et quand, avant qu\'elles manquent.',
+                                detail: 'En croisant les prédictions de pannes avec l\'historique des réparations, ce modèle anticipe quelles pièces de rechange seront nécessaires dans les prochaines semaines. Il génère automatiquement des suggestions de commande pour éviter les ruptures de stock. Plus jamais une réparation bloquée parce qu\'une pièce est en rupture — les commandes partent avant même que la panne arrive.',
+                            },
+                        ].map((m) => (
+                            <AccordionItem key={m.id} value={m.id} className="border border-slate-700 rounded-lg px-1">
+                                <AccordionTrigger className="px-3 py-2 hover:no-underline">
+                                    <div className="flex items-center gap-3 text-left">
+                                        {m.icon}
+                                        <span className="text-sm font-medium text-slate-100">{m.label}</span>
+                                        <Badge className={`text-[10px] border ${m.badgeColor} ml-1`}>{m.badge}</Badge>
+                                        <span className="text-xs text-slate-400 font-normal hidden sm:block">{m.summary}</span>
+                                    </div>
+                                </AccordionTrigger>
+                                <AccordionContent className="px-3 pb-3">
+                                    <p className="text-sm text-slate-300 leading-relaxed">{m.detail}</p>
+                                </AccordionContent>
+                            </AccordionItem>
+                        ))}
+                    </Accordion>
+                </CardContent>
+            </Card>
 
             {/* Explainer & Roadmap Section */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

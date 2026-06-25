@@ -150,6 +150,9 @@ services:
         condition: service_started
       minio:
         condition: service_started
+    volumes:
+      - ./app/ml-microservice/models:/ml-microservice/models:ro
+      - ./app/ml-microservice/models:/app/modules/ml/models:ro
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
       interval: 30s
@@ -261,6 +264,8 @@ services:
     environment:
       PYTHONUNBUFFERED: 1
       PYTHONPATH: /app
+    volumes:
+      - ./app/ml-microservice/models:/app/models
     ports:
       - "8001:8000"
     healthcheck:

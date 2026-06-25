@@ -22,7 +22,7 @@ import { DoColumn } from './PDCA/DoColumn';
 import { CheckColumn } from './PDCA/CheckColumn';
 import { ActColumn } from './PDCA/ActColumn';
 
-export { KanbanItem, KanbanColumn } from './PDCA/types';
+export type { KanbanItem, KanbanColumn } from './PDCA/types';
 
 export const PDCACanbanBoard = () => {
     const navigate = useNavigate();
