@@ -200,63 +200,64 @@ export default function PlanningWizard({
     setCurrentStep(1);
     setCompletedSteps(new Set());
     setStepError(null);
+
+    const loadData = async () => {
+      setDataLoading(true);
+      try {
+        const [chefOps, chefTechs, techs, machinesResp] = await Promise.all([
+          fetchUsersByRole('CHETOP'),
+          fetchUsersByRole('CHEFTECH'),
+          fetchUsersByRole('TECHNICIEN'),
+          client.entities.machines.query({ query: {}, sort: '-created_at', limit: 200 }),
+        ]);
+        setChefOperations(chefOps);
+        setChefTechniques(chefTechs);
+        setTechniciens(techs);
+        setMachines(machinesResp.data.items || []);
+      } finally {
+        setDataLoading(false);
+      }
+
+      if (planning) {
+        let freshPlanning = planning;
+        try {
+          const detailResp = await client.apiCall.invoke({
+            url: `/api/v1/plannings/${planning.id}`,
+            method: 'GET',
+          });
+          const raw = (detailResp as any)?.data ?? detailResp;
+          const candidate = (raw?.identifiant_planning ? raw : raw?.data ?? raw) as Planning;
+          if (candidate?.id) freshPlanning = candidate;
+        } catch {
+          /* fall back to list data */
+        }
+        setFormData({
+          identifiant_planning: freshPlanning.identifiant_planning,
+          date_debut: toDateTimeLocalInputValue(freshPlanning.date_debut),
+          date_fin: toDateTimeLocalInputValue(freshPlanning.date_fin),
+          type: freshPlanning.type as PlanningType,
+          shift_type: freshPlanning.shift_type as ShiftType | undefined,
+          chef_operation_id: freshPlanning.chef_operation_id,
+          chef_technique_id: freshPlanning.chef_technique_id,
+          zone_travail: freshPlanning.zone_travail || '',
+          sous_zone: (freshPlanning as any).sous_zone || '',
+          ordre: (freshPlanning as any).ordre || '',
+          technicien_ids: Array.from(
+            new Set(
+              (freshPlanning.assigned_users || [])
+                .filter((u) => u.role === 'TECHNICIEN')
+                .map((u) => u.id)
+            )
+          ),
+          machine_ids: Array.from(new Set(freshPlanning.machine_ids || [])),
+        });
+      } else {
+        setFormData(defaultFormData());
+      }
+    };
+
     loadData();
   }, [open]);
-
-  const loadData = async () => {
-    setDataLoading(true);
-    try {
-      const [chefOps, chefTechs, techs, machinesResp] = await Promise.all([
-        fetchUsersByRole('CHETOP'),
-        fetchUsersByRole('CHEFTECH'),
-        fetchUsersByRole('TECHNICIEN'),
-        client.entities.machines.query({ query: {}, sort: '-created_at', limit: 200 }),
-      ]);
-      setChefOperations(chefOps);
-      setChefTechniques(chefTechs);
-      setTechniciens(techs);
-      setMachines(machinesResp.data.items || []);
-    } finally {
-      setDataLoading(false);
-    }
-
-    if (planning) {
-      let freshPlanning = planning;
-      try {
-        const detailResp = await client.apiCall.invoke({
-          url: `/api/v1/plannings/${planning.id}`,
-          method: 'GET',
-        });
-        const raw = (detailResp as any)?.data ?? detailResp;
-        const candidate = (raw?.identifiant_planning ? raw : raw?.data ?? raw) as Planning;
-        if (candidate?.id) freshPlanning = candidate;
-      } catch {
-        /* fall back to list data */
-      }
-      setFormData({
-        identifiant_planning: freshPlanning.identifiant_planning,
-        date_debut: toDateTimeLocalInputValue(freshPlanning.date_debut),
-        date_fin: toDateTimeLocalInputValue(freshPlanning.date_fin),
-        type: freshPlanning.type as PlanningType,
-        shift_type: freshPlanning.shift_type as ShiftType | undefined,
-        chef_operation_id: freshPlanning.chef_operation_id,
-        chef_technique_id: freshPlanning.chef_technique_id,
-        zone_travail: freshPlanning.zone_travail || '',
-        sous_zone: (freshPlanning as any).sous_zone || '',
-        ordre: (freshPlanning as any).ordre || '',
-        technicien_ids: Array.from(
-          new Set(
-            (freshPlanning.assigned_users || [])
-              .filter((u) => u.role === 'TECHNICIEN')
-              .map((u) => u.id)
-          )
-        ),
-        machine_ids: Array.from(new Set(freshPlanning.machine_ids || [])),
-      });
-    } else {
-      setFormData(defaultFormData());
-    }
-  };
 
   const fetchUsersByRole = async (role: string): Promise<User[]> => {
     try {
@@ -288,9 +289,11 @@ export default function PlanningWizard({
   const handleShiftTypeChange = (shiftType: ShiftType) => {
     setFormData((prev) => {
       const next = { ...prev, shift_type: shiftType };
-      const allowedChefOps = new Set(filterUsersByPlanningShift(chefOperations).map((u) => u.id));
-      const allowedChefTechs = new Set(filterUsersByPlanningShift(chefTechniques).map((u) => u.id));
-      const allowedTechs = new Set(filterUsersByPlanningShift(techniciens).map((u) => u.id));
+      const filterByShift = (users: User[]) =>
+        users.filter((u) => (u.shift_type || 'MORNING') === shiftType);
+      const allowedChefOps = new Set(filterByShift(chefOperations).map((u) => u.id));
+      const allowedChefTechs = new Set(filterByShift(chefTechniques).map((u) => u.id));
+      const allowedTechs = new Set(filterByShift(techniciens).map((u) => u.id));
       if (next.chef_operation_id && !allowedChefOps.has(next.chef_operation_id))
         next.chef_operation_id = undefined;
       if (next.chef_technique_id && !allowedChefTechs.has(next.chef_technique_id))
@@ -664,7 +667,7 @@ export default function PlanningWizard({
         <Select
           value={formData.chef_operation_id?.toString()}
           onValueChange={(v) =>
-            setFormData((prev) => ({ ...prev, chef_operation_id: parseInt(v) }))
+            setFormData((prev) => ({ ...prev, chef_operation_id: parseInt(v, 10) }))
           }
         >
           <SelectTrigger>
@@ -672,7 +675,7 @@ export default function PlanningWizard({
           </SelectTrigger>
           <SelectContent>
             {filterUsersByPlanningShift(chefOperations).length === 0 ? (
-              <SelectItem value="none" disabled>
+              <SelectItem value="" disabled>
                 Aucun CHETOP disponible
               </SelectItem>
             ) : (
@@ -692,7 +695,7 @@ export default function PlanningWizard({
         <Select
           value={formData.chef_technique_id?.toString()}
           onValueChange={(v) =>
-            setFormData((prev) => ({ ...prev, chef_technique_id: parseInt(v) }))
+            setFormData((prev) => ({ ...prev, chef_technique_id: parseInt(v, 10) }))
           }
         >
           <SelectTrigger>
@@ -700,7 +703,7 @@ export default function PlanningWizard({
           </SelectTrigger>
           <SelectContent>
             {filterUsersByPlanningShift(chefTechniques).length === 0 ? (
-              <SelectItem value="none" disabled>
+              <SelectItem value="" disabled>
                 Aucun CHEFTECH disponible
               </SelectItem>
             ) : (
