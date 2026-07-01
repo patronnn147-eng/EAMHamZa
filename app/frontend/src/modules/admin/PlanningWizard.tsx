@@ -388,6 +388,8 @@ export default function PlanningWizard({
   // ── Submit ────────────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
+    const err1 = validateStep(1);
+    if (err1) { setCurrentStep(1); setStepError(err1); return; }
     const err = validateStep(4);
     if (err) { setStepError(err); return; }
     setSubmitting(true);
