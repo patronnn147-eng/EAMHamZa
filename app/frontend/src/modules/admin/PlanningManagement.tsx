@@ -1,11 +1,8 @@
 import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
-import { toDateTimeLocalInputValue } from '@/lib/date';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -14,22 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Calendar, Plus, Edit, Trash2, Users, Bell, Eye, Mail, Send, Check, X } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import type { Machine } from '@/lib/types';
 import { AppPagination } from '@/components/shared/AppPagination';
-
-import { ZONE_OPTIONS, SOUS_ZONE_OPTIONS_BY_ZONE, ORDRE_TEMPLATES } from '@/lib/constants';
+import PlanningWizard from './PlanningWizard';
 
 interface User {
   id: number;
@@ -49,6 +36,8 @@ interface Planning {
   chef_operation_id?: number;
   chef_technique_id?: number;
   zone_travail?: string;
+  sous_zone?: string;
+  ordre?: string;
   assigned_users: User[];
   machine_ids?: number[];
   created_at?: string;
@@ -60,11 +49,11 @@ export default function PlanningManagement() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [pageSize] = useState(12); // 12 fits well in 1, 2, or 3 column grids
+  const [pageSize] = useState(12);
   const [resendingPlanningId, setResendingPlanningId] = useState<number | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [editingPlanning, setEditingPlanning] = useState<Planning | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingPlanning, setDeletingPlanning] = useState<Planning | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -75,71 +64,6 @@ export default function PlanningManagement() {
   const [submittingPlanningId, setSubmittingPlanningId] = useState<number | null>(null);
   const [approvingPlanningId, setApprovingPlanningId] = useState<number | null>(null);
   const [rejectingPlanningId, setRejectingPlanningId] = useState<number | null>(null);
-
-  // User lists for dropdowns
-  const [chefOperations, setChefOperations] = useState<User[]>([]);
-  const [chefTechniques, setChefTechniques] = useState<User[]>([]);
-  const [techniciens, setTechniciens] = useState<User[]>([]);
-  const [machines, setMachines] = useState<Machine[]>([]);
-
-const [formData, setFormData] = useState({
-    identifiant_planning: '',
-    date_debut: '',
-    date_fin: '',
-    type: 'MAINTENANCE' as 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER',
-    shift_type: undefined as 'MORNING' | 'NIGHT' | undefined,
-    chef_operation_id: undefined as number | undefined,
-    chef_technique_id: undefined as number | undefined,
-    zone_travail: '',
-    sous_zone: '',
-    ordre: '',
-    technicien_ids: [] as number[],
-    machine_ids: [] as number[],
-  });
-
-  const getUserShiftBadge = (shiftType?: string | null) => {
-    if (!shiftType) return null;
-    const shiftConfig = {
-      MORNING: { label: 'Morning', className: 'bg-yellow-100 text-yellow-800' },
-      NIGHT: { label: 'Night', className: 'bg-indigo-100 text-indigo-800' },
-    };
-    const config = shiftConfig[shiftType as keyof typeof shiftConfig];
-    return config ? <Badge className={config.className}>{config.label}</Badge> : null;
-  };
-
-  const filterUsersByPlanningShift = (users: User[]) => {
-    if (formData.type !== 'SHIFT' || !formData.shift_type) return users;
-    return users.filter(u => (u.shift_type || 'MORNING') === formData.shift_type);
-  };
-
-  const handleShiftTypeChange = (shiftType: 'MORNING' | 'NIGHT') => {
-    setFormData(prev => {
-      const next = { ...prev, shift_type: shiftType };
-
-      const allowedChefOps = new Set(filterUsersByPlanningShift(chefOperations).map(u => u.id));
-      const allowedChefTechs = new Set(filterUsersByPlanningShift(chefTechniques).map(u => u.id));
-      const allowedTechs = new Set(filterUsersByPlanningShift(techniciens).map(u => u.id));
-
-      if (next.chef_operation_id && !allowedChefOps.has(next.chef_operation_id)) {
-        next.chef_operation_id = undefined;
-      }
-      if (next.chef_technique_id && !allowedChefTechs.has(next.chef_technique_id)) {
-        next.chef_technique_id = undefined;
-      }
-
-      next.technicien_ids = next.technicien_ids.filter(id => allowedTechs.has(id));
-      return next;
-    });
-  };
-
-  const toggleMachine = (machineId: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      machine_ids: (prev.machine_ids || []).includes(machineId)
-        ? (prev.machine_ids || []).filter((id) => id !== machineId)
-        : [...prev.machine_ids, machineId],
-    }));
-  };
 
   useEffect(() => {
     fetchPlannings();
@@ -155,7 +79,7 @@ const [formData, setFormData] = useState({
 
       const data = response?.data || response;
       const items = data?.items || (Array.isArray(data) ? data : []);
-      
+
       setPlannings(items);
       setTotalPages(data?.total_pages || 1);
     } catch (error: any) {
@@ -171,259 +95,9 @@ const [formData, setFormData] = useState({
     }
   };
 
-  const fetchUsersByRole = async (role: string) => {
-    try {
-      const response = await client.apiCall.invoke({
-        url: `/api/v1/plannings/users/by-role/${role}`,
-        method: 'GET',
-      });
-      return response.data || [];
-    } catch (error) {
-      console.error(`Error fetching ${role} users:`, error);
-      toast({
-        title: 'Error',
-        description: `Failed to load ${role} users`,
-        variant: 'destructive',
-      });
-      return [];
-    }
-  };
-
-  const handleOpenDialog = async (planning?: Planning) => {
-    // Fetch users for dropdowns
-    const [chefOps, chefTechs, techs, machinesResponse] = await Promise.all([
-      fetchUsersByRole('CHETOP'),
-      fetchUsersByRole('CHEFTECH'),
-      fetchUsersByRole('TECHNICIEN'),
-      client.entities.machines.query({ query: {}, sort: '-created_at', limit: 200 }),
-    ]);
-
-    setChefOperations(chefOps);
-    setChefTechniques(chefTechs);
-    setTechniciens(techs);
-    setMachines(machinesResponse.data.items || []);
-
-    if (planning) {
-      setEditingPlanning(planning);
-
-      // Fetch fresh detail to guarantee assigned_users is fully populated
-      let freshPlanning = planning;
-      try {
-        const detailResp = await client.apiCall.invoke({
-          url: `/api/v1/plannings/${planning.id}`,
-          method: 'GET',
-        });
-        const raw = (detailResp as any)?.data ?? detailResp;
-        const candidate: Planning = (raw?.identifiant_planning ? raw : raw?.data ?? raw) as Planning;
-        if (candidate?.id) freshPlanning = candidate;
-      } catch {
-        // silently fall back to list data
-      }
-
-      setFormData({
-        identifiant_planning: freshPlanning.identifiant_planning,
-        date_debut: toDateTimeLocalInputValue(freshPlanning.date_debut),
-        date_fin: toDateTimeLocalInputValue(freshPlanning.date_fin),
-        type: freshPlanning.type as 'MAINTENANCE' | 'SHIFT',
-        shift_type: freshPlanning.shift_type as 'MORNING' | 'NIGHT' | undefined,
-        chef_operation_id: freshPlanning.chef_operation_id,
-        chef_technique_id: freshPlanning.chef_technique_id,
-        zone_travail: freshPlanning.zone_travail || '',
-        sous_zone: (freshPlanning as any).sous_zone || '',
-        ordre: (freshPlanning as any).ordre || '',
-        technicien_ids: Array.from(
-          new Set(
-            (freshPlanning.assigned_users || [])
-              .filter(u => u.role === 'TECHNICIEN')
-              .map(u => u.id)
-          )
-        ),
-        machine_ids: Array.from(new Set(freshPlanning.machine_ids || [])),
-      });
-    } else {
-      setEditingPlanning(null);
-      const now = new Date();
-      const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-      setFormData({
-        identifiant_planning: `PLAN-${Date.now()}`,
-        date_debut: toDateTimeLocalInputValue(now.toISOString()),
-        date_fin: toDateTimeLocalInputValue(nextWeek.toISOString()),
-        type: 'MAINTENANCE',
-        shift_type: undefined,
-        chef_operation_id: undefined,
-        chef_technique_id: undefined,
-        zone_travail: '',
-        sous_zone: '',
-        ordre: '',
-        technicien_ids: [],
-        machine_ids: [],
-      });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleTypeChange = (type: 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER') => {
-    setFormData({
-      ...formData,
-      type,
-      shift_type: type === 'SHIFT' ? 'MORNING' : undefined,
-    });
-  };
-
-  const toggleTechnicien = (techId: number) => {
-    setFormData(prev => ({
-      ...prev,
-      technicien_ids: (prev.technicien_ids || []).includes(techId)
-        ? (prev.technicien_ids || []).filter(id => id !== techId)
-        : [...prev.technicien_ids, techId],
-    }));
-  };
-
-  const handleZoneChange = (zone: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      zone_travail: zone,
-      sous_zone: '',
-      ordre: '',
-      machine_ids: [], // Clear machines when zone changes
-    }));
-  };
-
-  const handleSubZoneChange = (sous_zone: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      sous_zone,
-      ordre: '',
-      machine_ids: [],
-    }));
-  };
-
-  const handleOrderChange = (ordre: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      ordre,
-      machine_ids: [],
-    }));
-  };
-
-  const filteredMachines = machines.filter((m) => {
-    // All filters are OPTIONAL hints — they progressively narrow the list,
-    // but ordre + sous_zone do NOT hide machines that lack metadata, since
-    // most legacy machines don't carry exact ordre/sous_zone values.
-    //
-    // Behaviour:
-    //   - zone        : strict (when set, machine must match)
-    //   - sous_zone   : strict ONLY for machines that carry a sous_zone value
-    //   - ordre       : non-strict (acts as a label hint only, never hides)
-    //   - statut      : exclude machines explicitly marked unavailable
-    const zoneMatch = !formData.zone_travail || m.zone === formData.zone_travail;
-    const subZoneMatch =
-      !formData.sous_zone ||
-      !m.sous_zone ||
-      m.sous_zone === formData.sous_zone;
-    // ordre intentionally not used to filter — selecting an ordre is now a UI
-    // hint only, so users can still multi-select machines after picking one.
-    const status = (m.statut || '').toLowerCase();
-    const isAvailable =
-      !status ||
-      status === 'disponible' ||
-      status === 'available' ||
-      status === 'operationnelle' ||
-      status === 'en_marche';
-
-    // Always keep already selected machines in the list
-    const isSelected = (formData.machine_ids || []).includes(m.id);
-    return (zoneMatch && subZoneMatch && isAvailable) || isSelected;
-  });
-
-  const handleSubmit = async () => {
-    try {
-      // Validation
-      if (!formData.identifiant_planning.trim() || !formData.date_debut || !formData.date_fin) {
-        toast({
-          title: 'Validation Error',
-          description: 'Please fill in all required fields',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (new Date(formData.date_fin) < new Date(formData.date_debut)) {
-        toast({
-          title: 'Validation Error',
-          description: 'End date must be after start date',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (formData.type === 'SHIFT' && !formData.shift_type) {
-        toast({
-          title: 'Validation Error',
-          description: 'Please select shift type for SHIFT planning',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      if (formData.type === 'SHIFT' && !formData.chef_operation_id) {
-        toast({
-          title: 'Validation Error',
-          description: 'Chef Operation is required for SHIFT planning',
-          variant: 'destructive',
-        });
-        return;
-      }
-
-      const payload = {
-        identifiant_planning: formData.identifiant_planning,
-        date_debut: new Date(formData.date_debut).toISOString(),
-        date_fin: new Date(formData.date_fin).toISOString(),
-        type: formData.type,
-        shift_type: formData.shift_type || null,
-        chef_operation_id: formData.chef_operation_id || null,
-        chef_technique_id: formData.chef_technique_id || null,
-        zone_travail: formData.zone_travail?.trim() ? formData.zone_travail : null,
-        sous_zone: formData.sous_zone?.trim() ? formData.sous_zone : null,
-        ordre: formData.ordre?.trim() ? formData.ordre : null,
-        technicien_ids: Array.from(new Set(formData.technicien_ids)),
-        machine_ids: Array.from(new Set(formData.machine_ids)),
-      };
-      console.log('[PlanningManagement] submitting payload:', JSON.stringify(payload, null, 2));
-
-      if (editingPlanning) {
-        await client.apiCall.invoke({
-          url: `/api/v1/plannings/${editingPlanning.id}`,
-          method: 'PUT',
-          data: payload,
-        });
-        toast({
-          title: 'Success',
-          description: 'Planning updated successfully. Notifications sent to assigned users.',
-        });
-      } else {
-        await client.apiCall.invoke({
-          url: '/api/v1/plannings',
-          method: 'POST',
-          data: payload,
-        });
-        toast({
-          title: 'Success',
-          description: 'Planning created successfully. Notifications sent to assigned users.',
-        });
-      }
-      setDialogOpen(false);
-      fetchPlannings();
-    } catch (error: unknown) {
-      const detail = (error as { data?: { detail?: string }; response?: { data?: { detail?: string } }; message?: string })?.data?.detail
-        || (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-        || (error as { message?: string }).message;
-      toast({
-        title: 'Error',
-        description: detail || 'Failed to save planning',
-        variant: 'destructive',
-      });
-    }
+  const handleOpenDialog = (planning?: Planning) => {
+    setEditingPlanning(planning ?? null);
+    setWizardOpen(true);
   };
 
   const handleDelete = async () => {
@@ -599,13 +273,6 @@ const [formData, setFormData] = useState({
     return config ? <Badge className={config.className}>{config.label}</Badge> : null;
   };
 
-  const handleSubmitForApproval = async (planningId: number) => {
-    const now = new Date();
-    const start = new Date(dateDebut);
-    const end = new Date(dateFin);
-    return now >= start && now <= end;
-  };
-
   const getDuration = (dateDebut: string, dateFin: string) => {
     const start = new Date(dateDebut);
     const end = new Date(dateFin);
@@ -699,8 +366,8 @@ const [formData, setFormData] = useState({
                         <p className="text-blue-300">Localisation</p>
                         <p className="font-medium">
                           {planning.zone_travail}
-                          {(planning as any).sous_zone && ` > ${(planning as any).sous_zone}`}
-                          {(planning as any).ordre && ` (Ordre: ${(planning as any).ordre})`}
+                          {planning.sous_zone && ` > ${planning.sous_zone}`}
+                          {planning.ordre && ` (Ordre: ${planning.ordre})`}
                         </p>
                       </div>
                     </div>
@@ -821,332 +488,18 @@ const [formData, setFormData] = useState({
         )}
       </div>
 
-      <AppPagination 
+      <AppPagination
         currentPage={page}
         totalPages={totalPages}
         onPageChange={setPage}
       />
 
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingPlanning ? 'Edit Planning' : 'Create Planning'}</DialogTitle>
-            <DialogDescription>
-              {editingPlanning
-                ? 'Update planning schedule and team assignments. All assigned users will be notified.'
-                : 'Create a new planning schedule with team assignments. All assigned users will be notified.'}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="identifiant_planning">Planning ID *</Label>
-              <Input
-                id="identifiant_planning"
-                value={formData.identifiant_planning}
-                onChange={(e) => setFormData({ ...formData, identifiant_planning: e.target.value })}
-                placeholder="e.g., PLAN-2026-02"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="type">Planning Type *</Label>
-              <Select value={formData.type} onValueChange={(value) => handleTypeChange(value as 'MAINTENANCE' | 'SHIFT' | 'HEBDOMADAIRE' | 'MENSUEL' | 'JOURNALIER')}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                  <SelectItem value="SHIFT">Shift (Day/Night Operations)</SelectItem>
-                  <SelectItem value="HEBDOMADAIRE">Weekly (Hebdomadaire)</SelectItem>
-                  <SelectItem value="MENSUEL">Monthly (Mensuel)</SelectItem>
-                  <SelectItem value="JOURNALIER">Daily (Journalier)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-blue-300">
-                {formData.type === 'MAINTENANCE'
-                  ? 'Maintenance planning for equipment servicing and repairs'
-                  : formData.type === 'SHIFT'
-                  ? 'Shift planning for day/night team operations'
-                  : formData.type === 'HEBDOMADAIRE'
-                  ? 'Weekly planning for recurring tasks'
-                  : formData.type === 'MENSUEL'
-                  ? 'Monthly planning overview'
-                  : 'Daily operational planning'}
-              </p>
-            </div>
-
-            {formData.type === 'SHIFT' && (
-              <div className="grid gap-2">
-                <Label htmlFor="shift_type">Shift Type * (Required for SHIFT)</Label>
-                <Select value={formData.shift_type} onValueChange={(value) => handleShiftTypeChange(value as 'MORNING' | 'NIGHT')}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select shift type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="MORNING">Morning Shift</SelectItem>
-                    <SelectItem value="NIGHT">Night Shift</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="date_debut">Start Date *</Label>
-                <Input
-                  id="date_debut"
-                  type="datetime-local"
-                  value={formData.date_debut}
-                  onChange={(e) => setFormData({ ...formData, date_debut: e.target.value })}
-                />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="date_fin">End Date *</Label>
-                <Input
-                  id="date_fin"
-                  type="datetime-local"
-                  value={formData.date_fin}
-                  onChange={(e) => setFormData({ ...formData, date_fin: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="zone_travail">Zone de Travail</Label>
-              <Select
-                value={formData.zone_travail}
-                onValueChange={handleZoneChange}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner une zone de travail" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ZONE_OPTIONS.map((zone) => (
-                    <SelectItem key={zone} value={zone}>
-                      {zone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Sub-Zone Selection */}
-            {formData.zone_travail && SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail]?.length > 0 && (
-              <div className="space-y-2">
-                <Label>Sous-Zone</Label>
-                <Select
-                  value={formData.sous_zone}
-                  onValueChange={handleSubZoneChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner une sous-zone" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOUS_ZONE_OPTIONS_BY_ZONE[formData.zone_travail]?.map((subZone) => (
-                      <SelectItem key={subZone} value={subZone}>
-                        {subZone}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* Order Selection */}
-            {formData.zone_travail && formData.sous_zone && ORDRE_TEMPLATES[formData.zone_travail]?.[formData.sous_zone] && (
-              <div className="space-y-2">
-                <Label>Ordre (Position dans la ligne)</Label>
-                <Select
-                  value={formData.ordre}
-                  onValueChange={handleOrderChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionner un ordre/position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ORDRE_TEMPLATES[formData.zone_travail]?.[formData.sous_zone]?.map((template) => (
-                      <SelectItem key={template.ordre} value={String(template.ordre)}>
-                        {template.ordre} - {template.nom}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label>
-                  Machines{' '}
-                  <span className="text-xs text-blue-400/70 font-normal">
-                    · {(formData.machine_ids || []).length} sélectionnée(s) / {filteredMachines.length} affichée(s)
-                  </span>
-                </Label>
-                {filteredMachines.length > 0 && (
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      className="text-[11px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 transition-colors"
-                      onClick={() => {
-                        const allIds = filteredMachines.map((m) => m.id);
-                        setFormData((prev) => ({ ...prev, machine_ids: Array.from(new Set([...(prev.machine_ids || []), ...allIds])) }));
-                      }}
-                    >
-                      Tout cocher
-                    </button>
-                    <button
-                      type="button"
-                      className="text-[11px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-slate-500/30 bg-slate-700/30 text-slate-300 hover:bg-slate-700/50 transition-colors"
-                      onClick={() => {
-                        const visibleIds = new Set(filteredMachines.map((m) => m.id));
-                        setFormData((prev) => ({ ...prev, machine_ids: (prev.machine_ids || []).filter((id) => !visibleIds.has(id)) }));
-                      }}
-                    >
-                      Tout décocher
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="border rounded-md p-3 max-h-80 overflow-y-auto space-y-2 bg-slate-800/50">
-                {filteredMachines?.length === 0 ? (
-                  <p className="text-sm text-blue-300">
-                    {formData.zone_travail
-                      ? 'Aucune machine disponible dans cette zone'
-                      : 'Veuillez sélectionner une zone de travail d\'abord'}
-                  </p>
-                ) : (
-                  filteredMachines.map((m) => (
-                    <div key={m.id} className="flex items-center space-x-2 p-2 hover:bg-slate-800 rounded">
-                      <Checkbox
-                        id={`machine-${m.id}`}
-                        checked={(formData.machine_ids || []).includes(m.id)}
-                        onCheckedChange={() => toggleMachine(m.id)}
-                      />
-                      <label
-                        htmlFor={`machine-${m.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                      >
-                        {m.nom} (#{m.id}) - {m.statut}
-                      </label>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label>Team Assignment</Label>
-              <Badge variant="outline" className="text-xs">Step-by-step</Badge>
-            </div>
-            <p className="text-xs text-blue-300 mb-3">
-              {formData.type === 'SHIFT'
-                ? '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians → 4. Choose Shift Type'
-                : '1. Select Chef Operation → 2. Select Chef Technique → 3. Select Technicians'}
-            </p>
-
-            <div className="grid gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="chef_operation">
-                  Step 1: Chef Operation (CHETOP) {formData.type === 'SHIFT' && '*'}
-                </Label>
-                <Select
-                  value={formData.chef_operation_id?.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, chef_operation_id: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Chef Operation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterUsersByPlanningShift(chefOperations).length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        No CHETOP users available
-                      </SelectItem>
-                    ) : (
-                      filterUsersByPlanningShift(chefOperations).map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          <div className="flex items-center justify-between gap-2 w-full">
-                            <span>
-                              {user.nom} - {user.email}
-                            </span>
-                            {getUserShiftBadge(user.shift_type)}
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="chef_technique">Step 2: Chef Technique (CHEFTECH)</Label>
-                <Select
-                  value={formData.chef_technique_id?.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, chef_technique_id: parseInt(value) })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select Chef Technique" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filterUsersByPlanningShift(chefTechniques).length === 0 ? (
-                      <SelectItem value="none" disabled>
-                        No CHEFTECH users available
-                      </SelectItem>
-                    ) : (
-                      filterUsersByPlanningShift(chefTechniques).map((user) => (
-                        <SelectItem key={user.id} value={user.id.toString()}>
-                          <div className="flex items-center justify-between gap-2 w-full">
-                            <span>
-                              {user.nom} - {user.email}
-                            </span>
-                            {getUserShiftBadge(user.shift_type)}
-                          </div>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-2">
-                <Label>Step 3: Technicians (TECHNICIEN)</Label>
-                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2 bg-slate-800/50">
-                  {filterUsersByPlanningShift(techniciens).length === 0 ? (
-                    <p className="text-sm text-blue-300">No technicians available</p>
-                  ) : (
-                    filterUsersByPlanningShift(techniciens).map((tech) => (
-                      <div key={tech.id} className="flex items-center space-x-2 p-2 hover:bg-slate-800 rounded">
-                        <Checkbox
-                          id={`tech-${tech.id}`}
-                          checked={(formData.technicien_ids || []).includes(tech.id)}
-                          onCheckedChange={() => toggleTechnicien(tech.id)}
-                        />
-                        <label
-                          htmlFor={`tech-${tech.id}`}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
-                        >
-                          {tech.nom} - {tech.email}
-                        </label>
-                        {getUserShiftBadge(tech.shift_type)}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <p className="text-xs text-blue-300">Selected: {(formData.technicien_ids || []).length ?? 0} technician(s)</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} className="gap-2 bg-blue-600 hover:bg-blue-700 text-white">
-              <Bell className="h-4 w-4" />
-              {editingPlanning ? 'Update' : 'Create'} & Notify Users
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PlanningWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        planning={editingPlanning}
+        onSuccess={fetchPlannings}
+      />
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
