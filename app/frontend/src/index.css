@@ -201,8 +201,26 @@
   color: #1e293b !important;
 }
 
+:root:not(.dark) [class*="text-white"] {
+  color: hsl(var(--foreground)) !important;
+}
+
 :root:not(.dark) [class*="border-blue-8"] {
   border-color: #e2e8f0 !important;
+}
+
+:root:not(.dark) [class*="from-slate-9"],
+:root:not(.dark) [class*="from-blue-9"],
+:root:not(.dark) [class*="via-slate-9"],
+:root:not(.dark) [class*="via-blue-9"],
+:root:not(.dark) [class*="to-slate-9"],
+:root:not(.dark) [class*="to-blue-9"],
+:root:not(.dark) [class*="from-slate-10"],
+:root:not(.dark) [class*="to-slate-10"] {
+  --tw-gradient-from: hsl(var(--background)) !important;
+  --tw-gradient-via: hsl(var(--background)) !important;
+  --tw-gradient-to: hsl(var(--background)) !important;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
 /* ==========================================================================
