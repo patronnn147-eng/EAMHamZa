@@ -211,3 +211,162 @@ export function computeFleetReliability(
 
     return { entries, avgUptimePct, avgMttr, avgMtbf, totalDowntimeMinutes, criticalCount, goodCount };
 }
+
+/**
+ * Fleet-wide KPI trend data for the top-of-tab summary cards.
+ * Unlike computeFleetReliability (average of per-machine scores), this pools
+ * ALL machines' downtime events together to produce fleet-wide totals per
+ * time bucket, which is what a trend chart should show.
+ */
+export interface TrendPoint {
+    /** ISO date (yyyy-mm-dd) of the bucket's start */
+    date: string;
+    value: number | null;
+}
+
+export interface KpiTrend {
+    /** Oldest -> newest, one point per weekly bucket */
+    series: TrendPoint[];
+    /** Aggregate over the most recent 90 days */
+    current: number;
+    /** Aggregate over the 90 days before that (91-180 days ago) */
+    previous: number | null;
+    /** (current - previous) / previous * 100 */
+    pctChange: number | null;
+    /** Which direction is favorable for this metric */
+    goodDirection: 'up' | 'down';
+    /** Fixed benchmark line; null if no target applies */
+    target: number | null;
+}
+
+export interface FleetKpiTrends {
+    availability: KpiTrend;
+    mttr: KpiTrend;
+    mtbf: KpiTrend;
+    downtime: KpiTrend;
+}
+
+function pctChange(curr: number, prev: number | null): number | null {
+    if (prev === null || prev === 0) return null;
+    return ((curr - prev) / prev) * 100;
+}
+
+export function computeFleetKpiTrends(
+    machines: Array<{ id: number; nom: string }>,
+    interventionsByMachineId: Record<number, Intervention[]>,
+    windowDays = 180,
+    buckets = 13
+): FleetKpiTrends {
+    const now = Date.now();
+    const cutoff = new Date(now - windowDays * 24 * 60 * 60 * 1000);
+    const fleetSize = machines.length || 1;
+
+    // Pool all downtime events across the fleet within the full window
+    const allEvents: DowntimeEvent[] = [];
+    for (const m of machines) {
+        const interventions = interventionsByMachineId[m.id] ?? [];
+        for (const i of interventions) {
+            if (!i.date_debut || !i.date_fin) continue;
+            const start = new Date(i.date_debut);
+            if (start < cutoff) continue;
+            const end = new Date(i.date_fin);
+            const durationMinutes = Math.max(0, (end.getTime() - start.getTime()) / 60000);
+            if (durationMinutes <= 0) continue;
+            allEvents.push({
+                id: i.id,
+                start,
+                end,
+                durationMinutes,
+                technicienId: i.technicien_id,
+                rapport: i.rapport,
+            });
+        }
+    }
+
+    // --- Weekly buckets over the most recent `buckets` x 7 days ---
+    const bucketDays = 7;
+    const bucketWindowMinutes = fleetSize * bucketDays * 24 * 60;
+
+    const availabilitySeries: TrendPoint[] = [];
+    const mttrSeries: TrendPoint[] = [];
+    const mtbfSeries: TrendPoint[] = [];
+    const downtimeSeries: TrendPoint[] = [];
+
+    for (let b = buckets - 1; b >= 0; b--) {
+        const bucketEnd = new Date(now - b * bucketDays * 24 * 60 * 60 * 1000);
+        const bucketStart = new Date(bucketEnd.getTime() - bucketDays * 24 * 60 * 60 * 1000);
+        const eventsInBucket = allEvents.filter((e) => e.start >= bucketStart && e.start < bucketEnd);
+        const downtimeMinutes = eventsInBucket.reduce((s, e) => s + e.durationMinutes, 0);
+        const failureCount = eventsInBucket.length;
+        const uptimePct = Math.max(0, Math.min(100, ((bucketWindowMinutes - downtimeMinutes) / bucketWindowMinutes) * 100));
+        const dateLabel = bucketStart.toISOString().slice(0, 10);
+
+        availabilitySeries.push({ date: dateLabel, value: Math.round(uptimePct * 10) / 10 });
+        downtimeSeries.push({ date: dateLabel, value: Math.round(downtimeMinutes) });
+        mttrSeries.push({
+            date: dateLabel,
+            value: failureCount > 0 ? Math.round(downtimeMinutes / failureCount) : null,
+        });
+        mtbfSeries.push({
+            date: dateLabel,
+            value: failureCount > 0
+                ? Math.round((bucketWindowMinutes / 60 - downtimeMinutes / 60) / failureCount)
+                : null,
+        });
+    }
+
+    // --- Current (0-90d) vs previous (91-180d) period aggregates ---
+    const periodMinutes = 90 * 24 * 60 * fleetSize;
+    const currentCutoff = new Date(now - 90 * 24 * 60 * 60 * 1000);
+    const previousCutoff = new Date(now - 180 * 24 * 60 * 60 * 1000);
+
+    const currentEvents = allEvents.filter((e) => e.start >= currentCutoff);
+    const previousEvents = allEvents.filter((e) => e.start >= previousCutoff && e.start < currentCutoff);
+
+    const aggregate = (events: DowntimeEvent[]) => {
+        const downtimeMinutes = events.reduce((s, e) => s + e.durationMinutes, 0);
+        const failureCount = events.length;
+        const uptimePct = Math.max(0, Math.min(100, ((periodMinutes - downtimeMinutes) / periodMinutes) * 100));
+        const mttrMinutes = failureCount > 0 ? downtimeMinutes / failureCount : null;
+        const mtbfHours = failureCount > 0 ? (periodMinutes / 60 - downtimeMinutes / 60) / failureCount : null;
+        return { downtimeMinutes, uptimePct, mttrMinutes, mtbfHours };
+    };
+
+    const current = aggregate(currentEvents);
+    const previous = aggregate(previousEvents);
+
+    return {
+        availability: {
+            series: availabilitySeries,
+            current: Math.round(current.uptimePct * 10) / 10,
+            previous: Math.round(previous.uptimePct * 10) / 10,
+            pctChange: pctChange(current.uptimePct, previous.uptimePct),
+            goodDirection: 'up',
+            target: 95,
+        },
+        mttr: {
+            series: mttrSeries,
+            current: current.mttrMinutes !== null ? Math.round(current.mttrMinutes) : 0,
+            previous: previous.mttrMinutes !== null ? Math.round(previous.mttrMinutes) : null,
+            pctChange: pctChange(current.mttrMinutes ?? 0, previous.mttrMinutes),
+            goodDirection: 'down',
+            target: 1440,
+        },
+        mtbf: {
+            series: mtbfSeries,
+            current: current.mtbfHours !== null ? Math.round(current.mtbfHours) : 0,
+            previous: previous.mtbfHours !== null ? Math.round(previous.mtbfHours) : null,
+            pctChange: pctChange(current.mtbfHours ?? 0, previous.mtbfHours),
+            goodDirection: 'up',
+            target: 720,
+        },
+        downtime: {
+            series: downtimeSeries,
+            current: Math.round(current.downtimeMinutes),
+            previous: Math.round(previous.downtimeMinutes),
+            pctChange: pctChange(current.downtimeMinutes, previous.downtimeMinutes),
+            goodDirection: 'down',
+            target: null,
+        },
+    };
+}
