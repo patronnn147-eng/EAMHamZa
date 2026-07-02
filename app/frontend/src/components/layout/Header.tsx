@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Bell, LogOut, User, Menu, PanelLeftClose } from 'lucide-react';
+import { Bell, LogOut, User, Menu, PanelLeftClose, Sun, Moon } from 'lucide-react';
 import { useSidebar } from '@/hooks/useSidebar';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface UserData {
   id: string;
@@ -34,6 +35,7 @@ export default function Header() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const { collapsed, toggle } = useSidebar();
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -165,7 +167,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-b border-blue-800 sticky top-0 z-50 backdrop-blur-md">
+    <header className="bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-900 dark:to-slate-900 border-b border-slate-200 dark:border-blue-800 sticky top-0 z-50 backdrop-blur-md">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
@@ -175,7 +177,7 @@ export default function Header() {
               onClick={toggle}
               aria-label={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
               title={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
-              className="text-blue-100 hover:text-white hover:bg-blue-800/40"
+              className="text-slate-600 dark:text-blue-100 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-blue-800/40"
             >
               {collapsed ? <Menu className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </Button>
@@ -184,12 +186,12 @@ export default function Header() {
               alt="Logo"
               className="h-8 w-8"
             />
-            <h1 className="text-xl font-bold text-white">Asset Management</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Asset Management</h1>
           </div>
 
           <div className="flex items-center space-x-4">
             {userRole && (
-              <span className="text-sm text-blue-100 bg-blue-600/30 border border-blue-500/30 px-3 py-1 rounded-full">
+              <span className="text-sm text-slate-700 dark:text-blue-100 bg-blue-100 dark:bg-blue-600/30 border border-blue-200 dark:border-blue-500/30 px-3 py-1 rounded-full">
                 {userRole}
               </span>
             )}
@@ -205,7 +207,7 @@ export default function Header() {
                   )}
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-blue-800 w-80">
+              <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-blue-800 w-80">
                 <div className="flex items-center justify-between px-4 py-2 border-b">
                   <h3 className="font-semibold">Notifications</h3>
                   {unreadCount > 0 && (
@@ -221,7 +223,7 @@ export default function Header() {
                     notifications.map((notif) => (
                       <DropdownMenuItem
                         key={notif.id}
-                        className={`flex flex-col items-start p-4 cursor-pointer ${!notif.lu ? 'bg-blue-900/30' : ''}`}
+                        className={`flex flex-col items-start p-4 cursor-pointer ${!notif.lu ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                         onClick={() => !notif.lu && markAsRead(notif.id)}
                       >
                         <div className="flex items-start justify-between w-full">
@@ -246,17 +248,27 @@ export default function Header() {
                   </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="bg-slate-900 border-blue-800 w-56">
+              <DropdownMenuContent align="end" className="bg-white dark:bg-slate-900 border-slate-200 dark:border-blue-800 w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">My Account</p>
                     {user?.email && (
-                      <p className="text-xs text-blue-300">{user.email}</p>
+                      <p className="text-xs text-blue-600 dark:text-blue-300">{user.email}</p>
                     )}
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuItem
+                  onClick={toggleTheme}
+                  className="text-slate-700 dark:text-blue-100 focus:bg-slate-100 dark:focus:bg-blue-800/40 cursor-pointer"
+                >
+                  {theme === 'dark' ? (
+                    <><Sun className="mr-2 h-4 w-4" /><span>Mode Clair</span></>
+                  ) : (
+                    <><Moon className="mr-2 h-4 w-4" /><span>Mode Sombre</span></>
+                  )}
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleLogout} className="text-blue-100 focus:bg-blue-800/40">
+                <DropdownMenuItem onClick={handleLogout} className="text-slate-700 dark:text-blue-100 focus:bg-slate-100 dark:focus:bg-blue-800/40">
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>
                 </DropdownMenuItem>
