@@ -17,7 +17,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
+    --background: 210 40% 97%;
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -26,8 +26,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 226 70% 40%;
+    --primary-foreground: 0 0% 100%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -41,13 +41,13 @@
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 0 0% 100%;
 
     --sidebar-foreground: 240 5.3% 26.1%;
 
@@ -173,6 +173,36 @@
     animation: gradient-shift 6s ease-in-out infinite;
     pointer-events: none;
   }
+}
+
+/* ==========================================================================
+   Light-mode overrides for hardcoded dark Tailwind classes
+   Covers components that use bg-slate-9xx, bg-blue-9xx, bg-slate-10xx
+   directly without dark: prefix. The 6 layout files are fixed with dark:
+   prefixes in their JSX; this block handles the remaining long tail.
+   ========================================================================== */
+:root:not(.dark) .glass-panel {
+  background-color: white !important;
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+:root:not(.dark) [class*="bg-slate-9"],
+:root:not(.dark) [class*="bg-slate-10"],
+:root:not(.dark) [class*="bg-blue-95"],
+:root:not(.dark) [class*="bg-blue-9"] {
+  background-color: white !important;
+  border-color: #e2e8f0 !important;
+}
+
+:root:not(.dark) [class*="text-blue-1"],
+:root:not(.dark) [class*="text-blue-2"],
+:root:not(.dark) [class*="text-blue-3"] {
+  color: #1e293b !important;
+}
+
+:root:not(.dark) [class*="border-blue-8"] {
+  border-color: #e2e8f0 !important;
 }
 
 /* ==========================================================================
