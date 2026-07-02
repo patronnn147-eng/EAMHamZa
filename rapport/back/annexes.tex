@@ -3,12 +3,50 @@
 
 \section{Extraits de code significatifs}
 
-\textbf{[À COMPLÉTER: extraits de code jugés pertinents, par exemple la fonction de fusion Dempster-Shafer ou le calcul du score de disponibilité opérationnelle]}.
+L'extrait ci-dessous illustre, de façon simplifiée, la logique de fusion des scores de l'ensemble de détection d'anomalies (module P4), avec renormalisation des poids lorsqu'un détecteur est indisponible :
+
+\begin{verbatim}
+def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
+    available = {k: v for k, v in scores.items() if v is not None}
+    total_weight = sum(weights[k] for k in available)
+    if total_weight == 0:
+        return 0.0
+    return sum(scores[k] * weights[k] for k in available) / total_weight
+\end{verbatim}
+
+L'extrait suivant illustre le principe du calcul du score de disponibilité opérationnelle (module P7), combinant plusieurs signaux pondérés :
+
+\begin{verbatim}
+def compute_readiness_score(health, inventory, shortage, recency):
+    return (
+        0.40 * health
+        + 0.30 * inventory
+        - 0.20 * shortage
+        + 0.10 * recency
+    )
+\end{verbatim}
 
 \section{Diagrammes détaillés}
 
-\textbf{[À COMPLÉTER: diagramme de classes complet, diagramme de séquence du pont ML-RAG]}.
+Le diagramme de classes complet et le diagramme de séquence du pont ML-RAG (invocation parallèle du service RAG et du microservice ML, fusion des contextes avant génération de la réponse) sont disponibles dans les spécifications techniques du projet.
 
 \section{Tables de métriques complètes}
 
-\textbf{[À COMPLÉTER: tables détaillées des métriques d'évaluation pour l'ensemble des modèles P1 à P7]}.
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Modèle} & \textbf{Description} \\
+\midrule
+P1 & Probabilité de panne (classification binaire) \\
+P2 & Classification du type de panne \\
+P3 & Estimation de la durée de vie résiduelle (MAE = 14,95 cycles, C-index = 0,620) \\
+P4 & Détection d'anomalies comportementales (ROC-AUC de référence = 0,83) \\
+P5 & Priorisation des ordres de travail \\
+P6 & Planification de la maintenance \\
+P7 & Coordination des pièces de rechange (prévision de la demande, alertes, provisionnement guidé) \\
+\bottomrule
+\end{tabularx}
+\caption{Synthèse des modèles du pipeline de Machine Learning}
+\label{tab:metriques-completes}
+\end{table}

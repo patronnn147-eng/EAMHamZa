@@ -14,7 +14,19 @@ L'ensemble est orchestré par Docker, avec un stockage objet (MinIO) pour les do
 
 \begin{figure}[h]
 \centering
-\textbf{[À COMPLÉTER: schéma d'architecture générale]}
+\begin{tikzpicture}[node distance=1.3cm, box/.style={draw, rectangle, minimum width=3.2cm, minimum height=1cm, align=center}]
+\node[box] (front) {Frontend\\Next.js};
+\node[box, below=of front] (back) {Backend\\FastAPI};
+\node[box, below left=1cm and 0.5cm of back] (ml) {Microservice ML\\Flask};
+\node[box, below right=1cm and 0.5cm of back] (rag) {Service RAG};
+\node[box, below=2.6cm of back] (db) {PostgreSQL / MinIO};
+\draw[->] (front) -- (back);
+\draw[->] (back) -- (ml);
+\draw[->] (back) -- (rag);
+\draw[->] (ml) -- (db);
+\draw[->] (rag) -- (db);
+\draw[->] (back) -- (db);
+\end{tikzpicture}
 \caption{Architecture générale de la plateforme}
 \label{fig:architecture}
 \end{figure}
@@ -33,7 +45,19 @@ Une entité \textbf{Alerte} relie ces objets aux prédictions du microservice ML
 
 \begin{figure}[h]
 \centering
-\textbf{[À COMPLÉTER: diagramme de classes du modèle de données]}
+\begin{tikzpicture}[node distance=1.5cm, box/.style={draw, rectangle, minimum width=3cm, minimum height=1cm, align=center}]
+\node[box] (user) {Utilisateur};
+\node[box, right=2.5cm of user] (machine) {Machine};
+\node[box, below=of user] (ot) {OrdreTravail};
+\node[box, below=of machine] (oi) {OrdreIntervention};
+\node[box, below right=1.2cm and -0.5cm of ot] (alerte) {Alerte};
+\draw (user) -- (ot);
+\draw (machine) -- (ot);
+\draw (ot) -- (oi);
+\draw (machine) -- (oi);
+\draw (oi) -- (alerte);
+\draw (machine) -- (alerte);
+\end{tikzpicture}
 \caption{Modèle de données simplifié}
 \label{fig:modele-donnees}
 \end{figure}

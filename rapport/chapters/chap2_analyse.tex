@@ -54,9 +54,17 @@ Le système doit permettre à un technicien de poser une question en langage nat
 
 \section{Diagramme de cas d'utilisation}
 
-\begin{figure}[h]
+\begin{table}[h]
 \centering
-\textbf{[À COMPLÉTER: diagramme de cas d'utilisation par acteur]}
-\caption{Diagramme de cas d'utilisation général}
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Acteur} & \textbf{Cas d'utilisation principaux} \\
+\midrule
+Administrateur & Gérer les utilisateurs, gérer les machines, gérer la base documentaire, consulter les statistiques globales \\
+Chef Technicien & Planifier les interventions, superviser les ordres de travail, arbitrer les priorités, consulter les tableaux de bord de fiabilité, valider les propositions de provisionnement \\
+Technicien & Consulter les ordres d'intervention assignés, clôturer une intervention, consulter l'état de santé d'une machine, interroger l'assistant conversationnel \\
+\bottomrule
+\end{tabularx}
+\caption{Cas d'utilisation par acteur}
 \label{fig:cas-utilisation}
-\end{figure}
+\end{table}
