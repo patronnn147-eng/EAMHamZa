@@ -12,8 +12,8 @@ export default function Layout({ children }: LayoutProps) {
   const { collapsed } = useSidebar();
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-blue-950 to-slate-950">
-      <div className="fixed inset-0 mesh-gradient opacity-30 -z-10" />
+    <div className="min-h-screen bg-background dark:bg-gradient-to-b dark:from-slate-950 dark:via-blue-950 dark:to-slate-950">
+      <div className="fixed inset-0 mesh-gradient opacity-30 -z-10 hidden dark:block" />
       <Header />
       <Sidebar />
       <div
