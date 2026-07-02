@@ -197,10 +197,10 @@ export default function Sidebar() {
       )}
       aria-hidden={collapsed}
     >
-      <div className="flex-1 flex flex-col min-h-0 bg-gradient-to-b from-slate-900/95 to-blue-950/95 m-3 rounded-2xl shadow-2xl border border-blue-800/30 overflow-hidden transition-all duration-500 backdrop-blur-md">
+      <div className="flex-1 flex flex-col min-h-0 bg-white dark:bg-gradient-to-b dark:from-slate-900/95 dark:to-blue-950/95 m-3 rounded-2xl shadow-2xl border border-slate-200 dark:border-blue-800/30 overflow-hidden transition-all duration-500 backdrop-blur-md">
         <div className="flex-1 flex flex-col pt-6 pb-4 overflow-y-auto font-sans">
           <div className="px-6 mb-6 flex items-center justify-between">
-            <h2 className="text-[10px] font-bold text-blue-400/60 uppercase tracking-[0.2em] opacity-80">
+            <h2 className="text-[10px] font-bold text-slate-400 dark:text-blue-400/60 uppercase tracking-[0.2em] opacity-80">
               Navigation Principal
             </h2>
             <button
@@ -208,7 +208,7 @@ export default function Sidebar() {
               onClick={toggle}
               aria-label="Masquer la barre latérale"
               title="Masquer la barre latérale"
-              className="p-1 rounded-md text-blue-300/70 hover:text-blue-100 hover:bg-blue-800/40 transition-colors"
+              className="p-1 rounded-md text-slate-400 dark:text-blue-300/70 hover:text-slate-700 dark:hover:text-blue-100 hover:bg-slate-100 dark:hover:bg-blue-800/40 transition-colors"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -224,8 +224,8 @@ export default function Sidebar() {
                   className={cn(
                     'group flex items-center px-4 py-3 text-[13px] font-semibold rounded-xl transition-all duration-300 relative overflow-hidden',
                     isActive
-                      ? 'bg-blue-600/40 text-blue-50 border-l-2 border-blue-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
-                      : 'text-blue-200/70 hover:bg-blue-800/30 hover:text-blue-50'
+                      ? 'bg-blue-100 dark:bg-blue-600/40 text-blue-700 dark:text-blue-50 border-l-2 border-blue-500 dark:border-blue-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
+                      : 'text-slate-600 dark:text-blue-200/70 hover:bg-slate-100 dark:hover:bg-blue-800/30 hover:text-slate-900 dark:hover:text-blue-50'
                   )}
                 >
                   {isActive && (
@@ -233,7 +233,9 @@ export default function Sidebar() {
                   )}
                   <item.icon
                     className={cn(
-                      isActive ? 'text-white scale-110' : 'text-blue-400/70 group-hover:text-blue-200',
+                      isActive
+                        ? 'text-blue-600 dark:text-white scale-110'
+                        : 'text-slate-400 dark:text-blue-400/70 group-hover:text-slate-700 dark:group-hover:text-blue-200',
                       'mr-3 flex-shrink-0 h-5 w-5 transition-all duration-300 group-hover:rotate-3'
                     )}
                     aria-hidden="true"
