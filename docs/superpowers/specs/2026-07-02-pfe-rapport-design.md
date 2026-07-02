@@ -92,4 +92,4 @@ Extraits de code significatifs, diagrammes détaillés, tables de métriques com
 
 - Les sections marquées « placeholder » (nom du service, encadrants, dates précises) seront à compléter par l'étudiant avant finalisation.
 - Le contenu technique s'appuie sur le changelog du projet (`CLAUDE.md`) et le graphe de connaissances généré (`graphify-out/`), qui confirment les entités centrales du modèle de données (Utilisateurs, Machines, Ordres_intervention, Ordres_travail comme nœuds les plus connectés).
-- Livrable final : document Word ou PDF respectant strictement la mise en forme ESPRIT ci-dessus.
+- Livrable final : document LaTeX (pdflatex, MiKTeX) compilé en PDF respectant strictement la mise en forme ESPRIT ci-dessus. Packages attendus : `inputenc`+`T1`+`lmodern`+`babel`(french)+`geometry`(marges 2,5cm)+`setspace`(interligne 1.15)+`titlesec`(titres numérotés)+`caption`(légendes figures/tableaux)+`fancyhdr`+`hyperref`. Ne pas utiliser xelatex/lualatex/fontspec (indisponibles sur ce système).
