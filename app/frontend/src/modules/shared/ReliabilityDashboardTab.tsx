@@ -17,33 +17,13 @@ import {
 import type { Machine, Intervention } from '@/lib/types';
 import {
     computeFleetReliability,
+    computeFleetKpiTrends,
     formatDuration,
     formatHours,
     type FleetReliabilitySummary,
+    type FleetKpiTrends,
 } from './machines/utils/reliabilityMetrics';
-
-function StatCard({
-    label, value, sublabel, icon: Icon, color = 'text-blue-50',
-}: {
-    label: string;
-    value: string;
-    sublabel?: string;
-    icon: React.ElementType;
-    color?: string;
-}) {
-    return (
-        <Card>
-            <CardContent className="pt-5 pb-4">
-                <div className="flex items-start justify-between mb-2">
-                    <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider">{label}</p>
-                    <Icon className="h-4 w-4 text-blue-400" />
-                </div>
-                <p className={`text-2xl font-black ${color}`}>{value}</p>
-                {sublabel && <p className="text-xs text-blue-400 mt-0.5">{sublabel}</p>}
-            </CardContent>
-        </Card>
-    );
-}
+import { KpiTrendCard } from './machines/components/KpiTrendCard';
 
 function SimpleBar({ pct, colorClass }: { pct: number; colorClass: string }) {
     return (
@@ -75,7 +55,7 @@ export const ReliabilityDashboardTab: React.FC = () => {
                 setLoading(true);
                 const [machinesRes, intRes] = await Promise.all([
                     client.entities.machines.queryAll({ query: {}, limit: 200 }),
-                    client.entities.ordres_intervention.queryAll({ query: {}, sort: '-date_intervention', limit: 500 }),
+                    client.entities.ordres_intervention.queryAll({ query: {}, sort: '-date_intervention', limit: 800 }),
                 ]);
                 setMachines(machinesRes.data.items || []);
                 setInterventions(intRes.data.items || []);
@@ -88,17 +68,26 @@ export const ReliabilityDashboardTab: React.FC = () => {
         load();
     }, []);
 
-    const summary: FleetReliabilitySummary = useMemo(() => {
-        // Group interventions by machine_id
-        const byMachine: Record<number, Intervention[]> = {};
+    const byMachine: Record<number, Intervention[]> = useMemo(() => {
+        const grouped: Record<number, Intervention[]> = {};
         for (const i of interventions) {
             if (i.machine_id) {
-                if (!byMachine[i.machine_id]) byMachine[i.machine_id] = [];
-                byMachine[i.machine_id].push(i);
+                if (!grouped[i.machine_id]) grouped[i.machine_id] = [];
+                grouped[i.machine_id].push(i);
             }
         }
-        return computeFleetReliability(machines, byMachine, 90);
-    }, [machines, interventions]);
+        return grouped;
+    }, [interventions]);
+
+    const summary: FleetReliabilitySummary = useMemo(
+        () => computeFleetReliability(machines, byMachine, 90),
+        [machines, byMachine]
+    );
+
+    const kpiTrends: FleetKpiTrends = useMemo(
+        () => computeFleetKpiTrends(machines, byMachine, 180, 13),
+        [machines, byMachine]
+    );
 
     if (loading) {
         return (
@@ -119,33 +108,42 @@ export const ReliabilityDashboardTab: React.FC = () => {
         <div className="space-y-6">
             {/* Fleet KPI row */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard
+                <KpiTrendCard
+                    index={0}
                     label="Disponibilité moyenne"
-                    value={`${avgUptimePct.toFixed(1)}%`}
-                    sublabel="Flotte complète · 90j"
                     icon={Activity}
-                    color={avgUptimePct >= 95 ? 'text-emerald-600' : avgUptimePct >= 85 ? 'text-blue-600' : 'text-red-600'}
+                    valueFormatted={`${avgUptimePct.toFixed(1)}%`}
+                    valueColorClass={avgUptimePct >= 95 ? 'text-emerald-600' : avgUptimePct >= 85 ? 'text-blue-600' : 'text-red-600'}
+                    trend={kpiTrends.availability}
+                    targetLabel="Cible 95%"
+                    captionSuffix="Flotte complète · 90j"
                 />
-                <StatCard
+                <KpiTrendCard
+                    index={1}
                     label="MTTR moyen"
-                    value={avgMttr !== null ? formatDuration(avgMttr) : 'N/A'}
-                    sublabel="Temps moyen de réparation"
                     icon={Zap}
-                    color="text-blue-50"
+                    valueFormatted={avgMttr !== null ? formatDuration(avgMttr) : 'N/A'}
+                    trend={kpiTrends.mttr}
+                    targetLabel="Cible 24h"
+                    captionSuffix="Temps moyen de réparation"
                 />
-                <StatCard
+                <KpiTrendCard
+                    index={2}
                     label="MTBF moyen"
-                    value={avgMtbf !== null ? formatHours(avgMtbf) : 'N/A'}
-                    sublabel="Temps entre pannes"
                     icon={Clock}
-                    color="text-blue-50"
+                    valueFormatted={avgMtbf !== null ? formatHours(avgMtbf) : 'N/A'}
+                    trend={kpiTrends.mtbf}
+                    targetLabel="Cible 30j"
+                    captionSuffix="Temps entre pannes"
                 />
-                <StatCard
+                <KpiTrendCard
+                    index={3}
                     label="Arrêt total cumulé"
-                    value={formatDuration(totalDowntimeMinutes)}
-                    sublabel="Toutes machines · 90j"
                     icon={TrendingDown}
-                    color={totalDowntimeMinutes > 0 ? 'text-red-600' : 'text-emerald-600'}
+                    valueFormatted={formatDuration(totalDowntimeMinutes)}
+                    valueColorClass={totalDowntimeMinutes > 0 ? 'text-red-600' : 'text-emerald-600'}
+                    trend={kpiTrends.downtime}
+                    captionSuffix="Toutes machines · 90j"
                 />
             </div>
 
