@@ -12,12 +12,61 @@ import {
 } from 'lucide-react';
 import type { DashboardMetrics, Machine, OrdreTravail } from '@/lib/types';
 import { Link } from 'react-router-dom';
-import { BriefingBar } from './dashboard/BriefingBar';
 import { NextBestActions } from './dashboard/NextBestActions';
 import { DashboardSkeleton } from './dashboard/DashboardSkeleton';
 import { DeltaBadge } from './dashboard/DeltaBadge';
 import { DashboardFilters } from './dashboard/DashboardFilters';
 import { loadFilters, saveFilters, DashboardFilterState } from './dashboard/dashboardFilters';
+import { DashboardPieChartCard } from './dashboard/DashboardPieChartCard';
+import { groupByField } from './dashboard/groupByField';
+
+const MACHINE_STATUS_LABELS: Record<string, string> = {
+  OPERATIONNELLE: 'Operational',
+  EN_COURS: 'In Progress',
+  EN_MAINTENANCE: 'In Maintenance',
+  en_maintenance: 'In Maintenance',
+  HORS_SERVICE: 'Out of Service',
+  hors_service: 'Out of Service',
+  CRITIQUE: 'Critical',
+  PANNE: 'Failure',
+};
+
+const MACHINE_STATUS_COLORS: Record<string, string> = {
+  Operational: '#10b981',
+  'In Progress': '#3b82f6',
+  'In Maintenance': '#f59e0b',
+  'Out of Service': '#ef4444',
+  Critical: '#ef4444',
+  Failure: '#ef4444',
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  BASSE: 'Low',
+  MOYENNE: 'Medium',
+  ELEVEE: 'High',
+  URGENTE: 'Urgent',
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  Low: '#10b981',
+  Medium: '#3b82f6',
+  High: '#f59e0b',
+  Urgent: '#ef4444',
+};
+
+const WO_STATUS_LABELS: Record<string, string> = {
+  EN_ATTENTE: 'Pending',
+  EN_COURS: 'In Progress',
+  TERMINE: 'Completed',
+  ANNULE: 'Cancelled',
+};
+
+const WO_STATUS_COLORS: Record<string, string> = {
+  Pending: '#f59e0b',
+  'In Progress': '#3b82f6',
+  Completed: '#10b981',
+  Cancelled: '#ef4444',
+};
 
 export default function Dashboard() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -30,6 +79,8 @@ export default function Dashboard() {
   });
   const [recentWorkOrders, setRecentWorkOrders] = useState<OrdreTravail[]>([]);
   const [upcomingMaintenance, setUpcomingMaintenance] = useState<Machine[]>([]);
+  const [allMachines, setAllMachines] = useState<Machine[]>([]);
+  const [allWorkOrders, setAllWorkOrders] = useState<OrdreTravail[]>([]);
   const [loading, setLoading] = useState(true);
 
   const currentUser = (() => {
@@ -91,6 +142,8 @@ export default function Dashboard() {
 
       setRecentWorkOrders(workOrders.slice(0, 5));
       setUpcomingMaintenance(upcomingMaintenanceMachines.slice(0, 5));
+      setAllMachines(machines);
+      setAllWorkOrders(workOrders);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -134,7 +187,6 @@ export default function Dashboard() {
       </div>
 
       <DashboardFilters value={filters} onChange={updateFilters} />
-      <BriefingBar site={filters.site} />
       <NextBestActions
         role={currentUser.role || 'ADMIN'}
         userId={Number(currentUser.id) || undefined}
@@ -229,6 +281,34 @@ export default function Dashboard() {
             </p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Distribution Pie Charts */}
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+        <DashboardPieChartCard
+          title="Machines by Status"
+          index={0}
+          data={groupByField(allMachines, (m) => m.statut, MACHINE_STATUS_LABELS).map((d) => ({
+            ...d,
+            color: MACHINE_STATUS_COLORS[d.name],
+          }))}
+        />
+        <DashboardPieChartCard
+          title="Work Orders by Priority"
+          index={1}
+          data={groupByField(allWorkOrders, (wo) => wo.priorite, PRIORITY_LABELS).map((d) => ({
+            ...d,
+            color: PRIORITY_COLORS[d.name],
+          }))}
+        />
+        <DashboardPieChartCard
+          title="Work Orders by Status"
+          index={2}
+          data={groupByField(allWorkOrders, (wo) => wo.statut, WO_STATUS_LABELS).map((d) => ({
+            ...d,
+            color: WO_STATUS_COLORS[d.name],
+          }))}
+        />
       </div>
 
       {/* Recent Work Orders */}

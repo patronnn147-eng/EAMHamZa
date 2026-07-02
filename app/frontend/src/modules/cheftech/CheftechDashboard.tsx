@@ -16,10 +16,62 @@ import {
 } from './dashboard/components';
 import { useCheftechDashboardData } from './dashboard/hooks';
 import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTab';
-import { BriefingBar } from '@/modules/shared/dashboard/BriefingBar';
-import { NextBestActions } from '@/modules/shared/dashboard/NextBestActions';
 import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
-import { ForecastSummaryTile } from '@/modules/shared/dashboard/ForecastSummaryTile';
+import { DashboardPieChartCard } from '@/modules/shared/dashboard/DashboardPieChartCard';
+import { groupByField } from '@/modules/shared/dashboard/groupByField';
+
+const INTERVENTION_STATUS_LABELS: Record<string, string> = {
+  EN_ATTENTE: 'Pending',
+  PENDING: 'Pending',
+  PENDING_APPROVAL: 'Pending Approval',
+  ACCEPTED: 'Accepted',
+  APPROVED: 'Approved',
+  EN_COURS: 'In Progress',
+  BLOQUÉ: 'Blocked',
+  TERMINÉ: 'Completed',
+  VALIDATED: 'Validated',
+  DECLINED: 'Declined',
+  REJECTED: 'Rejected',
+  CONVERTED_TO_WORKORDER: 'Converted to Work Order',
+};
+
+const INTERVENTION_STATUS_COLORS: Record<string, string> = {
+  Pending: '#f59e0b',
+  'Pending Approval': '#f59e0b',
+  Accepted: '#3b82f6',
+  Approved: '#3b82f6',
+  'In Progress': '#3b82f6',
+  Blocked: '#ef4444',
+  Completed: '#10b981',
+  Validated: '#10b981',
+  Declined: '#ef4444',
+  Rejected: '#ef4444',
+  'Converted to Work Order': '#10b981',
+};
+
+const INTERVENTION_TYPE_LABELS: Record<string, string> = {
+  Preventive: 'Preventive',
+  Corrective: 'Corrective',
+  Predictive: 'Predictive',
+};
+
+const INTERVENTION_TYPE_COLORS: Record<string, string> = {
+  Preventive: '#10b981',
+  Corrective: '#ef4444',
+  Predictive: '#3b82f6',
+  'Non spécifié': '#94a3b8',
+};
+
+const MACHINE_CATEGORY_LABELS: Record<string, string> = {
+  critical: 'Critical',
+  'non-critical': 'Non-Critical',
+};
+
+const MACHINE_CATEGORY_COLORS: Record<string, string> = {
+  Critical: '#ef4444',
+  'Non-Critical': '#10b981',
+  'Non spécifié': '#94a3b8',
+};
 
 interface CheftechDashboardProps {
   role?: string;
@@ -104,23 +156,39 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
           </div>
         </div>
 
-        {stats && <DashboardStatsCards stats={stats} machines={machines} />}
-
-        <div className="my-6">
-          <BriefingBar />
-          <NextBestActions
-            role={userRole}
-            workOrders={(workOrders || []).map((wo: any) => ({
-              id: wo.id, priorite: wo.priorite, statut: wo.statut,
-              technicien_id: wo.utilisateur_id, machine_id: wo.machine_id,
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+          <DashboardPieChartCard
+            title="Interventions by Status"
+            index={0}
+            data={groupByField(interventions, (i) => i.statut, INTERVENTION_STATUS_LABELS).map((d) => ({
+              ...d,
+              color: INTERVENTION_STATUS_COLORS[d.name],
             }))}
-            overduePMs={(machines || [])
-              .filter((m: any) => m.date_prochaine_maintenance && new Date(m.date_prochaine_maintenance) < new Date())
-              .map((m: any) => ({ machine_id: m.id, nom: m.nom }))}
-            alerts={[]}
           />
-          <ForecastSummaryTile />
+          <DashboardPieChartCard
+            title="Preventive vs Corrective"
+            index={1}
+            data={groupByField(interventions, (i) => i.intervention_type, INTERVENTION_TYPE_LABELS, 'Non spécifié').map((d) => ({
+              ...d,
+              color: INTERVENTION_TYPE_COLORS[d.name],
+            }))}
+          />
+          <DashboardPieChartCard
+            title="Root Cause Categories"
+            index={2}
+            data={groupByField(interventions, (i) => i.root_cause_category, {}, 'Non spécifié')}
+          />
+          <DashboardPieChartCard
+            title="Critical vs Non-Critical Load"
+            index={3}
+            data={groupByField(interventions, (i) => i.machine_category, MACHINE_CATEGORY_LABELS, 'Non spécifié').map((d) => ({
+              ...d,
+              color: MACHINE_CATEGORY_COLORS[d.name],
+            }))}
+          />
         </div>
+
+        {stats && <DashboardStatsCards stats={stats} machines={machines} />}
 
         <Tabs defaultValue="interventions" className="space-y-6">
           <TabsList>
