@@ -114,6 +114,18 @@ class DashboardStats(BaseModel):
     machines_critiques: int
 
 
+class DistributionSlice(BaseModel):
+    name: str
+    value: int
+
+
+class InterventionDistributions(BaseModel):
+    by_status: List[DistributionSlice]
+    by_type: List[DistributionSlice]
+    by_root_cause: List[DistributionSlice]
+    by_machine_category: List[DistributionSlice]
+
+
 class WorkOrderAssignRequest(BaseModel):
     technicien_ids: List[int]
     estimated_completion_date: Optional[datetime] = None

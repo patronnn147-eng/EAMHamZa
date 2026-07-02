@@ -10,8 +10,21 @@ import type {
 
 const getAuthToken = () => localStorage.getItem('access_token');
 
+export interface DistributionSlice {
+  name: string;
+  value: number;
+}
+
+export interface InterventionDistributions {
+  by_status: DistributionSlice[];
+  by_type: DistributionSlice[];
+  by_root_cause: DistributionSlice[];
+  by_machine_category: DistributionSlice[];
+}
+
 export const useCheftechDashboardData = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [distributions, setDistributions] = useState<InterventionDistributions | null>(null);
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -57,6 +70,32 @@ export const useCheftechDashboardData = () => {
       toast({
         title: 'Erreur',
         description: 'Impossible de charger les statistiques',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const fetchDistributions = async () => {
+    try {
+      const token = getAuthToken();
+      if (!token) return;
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_BASE_URL || ''}/api/v1/cheftech/dashboard/distributions`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      if (!response.ok) throw new Error('Erreur lors du chargement des répartitions');
+      const data = await response.json();
+      setDistributions(data);
+    } catch {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de charger les répartitions',
         variant: 'destructive',
       });
     }
@@ -466,6 +505,7 @@ export const useCheftechDashboardData = () => {
       setLoading(true);
       await Promise.all([
         fetchDashboardData(),
+        fetchDistributions(),
         fetchInterventions(),
         fetchWorkOrders(),
         fetchTechnicians(),
@@ -479,6 +519,7 @@ export const useCheftechDashboardData = () => {
 
   return {
     stats,
+    distributions,
     interventions,
     workOrders,
     technicians,

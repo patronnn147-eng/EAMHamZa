@@ -18,7 +18,7 @@ import { useCheftechDashboardData } from './dashboard/hooks';
 import { ReliabilityDashboardTab } from '@/modules/shared/ReliabilityDashboardTab';
 import { DashboardSkeleton } from '@/modules/shared/dashboard/DashboardSkeleton';
 import { DashboardPieChartCard } from '@/modules/shared/dashboard/DashboardPieChartCard';
-import { groupByField } from '@/modules/shared/dashboard/groupByField';
+import { relabelSlices } from '@/modules/shared/dashboard/groupByField';
 
 const INTERVENTION_STATUS_LABELS: Record<string, string> = {
   EN_ATTENTE: 'Pending',
@@ -82,6 +82,7 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
   const [userRole, setUserRole] = useState<string>(role || 'CHEFTECH');
   const {
     stats,
+    distributions,
     interventions,
     workOrders,
     technicians,
@@ -160,31 +161,22 @@ const CheftechDashboard: React.FC<CheftechDashboardProps> = ({ role }) => {
           <DashboardPieChartCard
             title="Interventions by Status"
             index={0}
-            data={groupByField(interventions, (i) => i.statut, INTERVENTION_STATUS_LABELS).map((d) => ({
-              ...d,
-              color: INTERVENTION_STATUS_COLORS[d.name],
-            }))}
+            data={relabelSlices(distributions?.by_status || [], INTERVENTION_STATUS_LABELS, INTERVENTION_STATUS_COLORS)}
           />
           <DashboardPieChartCard
             title="Preventive vs Corrective"
             index={1}
-            data={groupByField(interventions, (i) => i.intervention_type, INTERVENTION_TYPE_LABELS, 'Non spécifié').map((d) => ({
-              ...d,
-              color: INTERVENTION_TYPE_COLORS[d.name],
-            }))}
+            data={relabelSlices(distributions?.by_type || [], INTERVENTION_TYPE_LABELS, INTERVENTION_TYPE_COLORS)}
           />
           <DashboardPieChartCard
             title="Root Cause Categories"
             index={2}
-            data={groupByField(interventions, (i) => i.root_cause_category, {}, 'Non spécifié')}
+            data={relabelSlices(distributions?.by_root_cause || [], {}, {})}
           />
           <DashboardPieChartCard
             title="Critical vs Non-Critical Load"
             index={3}
-            data={groupByField(interventions, (i) => i.machine_category, MACHINE_CATEGORY_LABELS, 'Non spécifié').map((d) => ({
-              ...d,
-              color: MACHINE_CATEGORY_COLORS[d.name],
-            }))}
+            data={relabelSlices(distributions?.by_machine_category || [], MACHINE_CATEGORY_LABELS, MACHINE_CATEGORY_COLORS)}
           />
         </div>
 
