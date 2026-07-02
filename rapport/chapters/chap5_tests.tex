@@ -1,0 +1,34 @@
+\chapter{Tests et résultats}
+
+\section{Stratégie de test}
+
+La validation du système repose sur deux niveaux de tests : des tests unitaires vérifiant le comportement isolé de chaque service métier, et des tests d'intégration vérifiant le comportement de bout en bout des principaux parcours utilisateurs (création d'un ordre de travail, remontée d'une alerte, réponse de l'assistant conversationnel).
+
+\section{Évaluation des modèles de Machine Learning}
+
+Chaque modèle est évalué par rapport à une référence naïve (« baseline ») avant d'être mis en production :
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{lXX}
+\toprule
+\textbf{Modèle} & \textbf{Métrique} & \textbf{Résultat} \\
+\midrule
+P3 (durée de vie résiduelle) & Erreur absolue moyenne (MAE) & \textbf{[À COMPLÉTER: valeur mesurée]} \\
+P3 (durée de vie résiduelle) & Indice de concordance (C-index) & \textbf{[À COMPLÉTER: valeur mesurée]} \\
+P4 (détection d'anomalies) & Aire sous la courbe ROC & \textbf{[À COMPLÉTER: valeur mesurée]} \\
+\bottomrule
+\end{tabularx}
+\caption{Synthèse des métriques d'évaluation des modèles}
+\label{tab:metriques-ml}
+\end{table}
+
+Un modèle n'est promu en production que s'il dépasse significativement la référence naïve sur l'ensemble de ses critères d'évaluation.
+
+\section{Démonstration des cas d'usage}
+
+\textbf{[À COMPLÉTER: captures d'écran ou scénarios illustrant les principaux cas d'usage : création et suivi d'un ordre d'intervention, réception d'une alerte de rupture de stock, consultation de l'assistant conversationnel par un technicien]}.
+
+\section{Difficultés rencontrées durant la réalisation}
+
+\textbf{[À COMPLÉTER: bilan des difficultés rencontrées durant la phase de test, par exemple : représentativité des données d'entraînement, cohérence des jeux de test simulés, temps de calcul de certains modèles]}.

@@ -1,0 +1,70 @@
+\chapter{Conception}
+
+\section{Architecture générale}
+
+La plateforme est organisée en quatre composants principaux, communiquant par API HTTP :
+\begin{itemize}
+\item un \textbf{frontend} en Next.js, offrant trois espaces distincts selon le rôle (Administrateur, Chef Technicien, Technicien) ;
+\item un \textbf{backend} en FastAPI, responsable de la logique métier, de la persistance des données (PostgreSQL) et de la sécurité (authentification, contrôle d'accès) ;
+\item un \textbf{microservice de Machine Learning} en Flask, chargé de servir les modèles prédictifs (P1 à P7) ;
+\item un \textbf{service RAG}, chargé de l'ingestion documentaire et de la génération de réponses conversationnelles enrichies par le contexte ML en temps réel.
+\end{itemize}
+
+L'ensemble est orchestré par Docker, avec un stockage objet (MinIO) pour les documents et les fichiers joints.
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: schéma d'architecture générale]}
+\caption{Architecture générale de la plateforme}
+\label{fig:architecture}
+\end{figure}
+
+\section{Modèle de données}
+
+Le modèle de données s'articule autour de quatre entités centrales, identifiées comme les plus fortement connectées lors de l'analyse du domaine :
+\begin{itemize}
+\item \textbf{Utilisateur} : porte le rôle (Administrateur, ChefTech, Technicien) et les droits d'accès ;
+\item \textbf{Machine} : représente un équipement de production, avec ses caractéristiques et son historique ;
+\item \textbf{OrdreTravail} : demande de travail associée à une ou plusieurs machines ;
+\item \textbf{OrdreIntervention} : intervention concrète réalisée par un technicien sur une machine, rattachée à un ordre de travail.
+\end{itemize}
+
+Une entité \textbf{Alerte} relie ces objets aux prédictions du microservice ML.
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: diagramme de classes du modèle de données]}
+\caption{Modèle de données simplifié}
+\label{fig:modele-donnees}
+\end{figure}
+
+\section{Architecture du pipeline de Machine Learning}
+
+Le pipeline prédictif est structuré en modèles spécialisés :
+\begin{itemize}
+\item \textbf{P1} : probabilité de panne ;
+\item \textbf{P2} : classification du type de panne ;
+\item \textbf{P3} : estimation de la durée de vie résiduelle (RUL), par un modèle hybride combinant réseau récurrent et arbre de décision boosté ;
+\item \textbf{P4} : détection d'anomalies comportementales, par un ensemble de quatre méthodes combinées (forêt d'isolement, score-Z, déviation par grappe, auto-encodeur) ;
+\item \textbf{P5} : priorisation des ordres de travail ;
+\item \textbf{P6} : planification de la maintenance.
+\end{itemize}
+
+Une seconde vague de modèles (dite « Wave 2 ») combine plusieurs signaux avancés (détection de rupture CUSUM, filtre de Kalman, modèle de survie, indice de santé de Mahalanobis) par fusion selon la théorie de Dempster-Shafer, produisant un score de santé unifié et un verdict global.
+
+Un dernier module, \textbf{P7}, exploite les prédictions de panne pour anticiper la demande en pièces de rechange (par modélisation de survie combinée à une méthode de prévision de demande intermittente), et proposer un provisionnement guidé, jamais automatique.
+
+\section{Architecture du service RAG et du pont ML}
+
+Le service RAG ingère la documentation technique (manuels de maintenance, procédures de sécurité, fiches machines) et la découpe en fragments indexés pour la recherche sémantique. Lorsqu'un technicien pose une question relative à une machine précise, le backend interroge en parallèle le service RAG (documentation) et le microservice ML (état de santé en temps réel de la machine), puis fusionne les deux contextes avant de les transmettre au modèle de langage pour générer une réponse. Ce mécanisme garantit que l'assistant répond toujours, même si un des deux services est indisponible.
+
+\section{Choix technologiques}
+
+\begin{itemize}
+\item \textbf{Next.js} : rendu hybride, écosystème React mature, adapté à des interfaces riches par rôle ;
+\item \textbf{FastAPI} : performances élevées, validation de schémas native, documentation d'API générée automatiquement ;
+\item \textbf{Flask} : léger, adapté à un microservice de service de modèles ;
+\item \textbf{PostgreSQL} : robustesse transactionnelle, requêtes relationnelles adaptées au modèle de données ;
+\item \textbf{Docker} : isolation et reproductibilité des environnements de développement et de déploiement ;
+\item \textbf{MinIO} : stockage objet compatible S3, auto-hébergeable.
+\end{itemize}

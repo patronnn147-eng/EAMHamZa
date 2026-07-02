@@ -1,0 +1,62 @@
+\chapter{Analyse et spécification des besoins}
+
+\section{Identification des acteurs}
+
+La plateforme EAM distingue trois rôles principaux :
+\begin{itemize}
+\item \textbf{Administrateur} : gère les utilisateurs, les machines, les documents de la base documentaire, et dispose d'une vue d'ensemble de la plateforme ;
+\item \textbf{Chef Technicien (ChefTech)} : planifie les interventions, supervise les ordres de travail, arbitre les priorités et consulte les tableaux de bord de fiabilité ;
+\item \textbf{Technicien} : exécute les ordres d'intervention, consulte l'état de santé des machines qui lui sont assignées, et interagit avec l'assistant conversationnel pour obtenir de l'aide sur le terrain.
+\end{itemize}
+
+\section{Besoins fonctionnels}
+
+\subsection{Gestion des actifs}
+
+Le système doit permettre la gestion des utilisateurs, des machines et de leurs caractéristiques techniques, ainsi que le suivi de leur historique de maintenance.
+
+\subsection{Gestion des ordres de travail et d'intervention}
+
+Le système doit permettre la création, l'assignation, le suivi et la clôture des ordres de travail et des ordres d'intervention, avec un historique consultable.
+
+\subsection{Planification}
+
+Le système doit permettre la planification des interventions par le Chef Technicien, avec assignation des techniciens et des créneaux.
+
+\subsection{Alertes et remontées}
+
+Le système doit générer automatiquement des alertes lorsque les modèles prédictifs détectent un risque de panne, une anomalie de comportement, ou une rupture de stock de pièces de rechange prévisible.
+
+\subsection{Tableaux de bord}
+
+Chaque rôle dispose d'un tableau de bord adapté à ses besoins : vue globale pour l'administrateur, vue de pilotage pour le Chef Technicien, vue opérationnelle pour le Technicien.
+
+\subsection{Prédictions par apprentissage automatique}
+
+Le système doit exposer, pour chaque machine, une estimation de la probabilité de panne, du type de panne probable, de la durée de vie résiduelle, un score d'anomalie comportementale, une priorité de traitement et une proposition de planning de maintenance.
+
+\subsection{Coordination des pièces de rechange}
+
+Le système doit anticiper les besoins en pièces de rechange à partir des prédictions de panne, et proposer un provisionnement guidé (jamais automatique sans validation humaine).
+
+\subsection{Assistant conversationnel}
+
+Le système doit permettre à un technicien de poser une question en langage naturel et d'obtenir une réponse combinant la documentation de maintenance et l'état de santé en temps réel de la machine concernée.
+
+\section{Besoins non fonctionnels}
+
+\begin{itemize}
+\item \textbf{Sécurité} : authentification obligatoire, contrôle d'accès strict par rôle sur chaque fonctionnalité et chaque donnée ;
+\item \textbf{Performance} : temps de réponse compatible avec un usage interactif sur le terrain ;
+\item \textbf{Explicabilité} : toute prédiction ou alerte doit pouvoir être expliquée en langage clair, sans jargon technique, pour un utilisateur non spécialiste du Machine Learning ;
+\item \textbf{Disponibilité} : les fonctionnalités de gestion classique (ordres de travail, planification) doivent rester utilisables même si un composant de Machine Learning est indisponible.
+\end{itemize}
+
+\section{Diagramme de cas d'utilisation}
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: diagramme de cas d'utilisation par acteur]}
+\caption{Diagramme de cas d'utilisation général}
+\label{fig:cas-utilisation}
+\end{figure}

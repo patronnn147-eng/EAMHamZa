@@ -1,0 +1,47 @@
+\chapter{Contexte général du projet}
+
+\section{Présentation de l'entreprise d'accueil}
+
+SagemCom est \textbf{[À COMPLÉTER: description de l'entreprise, secteur d'activité, taille, implantations]}.
+
+\subsection{Présentation du service d'accueil}
+
+Le stage s'est déroulé au sein du service \textbf{[À COMPLÉTER: nom du service]}, dont la mission principale est \textbf{[À COMPLÉTER]}.
+
+\section{Contexte du projet}
+
+La gestion des actifs industriels (machines de production, lignes d'assemblage, bancs de test) repose traditionnellement sur des cycles de maintenance préventive planifiés à intervalles fixes, indépendamment de l'état réel des équipements. Cette approche conduit soit à des interventions inutiles sur des machines encore en bon état, soit à des pannes non anticipées sur des machines dégradées plus rapidement que prévu.
+
+L'essor des capteurs industriels et des techniques d'apprentissage automatique permet aujourd'hui d'envisager une maintenance prédictive : estimer la probabilité de panne, le type de défaillance probable, la durée de vie résiduelle (RUL \textemdash{} \emph{Remaining Useful Life}) et détecter les comportements anormaux d'une machine à partir de ses données de fonctionnement.
+
+\section{Problématique du stage}
+
+La problématique du stage est de concevoir une plateforme unique qui couvre à la fois :
+\begin{itemize}
+\item la gestion opérationnelle classique d'un système EAM (utilisateurs, machines, ordres de travail, ordres d'intervention, planification) ;
+\item des modules de maintenance prédictive par apprentissage automatique (probabilité de panne, classification du type de panne, estimation de la durée de vie résiduelle, détection d'anomalies, priorisation et planification des interventions, coordination des pièces de rechange) ;
+\item un accompagnement intelligent des équipes terrain : alertes contextualisées, explicabilité des prédictions (« pourquoi cette alerte ? »), et un assistant conversationnel capable de répondre aux questions des techniciens à partir de la documentation de maintenance et de l'état de santé en temps réel des machines.
+\end{itemize}
+
+\section{Objectifs du stage}
+
+Les objectifs assignés pour ce stage sont :
+\begin{itemize}
+\item concevoir et réaliser le backend et le frontend de la plateforme EAM ;
+\item concevoir et entraîner les modèles de maintenance prédictive (P1 à P7) ;
+\item intégrer un service de RAG (\emph{Retrieval-Augmented Generation}) pour l'assistance documentaire, relié aux prédictions ML en temps réel ;
+\item valider l'ensemble par des tests fonctionnels et une évaluation des performances des modèles.
+\end{itemize}
+
+\section{Méthodologie de travail}
+
+Le développement a suivi une démarche itérative : chaque fonctionnalité fait l'objet d'une spécification écrite (cahier des charges du besoin), puis d'un plan d'implémentation détaillé, avant d'être réalisée et vérifiée. Cette méthodologie a permis de garder une traçabilité complète des décisions de conception (choix techniques, alternatives envisagées, justifications) tout au long des six mois de stage.
+
+\section{Planning du stage}
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: diagramme de Gantt du planning sur 6 mois, en pleine page]}
+\caption{Planning du stage de projet de fin d'études}
+\label{fig:planning}
+\end{figure}

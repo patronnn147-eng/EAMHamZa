@@ -1,0 +1,44 @@
+\chapter{Réalisation}
+
+\section{Réalisation du backend}
+
+Le backend est organisé en modules par domaine métier (utilisateurs, machines, ordres de travail, ordres d'intervention, alertes, planification, Machine Learning). Chaque module expose ses routes API, ses schémas de validation et ses services métier séparément, ce qui facilite la maintenance et les évolutions ultérieures. Le contrôle d'accès par rôle est appliqué de façon centralisée sur chaque route.
+
+\section{Réalisation du frontend}
+
+Le frontend propose trois espaces applicatifs distincts, chacun adapté aux besoins du rôle correspondant : un espace Administrateur pour la gestion globale, un espace Chef Technicien pour le pilotage et la planification, et un espace Technicien pour l'exécution des interventions sur le terrain. Un système de design cohérent (palette de couleurs, composants réutilisables) garantit une expérience homogène entre les trois espaces.
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: capture d'écran du tableau de bord Administrateur]}
+\caption{Tableau de bord Administrateur}
+\label{fig:dashboard-admin}
+\end{figure}
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: capture d'écran du tableau de bord Chef Technicien]}
+\caption{Tableau de bord Chef Technicien}
+\label{fig:dashboard-cheftech}
+\end{figure}
+
+\section{Réalisation du pipeline de Machine Learning}
+
+Chaque modèle prédictif (P1 à P6) a été entraîné puis intégré au microservice de service de modèles, avec un chargement paresseux et mis en cache pour limiter les temps de réponse. Une couche d'explicabilité (« Pourquoi ? ») a été ajoutée transversalement : chaque prédiction, alerte ou recommandation peut être détaillée en langage clair, sans terminologie de Machine Learning, pour rester compréhensible par les techniciens de terrain.
+
+Le module P7 de coordination des pièces de rechange a été réalisé en six étapes progressives : moteur de prévision de la demande, routage des alertes de rupture de stock, adaptation de l'interface par rôle, préparation guidée des commandes (jamais automatique), calcul d'un score de disponibilité opérationnelle avec chronologie des événements, et boucle de retour comparant les prédictions aux pièces effectivement consommées.
+
+\begin{figure}[h]
+\centering
+\textbf{[À COMPLÉTER: capture d'écran du panneau d'explicabilité « Pourquoi ? »]}
+\caption{Panneau d'explicabilité d'une prédiction}
+\label{fig:explicabilite}
+\end{figure}
+
+\section{Réalisation du service RAG et du pont conversationnel}
+
+Le service RAG permet l'import de documents techniques (manuels, procédures) avec gestion des versions et suppression en cascade. Le pont entre le service RAG et le microservice ML a été conçu pour ne jamais faire échouer une conversation : si le microservice ML est indisponible, une estimation de secours fondée sur des règles simples est utilisée à la place, de façon transparente pour l'utilisateur.
+
+\section{Difficultés techniques rencontrées}
+
+\textbf{[À COMPLÉTER: difficultés rencontrées durant la réalisation et solutions apportées, par exemple : synchronisation des modèles entraînés entre les environnements de recherche et de production, gestion de la disponibilité partielle des composants ML, cohérence des données de test à grande échelle]}.
