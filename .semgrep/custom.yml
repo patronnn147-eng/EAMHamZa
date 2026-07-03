@@ -16,3 +16,19 @@ rules:
           - pattern: text(f"...")
           - pattern: text("..." % ...)
           - pattern: text("...".format(...))
+  - id: fastapi-cors-wildcard-with-credentials
+    languages: [python]
+    severity: ERROR
+    message: >-
+      CORSMiddleware allows any origin (allow_origins=["*"]) while also
+      allowing credentials. Browsers reject this combination for good
+      reason — it lets any website read authenticated responses. Set an
+      explicit origin allowlist, or drop allow_credentials if wildcard
+      origins are required.
+    metadata:
+      category: security
+      cwe: "CWE-942: Permissive Cross-domain Policy with Untrusted Domains"
+    patterns:
+      - pattern: $APP.add_middleware(CORSMiddleware, ...)
+      - pattern-inside: $APP.add_middleware(CORSMiddleware, ..., allow_origins=["*"], ...)
+      - pattern-inside: $APP.add_middleware(CORSMiddleware, ..., allow_credentials=True, ...)
