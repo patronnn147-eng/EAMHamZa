@@ -54,3 +54,4 @@ rules:
           metavariable: $DEFAULT
           patterns:
             - pattern-not: '""'
+            - pattern-not: 'None'

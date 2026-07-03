@@ -11,3 +11,9 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "dev-only-secret")
 
 # ok: hardcoded-secret-default
 JWT_SECRET_SAFE = os.environ.get("JWT_SECRET")
+
+# ok: hardcoded-secret-default
+SECRET_KEY_NONE = os.getenv("SECRET_KEY", None)
+
+# ok: hardcoded-secret-default
+JWT_SECRET_NONE = os.environ.get("JWT_SECRET", None)
