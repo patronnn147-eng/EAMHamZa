@@ -6,6 +6,7 @@
 stages:
   - secret-scan
   - sca-deps
+  - sast
   - lint
   - gate
 
@@ -67,6 +68,65 @@ audit-frontend:
   timeout: 10 minutes
   allow_failure: false
 
+# ─── Stage 3: SAST (Semgrep) ─────────────────────────────────────────────────
+
+sast-auto:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
+  image: python:3.11-slim
+  before_script:
+    - pip install semgrep --quiet
+  script:
+    - semgrep scan --config auto --severity WARNING --severity ERROR --sarif -o sast-auto.sarif app/backend app/frontend app/ml-microservice app/rag-service
+  artifacts:
+    paths:
+      - sast-auto.sarif
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
+sast-explicit:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
+  image: python:3.11-slim
+  before_script:
+    - pip install semgrep --quiet
+  script:
+    - semgrep scan --config p/owasp-top-ten --config p/python --config p/typescript --severity WARNING --severity ERROR --sarif -o sast-explicit.sarif app/backend app/frontend app/ml-microservice app/rag-service
+  artifacts:
+    paths:
+      - sast-explicit.sarif
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
+sast-custom:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
+  image: python:3.11-slim
+  before_script:
+    - pip install semgrep --quiet
+  script:
+    - semgrep scan --config .semgrep/custom.yml --severity WARNING --severity ERROR --sarif -o sast-custom.sarif app/backend app/frontend app/ml-microservice app/rag-service
+  artifacts:
+    paths:
+      - sast-custom.sarif
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
+  allow_failure: false
+
 # ─── Stage 3: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
@@ -106,6 +166,9 @@ quality-gate:
     - scan-secrets
     - audit-backend
     - audit-frontend
+    - sast-auto
+    - sast-explicit
+    - sast-custom
     - job: lint-backend
       optional: true
     - job: lint-frontend
@@ -116,6 +179,7 @@ quality-gate:
       echo "  Secret scan   -- PASSED"
       echo "  Backend SCA   -- PASSED"
       echo "  Frontend SCA  -- PASSED"
+      echo "  SAST (auto/explicit/custom) -- PASSED"
       echo "  Lint jobs are non-blocking (warn only)"
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
