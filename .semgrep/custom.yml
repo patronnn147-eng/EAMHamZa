@@ -55,3 +55,22 @@ rules:
           patterns:
             - pattern-not: '""'
             - pattern-not: 'None'
+  - id: subprocess-dynamic-input
+    languages: [python]
+    severity: WARNING
+    message: >-
+      subprocess/os.system call built with a non-literal (dynamic) command
+      argument. If any part of that value can be influenced by user input,
+      this is command injection. Use a fixed argument list and pass
+      dynamic data as separate array elements, never concatenated or
+      interpolated into the command string.
+    metadata:
+      category: security
+      cwe: "CWE-78: OS Command Injection"
+    patterns:
+      - pattern-either:
+          - pattern: subprocess.run(f"...", ...)
+          - pattern: subprocess.run("..." + ..., ...)
+          - pattern: subprocess.call(f"...", ...)
+          - pattern: os.system(f"...")
+          - pattern: os.system("..." + ...)
