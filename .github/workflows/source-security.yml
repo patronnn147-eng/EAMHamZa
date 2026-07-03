@@ -67,6 +67,72 @@ jobs:
         # high CVEs in vite 5.x are dev-server only (not production risk); fix requires vite 6 upgrade
         run: pnpm audit --audit-level=critical
 
+  # ─── Stage 3: SAST Auto (Semgrep) ─────────────────────────────────────────
+
+  sast-auto:
+    name: SAST Auto (Semgrep)
+    runs-on: ubuntu-latest
+    needs: [audit-backend, audit-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Run semgrep (auto config)
+        run: semgrep scan --config auto --severity WARNING --severity ERROR --sarif -o sast-auto.sarif app/backend app/frontend app/ml-microservice app/rag-service
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sast-auto.sarif
+          category: sast-auto
+
+  # ─── Stage 3: SAST Explicit (Semgrep) ─────────────────────────────────────
+
+  sast-explicit:
+    name: SAST Explicit (Semgrep)
+    runs-on: ubuntu-latest
+    needs: [audit-backend, audit-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Run semgrep (owasp-top-ten + python + typescript)
+        run: semgrep scan --config p/owasp-top-ten --config p/python --config p/typescript --severity WARNING --severity ERROR --sarif -o sast-explicit.sarif app/backend app/frontend app/ml-microservice app/rag-service
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sast-explicit.sarif
+          category: sast-explicit
+
+  # ─── Stage 3: SAST Custom (Semgrep) ───────────────────────────────────────
+
+  sast-custom:
+    name: SAST Custom (Semgrep)
+    runs-on: ubuntu-latest
+    needs: [audit-backend, audit-frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install semgrep
+        run: pip install semgrep
+      - name: Run semgrep (project custom rules)
+        run: semgrep scan --config .semgrep/custom.yml --severity WARNING --severity ERROR --sarif -o sast-custom.sarif app/backend app/frontend app/ml-microservice app/rag-service
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: sast-custom.sarif
+          category: sast-custom
+
   # ─── Stage 3: Lint Backend (non-blocking) ─────────────────────────────────
 
   lint-backend:
@@ -113,7 +179,7 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
-    needs: [scan-secrets, audit-backend, audit-frontend, lint-backend, lint-frontend]
+    needs: [scan-secrets, audit-backend, audit-frontend, sast-auto, sast-explicit, sast-custom, lint-backend, lint-frontend]
     if: always()
     steps:
       - name: Check blocking gates
@@ -129,6 +195,18 @@ jobs:
           fi
           if [[ "${{ needs.audit-frontend.result }}" == "failure" ]]; then
             echo "BLOCKED: Frontend SCA found CRITICAL/HIGH CVEs in package.json"
+            FAILED=1
+          fi
+          if [[ "${{ needs.sast-auto.result }}" == "failure" ]]; then
+            echo "BLOCKED: SAST (auto config) found WARNING/ERROR severity issues"
+            FAILED=1
+          fi
+          if [[ "${{ needs.sast-explicit.result }}" == "failure" ]]; then
+            echo "BLOCKED: SAST (owasp-top-ten/python/typescript) found WARNING/ERROR severity issues"
+            FAILED=1
+          fi
+          if [[ "${{ needs.sast-custom.result }}" == "failure" ]]; then
+            echo "BLOCKED: SAST (project custom rules) found WARNING/ERROR severity issues"
             FAILED=1
           fi
           if [[ $FAILED -eq 1 ]]; then
