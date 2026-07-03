@@ -1,8 +1,7 @@
 import logging
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from core.auth import get_current_user
@@ -24,42 +23,48 @@ async def get_dashboard_stats(
     try:
         # Request statistics
         total_requests_result = await db.execute(
-            select(Ordres_intervention).options(
-                selectinload(Ordres_intervention.machine)
-            )
+            select(func.count(Ordres_intervention.id))
         )
-        total_requests = len(total_requests_result.scalars().all())
+        total_requests = total_requests_result.scalar_one()
 
         pending_result = await db.execute(
-            select(Ordres_intervention).where(
+            select(func.count(Ordres_intervention.id)).where(
                 Ordres_intervention.statut == "EN_ATTENTE"
             )
         )
-        requests_pending = len(pending_result.scalars().all())
+        requests_pending = pending_result.scalar_one()
 
         approved_result = await db.execute(
-            select(Ordres_intervention).where(Ordres_intervention.statut == "ACCEPTED")
+            select(func.count(Ordres_intervention.id)).where(
+                Ordres_intervention.statut == "ACCEPTED"
+            )
         )
-        requests_approved = len(approved_result.scalars().all())
+        requests_approved = approved_result.scalar_one()
 
         rejected_result = await db.execute(
-            select(Ordres_intervention).where(Ordres_intervention.statut == "REJECTED")
+            select(func.count(Ordres_intervention.id)).where(
+                Ordres_intervention.statut == "REJECTED"
+            )
         )
-        requests_rejected = len(rejected_result.scalars().all())
+        requests_rejected = rejected_result.scalar_one()
 
         # Machine statistics
-        total_machines_result = await db.execute(select(Machines))
-        total_machines = len(total_machines_result.scalars().all())
+        total_machines_result = await db.execute(select(func.count(Machines.id)))
+        total_machines = total_machines_result.scalar_one()
 
         machines_en_maintenance_result = await db.execute(
-            select(Machines).where(Machines.statut == "en_maintenance")
+            select(func.count(Machines.id)).where(
+                Machines.statut == "en_maintenance"
+            )
         )
-        machines_en_maintenance = len(machines_en_maintenance_result.scalars().all())
+        machines_en_maintenance = machines_en_maintenance_result.scalar_one()
 
         machines_hors_service_result = await db.execute(
-            select(Machines).where(Machines.statut == "hors_service")
+            select(func.count(Machines.id)).where(
+                Machines.statut == "hors_service"
+            )
         )
-        machines_hors_service = len(machines_hors_service_result.scalars().all())
+        machines_hors_service = machines_hors_service_result.scalar_one()
 
         return DashboardStats(
             total_requests=total_requests,

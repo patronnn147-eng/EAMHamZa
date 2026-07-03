@@ -1312,8 +1312,8 @@ async def get_forecast_summary(
 
     downtime = await compute_fleet_downtime(db, horizon_days=30)
 
-    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
-    tech_count = len(tech_res.scalars().all())
+    tech_res = await db.execute(select(func.count(U.id)).where(U.role == "TECHNICIEN"))
+    tech_count = tech_res.scalar_one()
 
     open_wo_res = await db.execute(
         select(func.count())
@@ -1384,8 +1384,8 @@ async def get_forecast_labor(
     from models.utilisateurs import Utilisateurs as U
 
     downtime = await compute_fleet_downtime(db, horizon_days=horizon)
-    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
-    tech_count = len(tech_res.scalars().all())
+    tech_res = await db.execute(select(func.count(U.id)).where(U.role == "TECHNICIEN"))
+    tech_count = tech_res.scalar_one()
     open_wo_res = await db.execute(
         select(func.count())
         .select_from(Ordres_travail)
@@ -1416,8 +1416,8 @@ async def get_forecast_budget(
     from models.utilisateurs import Utilisateurs as U
 
     downtime = await compute_fleet_downtime(db, horizon_days=horizon)
-    tech_res = await db.execute(select(U).where(U.role == "TECHNICIEN"))
-    tech_count = len(tech_res.scalars().all())
+    tech_res = await db.execute(select(func.count(U.id)).where(U.role == "TECHNICIEN"))
+    tech_count = tech_res.scalar_one()
     open_wo_res = await db.execute(
         select(func.count())
         .select_from(Ordres_travail)

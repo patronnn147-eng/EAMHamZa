@@ -4,7 +4,7 @@ import glob
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.future import select
-from sqlalchemy import update
+from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from models.ordres_intervention import Ordres_intervention
 from models.ml_prediction_log import MlPredictionLog
@@ -47,12 +47,12 @@ class RetrainingService:
     @staticmethod
     async def get_retraining_stats(db: AsyncSession):
         """Get number of new data points available for retraining."""
-        query = select(Ordres_intervention).where(
+        query = select(func.count(Ordres_intervention.id)).where(
             Ordres_intervention.actual_failure_type is not None,
             not Ordres_intervention.retrained,
         )
         result = await db.execute(query)
-        new_points = len(result.scalars().all())
+        new_points = result.scalar_one()
         return {"new_data_points": new_points}
 
     @staticmethod
