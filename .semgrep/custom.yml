@@ -1,0 +1,18 @@
+rules:
+  - id: sqlalchemy-raw-sql-interpolation
+    languages: [python]
+    severity: WARNING
+    message: >-
+      SQL query built via string interpolation instead of bound parameters.
+      Use SQLAlchemy's parameter binding (`:name` placeholders + a params
+      dict) instead of f-strings, `.format()`, or `%` to avoid SQL injection.
+    metadata:
+      category: security
+      cwe: "CWE-89: Improper Neutralization of Special Elements used in an SQL Command"
+      references:
+        - https://owasp.org/www-community/attacks/SQL_Injection
+    patterns:
+      - pattern-either:
+          - pattern: text(f"...")
+          - pattern: text("..." % ...)
+          - pattern: text("...".format(...))
