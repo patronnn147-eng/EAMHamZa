@@ -1,0 +1,6 @@
+# .semgrepignore
+**/__pycache__/
+**/node_modules/
+**/*.min.js
+**/migrations/
+**/.next/
