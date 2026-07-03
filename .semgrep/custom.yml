@@ -32,3 +32,25 @@ rules:
       - pattern: $APP.add_middleware(CORSMiddleware, ...)
       - pattern-inside: $APP.add_middleware(CORSMiddleware, ..., allow_origins=["*"], ...)
       - pattern-inside: $APP.add_middleware(CORSMiddleware, ..., allow_credentials=True, ...)
+  - id: hardcoded-secret-default
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A secret-like environment variable (SECRET_KEY/JWT_SECRET) has a
+      hardcoded, non-empty fallback default. If the env var is ever unset
+      in production, the app silently runs with a known, guessable secret.
+      Fail loudly instead: raise if the env var is missing, don't provide
+      a default.
+    metadata:
+      category: security
+      cwe: "CWE-798: Use of Hard-coded Credentials"
+    patterns:
+      - pattern-either:
+          - pattern: os.getenv("SECRET_KEY", $DEFAULT)
+          - pattern: os.getenv("JWT_SECRET", $DEFAULT)
+          - pattern: os.environ.get("SECRET_KEY", $DEFAULT)
+          - pattern: os.environ.get("JWT_SECRET", $DEFAULT)
+      - metavariable-pattern:
+          metavariable: $DEFAULT
+          patterns:
+            - pattern-not: '""'
