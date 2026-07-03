@@ -42,7 +42,7 @@ async def get_current_user(
     try:
         payload = decode_access_token(token)
     except Exception as exc:
-        logger.warning("Token validation failed: %s", type(exc).__name__)
+        logger.warning("Token validation failed: %s", type(exc).__name__)  # nosemgrep: python.lang.security.audit.logging.logger-credential-leak.python-logger-credential-disclosure -- logs only the exception class name, never the token/credential value
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide ou expiré"
         )

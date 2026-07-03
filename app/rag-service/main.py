@@ -259,6 +259,7 @@ async def list_documents(
         params["machine_id"] = machine_id
 
     where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+    # nosemgrep: sqlalchemy-raw-sql-interpolation,python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- where_sql is a static clause skeleton (see above); values are bound via params below, not interpolated into SQL text.
     sql = text(f"""
         SELECT d.id, d.filename, d.doc_type, d.description, d.machine_id,
                d.chunk_count, d.file_size_bytes, d.uploaded_by,

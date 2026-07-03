@@ -706,13 +706,13 @@ function processMarkdownFile(filePath) {
   );
   
   // Create a separate directory for each article
-  const articleDir = path.join(distBlogDir, fileName);
+  const articleDir = path.join(distBlogDir, fileName); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- fileName comes from local markdown frontmatter/filename in blogDir, not user/HTTP input
   if (!fs.existsSync(articleDir)) {
     fs.mkdirSync(articleDir, { recursive: true });
   }
-  
+
   // Write to dist/blog/filename/index.html
-  const outputPath = path.join(articleDir, 'index.html');
+  const outputPath = path.join(articleDir, 'index.html'); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- articleDir is derived from fileName (local markdown filename), not user/HTTP input
   fs.writeFileSync(outputPath, html, 'utf-8');
   
   return {
@@ -956,7 +956,7 @@ function main() {
   
   markdownFiles.forEach((file) => {
     try {
-      const filePath = path.join(blogDir, file);
+      const filePath = path.join(blogDir, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from local directory listing filtered by .md extension, not user input
       const result = processMarkdownFile(filePath);
       results.push(result);
     } catch (error) {}

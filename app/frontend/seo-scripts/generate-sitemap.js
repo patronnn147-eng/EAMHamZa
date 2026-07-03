@@ -16,11 +16,11 @@ function collectHtmlFiles(dir, basePath = "") {
   const list = fs.readdirSync(dir);
 
   list.forEach(file => {
-    const full = path.join(dir, file);
+    const full = path.join(dir, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from fs.readdirSync(dir), local build-time directory listing, not user/HTTP input
     const stat = fs.statSync(full);
 
     if (stat && stat.isDirectory()) {
-      const subPath = path.join(basePath, file);
+      const subPath = path.join(basePath, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- same local directory listing, not user input
       results.push(...collectHtmlFiles(full, subPath));
     } else if (file.endsWith('.html')) {
       const relativePath = path.join(basePath, file).replace(/\\/g, '/');

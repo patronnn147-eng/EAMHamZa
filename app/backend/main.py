@@ -157,7 +157,7 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
     logger = logging.getLogger(__name__)
 
     try:
-        pkg = importlib.import_module(package_name)
+        pkg = importlib.import_module(package_name)  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- package_name is a hardcoded default ("routers"), not user input
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.debug("Routers package '%s' not loaded: %s", package_name, exc)
         return
@@ -170,7 +170,7 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
         if is_pkg:
             continue
         try:
-            module = importlib.import_module(module_name)
+            module = importlib.import_module(module_name)  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.walk_packages() enumerating the local routers/ package, never user input
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.warning("Failed to import module '%s': %s", module_name, exc)
             continue

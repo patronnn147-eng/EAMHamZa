@@ -91,3 +91,10 @@ rules:
           <$TAG dangerouslySetInnerHTML={{__html: $VAL}} ... />
       - pattern-not: |
           <$TAG dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} ... />
+    paths:
+      exclude:
+        # shadcn/ui chart component boilerplate: __html is CSS built from THEMES
+        # (hardcoded const) and the ChartConfig prop (developer-supplied color/theme
+        # values), never user/API input. Inline nosemgrep comments don't reliably
+        # attach to this JSX attribute in this Semgrep version, so excluded by path.
+        - app/frontend/src/components/ui/chart.tsx
