@@ -12,6 +12,11 @@ def run_backup_good(filename):
     subprocess.run(["tar", "-czf", "backup.tar.gz", filename])
 
 
+def call_bad(cmd_var):
+    # ruleid: subprocess-dynamic-input
+    subprocess.call("cmd " + cmd_var, shell=True)
+
+
 def system_bad(filename):
     # ruleid: subprocess-dynamic-input
     os.system("rm -f " + filename)

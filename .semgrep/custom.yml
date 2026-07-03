@@ -72,5 +72,6 @@ rules:
           - pattern: subprocess.run(f"...", ...)
           - pattern: subprocess.run("..." + ..., ...)
           - pattern: subprocess.call(f"...", ...)
+          - pattern: subprocess.call("..." + ..., ...)
           - pattern: os.system(f"...")
           - pattern: os.system("..." + ...)
