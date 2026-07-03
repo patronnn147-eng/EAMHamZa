@@ -8,17 +8,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m -u 1000 appuser
+
 COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements-notebooks.txt
 
-# Jupyter config — no token, accessible from host
+RUN chown -R appuser:appuser /workspace
+USER appuser
+
+# Jupyter config — ip must stay 0.0.0.0 for docker-compose's port mapping to reach it
+# (binding to 127.0.0.1 inside the container is unreachable via `docker run -p`/compose
+# port publishing). Token/password are intentionally NOT overridden here — Jupyter
+# auto-generates a random token per run (printed to `docker compose logs notebooks`),
+# so the notebook server still requires authentication even though it's reachable.
 RUN jupyter notebook --generate-config && \
-    echo "c.NotebookApp.token = ''" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.password = ''" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.ip = '0.0.0.0'" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.allow_root = True" >> /root/.jupyter/jupyter_notebook_config.py && \
-    echo "c.NotebookApp.open_browser = False" >> /root/.jupyter/jupyter_notebook_config.py
+    echo "c.NotebookApp.ip = '0.0.0.0'" >> /home/appuser/.jupyter/jupyter_notebook_config.py && \
+    echo "c.NotebookApp.open_browser = False" >> /home/appuser/.jupyter/jupyter_notebook_config.py
 
 EXPOSE 8888
 

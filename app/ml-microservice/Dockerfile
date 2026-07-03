@@ -31,6 +31,9 @@ COPY models/ ./models/
 COPY main.py .
 COPY ai4i2020.csv .
 
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
