@@ -98,3 +98,16 @@ Each rule: `severity: WARNING`, includes a `message` explaining the risk and the
 ---
 
 *Spec written: 2026-07-03 | Approved: user | Companion doc: `docs/sast-phase2-plain-english.md` (non-technical audience)*
+
+---
+
+## Addendum: Semgrep AppSec Platform reporting (added 2026-07-03, post-approval)
+
+User requested a 4th SAST job, `sast-appsec-platform`, using `semgrep ci` to report findings to the Semgrep AppSec Platform dashboard. This is a deliberate exception to this spec's original "no Semgrep account/API token" constraint — the user was asked and confirmed they want this despite requiring a `SEMGREP_APP_TOKEN` secret (GitHub Actions secret + GitLab CI/CD variable), which they do not have set up yet.
+
+Decisions:
+- **Blocking, same tier as `sast-auto`/`sast-explicit`/`sast-custom`** (not report-only) — user's explicit choice.
+- Sequenced as Task 10, after Task 9's push/triage of the original 3-job scope, not parallel with Tasks 7-8 (same CI files, would conflict) and not blocking the original spec's success criteria (Task 9 closes those independently).
+- Account/token creation is a manual user step (`docs/superpowers/plans/2026-07-03-sast-phase2.md`, Task 10, Step 1) — no tool available can create a Semgrep account or generate the token.
+
+Full implementation details: `docs/superpowers/plans/2026-07-03-sast-phase2.md`, Task 10.
