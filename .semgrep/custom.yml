@@ -75,3 +75,19 @@ rules:
           - pattern: subprocess.call("..." + ..., ...)
           - pattern: os.system(f"...")
           - pattern: os.system("..." + ...)
+  - id: react-dangerous-html-unsanitized
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      dangerouslySetInnerHTML is used without visibly passing the value
+      through a sanitizer (e.g. DOMPurify.sanitize) first. Unsanitized
+      HTML from user/API input rendered this way is a stored/reflected
+      XSS vector.
+    metadata:
+      category: security
+      cwe: "CWE-79: Improper Neutralization of Input During Web Page Generation (XSS)"
+    patterns:
+      - pattern: |
+          <$TAG dangerouslySetInnerHTML={{__html: $VAL}} ... />
+      - pattern-not: |
+          <$TAG dangerouslySetInnerHTML={{__html: DOMPurify.sanitize(...)}} ... />
