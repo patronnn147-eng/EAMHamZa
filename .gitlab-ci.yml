@@ -1,12 +1,14 @@
-# EAMSagemCom — Phase 1: Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → lint → gate
-# Blocking: secret-scan, sca-deps, gate
+# EAMSagemCom — Source Code Security Pipeline
+# Stages: secret-scan → sca-deps → sast → sonarqube → lint → gate
+# Blocking: secret-scan, sca-deps, sast, sonarqube, gate
 # Non-blocking: lint (allow_failure: true)
+# sonarqube-scan requires a self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
 
 stages:
   - secret-scan
   - sca-deps
   - sast
+  - sonarqube
   - lint
   - gate
 
@@ -127,7 +129,29 @@ sast-custom:
   timeout: 10 minutes
   allow_failure: false
 
-# ─── Stage 3: Lint (non-blocking) ────────────────────────────────────────────
+# ─── Stage 4: SonarQube (self-hosted, local runner only) ────────────────────
+
+sonarqube-scan:
+  stage: sonarqube
+  needs: [sast-auto, sast-explicit, sast-custom]
+  tags: [local]
+  image: sonarsource/sonar-scanner-cli:latest
+  variables:
+    SONAR_HOST_URL: "http://host.docker.internal:9090"
+    GIT_DEPTH: "0"
+  script:
+    - sonar-scanner
+      -Dsonar.projectKey=eamsagemcom
+      -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.token=$sonar
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 15 minutes
+  allow_failure: false
+
+# ─── Stage 5: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
   stage: lint
@@ -157,7 +181,7 @@ lint-frontend:
   timeout: 5 minutes
   allow_failure: true
 
-# ─── Stage 4: Quality Gate ───────────────────────────────────────────────────
+# ─── Stage 6: Quality Gate ───────────────────────────────────────────────────
 
 quality-gate:
   stage: gate
@@ -169,6 +193,7 @@ quality-gate:
     - sast-auto
     - sast-explicit
     - sast-custom
+    - sonarqube-scan
     - job: lint-backend
       optional: true
     - job: lint-frontend
@@ -180,6 +205,7 @@ quality-gate:
       echo "  Backend SCA   -- PASSED"
       echo "  Frontend SCA  -- PASSED"
       echo "  SAST (auto/explicit/custom) -- PASSED"
+      echo "  SonarQube     -- PASSED"
       echo "  Lint jobs are non-blocking (warn only)"
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
