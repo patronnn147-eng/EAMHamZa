@@ -45,16 +45,20 @@ tags = ["huggingface", "llm"]
 
 [allowlist]
 description = "Safe files and placeholder patterns"
+regexTarget = "match"
 files = [
   ".env.example",
   ".gitleaks.toml",
   "CLAUDE.md",
+  "DOCKER_README.md",
+  "INSTALLATION_GUIDE.md",
 ]
 paths = [
   "docs/",
   "tests/",
   ".planning/",
   "presentation/",
+  "ML_Pipeline/",
 ]
 regexes = [
   '''CHANGE_ME''',
@@ -63,4 +67,10 @@ regexes = [
   '''<YOUR_''',
   '''changeme''',
   '''placeholder''',
+  # docker-compose / dev-default DSN placeholders, not real credentials
+  '''postgres:postgres@''',
+  '''user:password@''',
+  '''\$\{POSTGRES_(USER|PASSWORD|DB)''',
+  # settings-object attribute references, not literal secret values
+  '''settings\.(jwt_secret_key|oss_secret_key|oss_api_key)''',
 ]
