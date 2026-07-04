@@ -172,7 +172,15 @@ export function PlanningMachinesDialog({
                     className={`flex items-center gap-3 px-3 py-2 transition-colors cursor-pointer ${
                       checked ? 'bg-cyan-500/5' : 'hover:bg-blue-500/5'
                     }`}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggle(m.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggle(m.id);
+                      }
+                    }}
                   >
                     <input
                       type="checkbox"

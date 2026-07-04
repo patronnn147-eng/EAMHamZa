@@ -701,10 +701,18 @@ export default function RAGDocuments() {
               className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                 dragOver ? 'border-blue-500 bg-blue-50' : 'border-muted hover:border-primary/50'
               }`}
+              role="button"
+              tabIndex={0}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onBulkDrop}
               onClick={() => bulkFileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  bulkFileInputRef.current?.click();
+                }
+              }}
             >
               <FolderUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
               <p className="text-sm font-medium">Drop files here or click to browse</p>

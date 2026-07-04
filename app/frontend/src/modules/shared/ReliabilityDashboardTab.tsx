@@ -225,7 +225,15 @@ export const ReliabilityDashboardTab: React.FC = () => {
                                             <div
                                                 key={e.machineId}
                                                 className="flex items-center justify-between p-2 rounded-lg bg-slate-800 border border-red-100 cursor-pointer hover:border-red-300 transition-colors"
+                                                role="button"
+                                                tabIndex={0}
                                                 onClick={() => navigate(`/machines/${e.machineId}`)}
+                                                onKeyDown={(ev) => {
+                                                    if (ev.key === 'Enter' || ev.key === ' ') {
+                                                        ev.preventDefault();
+                                                        navigate(`/machines/${e.machineId}`);
+                                                    }
+                                                }}
                                             >
                                                 <div>
                                                     <p className="text-sm font-semibold text-blue-50">{e.machineName}</p>
@@ -266,7 +274,15 @@ export const ReliabilityDashboardTab: React.FC = () => {
                                     <div
                                         key={entry.machineId}
                                         className="flex items-center gap-4 p-3 rounded-lg hover:bg-slate-800/50 cursor-pointer border border-transparent hover:border-blue-700/50 transition-colors"
+                                        role="button"
+                                        tabIndex={0}
                                         onClick={() => navigate(`/machines/${entry.machineId}`)}
+                                        onKeyDown={(ev) => {
+                                            if (ev.key === 'Enter' || ev.key === ' ') {
+                                                ev.preventDefault();
+                                                navigate(`/machines/${entry.machineId}`);
+                                            }
+                                        }}
                                     >
                                         {/* Status dot */}
                                         <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dot}`} />

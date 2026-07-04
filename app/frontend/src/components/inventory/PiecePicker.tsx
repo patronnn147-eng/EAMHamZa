@@ -274,7 +274,7 @@ export function PiecePicker({
           </div>
 
           {/* Compatible */}
-          {machineId && (
+          {Boolean(machineId) && (
             <PickerSection
               icon={<Box className="h-3 w-3" />}
               label="Pièces compatibles machine"

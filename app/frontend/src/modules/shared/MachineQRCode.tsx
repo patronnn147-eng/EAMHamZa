@@ -165,7 +165,15 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
                 {/* URL display */}
                 <div
                     className="flex items-center gap-2 bg-slate-800/50 border border-blue-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
+                    role="button"
+                    tabIndex={0}
                     onClick={handleCopy}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCopy();
+                      }
+                    }}
                     title="Copier le lien"
                 >
                     <span className="text-xs text-blue-300 truncate flex-1 font-mono">{machineUrl}</span>

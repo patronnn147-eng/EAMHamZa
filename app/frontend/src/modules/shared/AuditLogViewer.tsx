@@ -336,7 +336,15 @@ export const AuditLogViewer: React.FC = () => {
               return (
                 <div
                   key={entry.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setSelectedEntry(isSelected ? null : entry)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedEntry(isSelected ? null : entry);
+                    }
+                  }}
                   className={`grid grid-cols-4 gap-4 p-4 cursor-pointer transition-all ${
                     index % 2 === 0 ? 'bg-white/[0.02]' : 'bg-white/[0.01]'
                   } hover:bg-white/[0.06] ${

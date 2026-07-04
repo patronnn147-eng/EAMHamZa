@@ -494,17 +494,6 @@ async def get_failure_type(
     if not machine:
         raise HTTPException(status_code=404, detail="Machine non trouvée")
 
-    # Features: [air, process, rpm, torque, wear, temp_delta]
-    temp_delta = process - air
-    [
-        float(air),
-        float(process),
-        float(rpm),
-        float(torque),
-        float(wear),
-        float(temp_delta),
-    ]
-
     # Delegate to ML microservice
     try:
         ml_result = await ml_client.predict_failure_type(

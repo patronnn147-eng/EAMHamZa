@@ -157,6 +157,7 @@ sonarqube-scan:
     - sonar-scanner
       -Dsonar.projectKey=eamsagemcom
       -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
+      -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**
       -Dsonar.host.url=$SONAR_HOST_URL
       -Dsonar.token=$sonar
   rules:

@@ -73,6 +73,14 @@ const AlertCard: React.FC<AlertCardProps> = ({
   return (
     <div
       onClick={onClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick?.();
+        }
+      }}
       className={`
         relative flex flex-col gap-0 rounded-xl border border-white/[0.06]
         border-l-4 ${config.border}

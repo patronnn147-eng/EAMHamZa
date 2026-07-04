@@ -292,7 +292,7 @@ if __name__ == "__main__":
         # Enable reload in normal mode
         uvicorn.run(
             app,
-            host="0.0.0.0",
+            host=settings.host,
             port=int(settings.port),
             reload_excludes=["**/*.py"],
         )

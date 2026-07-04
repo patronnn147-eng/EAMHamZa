@@ -873,7 +873,15 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                           ? 'bg-primary/10 text-foreground border border-primary/30'
                           : 'hover:bg-muted/60'
                       }`}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => selectSession(s.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          selectSession(s.id);
+                        }
+                      }}
                     >
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">

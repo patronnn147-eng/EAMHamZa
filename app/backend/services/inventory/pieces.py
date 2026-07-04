@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Dict, Any, List
 
-from sqlalchemy import select, delete, func, case, or_, and_
+from sqlalchemy import select, delete, func, case, or_, and_, literal
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -320,7 +320,7 @@ class PieceService:
                 else_=0.0,
             )
             if machine_id is not None
-            else case((1 == 1, 0.0), else_=0.0)
+            else literal(0.0)
         )
 
         base_sim = func.greatest(

@@ -305,7 +305,7 @@ function PendingCard({ pending, index, onMatch, onReject, onCreate }: PendingCar
               <ImageIcon className="h-8 w-8 text-blue-500/30" />
             )}
           </div>
-          {pending.intervention_id && (
+          {Boolean(pending.intervention_id) && (
             <p className="font-mono text-[10px] tracking-wider text-blue-400/60">
               ↳ intervention #{pending.intervention_id}
             </p>
