@@ -188,7 +188,7 @@ lint-frontend:
     - npm install -g pnpm --quiet
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
-    - cd app/frontend && pnpm run lint
+    - pnpm run lint
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
