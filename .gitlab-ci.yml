@@ -71,6 +71,7 @@ audit-frontend:
     - npm install -g pnpm --quiet
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
+    - pnpm audit --json > pnpm-audit.json || true
     - pnpm audit --audit-level=high
   artifacts:
     paths:
