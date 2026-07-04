@@ -5,9 +5,9 @@ services:
     depends_on:
       - sonarqube_db
     environment:
-      SONAR_JDBC_URL: jdbc:postgresql://sonarqube_db:5432/sonar
-      SONAR_JDBC_USERNAME: sonar
-      SONAR_JDBC_PASSWORD: sonar
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube_db:5432/${SONARQUBE_DB_NAME}
+      SONAR_JDBC_USERNAME: ${SONARQUBE_DB_USER}
+      SONAR_JDBC_PASSWORD: ${SONARQUBE_DB_PASSWORD}
     ports:
       - "9090:9000"
     volumes:
@@ -20,9 +20,9 @@ services:
     image: postgres:15-alpine
     container_name: eam_sonarqube_db
     environment:
-      POSTGRES_USER: sonar
-      POSTGRES_PASSWORD: sonar
-      POSTGRES_DB: sonar
+      POSTGRES_USER: ${SONARQUBE_DB_USER}
+      POSTGRES_PASSWORD: ${SONARQUBE_DB_PASSWORD}
+      POSTGRES_DB: ${SONARQUBE_DB_NAME}
     volumes:
       - sonarqube_db_data:/var/lib/postgresql/data
     restart: unless-stopped
