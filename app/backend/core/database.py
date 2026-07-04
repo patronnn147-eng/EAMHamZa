@@ -408,7 +408,8 @@ class DatabaseManager:
                     "FROM information_schema.columns "
                     "WHERE table_name = :table_name"
                 )
-                query = text(query_str)  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- static string, table_name bound via :table_name param
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- static string, table_name bound via :table_name param
+                query = text(query_str)  # fmt: skip
             elif self.engine.dialect.name == "sqlite":
                 # PRAGMA doesn't support quoted identifiers, validate only
                 if not re.match(r"^[a-zA-Z0-9_-]+$", table_name):
@@ -418,12 +419,14 @@ class DatabaseManager:
                     )
                 # Build SQL string separately to avoid f-string in text() call
                 pragma_sql = "PRAGMA table_info(" + table_name + ")"
-                query = text(pragma_sql)  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name regex-validated (^[a-zA-Z0-9_-]+$) above, not user-controllable
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name regex-validated (^[a-zA-Z0-9_-]+$) above, not user-controllable
+                query = text(pragma_sql)  # fmt: skip
             else:
                 escaped_table_name = self._escape_table_name(table_name)
                 # Build SQL string separately to avoid f-string in text() call
                 describe_sql = "DESCRIBE " + escaped_table_name
-                query = text(describe_sql)  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name passed through _escape_table_name() above
+                # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name passed through _escape_table_name() above
+                query = text(describe_sql)  # fmt: skip
 
             async with self.engine.begin() as conn:
                 result = await conn.execute(

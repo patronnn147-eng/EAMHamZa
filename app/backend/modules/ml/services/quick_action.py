@@ -27,7 +27,8 @@ def _slug(name: str) -> str:
 
 def _short_hash(name: str, machine_id: int) -> str:
     """First 6 hex chars of sha1(name + machine_id) — collision guard for refs."""
-    return hashlib.sha1(f"{name}{machine_id}".encode("utf-8"), usedforsecurity=False).hexdigest()[:6]  # nosemgrep: insecure-hash-algorithm-sha1 -- non-cryptographic use (short reference-id generator), usedforsecurity=False
+    # nosemgrep: insecure-hash-algorithm-sha1 -- non-cryptographic use (short reference-id generator), usedforsecurity=False
+    return hashlib.sha1(f"{name}{machine_id}".encode("utf-8"), usedforsecurity=False).hexdigest()[:6]  # fmt: skip
 
 
 def _canonical_item(item: Dict[str, Any]) -> List[Any]:

@@ -53,16 +53,12 @@ async def get_dashboard_stats(
         total_machines = total_machines_result.scalar_one()
 
         machines_en_maintenance_result = await db.execute(
-            select(func.count(Machines.id)).where(
-                Machines.statut == "en_maintenance"
-            )
+            select(func.count(Machines.id)).where(Machines.statut == "en_maintenance")
         )
         machines_en_maintenance = machines_en_maintenance_result.scalar_one()
 
         machines_hors_service_result = await db.execute(
-            select(func.count(Machines.id)).where(
-                Machines.statut == "hors_service"
-            )
+            select(func.count(Machines.id)).where(Machines.statut == "hors_service")
         )
         machines_hors_service = machines_hors_service_result.scalar_one()
 

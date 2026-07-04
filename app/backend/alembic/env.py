@@ -16,7 +16,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 # Automatically import all ORM models under Models
 for _, module_name, _ in pkgutil.iter_modules(models.__path__):
-    importlib.import_module(f"{models.__name__}.{module_name}")  # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.iter_modules() enumerating the local models/ directory, never user input
+    # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.iter_modules() enumerating the local models/ directory, never user input
+    importlib.import_module(f"{models.__name__}.{module_name}")  # fmt: skip
 
 config = context.config
 
