@@ -29,8 +29,18 @@ scan-secrets:
   image:
     name: zricethezav/gitleaks:v8.18.4
     entrypoint: [""]
+  variables:
+    GIT_DEPTH: "0"
   script:
-    - gitleaks detect --source . --config .gitleaks.toml --verbose --redact
+    - |
+      if [ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]; then
+        RANGE="$CI_MERGE_REQUEST_DIFF_BASE_SHA..$CI_COMMIT_SHA"
+      elif [ -n "$CI_COMMIT_BEFORE_SHA" ] && [ "$CI_COMMIT_BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+        RANGE="$CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA"
+      else
+        RANGE="$CI_COMMIT_SHA"
+      fi
+      gitleaks detect --source . --config .gitleaks.toml --verbose --redact --log-opts="$RANGE"
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
