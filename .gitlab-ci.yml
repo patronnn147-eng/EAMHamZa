@@ -12,6 +12,9 @@ stages:
   - lint
   - gate
 
+variables:
+  GIT_LFS_SKIP_SMUDGE: "1"
+
 default:
   interruptible: true
   retry:
