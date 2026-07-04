@@ -87,13 +87,15 @@ Each rule: `severity: WARNING`, includes a `message` explaining the risk and the
 
 ## Success Criteria
 
-- [ ] `.semgrep/custom.yml` created with the 5 starter rules, validated via `semgrep --validate`
-- [ ] `.semgrepignore` created with starter exclusions
-- [ ] `sast-auto`, `sast-explicit`, `sast-custom` jobs added to `.gitlab-ci.yml`
-- [ ] Same 3 jobs added to `.github/workflows/source-security.yml`, with SARIF upload to GitHub code scanning
-- [ ] `quality-gate` in both pipelines updated to depend on all 3 new jobs
-- [ ] First run triaged: every WARNING/ERROR finding either fixed or suppressed with a documented reason
-- [ ] Pipeline green on `clean_Phase_1` after triage
+- [x] `.semgrep/custom.yml` created with the 5 starter rules, validated via `semgrep --validate`
+- [x] `.semgrepignore` created with starter exclusions
+- [x] `sast-auto`, `sast-explicit`, `sast-custom` jobs added to `.gitlab-ci.yml`
+- [x] Same 3 jobs added to `.github/workflows/source-security.yml`, with SARIF upload to GitHub code scanning
+- [x] `quality-gate` in both pipelines updated to depend on all 3 new jobs
+- [x] First run triaged: every WARNING/ERROR finding either fixed or suppressed with a documented reason
+- [x] Pipeline green on `clean_Phase_1` after triage
+
+**Verified 2026-07-04:** all jobs (secret-scan, sca-deps, sast-auto/explicit/custom, lint, gate) passing on GitHub Actions after 3 rounds of fixes: (1) initial suppression/fix commits, (2) ruff-format vs nosemgrep-comment-adjacency conflict (resolved via `# fmt: skip`), (3) missing `security-events: write` permission for SARIF upload. First-run triage also surfaced and fixed 2 real issues beyond the custom ruleset (both Dockerfiles running as root; ml_research Dockerfile's Jupyter had auth fully disabled) and a genuine perf improvement (11 `len(query.all())` call sites converted to `COUNT()` queries).
 
 ---
 
