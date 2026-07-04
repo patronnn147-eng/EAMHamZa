@@ -207,7 +207,8 @@ async def create_ordres(
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create ordres")
 
-        logger.info(f"Ordres created successfully with id: {result.id}")
+        safe_id = str(result.id).replace("\r", "").replace("\n", "")
+        logger.info(f"Ordres created successfully with id: {safe_id}")
         return result
     except ValueError as e:
         logger.error(f"Validation error creating ordres: {str(e)}")

@@ -1,7 +1,14 @@
+import os
+
 from sqlalchemy import create_engine, text
 import pandas as pd
 
-DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/asset_management"
+# Ad-hoc analysis script (not part of the app, not run in CI).
+# Read the DB connection string from the environment instead of hardcoding
+# credentials in source; falls back to the local dev default for convenience.
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/asset_management"
+)
 engine = create_engine(DATABASE_URL)
 
 with engine.connect() as conn:

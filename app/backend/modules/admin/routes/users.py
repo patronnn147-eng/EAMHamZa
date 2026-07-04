@@ -65,6 +65,8 @@ async def list_users(
 
     # Get paginated users
     skip = (page - 1) * size
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- SQLAlchemy select() with
+    # ORM ordering/pagination only (validated ints); no raw SQL/string interpolation.
     result = await db.execute(
         select(Utilisateurs).order_by(Utilisateurs.id.desc()).offset(skip).limit(size)
     )

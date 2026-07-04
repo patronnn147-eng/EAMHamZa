@@ -70,12 +70,14 @@ async def validate_ordres_intervention(
             )
 
             update_dict["ordre_travail_id"] = new_wo.id
+            safe_wo_id = str(new_wo.id).replace("\r", "").replace("\n", "")
             logger.info(
-                f"Created linked Work Order #{new_wo.id} for Intervention #{id}"
+                f"Created linked Work Order #{safe_wo_id} for Intervention #{id}"
             )
         except Exception as e:
+            safe_exc = str(e).replace("\r", "").replace("\n", "")
             logger.error(
-                f"Failed to create linked Work Order for accepted intervention #{id}: {e}"
+                f"Failed to create linked Work Order for accepted intervention #{id}: {safe_exc}"
             )
             raise HTTPException(
                 status_code=500, detail="Failed to create linked Work Order."

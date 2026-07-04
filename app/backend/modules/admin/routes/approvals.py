@@ -55,6 +55,9 @@ async def get_pending_users(
     )
     total = total_result.scalar() or 0
 
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- SQLAlchemy select() with
+    # ORM column comparisons only (page/size are validated ints via Query(ge=..., le=...));
+    # no raw SQL or string interpolation is built here.
     result = await db.execute(
         select(Utilisateurs)
         .where(Utilisateurs.status == UserStatus.PENDING)
@@ -216,6 +219,8 @@ async def get_all_users_with_status(
     total_result = await db.execute(select(func.count(Utilisateurs.id)))
     total = total_result.scalar() or 0
 
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- SQLAlchemy select() with no
+    # filters besides pagination (validated ints); no raw SQL or interpolation here.
     result = await db.execute(
         select(Utilisateurs)
         .order_by(Utilisateurs.created_at.desc())

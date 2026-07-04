@@ -63,6 +63,9 @@ async def get_archive_counts(
         if scope_col and hasattr(rule.model, scope_col):
             conditions.append(getattr(rule.model, scope_col) == current_user.id)
         stmt = select(func.count()).select_from(rule.model).where(and_(*conditions))
+        # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `stmt` is a SQLAlchemy
+        # Core select() built from ORM model/column objects (rule.model, archived_col);
+        # no raw SQL or string interpolation is involved.
         counts[rule.module] = (await db.execute(stmt)).scalar() or 0
 
     return {"counts": counts, "total": sum(counts.values())}
@@ -189,7 +192,12 @@ async def reactivate_archived(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"reactivate {module}/{item_id} failed: {e}", exc_info=True)
+        # nosemgrep: python.fastapi.log.tainted-log-injection-stdlib-fastapi -- `module`
+        # is validated against VALID_MODULES and `item_id` is an int (FastAPI path
+        # param), neither can carry newlines; `e` is repr'd defensively below anyway.
+        logger.error(
+            "reactivate %s/%s failed: %r", module, item_id, e, exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

@@ -69,8 +69,9 @@ async def update_planning(
 ):
     """Update a planning (admin only)"""
     await verify_admin(current_user)
+    safe_technicien_ids = repr(data.technicien_ids)
     logger.info(
-        f"UPDATE planning {planning_id} — technicien_ids received: {data.technicien_ids}"
+        f"UPDATE planning {planning_id} — technicien_ids received: {safe_technicien_ids}"
     )
 
     try:

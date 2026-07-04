@@ -216,8 +216,9 @@ async def create_maintenances_planifiees(
                 status_code=400, detail="Failed to create maintenances_planifiees"
             )
 
+        safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(
-            f"Maintenances_planifiees created successfully with id: {result.id}"
+            f"Maintenances_planifiees created successfully with id: {safe_id}"
         )
         return result
     except ValueError as e:

@@ -571,6 +571,18 @@ function parseFrontmatter(content) {
   return { frontmatter, markdown };
 }
 
+// Defensive containment guard: ensure a resolved path never escapes an expected base directory.
+// Used below even though all inputs here are local filesystem enumeration (fs.readdirSync of
+// blogDir), not user/HTTP input -- kept cheap and always-on as defense in depth.
+function assertWithinBase(candidatePath, baseDir) {
+  const resolvedBase = path.resolve(baseDir);
+  const resolvedCandidate = path.resolve(candidatePath);
+  if (resolvedCandidate !== resolvedBase && !resolvedCandidate.startsWith(resolvedBase + path.sep)) {
+    throw new Error(`Path traversal guard: "${resolvedCandidate}" escapes base directory "${resolvedBase}"`);
+  }
+  return resolvedCandidate;
+}
+
 function slugify(text) {
   return text
     .toString()
@@ -706,13 +718,15 @@ function processMarkdownFile(filePath) {
   );
   
   // Create a separate directory for each article
-  const articleDir = path.join(distBlogDir, fileName); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- fileName comes from local markdown frontmatter/filename in blogDir, not user/HTTP input
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- fileName comes from local markdown frontmatter/filename in blogDir, not user/HTTP input; containment is verified below regardless.
+  const articleDir = assertWithinBase(path.join(distBlogDir, fileName), distBlogDir);
   if (!fs.existsSync(articleDir)) {
     fs.mkdirSync(articleDir, { recursive: true });
   }
 
   // Write to dist/blog/filename/index.html
-  const outputPath = path.join(articleDir, 'index.html'); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- articleDir is derived from fileName (local markdown filename), not user/HTTP input
+  // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- articleDir is derived from fileName (local markdown filename), not user/HTTP input; already containment-checked above.
+  const outputPath = path.join(articleDir, 'index.html');
   fs.writeFileSync(outputPath, html, 'utf-8');
   
   return {
@@ -956,7 +970,8 @@ function main() {
   
   markdownFiles.forEach((file) => {
     try {
-      const filePath = path.join(blogDir, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from local directory listing filtered by .md extension, not user input
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from local directory listing filtered by .md extension, not user input; containment is verified below regardless.
+      const filePath = assertWithinBase(path.join(blogDir, file), blogDir);
       const result = processMarkdownFile(filePath);
       results.push(result);
     } catch (error) {}

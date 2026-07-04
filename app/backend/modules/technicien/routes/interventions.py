@@ -71,6 +71,9 @@ async def list_my_interventions(
         .offset(skip)
         .limit(size)
     )
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+    # Core select() built from ORM column comparisons above (technician_id/statut
+    # bound via ==); no raw SQL or string interpolation is involved.
     result = await db.execute(query)
     interventions = list(result.scalars().all())
 

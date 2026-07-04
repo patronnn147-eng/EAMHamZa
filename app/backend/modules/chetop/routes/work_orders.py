@@ -64,6 +64,9 @@ async def get_my_work_orders(
             .limit(size)
         )
 
+        # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+        # Core select() built from ORM joins/column comparisons above; no raw SQL or
+        # string interpolation is involved.
         result = await db.execute(query)
         rows = result.all()
 

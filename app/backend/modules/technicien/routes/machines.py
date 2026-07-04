@@ -30,6 +30,8 @@ async def get_machines_list(
         if statut:
             query = query.where(Machines.statut == statut)
         query = query.order_by(Machines.nom)
+        # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+        # Core select() where `statut` is bound via ORM ==, never interpolated raw SQL.
         result = await db.execute(query)
         machines = result.scalars().all()
 

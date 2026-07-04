@@ -85,6 +85,9 @@ async def list_plannings(
             # Apply pagination
             data_query = data_query.offset(skip).limit(limit)
 
+            # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `data_query` is a
+            # SQLAlchemy Core select() filtered via .in_()/.is_() on ORM columns;
+            # no raw SQL or string interpolation is involved.
             # Execute query
             plannings_result = await db.execute(data_query)
             plannings_objs = plannings_result.scalars().all()

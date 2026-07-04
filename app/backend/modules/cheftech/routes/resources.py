@@ -28,6 +28,8 @@ async def get_technicians(
         count_query = select(func.count(Utilisateurs.id)).where(
             Utilisateurs.role == UserRole.TECHNICIEN
         )
+        # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `count_query` is a
+        # SQLAlchemy Core select() with a fixed enum comparison; no raw SQL/interpolation.
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
@@ -75,6 +77,8 @@ async def get_machines(
             query = query.where(Machines.statut == statut)
 
         query = query.order_by(Machines.nom).offset(skip).limit(size)
+        # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+        # Core select() with `statut` bound via ORM ==, never interpolated raw SQL.
         result = await db.execute(query)
 
         machines = [

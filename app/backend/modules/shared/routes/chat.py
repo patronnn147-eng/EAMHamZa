@@ -400,8 +400,9 @@ async def ai_chat(
             )
 
     if machine_id is not None:
+        safe_machine_id = str(machine_id).replace("\r", "").replace("\n", "")
         logger.info(
-            f"[ml_bridge] machine_id={machine_id} ml_context_used={ml_context_injected}"
+            f"[ml_bridge] machine_id={safe_machine_id} ml_context_used={ml_context_injected}"
         )
 
     messages.append({"role": "user", "content": request.message})
@@ -448,7 +449,8 @@ async def ai_chat(
                 if not result:
                     tool_failure = True
             except Exception as e:
-                logger.error(f"Tool {func_name} failed: {e}")
+                safe_func_name = str(func_name).replace("\r", "").replace("\n", "")
+                logger.error(f"Tool {safe_func_name} failed: {e}")
                 result = {"error": str(e)}
                 tool_failure = True
 

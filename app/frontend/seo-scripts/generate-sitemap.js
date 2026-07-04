@@ -6,6 +6,18 @@ const distDir = "./dist";
 const outFile = "./dist/sitemap.xml";
 const contentDir = "./seo/content";
 
+// Defensive containment guard: ensure a resolved path never escapes an expected base directory.
+// Used below even though all inputs here are local filesystem enumeration (fs.readdirSync),
+// not user/HTTP input -- kept cheap and always-on as defense in depth.
+function assertWithinBase(candidatePath, baseDir) {
+  const resolvedBase = path.resolve(baseDir);
+  const resolvedCandidate = path.resolve(candidatePath);
+  if (resolvedCandidate !== resolvedBase && !resolvedCandidate.startsWith(resolvedBase + path.sep)) {
+    throw new Error(`Path traversal guard: "${resolvedCandidate}" escapes base directory "${resolvedBase}"`);
+  }
+  return resolvedCandidate;
+}
+
 function collectHtmlFiles(dir, basePath = "") {
   const results = [];
 
@@ -16,11 +28,13 @@ function collectHtmlFiles(dir, basePath = "") {
   const list = fs.readdirSync(dir);
 
   list.forEach(file => {
-    const full = path.join(dir, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from fs.readdirSync(dir), local build-time directory listing, not user/HTTP input
+    // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- file comes from fs.readdirSync(dir), local build-time directory listing, not user/HTTP input; containment verified below regardless.
+    const full = assertWithinBase(path.join(dir, file), dir);
     const stat = fs.statSync(full);
 
     if (stat && stat.isDirectory()) {
-      const subPath = path.join(basePath, file); // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- same local directory listing, not user input
+      // nosemgrep: javascript.lang.security.audit.path-traversal.path-join-resolve-traversal.path-join-resolve-traversal -- same local directory listing, not user input
+      const subPath = path.join(basePath, file);
       results.push(...collectHtmlFiles(full, subPath));
     } else if (file.endsWith('.html')) {
       const relativePath = path.join(basePath, file).replace(/\\/g, '/');

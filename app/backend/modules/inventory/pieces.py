@@ -81,7 +81,8 @@ async def create_piece(data: PieceCreate, db: AsyncSession = Depends(get_db)):
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create piece")
-        logger.info(f"Piece created with id: {result.id}")
+        safe_id = str(result.id).replace("\r", "").replace("\n", "")
+        logger.info(f"Piece created with id: {safe_id}")
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -204,8 +205,9 @@ async def link_piece_to_machine(
         await service.link_machine(piece_id, data.machine_id)
         return {"message": f"Piece {piece_id} linked to machine {data.machine_id}"}
     except Exception as e:
+        safe_err = str(e).replace("\r", "").replace("\n", "")
         logger.error(
-            f"Error linking piece {piece_id} to machine {data.machine_id}: {str(e)}",
+            f"Error linking piece {piece_id} to machine {data.machine_id}: {safe_err}",
             exc_info=True,
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

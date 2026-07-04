@@ -35,7 +35,8 @@ async def create_planning(
 ):
     """Create a new planning (admin only)"""
     await verify_admin(current_user)
-    logger.info(f"CREATE planning — technicien_ids received: {data.technicien_ids}")
+    safe_technicien_ids = repr(data.technicien_ids)
+    logger.info(f"CREATE planning — technicien_ids received: {safe_technicien_ids}")
 
     try:
         # Create planning directly without service to avoid greenlet_spawn

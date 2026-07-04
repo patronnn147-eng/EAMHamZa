@@ -154,8 +154,9 @@ async def validate_itv_request(
                     auto_commit=False,
                 )
             except Exception as rls_exc:
+                safe_exc = str(rls_exc).replace("\r", "").replace("\n", "")
                 logger.warning(
-                    f"Release on reject failed for itv {itv_request.id}: {rls_exc}"
+                    f"Release on reject failed for itv {itv_request.id}: {safe_exc}"
                 )
         elif data.status == "APPROVED":
             # ── Reserve stock for required pieces ─────────────────────────
@@ -189,8 +190,9 @@ async def validate_itv_request(
                     },
                 )
             except Exception as rsv_exc:
+                safe_exc = str(rsv_exc).replace("\r", "").replace("\n", "")
                 logger.warning(
-                    f"Reservation soft-failure for itv {itv_request.id}: {rsv_exc}"
+                    f"Reservation soft-failure for itv {itv_request.id}: {safe_exc}"
                 )
                 # Continue — interventions without required_pieces simply have nothing to reserve
 

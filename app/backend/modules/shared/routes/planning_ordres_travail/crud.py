@@ -180,8 +180,9 @@ async def create_planning_ordres_travail(
                 status_code=400, detail="Failed to create planning_ordres_travail"
             )
 
+        safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(
-            f"Planning_ordres_travail created successfully with id: {result.id}"
+            f"Planning_ordres_travail created successfully with id: {safe_id}"
         )
         return result
     except ValueError as e:

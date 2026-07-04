@@ -139,7 +139,8 @@ async def create_ordres_travail(
                 status_code=400, detail="Failed to create ordres_travail"
             )
 
-        logger.info(f"Ordres_travail created successfully with id: {result.id}")
+        safe_id = str(result.id).replace("\r", "").replace("\n", "")
+        logger.info(f"Ordres_travail created successfully with id: {safe_id}")
 
         try:
             await AuditService(db).log_create(

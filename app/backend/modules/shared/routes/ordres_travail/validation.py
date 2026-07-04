@@ -82,12 +82,14 @@ async def validate_ordres_travail(
                         intervention_id=itv_id, reason="wo-rejected", auto_commit=True
                     )
                 except Exception as rls_exc:
+                    safe_exc = str(rls_exc).replace("\r", "").replace("\n", "")
                     logger.warning(
-                        f"release_all on WO reject failed for itv {itv_id}: {rls_exc}"
+                        f"release_all on WO reject failed for itv {itv_id}: {safe_exc}"
                     )
         except Exception as scan_exc:
+            safe_scan_exc = str(scan_exc).replace("\r", "").replace("\n", "")
             logger.warning(
-                f"Could not scan linked interventions for WO {id}: {scan_exc}"
+                f"Could not scan linked interventions for WO {id}: {safe_scan_exc}"
             )
 
     return result

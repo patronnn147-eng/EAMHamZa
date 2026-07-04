@@ -155,8 +155,14 @@ async def create_intervention_from_planning(
     except Exception:
         logger.warning("Audit log failed for create intervention %s", intervention.id)
 
+    # nosemgrep: python.fastapi.log.tainted-log-injection-stdlib-fastapi -- all three
+    # interpolated values are ints (model PK, FastAPI path/query int params), which
+    # cannot carry newline/control-char sequences.
     logger.info(
-        f"Intervention #{intervention.id} created from planning #{planning_id} by user {current_user.id}"
+        "Intervention #%s created from planning #%s by user %s",
+        intervention.id,
+        planning_id,
+        current_user.id,
     )
     return intervention
 
@@ -212,6 +218,9 @@ async def list_interventions(
         .limit(size)
     )
 
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+    # Core select() built from ORM column comparisons/joins above (planning_id/statut
+    # bound via ==); no raw SQL or string interpolation is involved.
     result = await db.execute(query)
     items = list(result.scalars().all())
 
@@ -304,8 +313,14 @@ async def validate_intervention(
     except Exception:
         logger.warning("Audit log failed for validate intervention %s", intervention_id)
 
+    # nosemgrep: python.fastapi.log.tainted-log-injection-stdlib-fastapi -- by this
+    # point data.action is guaranteed to be exactly "APPROVE" or "REJECT" (any other
+    # value already raised HTTP 400 above); intervention_id/current_user.id are ints.
     logger.info(
-        f"Intervention #{intervention_id} {data.action}ed by user {current_user.id}"
+        "Intervention #%s %sed by user %s",
+        intervention_id,
+        data.action,
+        current_user.id,
     )
     return intervention
 
@@ -421,8 +436,14 @@ async def create_work_order_from_intervention(
             intervention_id,
         )
 
+    # nosemgrep: python.fastapi.log.tainted-log-injection-stdlib-fastapi -- all three
+    # interpolated values are ints (model PK, FastAPI path param, current user id),
+    # which cannot carry newline/control-char sequences.
     logger.info(
-        f"Work Order #{work_order.id} created from Intervention #{intervention_id} by user {current_user.id}"
+        "Work Order #%s created from Intervention #%s by user %s",
+        work_order.id,
+        intervention_id,
+        current_user.id,
     )
     return work_order
 

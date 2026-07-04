@@ -12,13 +12,15 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "all non-major dependencies",
       "groupSlug": "all-minor-patch",
-      "automerge": false
+      "automerge": false,
+      "minimumReleaseAge": "7 days"
     },
     {
       "matchUpdateTypes": ["major"],
       "groupName": null,
       "automerge": false,
-      "labels": ["major-update", "review-required"]
+      "labels": ["major-update", "review-required"],
+      "minimumReleaseAge": "7 days"
     }
   ],
   "pip_requirements": {

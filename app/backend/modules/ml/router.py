@@ -791,6 +791,9 @@ async def get_shadow_logs(
     skip = (page - 1) * size
     query = query.order_by(desc(MlPredictionLog.created_at)).offset(skip).limit(size)
 
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+    # Core select() where machine_id/risk_level are bound via ORM == comparisons;
+    # no raw SQL or string interpolation is involved.
     result = await db.execute(query)
     logs = result.scalars().all()
 

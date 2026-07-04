@@ -53,6 +53,9 @@ async def get_completed_work_orders(
         query = query.where(Ordres_travail.date_fin <= date_to)
 
     query = query.order_by(Ordres_travail.date_fin.desc()).offset(skip).limit(size)
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+    # Core select() built from ORM column comparisons (technician_id/machine_id/
+    # failure_type/date_from/date_to bound via ==/>=/<=), never raw SQL text.
     result = await db.execute(query)
     work_orders = list(result.scalars().all())
 

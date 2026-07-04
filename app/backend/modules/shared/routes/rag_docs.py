@@ -525,7 +525,8 @@ async def replace_document(
         )
         await db.commit()
     except Exception as e:
-        logger.warning(f"Failed to set version for {new_doc.id}: {e}")
+        safe_exc = str(e).replace("\r", "").replace("\n", "")
+        logger.warning(f"Failed to set version for {new_doc.id}: {safe_exc}")
 
     return new_doc
 

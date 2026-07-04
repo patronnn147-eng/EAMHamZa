@@ -5,6 +5,7 @@ This handler simulates Nginx routing logic within Lambda
 
 import asyncio
 import base64
+import html
 import json
 import logging
 import os
@@ -423,8 +424,22 @@ def serve_static_file(path: str) -> Dict[str, Any]:
     ext = os.path.splitext(path)[1].lower()
     content_type = content_types.get(ext, "application/octet-stream")
 
-    # Try to read the file
-    file_path = f"/var/task/frontend/dist{path}"
+    # Security: `path` comes from the request URL (untrusted). Resolve the
+    # real path and verify it stays within the static root before opening it,
+    # to prevent path traversal (e.g. "/../../etc/passwd").
+    static_root = os.path.realpath("/var/task/frontend/dist")
+    file_path = os.path.realpath(os.path.join(static_root, path.lstrip("/")))
+    if not (file_path == static_root or file_path.startswith(static_root + os.sep)):
+        logger.warning(f"Blocked path traversal attempt: {path!r}")
+        return {
+            "statusCode": 404,
+            "headers": {
+                "Content-Type": "text/plain",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "File not found",
+        }
+
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             content = f.read()
@@ -570,7 +585,10 @@ def sanitize_config(config: dict) -> dict:
 def replace_seo_domain(content: str, request_domain: str) -> str:
     """Replace SEO placeholder domain with actual request domain"""
     if request_domain and SEO_DOMAIN_PLACEHOLDER in content:
-        return content.replace(SEO_DOMAIN_PLACEHOLDER, request_domain)
+        # Security: request_domain is derived from request headers (Host /
+        # X-Forwarded-Host, untrusted) and gets embedded into an HTML
+        # document. Escape it before substitution to avoid reflected XSS.
+        return content.replace(SEO_DOMAIN_PLACEHOLDER, html.escape(request_domain))
     return content
 
 
@@ -652,7 +670,27 @@ def serve_robots() -> Dict[str, Any]:
 
 def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
     """Serve SEO HTML files from index.html"""
-    html_path = f"/var/task/frontend/dist{path.rstrip('/')}/index.html"
+    # Security: `path` comes from the request URL (untrusted, though callers
+    # currently gate it against a whitelist of registered SEO paths). Resolve
+    # the real path and verify it stays within the static root before opening
+    # it, to prevent path traversal (e.g. "/../../etc/passwd").
+    static_root = os.path.realpath("/var/task/frontend/dist")
+    html_path = os.path.realpath(
+        os.path.join(static_root, path.strip("/"), "index.html")
+    )
+    if not (
+        html_path == os.path.join(static_root, "index.html")
+        or html_path.startswith(static_root + os.sep)
+    ):
+        logger.warning(f"Blocked path traversal attempt: {path!r}")
+        return {
+            "statusCode": 404,
+            "headers": {
+                "Content-Type": "text/html",
+                "Access-Control-Allow-Origin": "*",
+            },
+            "body": "<html><body><h1>404 Not Found</h1></body></html>",
+        }
 
     if not os.path.exists(html_path):
         return {

@@ -46,6 +46,9 @@ async def get_work_orders(
     total = total_result.scalar() or 0
 
     query = query.order_by(Ordres_travail.created_at.desc()).offset(skip).limit(size)
+    # nosemgrep: python.fastapi.db.generic-sql-fastapi -- `query` is a SQLAlchemy
+    # Core select() where `statut`/`priorite` are bound via ORM == (statut is coerced
+    # through the OrdreStatut enum first); no raw SQL or string interpolation.
     result = await db.execute(query)
     items = [WorkOrderResponse.model_validate(ot) for ot in result.scalars()]
 
