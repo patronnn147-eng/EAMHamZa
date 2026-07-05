@@ -299,20 +299,13 @@ export default function TechnicianDashboard() {
               {workOrders.slice(0, 5).map((ordre) => {
                 const machine = getMachineInfo(ordre.machine_id);
                 return (
-                  <div
+                  <button
+                    type="button"
                     key={ordre.id}
-                    className={`p-6 border-none rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer animate-premium-fade-in group relative overflow-hidden ${
+                    className={`w-full p-6 border-none rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer text-left animate-premium-fade-in group relative overflow-hidden ${
                       ordre.priorite === 'URGENTE' ? 'bg-red-50/50 dark:bg-red-950/20 ring-1 ring-red-200' : 'bg-slate-800 dark:bg-slate-900'
                     }`}
-                    role="button"
-                    tabIndex={0}
                     onClick={() => navigate(`/technician/work-orders/${ordre.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        navigate(`/technician/work-orders/${ordre.id}`);
-                      }
-                    }}
                   >
                     <div className="absolute right-0 top-0 w-32 h-32 bg-gradient-premium opacity-[0.03] -mr-16 -mt-16 rounded-full group-hover:opacity-[0.08] transition-opacity" />
                     <div className="flex items-start justify-between">
@@ -347,7 +340,7 @@ export default function TechnicianDashboard() {
                       )}
                       {ordre.statut === 'TERMINE' && <CheckCircle className="h-5 w-5 text-green-600" />}
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

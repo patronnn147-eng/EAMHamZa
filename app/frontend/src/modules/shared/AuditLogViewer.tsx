@@ -334,18 +334,11 @@ export const AuditLogViewer: React.FC = () => {
               const isSelected = selectedEntry?.id === entry.id;
               
               return (
-                <div
+                <button
                   key={entry.id}
-                  role="button"
-                  tabIndex={0}
+                  type="button"
                   onClick={() => setSelectedEntry(isSelected ? null : entry)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedEntry(isSelected ? null : entry);
-                    }
-                  }}
-                  className={`grid grid-cols-4 gap-4 p-4 cursor-pointer transition-all ${
+                  className={`grid w-full grid-cols-4 gap-4 p-4 cursor-pointer text-left transition-all ${
                     index % 2 === 0 ? 'bg-white/[0.02]' : 'bg-white/[0.01]'
                   } hover:bg-white/[0.06] ${
                     isSelected ? 'bg-white/[0.08] border-l-2 border-cyan-400' : ''
@@ -368,7 +361,7 @@ export const AuditLogViewer: React.FC = () => {
                     <Clock className="h-4 w-4" />
                     {formatDate(entry.created_at)}
                   </div>
-                </div>
+                </button>
               );
             })
           )}

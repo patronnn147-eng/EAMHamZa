@@ -222,25 +222,18 @@ export const ReliabilityDashboardTab: React.FC = () => {
                                         .filter((e) => e.metrics.classification === 'Critique')
                                         .slice(0, 4)
                                         .map((e) => (
-                                            <div
+                                            <button
+                                                type="button"
                                                 key={e.machineId}
-                                                className="flex items-center justify-between p-2 rounded-lg bg-slate-800 border border-red-100 cursor-pointer hover:border-red-300 transition-colors"
-                                                role="button"
-                                                tabIndex={0}
+                                                className="flex w-full items-center justify-between p-2 rounded-lg bg-slate-800 border border-red-100 cursor-pointer text-left hover:border-red-300 transition-colors"
                                                 onClick={() => navigate(`/machines/${e.machineId}`)}
-                                                onKeyDown={(ev) => {
-                                                    if (ev.key === 'Enter' || ev.key === ' ') {
-                                                        ev.preventDefault();
-                                                        navigate(`/machines/${e.machineId}`);
-                                                    }
-                                                }}
                                             >
                                                 <div>
                                                     <p className="text-sm font-semibold text-blue-50">{e.machineName}</p>
                                                     <p className="text-xs text-red-600">{e.metrics.failureCount} arrêts · {e.metrics.uptimePct.toFixed(1)}% dispo.</p>
                                                 </div>
                                                 <ChevronRight className="h-4 w-4 text-blue-400" />
-                                            </div>
+                                            </button>
                                         ))}
                                 </div>
                             </>

@@ -163,17 +163,10 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
                 </div>
 
                 {/* URL display */}
-                <div
-                    className="flex items-center gap-2 bg-slate-800/50 border border-blue-700/50 rounded-lg px-3 py-2 cursor-pointer hover:bg-blue-50 hover:border-blue-200 transition-colors"
-                    role="button"
-                    tabIndex={0}
+                <button
+                    type="button"
+                    className="flex w-full items-center gap-2 bg-slate-800/50 border border-blue-700/50 rounded-lg px-3 py-2 cursor-pointer text-left hover:bg-blue-50 hover:border-blue-200 transition-colors"
                     onClick={handleCopy}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        handleCopy();
-                      }
-                    }}
                     title="Copier le lien"
                 >
                     <span className="text-xs text-blue-300 truncate flex-1 font-mono">{machineUrl}</span>
@@ -181,7 +174,7 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
                         ? <CheckCheck className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
                         : <Copy className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                     }
-                </div>
+                </button>
                 {copied && (
                     <p className="text-xs text-center text-emerald-600 -mt-2">Lien copié !</p>
                 )}
