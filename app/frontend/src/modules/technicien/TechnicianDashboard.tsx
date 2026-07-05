@@ -218,7 +218,7 @@ export default function TechnicianDashboard() {
         userId={Number(currentUser.id) || undefined}
         workOrders={workOrders.map((wo) => ({
           id: wo.id, priorite: wo.priorite, statut: wo.statut,
-          technicien_id: (wo as any).utilisateur_id ?? Number(currentUser.id),
+          technicien_id: (wo).utilisateur_id ?? Number(currentUser.id),
           machine_id: wo.machine_id,
         }))}
         overduePMs={machines

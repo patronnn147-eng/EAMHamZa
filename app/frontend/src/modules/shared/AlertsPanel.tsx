@@ -354,7 +354,7 @@ export const AlertsPanel: React.FC = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleViewWorkOrder(alert.work_order_id!)}
+                        onClick={() => handleViewWorkOrder(alert.work_order_id)}
                         className="h-8 border-white/10 bg-white/5 text-white hover:bg-white/10 text-xs"
                       >
                         <ExternalLink className="mr-1.5 h-3 w-3" />

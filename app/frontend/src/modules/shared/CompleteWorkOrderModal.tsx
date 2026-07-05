@@ -138,7 +138,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setAttachments((prev) => [...prev, ...Array.from(e.target.files!)]);
+      setAttachments((prev) => [...prev, ...Array.from(e.target.files)]);
     }
   };
 

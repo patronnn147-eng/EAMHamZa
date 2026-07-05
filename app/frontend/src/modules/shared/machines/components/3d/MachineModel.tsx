@@ -72,7 +72,7 @@ export function MachineModel({
         }`
       );
 
-      shaderUniformsRef.current = shader.uniforms as any;
+      shaderUniformsRef.current = shader.uniforms;
     };
 
     return mat;

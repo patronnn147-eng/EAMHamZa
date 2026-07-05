@@ -77,7 +77,7 @@ export const InterventionsPagination: React.FC<InterventionsPaginationProps> = (
               <Button
                 variant={currentPage === page ? 'default' : 'ghost'}
                 size="icon"
-                onClick={() => onPageChange(page as number)}
+                onClick={() => onPageChange(page)}
                 className={`h-8 w-8 ${currentPage === page ? 'bg-primary text-white' : ''}`}
               >
                 {page}

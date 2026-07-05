@@ -59,7 +59,7 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
         <div className="space-y-4">
           {machines.map((machine) => {
             const urgency = getMaintenanceUrgency(machine.date_prochaine_maintenance);
-            const health = computeHealthScore(machine as any);
+            const health = computeHealthScore(machine);
             const cardBorder =
               urgency === 'overdue'
                 ? 'border-red-400 bg-red-50'

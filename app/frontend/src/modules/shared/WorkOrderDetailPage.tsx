@@ -523,7 +523,7 @@ export default function WorkOrderDetailPage() {
             <CompleteWorkOrderModal
                 open={completeModalOpen}
                 onOpenChange={setCompleteModalOpen}
-                workOrderId={parseInt(id!)}
+                workOrderId={parseInt(id)}
                 machineId={ordre?.machine_id ?? null}
                 onSuccess={fetchData}
             />

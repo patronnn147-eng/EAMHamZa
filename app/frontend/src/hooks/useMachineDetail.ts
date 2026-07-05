@@ -51,12 +51,12 @@ async function fetchMachineDetail(
 ): Promise<{ machine: MachineData; prediction: MLPrediction }> {
   // ✅ Return cached data
   if (cache.has(id)) {
-    return cache.get(id)!;
+    return cache.get(id);
   }
 
   // ✅ Prevent duplicate requests
   if (inFlight.has(id)) {
-    return inFlight.get(id)!;
+    return inFlight.get(id);
   }
 
   const controller = new AbortController();
@@ -128,7 +128,7 @@ export function useMachineDetail(machineId: number | undefined): UseMachineDetai
 
     // ✅ Serve cache instantly
     if (cache.has(machineId)) {
-      const cached = cache.get(machineId)!;
+      const cached = cache.get(machineId);
       setMachine(cached.machine);
       setPrediction(cached.prediction);
       setLoading(false);

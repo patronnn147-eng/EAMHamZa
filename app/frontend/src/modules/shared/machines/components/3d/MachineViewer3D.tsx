@@ -32,7 +32,7 @@ export default function MachineViewer3D({ machine, mlPrediction }: MachineViewer
   const healthScore = mlPrediction?.health_score ?? 50;
   const riskLevel =
     (['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].includes(mlPrediction?.risk_level ?? '')
-      ? mlPrediction!.risk_level
+      ? mlPrediction.risk_level
       : 'LOW') as 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   const rulDays = mlPrediction?.rul_days ?? null;
 

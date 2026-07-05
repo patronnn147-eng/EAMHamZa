@@ -79,8 +79,8 @@ export function computeReliabilityMetrics(
     // Build downtime events
     const downtimeEvents: DowntimeEvent[] = completedWithTime
         .map((i) => {
-            const start = new Date(i.date_debut!);
-            const end = new Date(i.date_fin!);
+            const start = new Date(i.date_debut);
+            const end = new Date(i.date_fin);
             const durationMinutes = Math.max(0, (end.getTime() - start.getTime()) / 60000);
             return {
                 id: i.id,
@@ -195,12 +195,12 @@ export function computeFleetReliability(
 
     const entriesWithMttr = entries.filter((e) => e.metrics.mttr !== null);
     const avgMttr = entriesWithMttr.length > 0
-        ? entriesWithMttr.reduce((s, e) => s + e.metrics.mttr!, 0) / entriesWithMttr.length
+        ? entriesWithMttr.reduce((s, e) => s + e.metrics.mttr, 0) / entriesWithMttr.length
         : null;
 
     const entriesWithMtbf = entries.filter((e) => e.metrics.mtbf !== null);
     const avgMtbf = entriesWithMtbf.length > 0
-        ? entriesWithMtbf.reduce((s, e) => s + e.metrics.mtbf!, 0) / entriesWithMtbf.length
+        ? entriesWithMtbf.reduce((s, e) => s + e.metrics.mtbf, 0) / entriesWithMtbf.length
         : null;
 
     const totalDowntimeMinutes = entries.reduce((s, e) => s + e.metrics.totalDowntimeMinutes, 0);

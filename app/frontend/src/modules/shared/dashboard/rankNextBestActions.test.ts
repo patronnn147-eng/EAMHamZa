@@ -46,7 +46,7 @@ describe('rankNextBestActions', () => {
 
   it('builds a drill-through href per action', () => {
     const out = rankNextBestActions(base);
-    const alert = out.find((a) => a.severity === 'critical')!;
+    const alert = out.find((a) => a.severity === 'critical');
     expect(alert.href).toContain('/machines/7');
   });
 

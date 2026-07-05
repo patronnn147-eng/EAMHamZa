@@ -22,7 +22,7 @@ describe('buildHealthWhy', () => {
   });
   it('counterfactual targets the out-of-range sensor', () => {
     const p = buildHealthWhy(health);
-    const cf = p.counterfactual!.map((r) => r.label).join(' ');
+    const cf = p.counterfactual.map((r) => r.label).join(' ');
     expect(cf.toLowerCase()).toContain('procédé');
   });
   it('never leaks ML jargon', () => {

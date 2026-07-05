@@ -56,7 +56,7 @@ apiCall.invoke = async function (config: any) {
     return { data: userData };
   } catch (error) {
     // If 401, token is definitely bad
-    if ((error as any)?.response?.status === 401) {
+    if (error?.response?.status === 401) {
       localStorage.removeItem('access_token');
       localStorage.removeItem('user');
     }
@@ -71,4 +71,4 @@ apiCall.invoke = async function (config: any) {
   globalThis.location.href = '/login';
 };
 
-export const api = client;
+export const api = client;

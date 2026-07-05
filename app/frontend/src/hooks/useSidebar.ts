@@ -25,8 +25,8 @@ export function useSidebar() {
       const detail = (e as CustomEvent<boolean>).detail;
       if (typeof detail === 'boolean') setCollapsed(detail);
     };
-    window.addEventListener(EVENT_NAME, handler as EventListener);
-    return () => window.removeEventListener(EVENT_NAME, handler as EventListener);
+    window.addEventListener(EVENT_NAME, handler);
+    return () => window.removeEventListener(EVENT_NAME, handler);
   }, []);
 
   const setAndBroadcast = (value: boolean) => {

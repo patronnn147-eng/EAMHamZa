@@ -841,7 +841,7 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
                             <div key={k} style={{ flex: 1 }}>
                                 <p style={{ fontSize: '0.6rem', textTransform: 'capitalize', color: '#475569', fontFamily: 'Space Grotesk, monospace', marginBottom: 4 }}>{k}</p>
                                 <p style={{ fontSize: '1rem', fontWeight: 700, color: k === 'healthy' ? '#00f2ff' : k === 'critical' ? '#bc00ff' : '#e2e8f0', fontFamily: 'Manrope, sans-serif' }}>
-                                    {((v as number) * 100).toFixed(0)}%
+                                    {(v * 100).toFixed(0)}%
                                 </p>
                             </div>
                         ))}

@@ -47,7 +47,7 @@ function markScrolling(target: EventTarget | null) {
     window.clearTimeout(holder[TIMER_KEY]);
   }
   holder[TIMER_KEY] = window.setTimeout(() => {
-    el!.classList.remove('is-scrolling');
+    el.classList.remove('is-scrolling');
     holder[TIMER_KEY] = undefined;
   }, HIDE_DELAY_MS);
 }
@@ -78,7 +78,7 @@ document.addEventListener(
 );
 document.addEventListener('pointerdown', (e) => {
   // Dragging a scrollbar thumb = user intent.
-  if ((e as PointerEvent).pointerType === 'mouse') markUserIntent();
+  if (e.pointerType === 'mouse') markUserIntent();
 }, { capture: true });
 
 // --- Scroll handler: only tags elements when there was recent user intent ---
