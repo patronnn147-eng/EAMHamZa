@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -129,7 +129,7 @@ async def start_work_order(
             )
 
         wo.statut = "EN_COURS"
-        wo.date_debut = datetime.utcnow()
+        wo.date_debut = datetime.now(timezone.utc)
         await db.commit()
 
         try:
@@ -192,7 +192,7 @@ async def complete_work_order(
                 status_code=400, detail="Only 'EN_COURS' orders can be completed"
             )
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Post-maintenance recovery: capture pre-fix health state right before
         # the WO is marked complete. Non-blocking — None if ML service is down.

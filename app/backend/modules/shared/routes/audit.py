@@ -20,14 +20,14 @@ class AuditLogResponse(BaseModel):
     action_type: str
     entity_type: str
     entity_id: int
-    entity_name: Optional[str]
-    user_id: Optional[int]
-    user_name: Optional[str]
-    changes: Optional[dict]
-    old_values: Optional[dict]
-    new_values: Optional[dict]
-    ip_address: Optional[str]
-    description: Optional[str]
+    entity_name: Optional[str] = None
+    user_id: Optional[int] = None
+    user_name: Optional[str] = None
+    changes: Optional[dict] = None
+    old_values: Optional[dict] = None
+    new_values: Optional[dict] = None
+    ip_address: Optional[str] = None
+    description: Optional[str] = None
     created_at: datetime
 
     class Config:

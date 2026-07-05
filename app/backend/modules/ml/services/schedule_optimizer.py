@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
@@ -160,7 +160,7 @@ async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
     from models.ordres_travail import Ordres_travail, OrdreStatut
     from models.utilisateurs import Utilisateurs
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if (
         _SCHEDULE_CACHE["data"] is not None
         and _SCHEDULE_CACHE["timestamp"] is not None

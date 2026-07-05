@@ -146,12 +146,12 @@ async def list_in_scope_machines(
     can toggle to "all machines" if they need to link to one outside scope.
     """
     from sqlalchemy import distinct, select
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     from models.machines import Machines
     from models.planning_machines import Planning_machines
     from models.ordres_travail import Ordres_travail
 
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Subquery 1: machines with active planning entries
     planned = select(distinct(Planning_machines.machine_id))

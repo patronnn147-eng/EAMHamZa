@@ -1,6 +1,6 @@
 import logging
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey, Enum, JSON
 from core.database import Base
@@ -93,7 +93,7 @@ class AuditService:
                 ip_address=ip_address,
                 user_agent=user_agent,
                 description=description,
-                created_at=datetime.utcnow(),
+                created_at=datetime.now(timezone.utc),
             )
             self.db.add(entry)
             await self.db.commit()

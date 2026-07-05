@@ -609,7 +609,7 @@ async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
     PDCA Fleet Dashboard: Full overview of ALL machines with ML predictions.
     Cached for 5 minutes + parallel processing for speed.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Check cache
     if (
@@ -834,7 +834,7 @@ async def update_machine_telemetry(
         rotational_speed=data.rotational_speed or 1500,
         torque=data.torque or 40.0,
         tool_wear=data.tool_wear or 0.0,
-        recorded_at=datetime.utcnow(),
+        recorded_at=datetime.now(timezone.utc),
         notes="Manual simulation entry",
     )
     db.add(entry)
@@ -1293,7 +1293,7 @@ async def get_forecast_summary(
     from .services.demand_forecast import compute_demand_forecast
     from models.utilisateurs import Utilisateurs as U
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if (
         _FORECAST_SUMMARY_CACHE["data"] is not None
         and _FORECAST_SUMMARY_CACHE["ts"] is not None

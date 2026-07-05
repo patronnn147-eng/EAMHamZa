@@ -124,7 +124,7 @@ async def compute_demand_forecast(
     horizon_days: only include machines with RUL <= this value.
     limit: top N items to return.
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Check cache
     if (

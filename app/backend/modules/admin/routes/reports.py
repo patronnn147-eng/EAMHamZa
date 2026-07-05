@@ -40,7 +40,7 @@ class ReportResponse(BaseModel):
     identifiant_rapport: str
     titre: str
     date_generation: datetime
-    report_type: Optional[str]
+    report_type: Optional[str] = None
     is_active: bool
 
     class Config:

@@ -21,8 +21,8 @@ depends_on = None
 
 
 def upgrade() -> None:
-    pass
+    """Merge migration — joins branches, no schema changes."""
 
 
 def downgrade() -> None:
-    pass
+    """Merge migration — joins branches, no schema changes."""

@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -43,8 +43,8 @@ async def create_intervention_request(
             priority=data.priorite,
             problem_description=data.description,
             statut="PENDING_APPROVAL",
-            date_intervention=datetime.utcnow(),
-            requested_at=datetime.utcnow(),
+            date_intervention=datetime.now(timezone.utc),
+            requested_at=datetime.now(timezone.utc),
             requested_by=current_user.id,
             ordre_travail_id=None,
             technicien_id=None,

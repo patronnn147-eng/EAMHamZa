@@ -1,6 +1,6 @@
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import db_manager
 from sqlalchemy import text
@@ -13,7 +13,7 @@ _db_health_cache = {"healthy": False, "timestamp": None, "ttl_seconds": 5}
 
 async def check_database_health() -> bool:
     """Check if database is healthy (cached for 5 seconds)"""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # Return cached result if fresh
     if (

@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy import func
 from typing import List, Optional
 from schemas.pagination import PaginatedResponse
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 from pydantic import BaseModel
 
@@ -196,7 +196,7 @@ async def start_work_order(
             )
 
         previous_statut = wo.statut
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         wo.statut = OrdreStatut.IN_PROGRESS
         if not wo.date_debut:
             wo.date_debut = now
@@ -281,7 +281,7 @@ async def complete_work_order(
                 status_code=400, detail="Only 'IN_PROGRESS' orders can be completed"
             )
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         # Post-maintenance recovery: snapshot pre-fix health before completing.
         # Non-blocking — None silently if ML service is unavailable.

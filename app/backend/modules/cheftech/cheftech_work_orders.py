@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import io
 import logging
 
@@ -78,7 +78,7 @@ async def list_cheftech_work_orders(
         rows = result.all()
 
         output = []
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
 
         for wo, m_nom, u_nom, u_email, itv in rows:
             # Calculate live duration

@@ -20,8 +20,8 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
+    """Bridge migration — intentional no-op, see module docstring."""
 
 
 def downgrade() -> None:
-    pass
+    """Bridge migration — intentional no-op, see module docstring."""

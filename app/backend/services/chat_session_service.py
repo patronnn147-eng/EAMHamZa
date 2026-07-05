@@ -11,7 +11,7 @@ power the multi-conversation sidebar.
 """
 
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from uuid import UUID
 
@@ -110,7 +110,7 @@ class ChatSessionService:
         if session is None:
             return None
         session.title = title.strip()[:200] or "Conversation"
-        session.updated_at = datetime.utcnow()
+        session.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
         await self.db.refresh(session)
         return session
@@ -162,7 +162,7 @@ class ChatSessionService:
                 ):
                     session.title = _auto_title(first_user)
 
-            session.updated_at = datetime.utcnow()
+            session.updated_at = datetime.now(timezone.utc)
             await self.db.commit()
             return session
         except Exception as e:

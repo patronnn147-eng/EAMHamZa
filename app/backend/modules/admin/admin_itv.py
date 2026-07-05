@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -141,7 +141,7 @@ async def validate_itv_request(
         assigned_user_id = itv_request.requested_by
 
         itv_request.approved_by = current_user.id
-        itv_request.approved_at = datetime.utcnow()
+        itv_request.approved_at = datetime.now(timezone.utc)
 
         if data.status == "REJECTED":
             itv_request.statut = "DECLINED"
@@ -209,7 +209,7 @@ async def validate_itv_request(
                 date_echeance=itv_request.requested_at,
                 created_by=current_user.id,
                 validated_by=current_user.id,
-                date_validation=datetime.utcnow(),
+                date_validation=datetime.now(timezone.utc),
                 estimated_duration=itv_request.estimated_duration_minutes,
             )
             db.add(new_wo)

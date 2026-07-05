@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 import io
 import logging
 
@@ -85,7 +85,7 @@ async def list_work_orders(
                 diff = wo.date_fin - wo.date_debut
                 duration_minutes = int(diff.total_seconds() / 60)
             elif wo.date_debut and wo.statut == "EN_COURS":
-                diff = datetime.utcnow() - wo.date_debut
+                diff = datetime.now(timezone.utc) - wo.date_debut
                 duration_minutes = int(diff.total_seconds() / 60)
 
             output.append(

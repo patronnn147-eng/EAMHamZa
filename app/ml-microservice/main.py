@@ -2,6 +2,7 @@
 EAM ML Prediction Service - FastAPI Entry Point
 Version 2.0.0 - Microservice Architecture
 """
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +13,7 @@ import os
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
-    format="[%(asctime)s] %(levelname)s: %(message)s"
+    level=logging.INFO, format="[%(asctime)s] %(levelname)s: %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -43,22 +43,35 @@ def _fit_wave2_models():
             break
 
     if csv_path is None:
-        logger.warning("Wave 2 startup fit skipped: ai4i2020.csv not found. "
-                       "pinn_rul and anomaly model outputs will be null.")
+        logger.warning(
+            "Wave 2 startup fit skipped: ai4i2020.csv not found. "
+            "pinn_rul and anomaly model outputs will be null."
+        )
         return
 
     try:
         import csv
+
         rows = []
         with open(csv_path, newline="") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 rows.append(row)
 
-        FEATURES = ["Air temperature [K]", "Process temperature [K]",
-                    "Rotational speed [rpm]", "Torque [Nm]", "Tool wear [min]"]
-        FEATURE_NAMES = ["air_temperature", "process_temperature",
-                         "rotational_speed", "torque", "tool_wear"]
+        FEATURES = [
+            "Air temperature [K]",
+            "Process temperature [K]",
+            "Rotational speed [rpm]",
+            "Torque [Nm]",
+            "Tool wear [min]",
+        ]
+        FEATURE_NAMES = [
+            "air_temperature",
+            "process_temperature",
+            "rotational_speed",
+            "torque",
+            "tool_wear",
+        ]
 
         # Build X matrix (all rows, 5 features)
         X_all = []
@@ -79,10 +92,12 @@ def _fit_wave2_models():
         # ── AnomalyEnsemble: fit on rows where machine_failure == 0 (healthy baseline) ──
         try:
             from src.anomaly_cusum import fit_anomaly_ensemble
+
             failure_col = "Machine failure" if "Machine failure" in rows[0] else None
             if failure_col:
                 healthy_mask = [
-                    i for i, row in enumerate(rows)
+                    i
+                    for i, row in enumerate(rows)
                     if row.get(failure_col, "0").strip() in ("0", "0.0", "False")
                 ]
                 X_healthy = X_all[healthy_mask] if healthy_mask else X_all
@@ -97,6 +112,7 @@ def _fit_wave2_models():
         # ── PINN RUL: build (sequence, rul_label) pairs ──
         try:
             from src.pinn_rul import create_pinn_estimator, TORCH_AVAILABLE
+
             if not TORCH_AVAILABLE:
                 logger.warning("PINN skipped: PyTorch not available.")
                 return
@@ -108,7 +124,7 @@ def _fit_wave2_models():
             if rul_col and rul_col in rows[0]:
                 # Dataset has RUL column — use directly
                 for i in range(WINDOW, len(X_all), WINDOW):
-                    seq = X_all[i - WINDOW:i]
+                    seq = X_all[i - WINDOW : i]
                     try:
                         rul = float(rows[i - 1].get(rul_col, 60))
                     except ValueError:
@@ -118,7 +134,7 @@ def _fit_wave2_models():
             else:
                 # No RUL column — derive from tool wear (proxy: 300 - wear)
                 for i in range(WINDOW, len(X_all), WINDOW):
-                    seq = X_all[i - WINDOW:i]
+                    seq = X_all[i - WINDOW : i]
                     wear = seq[-1, 4]  # tool_wear is index 4
                     rul = max(0.0, 300.0 - float(wear))
                     sequences.append(seq)
@@ -147,6 +163,7 @@ def _fit_wave2_models():
 
 # ── Lifespan must be defined BEFORE FastAPI() ──────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
@@ -159,6 +176,7 @@ async def lifespan(app: FastAPI):
     logger.info("=" * 50)
 
     from src.core.model_loader import startup_check
+
     startup_check()
 
     # Fit transient Wave 2 models from training data
@@ -202,7 +220,14 @@ app.include_router(ml_router)
 @app.get("/health")
 async def health_check():
     """Health check endpoint for container orchestration."""
-    from src.core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6
+    from src.core.model_loader import (
+        load_p1,
+        load_p2,
+        load_p3,
+        load_p4,
+        load_p5,
+        load_p6,
+    )
     from src.anomaly_cusum import get_anomaly_ensemble
     from src.pinn_rul import get_pinn_estimator
 
@@ -214,15 +239,15 @@ async def health_check():
         "service": "ml-prediction",
         "version": "2.0.0",
         "models": {
-            "p1_failure":       load_p1() is not None,
-            "p2_failure_type":  load_p2() is not None,
-            "p3_rul":           load_p3() is not None,
-            "p4_anomaly":       load_p4() is not None,
-            "p5_priority":      load_p5() is not None,
-            "p6_schedule":      load_p6() is not None,
+            "p1_failure": load_p1() is not None,
+            "p2_failure_type": load_p2() is not None,
+            "p3_rul": load_p3() is not None,
+            "p4_anomaly": load_p4() is not None,
+            "p5_priority": load_p5() is not None,
+            "p6_schedule": load_p6() is not None,
             "anomaly_ensemble": ensemble is not None and ensemble.is_fitted,
-            "pinn_rul":         pinn is not None and pinn.is_fitted,
-        }
+            "pinn_rul": pinn is not None and pinn.is_fitted,
+        },
     }
 
 
@@ -232,8 +257,8 @@ async def root():
     return {
         "service": "EAM ML Prediction Service",
         "version": "2.0.0",
-        "docs":    "/docs",
-        "health":  "/health",
+        "docs": "/docs",
+        "health": "/health",
     }
 
 
@@ -243,5 +268,5 @@ if __name__ == "__main__":
         host=os.environ.get("HOST", "0.0.0.0"),
         port=8000,
         reload=False,
-        log_level="info"
+        log_level="info",
     )

@@ -548,7 +548,7 @@ def is_valid_referer(referer: str) -> bool:
             for domain in allowed_domains
             if parsed_url.hostname
         )
-    except:  # noqa: E722
+    except Exception:
         return False
 
 

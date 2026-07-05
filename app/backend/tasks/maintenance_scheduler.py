@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.celery_app import celery_app
 from core.database import db_manager
@@ -26,7 +26,7 @@ async def run_maintenance_check():
 
     async with db_manager.async_session_maker() as session:
         # 1. Query machines with upcoming maintenance (next 7 days)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         limit_date = now + timedelta(days=7)
 
         logger.info(f"Checking for maintenance due between {now} and {limit_date}")
