@@ -14,7 +14,6 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Package, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 
 const API       = import.meta.env.VITE_API_BASE_URL || '';

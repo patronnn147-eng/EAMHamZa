@@ -68,7 +68,7 @@ export function PlanningMachinesDialog({
         const raw: any = (resp as any)?.data ?? resp;
         const items: MachineEntry[] = raw?.items ?? (Array.isArray(raw) ? raw : []);
         setMachines(items);
-      } catch (e) {
+      } catch {
         toast({
           title: 'Erreur',
           description: 'Impossible de charger les machines',

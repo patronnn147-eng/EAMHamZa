@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { FleetMachineCard, FleetDashboardResponse, FleetCriticalResponse } from '@/lib/types';
+import type { FleetMachineCard, FleetCriticalResponse } from '@/lib/types';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 

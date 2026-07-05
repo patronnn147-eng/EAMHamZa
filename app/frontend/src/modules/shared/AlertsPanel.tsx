@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { AlertTriangle, Info, AlertCircle, X, Bell, RefreshCw, Wrench, ExternalLink, Loader2, Cpu, Clock, Activity, TrendingDown, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
@@ -139,7 +137,7 @@ export const AlertsPanel: React.FC = () => {
           variant: 'default',
         });
       }
-    } catch (err) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to dismiss alert.',
@@ -180,7 +178,7 @@ export const AlertsPanel: React.FC = () => {
           variant: 'destructive',
         });
       }
-    } catch (err) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to create work order.',

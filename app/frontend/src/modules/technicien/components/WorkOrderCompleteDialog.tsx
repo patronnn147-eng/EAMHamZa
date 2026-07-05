@@ -131,7 +131,6 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
     machineName,
     machineId,
     suggestedCause,
-    interventionId,
 }) => {
     const { data: partsDetail } = useInterventionPartsByWO(open ? workOrderId : null);
     const [consumedRows, setConsumedRows] = useState<ConsumedRow[]>([]);

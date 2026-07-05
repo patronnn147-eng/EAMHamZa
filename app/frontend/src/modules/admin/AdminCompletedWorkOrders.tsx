@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, Clock, AlertTriangle, Search, BarChart3 } from 'lucide-react';
+import { CheckCircle2, Clock, Search, BarChart3 } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
 const getToken = () => localStorage.getItem('access_token');

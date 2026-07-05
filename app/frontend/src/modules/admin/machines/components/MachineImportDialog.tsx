@@ -8,8 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileDown, CheckCircle2, AlertCircle, XCircle } from 'lucide-react';
-import { client } from '@/lib/api';
+import { Upload, FileDown, CheckCircle2, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSync } from '@/contexts/DataSyncContext';
 
@@ -80,7 +79,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
         try {
           const errData = await response.json();
           msg = errData.detail || msg;
-        } catch (_e) {
+        } catch {
           // ignore JSON parse error, use fallback message
         }
         throw new Error(msg);
@@ -173,7 +172,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Erreur',
         description: 'Impossible de télécharger le modèle',

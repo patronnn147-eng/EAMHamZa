@@ -2,7 +2,7 @@ import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { TrendingUp, Zap, RefreshCcw } from 'lucide-react';
+import { TrendingUp, RefreshCcw } from 'lucide-react';
 import { KanbanItem } from './types';
 
 interface ActColumnProps {

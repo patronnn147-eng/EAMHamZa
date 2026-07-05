@@ -9,12 +9,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
-  Activity,
   AlertTriangle,
-  BrainCircuit,
   Calendar,
   Clock,
-  ShieldAlert,
   X,
   FileText,
   Wrench,

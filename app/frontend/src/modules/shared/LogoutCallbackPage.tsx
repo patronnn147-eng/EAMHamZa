@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import LoadingSpinner from '../components/LoadingSpinner';
 
 const LogoutCallbackPage: React.FC = () => {
   useEffect(() => {

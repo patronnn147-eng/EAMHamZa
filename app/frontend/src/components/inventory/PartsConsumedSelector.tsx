@@ -5,8 +5,8 @@
  * technician picks a disposition; "partial" expands into used/returned/wasted
  * fields with live sum validation against the reservation.
  */
-import React, { useCallback, useMemo } from 'react';
-import { CheckCircle2, ArrowDownToLine, ArrowUpFromLine, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
+import React, { useCallback } from 'react';
+import { CheckCircle2, ArrowDownToLine, XCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { RequiredPiece } from '@/hooks/useInventory';

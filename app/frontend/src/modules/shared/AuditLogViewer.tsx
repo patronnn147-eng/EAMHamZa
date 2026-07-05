@@ -134,9 +134,8 @@ export const AuditLogViewer: React.FC = () => {
 
   // Debounced search for user search input
   const debouncedSearch = useMemo(
-    () => debounce((value: string) => {
+    () => debounce(() => {
       setPage(0);
-      // Force refetch with new search value
       fetchAuditLog();
     }, 400),
     [fetchAuditLog]

@@ -74,7 +74,6 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
   open,
   onOpenChange,
   editingWorkOrder,
-  machines,
   plannings,
   attachments,
   setAttachments,
@@ -130,7 +129,7 @@ export const WorkOrderFormDialog: React.FC<WorkOrderFormDialogProps> = ({
         const extracted = unwrap(maybeWrapped);
         const items = Array.isArray(extracted) ? (extracted as Machine[]) : [];
         setPlanningMachines(items);
-      } catch (e) {
+      } catch {
         setPlanningMachines([]);
       }
     };

@@ -21,7 +21,7 @@ export function SectionRedirect({ section }: { section: 'machines' | 'work-order
         } else {
           setRedirectPath(`/admin/${section}`);
         }
-      } catch (error) {
+      } catch {
         setRedirectPath('/login');
       } finally {
         setLoading(false);

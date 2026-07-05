@@ -11,7 +11,6 @@ import {
     CheckCircle2,
     TrendingUp,
     History,
-    AlertCircle,
     Activity,
     Zap,
     Wrench,
@@ -107,7 +106,7 @@ export default function MLDashboard() {
                     variant: "destructive",
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 title: "Erreur",
                 description: "Le pipeline de ré-entraînement a échoué.",

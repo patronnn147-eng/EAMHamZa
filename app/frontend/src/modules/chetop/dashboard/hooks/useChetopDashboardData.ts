@@ -1,5 +1,4 @@
-import React, { useEffect, useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
 import type { DashboardStats, Machine, Planning, InterventionRequest } from '../types';
 
 export const useChetopDashboardData = () => {

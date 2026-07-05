@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Download, RefreshCw, BarChart3, Calendar, Activity, Settings } from 'lucide-react';
+import { Download, RefreshCw, BarChart3, Calendar, Activity, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
@@ -75,7 +75,7 @@ export const ReportsDownload: React.FC = () => {
       } else {
         throw new Error('Failed to generate report');
       }
-    } catch (err) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to generate report',

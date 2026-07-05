@@ -43,8 +43,6 @@ interface WorkOrdersTabProps {
 export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ 
   workOrders, 
   technicians, 
-  machines, 
-  assignWorkOrder,
   validateWorkOrder,
   rejectWorkOrder
 }) => {

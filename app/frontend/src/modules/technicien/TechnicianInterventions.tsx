@@ -12,7 +12,6 @@ import { attachRequiredPieces, submitPendingPiece } from '@/hooks/useInventory';
 import type { PlannedRow, PendingDraft } from '@/components/inventory/PiecePicker';
 import { TechnicianNewInterventionModal } from '@/modules/technicien/components/TechnicianNewInterventionModal';
 import { AppPagination } from '@/components/shared/AppPagination';
-import { client } from '@/lib/api';
 
 export default function TechnicianInterventions() {
   const { toast } = useToast();

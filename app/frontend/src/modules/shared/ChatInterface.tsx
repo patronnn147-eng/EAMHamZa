@@ -355,7 +355,7 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
         };
         setMessages((prev) => [...prev, aiMsg]);
       }
-    } catch (err) {
+    } catch {
       toast({
         title: 'Erreur',
         description: 'Impossible de contacter l\'assistant IA',
@@ -696,7 +696,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
         setMessages([]);
       }
       if (!opts.silent) toast({ title: 'Nouvelle conversation' });
-    } catch (e) {
+    } catch {
       toast({
         title: 'Erreur',
         description: "Impossible de créer la conversation",
@@ -728,7 +728,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
           await createNewSession({ select: true, silent: true });
         }
       }
-    } catch (e) {
+    } catch {
       toast({
         title: 'Erreur',
         description: 'Impossible de supprimer',
@@ -753,7 +753,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const updated = (await res.json()) as ChatSessionSummary;
       setSessions((prev) => prev.map((s) => (s.id === id ? updated : s)));
-    } catch (e) {
+    } catch {
       toast({
         title: 'Erreur',
         description: 'Renommage impossible',
@@ -811,7 +811,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
         const errText = await res.text();
         toast({ title: 'Erreur', description: `Erreur: ${errText.slice(0, 100)}`, variant: 'destructive' });
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Erreur', description: 'Impossible de contacter l\'assistant IA', variant: 'destructive' });
     } finally {
       setLoading(false);

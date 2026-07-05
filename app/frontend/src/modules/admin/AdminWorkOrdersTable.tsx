@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { client } from '@/lib/api';
 import { getAPIBaseURL } from '@/lib/config';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Download, Search, Clock, Calendar, User, ExternalLink } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,6 @@ import {
     TableHeader, 
     TableRow 
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { PriorityBadge, StatusBadge } from '@/modules/shared/work-orders/utils/badges';
 import { toast } from 'sonner';
 import { AppPagination } from '@/components/shared/AppPagination';

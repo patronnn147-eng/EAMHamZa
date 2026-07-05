@@ -16,7 +16,6 @@ import {
     ChevronUp,
     Activity
 } from 'lucide-react';
-import { client } from '@/lib/api';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface XAIExplanation {

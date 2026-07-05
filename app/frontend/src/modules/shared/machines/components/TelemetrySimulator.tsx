@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Badge } from '@/components/ui/badge';
 import { Zap, Thermometer, RotateCcw, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { Machine } from '@/lib/types';
 import { client } from '@/lib/api';
@@ -103,7 +102,7 @@ export const TelemetrySimulator: React.FC<TelemetrySimulatorProps> = ({
             });
             onSuccess?.();
             onOpenChange(false);
-        } catch (error) {
+        } catch {
             toast({
                 title: 'Erreur',
                 description: 'Échec de l\'envoi des données simulées',

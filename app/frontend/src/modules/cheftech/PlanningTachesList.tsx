@@ -42,7 +42,7 @@ export default function PlanningTachesList() {
       });
       const data = response?.data || response;
       setPlannings(Array.isArray(data) ? data : (data?.items || []));
-    } catch (error: any) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to load task plannings', variant: 'destructive' });
     } finally {
       setLoading(false);

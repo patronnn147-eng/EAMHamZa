@@ -50,7 +50,7 @@ export function useInventoryForecast(horizonDays = 60, limit = 20): UseInventory
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       setData(json);
-    } catch (err) {
+    } catch {
       setError('Impossible de charger les prévisions de réapprovisionnement.');
     } finally {
       setLoading(false);

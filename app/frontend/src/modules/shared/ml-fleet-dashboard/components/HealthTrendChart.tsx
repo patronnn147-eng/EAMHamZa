@@ -3,7 +3,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LineChart,
   Line,
-  AreaChart,
   Area,
   XAxis,
   YAxis,
@@ -12,7 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import { TrendingUp, Activity } from 'lucide-react';
+import { TrendingUp } from 'lucide-react';
 
 interface HealthTrendData {
   date: string;

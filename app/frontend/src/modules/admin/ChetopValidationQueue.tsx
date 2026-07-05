@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Shield, CheckCircle2, XCircle, Clock, AlertTriangle } from 'lucide-react';
 import { useAdminWorkOrderValidation, type PendingAdminWorkOrder } from '@/hooks/useAdminWorkOrderValidation';
-import { PriorityBadge, StatusBadge } from '@/modules/shared/work-orders/utils/badges';
 import {
   Dialog,
   DialogContent,

@@ -43,9 +43,7 @@ import {
     BoxIcon,
     Zap,
     Link2,
-    ChevronRight,
     CheckCircle2,
-    TrendingDown,
 } from 'lucide-react';
 import { PieceMachinesLinker } from '@/components/inventory/PieceMachinesLinker';
 
@@ -119,7 +117,6 @@ function QuickActionsPanel({
     onNewPiece,
     onAddStock,
     onConsume,
-    onGoToAlerts,
 }: QuickActionsPanelProps) {
     return (
         <Card className="border-blue-500/30 bg-gradient-to-br from-slate-900 to-blue-950/40">
@@ -180,44 +177,6 @@ function QuickActionsPanel({
 
             </CardContent>
         </Card>
-    );
-}
-
-// ─── Inline Stock Control (no dialog needed for ±1) ───────────────────────────
-interface InlineStockControlProps {
-    stock: StockLevel;
-    canManage: boolean;
-    canConsume: boolean;
-    onAdd: (pieceId: number, qty?: number) => void;
-    onConsume: (pieceId: number) => void;
-}
-
-function InlineStockControl({ stock, canManage, canConsume, onAdd, onConsume }: InlineStockControlProps) {
-    return (
-        <div className="flex items-center gap-1 justify-end">
-            {canConsume && stock.quantity > 0 && (
-                <button
-                    onClick={() => onConsume(stock.piece_id)}
-                    className="flex items-center gap-0.5 rounded border border-orange-500/40 bg-orange-950/30
-                               px-2 py-1 text-xs text-orange-400 hover:bg-orange-500/20 hover:border-orange-400 transition-all"
-                    title="Consommer"
-                >
-                    <Minus className="h-3 w-3" />
-                    Sortie
-                </button>
-            )}
-            {canManage && (
-                <button
-                    onClick={() => onAdd(stock.piece_id)}
-                    className="flex items-center gap-0.5 rounded border border-green-500/40 bg-green-950/30
-                               px-2 py-1 text-xs text-green-400 hover:bg-green-500/20 hover:border-green-400 transition-all"
-                    title="Ajouter stock"
-                >
-                    <Plus className="h-3 w-3" />
-                    Entrée
-                </button>
-            )}
-        </div>
     );
 }
 
@@ -325,7 +284,7 @@ export default function InventoryPage() {
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
-    }, [canManage, canConsume]); // eslint-disable-line
+    }, [canManage, canConsume]);  
 
     // ── Piece CRUD ─────────────────────────────────────────────────────────────
     const openCreatePiece = () => {

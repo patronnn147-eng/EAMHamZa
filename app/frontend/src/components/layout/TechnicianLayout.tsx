@@ -21,7 +21,7 @@ export default function TechnicianLayout() {
         } else {
           navigate('/login');
         }
-      } catch (error) {
+      } catch {
         navigate('/login');
       }
     };

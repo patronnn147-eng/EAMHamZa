@@ -24,7 +24,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
       } else {
         setIsAuthenticated(false);
       }
-    } catch (error) {
+    } catch {
       setIsAuthenticated(false);
     }
   };

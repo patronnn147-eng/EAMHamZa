@@ -13,7 +13,6 @@ import {
   Clock, 
   CheckCircle2, 
   XCircle,
-  AlertCircle
 } from 'lucide-react';
 import type { InterventionRequest } from '../types';
 

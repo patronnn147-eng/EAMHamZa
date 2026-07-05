@@ -20,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, MessageSquare, Clock, AlertTriangle, Search } from 'lucide-react';
+import { CheckCircle2, MessageSquare, Clock, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';

@@ -2,10 +2,10 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
-import { AlertCircle, Clock, CheckCircle2, TrendingUp, RefreshCw } from 'lucide-react';
+import { AlertCircle, Clock, TrendingUp, RefreshCw } from 'lucide-react';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
 const getToken = () => localStorage.getItem('access_token');

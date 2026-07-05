@@ -5,7 +5,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Save, Plus, RefreshCw, Calendar, Clock, Mail, Trash2, Play } from 'lucide-react';
+import { Save, Plus, RefreshCw, Calendar, Clock, Mail, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const API = import.meta.env.VITE_API_BASE_URL || '';
@@ -158,7 +157,7 @@ export const ReportScheduler: React.FC = () => {
       } else {
         throw new Error('Failed to save');
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to save schedule', variant: 'destructive' });
     }
   };
@@ -173,7 +172,7 @@ export const ReportScheduler: React.FC = () => {
         toast({ title: 'Deleted', description: 'Schedule removed successfully' });
         fetchReports();
       }
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to delete schedule', variant: 'destructive' });
     }
   };
@@ -189,7 +188,7 @@ export const ReportScheduler: React.FC = () => {
         body: JSON.stringify({ is_active: !report.is_active }),
       });
       fetchReports();
-    } catch (err) {
+    } catch {
       toast({ title: 'Error', description: 'Failed to update status', variant: 'destructive' });
     }
   };

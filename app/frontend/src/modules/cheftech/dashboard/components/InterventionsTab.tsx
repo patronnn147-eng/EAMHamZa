@@ -13,17 +13,12 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select';
 import { Wrench, Download, FileText, Loader2, Zap, Activity, History, AlertCircle } from 'lucide-react';
 import { Separator as UISeparator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { getStatusColor } from '../utils/badges';
-import type { Intervention, Technician } from '../types';
+import type { Intervention } from '../types';
 
 const getAuthToken = () => localStorage.getItem('access_token');
 
@@ -37,7 +32,6 @@ interface InterventionsTabProps {
 
 export const InterventionsTab: React.FC<InterventionsTabProps> = ({
   interventions,
-  fetchInterventions,
   approveIntervention,
   rejectIntervention,
   noGrouping = false,
