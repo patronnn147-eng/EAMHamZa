@@ -738,7 +738,7 @@ export default function RAGDocuments() {
                 </div>
                 <ul className="text-xs divide-y">
                   {bulkFiles.map((f, idx) => (
-                    <li key={idx} className="flex items-center justify-between p-2">
+                    <li key={`${f.name}-${f.size}-${f.lastModified}`} className="flex items-center justify-between p-2">
                       <span className="truncate flex-1">{f.name}</span>
                       <span className="text-muted-foreground ml-2">{formatFileSize(f.size)}</span>
                       <button

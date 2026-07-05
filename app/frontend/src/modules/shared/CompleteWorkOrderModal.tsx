@@ -456,7 +456,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
                 {attachments.length > 0 && (
                   <div className="space-y-2 max-h-48 overflow-auto pr-2">
                     {attachments.map((file, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 text-sm border rounded bg-slate-800 shadow-sm">
+                      <div key={`${file.name}-${file.size}-${file.lastModified}`} className="flex items-center justify-between p-2 text-sm border rounded bg-slate-800 shadow-sm">
                         <span className="truncate flex-1 max-w-[280px]">{file.name}</span>
                         <Button
                           type="button"

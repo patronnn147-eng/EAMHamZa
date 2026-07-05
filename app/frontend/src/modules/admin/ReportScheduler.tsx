@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,6 +58,8 @@ export const ReportScheduler: React.FC = () => {
     recipients: [{ email: '', nom: '' }],
     is_active: true,
   });
+  // Stable per-row React keys for recipients, independent of the plain-data shape.
+  const recipientKeysRef = useRef<string[]>([]);
 
   const fetchReports = useCallback(async () => {
     setLoading(true);
@@ -81,6 +83,7 @@ export const ReportScheduler: React.FC = () => {
   }, [fetchReports]);
 
   const handleOpenDialog = (report?: ScheduledReport) => {
+    recipientKeysRef.current = [];
     if (report) {
       setEditingReport(report);
       const config = report.schedule_config || {};
@@ -200,6 +203,7 @@ export const ReportScheduler: React.FC = () => {
   };
 
   const addRecipient = () => {
+    recipientKeysRef.current.push(crypto.randomUUID());
     setFormData({
       ...formData,
       recipients: [...formData.recipients, { email: '', nom: '' }],
@@ -208,6 +212,7 @@ export const ReportScheduler: React.FC = () => {
 
   const removeRecipient = (index: number) => {
     if (formData.recipients.length > 1) {
+      recipientKeysRef.current.splice(index, 1);
       const newRecipients = formData.recipients.filter((_, i) => i !== index);
       setFormData({ ...formData, recipients: newRecipients });
     }
@@ -423,8 +428,10 @@ export const ReportScheduler: React.FC = () => {
 
             <div className="grid gap-2">
               <Label>Recipients</Label>
-              {formData.recipients.map((recipient, index) => (
-                <div key={index} className="flex gap-2">
+              {formData.recipients.map((recipient, index) => {
+                if (!recipientKeysRef.current[index]) recipientKeysRef.current[index] = crypto.randomUUID();
+                return (
+                <div key={recipientKeysRef.current[index]} className="flex gap-2">
                   <Input
                     placeholder="Name"
                     value={recipient.nom}
@@ -447,7 +454,8 @@ export const ReportScheduler: React.FC = () => {
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
-              ))}
+                );
+              })}
               <Button variant="outline" size="sm" onClick={addRecipient}>
                 <Plus className="mr-2 h-4 w-4" />
                 Add Recipient

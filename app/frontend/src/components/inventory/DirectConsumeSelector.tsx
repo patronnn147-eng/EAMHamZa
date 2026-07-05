@@ -9,7 +9,7 @@
  *
  * Live availability checking + max enforcement identical to PiecePicker.
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Search, FileQuestion, Box, Beaker, Library } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -85,6 +85,10 @@ export function DirectConsumeSelector({
   const [search, setSearch] = useState('');
   const { data, loading } = useMachinePieces(machineId, search.length >= 2 ? search : undefined);
 
+  // Stable per-row React keys for pendingRows, independent of the plain-data
+  // shape sent to the API (pendingRows itself carries no id field).
+  const pendingRowKeysRef = useRef<string[]>([]);
+
   const selectedIds = useMemo(() => new Set(consumedRows.map((r) => r.piece_id)), [consumedRows]);
 
   const addPiece = useCallback(
@@ -122,6 +126,7 @@ export function DirectConsumeSelector({
   );
 
   const addPendingDraft = useCallback(() => {
+    pendingRowKeysRef.current.push(crypto.randomUUID());
     onPendingChange([...pendingRows, { name: '', quantity: '1', unit: 'pcs', category: '', notes: '' }]);
   }, [pendingRows, onPendingChange]);
 
@@ -132,7 +137,10 @@ export function DirectConsumeSelector({
   );
 
   const removeDraft = useCallback(
-    (idx: number) => onPendingChange(pendingRows.filter((_, i) => i !== idx)),
+    (idx: number) => {
+      pendingRowKeysRef.current.splice(idx, 1);
+      onPendingChange(pendingRows.filter((_, i) => i !== idx));
+    },
     [pendingRows, onPendingChange],
   );
 
@@ -215,9 +223,11 @@ export function DirectConsumeSelector({
         <div className="relative space-y-2 rounded-md border border-amber-500/30 bg-amber-950/20 p-3">
           <SectionDivider label={`Demandes de pièces non-cataloguées · ${pendingRows.length}`} tone="warning" />
           <div className="space-y-1.5">
-            {pendingRows.map((d, i) => (
+            {pendingRows.map((d, i) => {
+              if (!pendingRowKeysRef.current[i]) pendingRowKeysRef.current[i] = crypto.randomUUID();
+              return (
               <div
-                key={i}
+                key={pendingRowKeysRef.current[i]}
                 className="grid grid-cols-12 gap-1.5 items-center rounded bg-slate-900/60 border border-amber-500/20 px-2 py-1.5"
               >
                 <Input
@@ -255,7 +265,8 @@ export function DirectConsumeSelector({
                   <Minus className="h-4 w-4" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
           <p className="text-[10px] text-amber-400/70 font-mono tracking-wider px-1">
             ⚠ ces demandes seront envoyées à l'admin pour validation après l'OT

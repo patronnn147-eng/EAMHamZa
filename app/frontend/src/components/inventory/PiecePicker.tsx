@@ -11,7 +11,7 @@
  *   - Plan row qty input has `max={available}` and shows red border if exceeded
  *   - Caller can use `hasValidationErrors` exported helper to block submit
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { Plus, Minus, Search, FileQuestion, Box, Beaker, Library } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -65,6 +65,10 @@ export function PiecePicker({
   const [search, setSearch] = useState('');
   const { data, loading } = useMachinePieces(machineId, search.length >= 2 ? search : undefined);
 
+  // Stable per-row React keys for pendingDrafts, independent of the plain-data
+  // shape sent to the API (pendingDrafts itself carries no id field).
+  const pendingDraftKeysRef = useRef<string[]>([]);
+
   const selectedIds = useMemo(() => new Set(selectedRows.map((r) => r.piece_id)), [selectedRows]);
 
   const addPiece = useCallback(
@@ -106,6 +110,7 @@ export function PiecePicker({
   );
 
   const addPendingDraft = useCallback(() => {
+    pendingDraftKeysRef.current.push(crypto.randomUUID());
     onPendingChange([
       ...pendingDrafts,
       { name: '', quantity: '1', unit: 'pcs', category: '', notes: '' },
@@ -121,6 +126,7 @@ export function PiecePicker({
 
   const removeDraft = useCallback(
     (index: number) => {
+      pendingDraftKeysRef.current.splice(index, 1);
       onPendingChange(pendingDrafts.filter((_, i) => i !== index));
     },
     [pendingDrafts, onPendingChange],
@@ -212,9 +218,11 @@ export function PiecePicker({
         <div className="relative space-y-2 rounded-md border border-amber-500/30 bg-amber-950/20 p-3">
           <SectionDivider label={`Pièces non-cataloguées · ${pendingDrafts.length}`} tone="warning" />
           <div className="space-y-1.5">
-            {pendingDrafts.map((d, i) => (
+            {pendingDrafts.map((d, i) => {
+              if (!pendingDraftKeysRef.current[i]) pendingDraftKeysRef.current[i] = crypto.randomUUID();
+              return (
               <div
-                key={i}
+                key={pendingDraftKeysRef.current[i]}
                 className="grid grid-cols-12 gap-1.5 items-center rounded bg-slate-900/60 border border-amber-500/20 px-2 py-1.5"
               >
                 <Input
@@ -252,7 +260,8 @@ export function PiecePicker({
                   <Minus className="h-4 w-4" />
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
           <p className="text-[10px] text-amber-400/70 font-mono tracking-wider px-1">
             ⚠ ces pièces nécessiteront validation admin · placeholder créé dès soumission

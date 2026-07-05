@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,8 @@ export default function PlanningTaskForm() {
     { titre: '', description: '', technician_id: null, machine_id: null, task_type: '', date_debut: '', date_fin: '' }
   ]);
   const [dateErrors, setDateErrors] = useState<Record<number, { start?: string; end?: string }>>({});
+  // Stable per-row React keys for tasks, independent of the plain-data shape.
+  const taskKeysRef = useRef<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const { toast } = useToast();
@@ -144,6 +146,7 @@ export default function PlanningTaskForm() {
 
   const removeTask = (index: number) => {
     if (tasks.length > 1) {
+      taskKeysRef.current.splice(index, 1);
       setTasks(tasks.filter((_, i) => i !== index));
     }
   };
@@ -277,8 +280,13 @@ export default function PlanningTaskForm() {
           <CardTitle className="text-white">Tâches d'Exécution</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {tasks.map((task, index) => (
-            <Card key={index} className="bg-slate-700 border-slate-600 p-4">
+          {tasks.map((task, index) => {
+            if (task.id == null && !taskKeysRef.current[index]) {
+              taskKeysRef.current[index] = crypto.randomUUID();
+            }
+            const rowKey = task.id ?? taskKeysRef.current[index];
+            return (
+            <Card key={rowKey} className="bg-slate-700 border-slate-600 p-4">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="text-white font-medium">Task {index + 1}</h4>
                 {tasks.length > 1 && (
@@ -397,7 +405,8 @@ export default function PlanningTaskForm() {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
           
           <Button variant="outline" onClick={addTask} className="w-full">
             <Plus className="mr-2 h-4 w-4" />
