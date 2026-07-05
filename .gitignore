@@ -61,3 +61,18 @@ backup/
 .claude/
 *.local.json
 claude-code/
+
+# Tool/session artifacts and local scratch (not project source)
+.graphify_cached.json
+.graphify_detect.json
+.graphify_python
+.superpowers/
+graphify-out/cache/
+_diag.py
+_pdca_shot.png
+_shot_pdca.py
+journal_de_bord/
+
+# DB data dumps (internal data, not source)
+itv.json
+wo.json
