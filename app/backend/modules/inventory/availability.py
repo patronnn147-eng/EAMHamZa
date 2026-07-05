@@ -35,7 +35,7 @@ async def get_availability(piece_id: int, db: AsyncSession = Depends(get_db)):
             available_quantity=info["available"],
         )
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"get_availability failed for piece {piece_id}: {e}", exc_info=True
         )
         raise HTTPException(status_code=500, detail="Internal server error")
@@ -79,5 +79,5 @@ async def get_availability_batch(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"get_availability_batch failed: {e}", exc_info=True)
+        logger.exception(f"get_availability_batch failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

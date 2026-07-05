@@ -77,7 +77,9 @@ def initialize_dynamic_routes():
         logger.info(f"Dynamic routes initialized: seo_paths={len(seo_paths)}")
 
     except Exception as e:
-        logger.error(f"Failed to initialize dynamic routes: {e}\n{format_traceback()}")
+        logger.exception(
+            f"Failed to initialize dynamic routes: {e}\n{format_traceback()}"
+        )
         dynamic_routes_initialized = True
 
 
@@ -106,7 +108,9 @@ async def initialize_services_once():
 
             services_initialized = True
         except Exception as e:
-            logger.error(f"Failed to initialize services: {e}\n{format_traceback()}")
+            logger.exception(
+                f"Failed to initialize services: {e}\n{format_traceback()}"
+            )
             raise
 
 
@@ -127,7 +131,7 @@ def get_backend_app():
 
             from main import app as backend_app
         except Exception as e:
-            logger.error(f"Failed to import backend app: {e}\n{format_traceback()}")
+            logger.exception(f"Failed to import backend app: {e}\n{format_traceback()}")
             raise
 
     return backend_app
@@ -146,7 +150,9 @@ async def get_mangum_handler():
             # Configure Mangum for API Gateway v2
             mangum_handler = Mangum(backend_app, lifespan="off")
         except Exception as e:
-            logger.error(f"Failed to create Mangum handler: {e}\n{format_traceback()}")
+            logger.exception(
+                f"Failed to create Mangum handler: {e}\n{format_traceback()}"
+            )
             raise
 
     return mangum_handler
@@ -162,7 +168,9 @@ def get_mangum_handler_sync():
             # Configure Mangum for API Gateway v2
             mangum_handler = Mangum(backend_app, lifespan="off")
         except Exception as e:
-            logger.error(f"Failed to create Mangum handler: {e}\n{format_traceback()}")
+            logger.exception(
+                f"Failed to create Mangum handler: {e}\n{format_traceback()}"
+            )
             raise
 
     return mangum_handler
@@ -619,7 +627,7 @@ def serve_sitemap(request_domain: str = "") -> Dict[str, Any]:
             "body": content,
         }
     except Exception as e:
-        logger.error(f"Failed to read sitemap.xml: {e}")
+        logger.exception(f"Failed to read sitemap.xml: {e}")
         return {
             "statusCode": 500,
             "headers": {
@@ -657,7 +665,7 @@ def serve_robots() -> Dict[str, Any]:
             "body": content,
         }
     except Exception as e:
-        logger.error(f"Failed to read robots.txt: {e}")
+        logger.exception(f"Failed to read robots.txt: {e}")
         return {
             "statusCode": 500,
             "headers": {
@@ -716,7 +724,7 @@ def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
             "body": content,
         }
     except Exception as e:
-        logger.error(f"Failed to read SEO HTML file {html_path}: {e}")
+        logger.exception(f"Failed to read SEO HTML file {html_path}: {e}")
         return {
             "statusCode": 500,
             "headers": {

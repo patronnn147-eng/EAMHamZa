@@ -53,7 +53,7 @@ async def list_pieces(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error listing pieces: {str(e)}", exc_info=True)
+        logger.exception(f"Error listing pieces: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -69,7 +69,7 @@ async def get_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching piece {piece_id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching piece {piece_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -87,7 +87,7 @@ async def create_piece(data: PieceCreate, db: AsyncSession = Depends(get_db)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating piece: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating piece: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -108,7 +108,7 @@ async def update_piece(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating piece {piece_id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating piece {piece_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -124,7 +124,7 @@ async def delete_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting piece {piece_id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting piece {piece_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -189,7 +189,7 @@ async def get_piece_machines(piece_id: int, db: AsyncSession = Depends(get_db)):
         machine_ids = await service.get_linked_machines(piece_id)
         return {"piece_id": piece_id, "machine_ids": machine_ids}
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error fetching machines for piece {piece_id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -206,7 +206,7 @@ async def link_piece_to_machine(
         return {"message": f"Piece {piece_id} linked to machine {data.machine_id}"}
     except Exception as e:
         safe_err = str(e).replace("\r", "").replace("\n", "")
-        logger.error(
+        logger.exception(
             f"Error linking piece {piece_id} to machine {data.machine_id}: {safe_err}",
             exc_info=True,
         )
@@ -227,7 +227,7 @@ async def unlink_piece_from_machine(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error unlinking piece {piece_id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error unlinking piece {piece_id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -261,7 +261,7 @@ async def suggest_pieces(
         )
         return {"query": q, "results": results}
     except Exception as e:
-        logger.error(f"suggest_pieces failed: {str(e)}", exc_info=True)
+        logger.exception(f"suggest_pieces failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -286,7 +286,7 @@ async def list_pieces_by_machine(
             include_all_search=search,
         )
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"list_pieces_by_machine failed for machine {machine_id}: {str(e)}",
             exc_info=True,
         )

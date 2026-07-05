@@ -41,7 +41,7 @@ class ConnectionManager:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
-                    logger.error(f"Error sending message to user {user_id}: {e}")
+                    logger.exception(f"Error sending message to user {user_id}: {e}")
                     disconnected.add(connection)
 
             # Clean up disconnected connections

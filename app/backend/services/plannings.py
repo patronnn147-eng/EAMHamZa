@@ -29,7 +29,7 @@ class PlanningsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating plannings: {str(e)}")
+            logger.exception(f"Error creating plannings: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Plannings]:
@@ -48,7 +48,7 @@ class PlanningsService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching plannings {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching plannings {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -106,7 +106,7 @@ class PlanningsService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching plannings list: {str(e)}")
+            logger.exception(f"Error fetching plannings list: {str(e)}")
             raise
 
     async def update(
@@ -128,7 +128,7 @@ class PlanningsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating plannings {obj_id}: {str(e)}")
+            logger.exception(f"Error updating plannings {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -144,7 +144,7 @@ class PlanningsService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting plannings {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting plannings {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -159,7 +159,7 @@ class PlanningsService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching plannings by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching plannings by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -178,5 +178,5 @@ class PlanningsService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching planningss by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching planningss by {field_name}: {str(e)}")
             raise

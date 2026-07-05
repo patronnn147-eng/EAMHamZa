@@ -113,7 +113,7 @@ class GroqClient:
             response = self.client.chat.completions.create(**params)
             result = response.model_dump()
         except Exception as e:
-            logger.error(f"Groq API error: {e}")
+            logger.exception(f"Groq API error: {e}")
             raise
 
         if use_cache and cache_key is not None:

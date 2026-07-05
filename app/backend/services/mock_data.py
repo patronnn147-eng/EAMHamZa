@@ -39,7 +39,7 @@ async def initialize_mock_data():
             try:
                 await _load_table_from_file(data_file)
             except Exception as exc:  # pragma: no cover - defensive
-                logger.error("Unexpected error loading %s: %s", data_file.name, exc)
+                logger.exception("Unexpected error loading %s: %s", data_file.name, exc)
 
     await asyncio.gather(*(load_file(data_file) for data_file in data_files))
 
@@ -134,7 +134,7 @@ async def _load_table_from_file(data_file: Path):
             )
             return
         except SQLAlchemyError as exc:
-            logger.error("Failed to reflect table %s: %s", table_name, exc)
+            logger.exception("Failed to reflect table %s: %s", table_name, exc)
             return
 
         row_count = await conn.scalar(select(func.count()).select_from(table))
@@ -149,7 +149,7 @@ async def _load_table_from_file(data_file: Path):
         try:
             raw_records = json.loads(data_file.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            logger.error("Invalid JSON in %s: %s", data_file.name, exc)
+            logger.exception("Invalid JSON in %s: %s", data_file.name, exc)
             return
 
         records = _prepare_records(raw_records, table)
@@ -163,4 +163,4 @@ async def _load_table_from_file(data_file: Path):
             await conn.execute(table.insert(), records)
             logger.info("Inserted %d mock records into %s", len(records), table_name)
         except SQLAlchemyError as exc:
-            logger.error("Failed to insert mock data into %s: %s", table_name, exc)
+            logger.exception("Failed to insert mock data into %s: %s", table_name, exc)

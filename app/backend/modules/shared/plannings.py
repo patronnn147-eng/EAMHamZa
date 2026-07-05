@@ -142,7 +142,7 @@ async def query_planningss(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying planningss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying planningss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -180,7 +180,7 @@ async def query_planningss_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying planningss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying planningss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -204,7 +204,7 @@ async def get_plannings(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching plannings {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching plannings {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -226,10 +226,10 @@ async def create_plannings(
         logger.info(f"Plannings created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating plannings: {str(e)}")
+        logger.exception(f"Validation error creating plannings: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating plannings: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating plannings: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -254,7 +254,7 @@ async def create_planningss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -283,7 +283,7 @@ async def update_planningss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -310,10 +310,10 @@ async def update_plannings(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating plannings {id}: {str(e)}")
+        logger.exception(f"Validation error updating plannings {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating plannings {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating plannings {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -341,7 +341,7 @@ async def delete_planningss_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -365,5 +365,5 @@ async def delete_plannings(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting plannings {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting plannings {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

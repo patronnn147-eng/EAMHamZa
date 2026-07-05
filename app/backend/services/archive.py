@@ -149,7 +149,7 @@ class ArchiveService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"archive_past_due failed: {e}", exc_info=True)
+            logger.exception(f"archive_past_due failed: {e}", exc_info=True)
             raise
 
     # ─── Reactivate: admin-only ─────────────────────────────────────────
@@ -178,7 +178,7 @@ class ArchiveService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"reactivate failed for {module}/{item_id}: {e}", exc_info=True
             )
             raise
@@ -220,7 +220,7 @@ class ArchiveService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"purge_old failed: {e}", exc_info=True)
+            logger.exception(f"purge_old failed: {e}", exc_info=True)
             raise
 
     # ─── Listing for the Archive UI ─────────────────────────────────────

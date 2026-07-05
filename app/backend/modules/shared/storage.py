@@ -35,10 +35,10 @@ async def create_bucket(
         service = StorageService()
         return await service.create_bucket(request)
     except ValueError as e:
-        logger.error(f"Invalid create bucket request: {e}")
+        logger.exception(f"Invalid create bucket request: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to create bucket: {e}")
+        logger.exception(f"Failed to create bucket: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -53,10 +53,10 @@ async def list_buckets(_current_user: UserResponse = Depends(get_current_user)):
         service = StorageService()
         return await service.list_buckets()
     except ValueError as e:
-        logger.error(f"Invalid list buckets request: {e}")
+        logger.exception(f"Invalid list buckets request: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to list buckets: {e}")
+        logger.exception(f"Failed to list buckets: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -74,10 +74,10 @@ async def list_objects(
         service = StorageService()
         return await service.list_objects(request)
     except ValueError as e:
-        logger.error(f"Invalid list objects request: {e}")
+        logger.exception(f"Invalid list objects request: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to list objects: {e}")
+        logger.exception(f"Failed to list objects: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -95,10 +95,10 @@ async def get_object_info(
         service = StorageService()
         return await service.get_object_info(request)
     except ValueError as e:
-        logger.error(f"Invalid get object metadata request: {e}")
+        logger.exception(f"Invalid get object metadata request: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to get object metadata: {e}")
+        logger.exception(f"Failed to get object metadata: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -115,10 +115,10 @@ async def rename_object(
         service = StorageService()
         return await service.rename_object(request)
     except ValueError as e:
-        logger.error(f"Invalid rename object: {e}")
+        logger.exception(f"Invalid rename object: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to rename object: {e}")
+        logger.exception(f"Failed to rename object: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -135,10 +135,10 @@ async def delete_object(
         service = StorageService()
         return await service.delete_object(request)
     except ValueError as e:
-        logger.error(f"Invalid delete object: {e}")
+        logger.exception(f"Invalid delete object: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Failed to delete object: {e}")
+        logger.exception(f"Failed to delete object: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -162,12 +162,12 @@ async def upload_file(
         service = StorageService()
         return await service.create_upload_url(request)
     except ValueError as e:
-        logger.error(f"Invalid upload request: {e}")
+        logger.exception(f"Invalid upload request: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to generate upload URL: {e}")
+        logger.exception(f"Failed to generate upload URL: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )
@@ -184,12 +184,12 @@ async def download_file(
         service = StorageService()
         return await service.create_download_url(request)
     except ValueError as e:
-        logger.error(f"Invalid download request: {e}")
+        logger.exception(f"Invalid download request: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(e)
         )
     except Exception as e:
-        logger.error(f"Failed to generate download URL: {e}")
+        logger.exception(f"Failed to generate download URL: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"{e}"
         )

@@ -36,7 +36,7 @@ async def list_stock_levels(
             items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
-        logger.error(f"Error listing stock levels: {str(e)}", exc_info=True)
+        logger.exception(f"Error listing stock levels: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -55,7 +55,7 @@ async def add_stock(data: StockAddRequest, db: AsyncSession = Depends(get_db)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error adding stock: {str(e)}", exc_info=True)
+        logger.exception(f"Error adding stock: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -75,7 +75,7 @@ async def consume_stock(data: StockConsumeRequest, db: AsyncSession = Depends(ge
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error consuming stock: {str(e)}", exc_info=True)
+        logger.exception(f"Error consuming stock: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -95,7 +95,7 @@ async def get_stock_alerts(
             items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
-        logger.error(f"Error fetching stock alerts: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching stock alerts: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -116,5 +116,5 @@ async def get_stock_movements(
             items=result["items"], total=result["total"], page=page, size=size
         )
     except Exception as e:
-        logger.error(f"Error fetching stock movements: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching stock movements: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

@@ -306,7 +306,7 @@ async def compute_demand_forecast(
         return _build_response(filtered[:limit], horizon_days, now)
 
     except Exception as e:
-        logger.error(f"Error computing demand forecast: {str(e)}", exc_info=True)
+        logger.exception(f"Error computing demand forecast: {str(e)}", exc_info=True)
         raise
 
 

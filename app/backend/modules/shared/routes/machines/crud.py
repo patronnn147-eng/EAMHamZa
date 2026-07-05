@@ -59,7 +59,7 @@ async def query_machiness(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying machiness: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying machiness: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -95,7 +95,7 @@ async def query_machiness_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying machiness: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying machiness: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -118,7 +118,7 @@ async def get_machines(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching machines {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching machines {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -153,10 +153,10 @@ async def create_machines(
 
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating machines: {str(e)}")
+        logger.exception(f"Validation error creating machines: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating machines: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating machines: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -194,7 +194,7 @@ async def create_machiness_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -236,7 +236,7 @@ async def update_machiness_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -283,10 +283,10 @@ async def update_machines(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating machines {id}: {str(e)}")
+        logger.exception(f"Validation error updating machines {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating machines {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating machines {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -325,7 +325,7 @@ async def delete_machiness_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -360,5 +360,5 @@ async def delete_machines(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting machines {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting machines {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

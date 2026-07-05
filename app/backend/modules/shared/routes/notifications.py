@@ -157,7 +157,7 @@ async def get_my_notifications(
             unread_count=unread_result["total"],
         )
     except Exception as e:
-        logger.error(f"Error fetching notifications: {str(e)}")
+        logger.exception(f"Error fetching notifications: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch notifications: {str(e)}",
@@ -177,7 +177,7 @@ async def get_unread_count(
         )
         return {"unread_count": result["total"]}
     except Exception as e:
-        logger.error(f"Error fetching unread count: {str(e)}")
+        logger.exception(f"Error fetching unread count: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch unread count: {str(e)}",
@@ -207,7 +207,7 @@ async def mark_notifications_as_read(
             "updated_count": updated_count,
         }
     except Exception as e:
-        logger.error(f"Error marking notifications as read: {str(e)}")
+        logger.exception(f"Error marking notifications as read: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to mark notifications as read: {str(e)}",
@@ -240,7 +240,7 @@ async def mark_all_as_read(
             "updated_count": updated_count,
         }
     except Exception as e:
-        logger.error(f"Error marking all notifications as read: {str(e)}")
+        logger.exception(f"Error marking all notifications as read: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to mark all notifications as read: {str(e)}",
@@ -320,7 +320,7 @@ async def delete_notification(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting notification {notification_id}: {str(e)}")
+        logger.exception(f"Error deleting notification {notification_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete notification: {str(e)}",

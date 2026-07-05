@@ -83,7 +83,7 @@ class AlertService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating alert: {str(e)}")
+            logger.exception(f"Error creating alert: {str(e)}")
             raise
 
     async def _send_alert_notification(self, alert: Alert, machine_name: str):
@@ -114,7 +114,7 @@ class AlertService:
                 },
             )
         except Exception as e:
-            logger.error(f"Error sending alert notification: {e}")
+            logger.exception(f"Error sending alert notification: {e}")
 
     async def get_active_alerts(
         self,
@@ -145,7 +145,7 @@ class AlertService:
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
-            logger.error(f"Error fetching active alerts: {str(e)}")
+            logger.exception(f"Error fetching active alerts: {str(e)}")
             raise
 
     async def dismiss_alert(self, alert_id: int, user_id: int) -> Optional[Alert]:
@@ -168,7 +168,7 @@ class AlertService:
             return alert
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error dismissing alert {alert_id}: {str(e)}")
+            logger.exception(f"Error dismissing alert {alert_id}: {str(e)}")
             raise
 
     async def get_alert_stats(self) -> Dict[str, Any]:
@@ -201,7 +201,7 @@ class AlertService:
                 "machines_affected": machines_affected,
             }
         except Exception as e:
-            logger.error(f"Error fetching alert stats: {str(e)}")
+            logger.exception(f"Error fetching alert stats: {str(e)}")
             raise
 
     async def get_config(self) -> AlertConfig:
@@ -221,7 +221,7 @@ class AlertService:
 
             return config
         except Exception as e:
-            logger.error(f"Error fetching alert config: {str(e)}")
+            logger.exception(f"Error fetching alert config: {str(e)}")
             raise
 
     async def update_config(self, config_data: Dict[str, Any]) -> AlertConfig:
@@ -239,7 +239,7 @@ class AlertService:
             return config
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating alert config: {str(e)}")
+            logger.exception(f"Error updating alert config: {str(e)}")
             raise
 
     async def check_and_create_alerts(self) -> Dict[str, Any]:
@@ -354,13 +354,13 @@ class AlertService:
                         alerts_created["failure_predicted"] += 1
 
                 except Exception as e:
-                    logger.error(f"Error processing machine {machine.id}: {e}")
+                    logger.exception(f"Error processing machine {machine.id}: {e}")
                     continue
 
             logger.info(f"Alert check complete: {alerts_created}")
             return alerts_created
         except Exception as e:
-            logger.error(f"Error in check_and_create_alerts: {str(e)}")
+            logger.exception(f"Error in check_and_create_alerts: {str(e)}")
             raise
 
     def _get_rul_severity(self, rul_days: float) -> AlertSeverity:
@@ -443,7 +443,9 @@ class AlertService:
             return wo
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating work order from alert {alert_id}: {str(e)}")
+            logger.exception(
+                f"Error creating work order from alert {alert_id}: {str(e)}"
+            )
             raise
 
     async def link_existing_work_order(
@@ -477,7 +479,7 @@ class AlertService:
             return alert
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error linking work order: {str(e)}")
+            logger.exception(f"Error linking work order: {str(e)}")
             raise
 
     async def send_alert_email(self, alert: Alert, config: AlertConfig) -> bool:
@@ -547,5 +549,5 @@ class AlertService:
             )
             return True
         except Exception as e:
-            logger.error(f"Error sending alert email: {str(e)}")
+            logger.exception(f"Error sending alert email: {str(e)}")
             return False

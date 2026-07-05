@@ -124,7 +124,7 @@ async def query_utilisateurss(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying utilisateurss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying utilisateurss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -162,7 +162,7 @@ async def query_utilisateurss_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying utilisateurss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying utilisateurss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -187,7 +187,7 @@ async def get_utilisateurs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching utilisateurs {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -210,10 +210,10 @@ async def create_utilisateurs(
         logger.info(f"Utilisateurs created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating utilisateurs: {str(e)}")
+        logger.exception(f"Validation error creating utilisateurs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating utilisateurs: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating utilisateurs: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -241,7 +241,7 @@ async def create_utilisateurss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -271,7 +271,7 @@ async def update_utilisateurss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -299,10 +299,10 @@ async def update_utilisateurs(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating utilisateurs {id}: {str(e)}")
+        logger.exception(f"Validation error updating utilisateurs {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating utilisateurs {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -331,7 +331,7 @@ async def delete_utilisateurss_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -356,5 +356,5 @@ async def delete_utilisateurs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting utilisateurs {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting utilisateurs {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

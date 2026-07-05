@@ -47,7 +47,7 @@ async def get_machines_list(
             for m in machines
         ]
     except Exception as e:
-        logger.error(f"Error getting machines for technicien: {str(e)}")
+        logger.exception(f"Error getting machines for technicien: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 

@@ -109,12 +109,12 @@ class NotificationsService:
                 }
                 await broadcaster.broadcast(obj.utilisateur_id, notification_data)
             except Exception as e:
-                logger.error(f"Error broadcasting notification: {e}")
+                logger.exception(f"Error broadcasting notification: {e}")
 
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating notification: {str(e)}")
+            logger.exception(f"Error creating notification: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Notifications]:
@@ -124,7 +124,7 @@ class NotificationsService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching notification {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching notification {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -173,7 +173,7 @@ class NotificationsService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching notification list: {str(e)}")
+            logger.exception(f"Error fetching notification list: {str(e)}")
             raise
 
     async def update(
@@ -195,7 +195,7 @@ class NotificationsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating notification {obj_id}: {str(e)}")
+            logger.exception(f"Error updating notification {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -211,7 +211,7 @@ class NotificationsService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting notification {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting notification {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -228,7 +228,7 @@ class NotificationsService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching notification by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching notification by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -247,7 +247,7 @@ class NotificationsService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching notifications by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching notifications by {field_name}: {str(e)}")
             raise
 
     async def send_to_role(
@@ -273,7 +273,7 @@ class NotificationsService:
             )
             return notifications
         except Exception as e:
-            logger.error(f"Error sending notification to role {role}: {str(e)}")
+            logger.exception(f"Error sending notification to role {role}: {str(e)}")
             raise
 
     async def send_workflow_notification(
@@ -307,7 +307,9 @@ class NotificationsService:
 
             return notifications
         except Exception as e:
-            logger.error(f"Error sending workflow notification for {action}: {str(e)}")
+            logger.exception(
+                f"Error sending workflow notification for {action}: {str(e)}"
+            )
             raise
 
     async def send_alert_notification(
@@ -348,7 +350,7 @@ class NotificationsService:
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
-            logger.error(f"Error fetching user notifications: {str(e)}")
+            logger.exception(f"Error fetching user notifications: {str(e)}")
             raise
 
     async def get_unread_count(self, user_id: int) -> int:
@@ -361,7 +363,7 @@ class NotificationsService:
             )
             return result.scalar() or 0
         except Exception as e:
-            logger.error(f"Error fetching unread count: {str(e)}")
+            logger.exception(f"Error fetching unread count: {str(e)}")
             raise
 
     async def mark_as_read(
@@ -385,7 +387,7 @@ class NotificationsService:
             return notification
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error marking notification as read: {str(e)}")
+            logger.exception(f"Error marking notification as read: {str(e)}")
             raise
 
     async def mark_all_as_read(self, user_id: int) -> int:
@@ -410,5 +412,5 @@ class NotificationsService:
             return count
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error marking all as read: {str(e)}")
+            logger.exception(f"Error marking all as read: {str(e)}")
             raise

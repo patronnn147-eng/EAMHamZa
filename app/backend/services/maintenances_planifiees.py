@@ -27,7 +27,7 @@ class Maintenances_planifieesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating maintenances_planifiees: {str(e)}")
+            logger.exception(f"Error creating maintenances_planifiees: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Maintenances_planifiees]:
@@ -39,7 +39,9 @@ class Maintenances_planifieesService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching maintenances_planifiees {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error fetching maintenances_planifiees {obj_id}: {str(e)}"
+            )
             raise
 
     async def get_list(
@@ -90,7 +92,7 @@ class Maintenances_planifieesService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching maintenances_planifiees list: {str(e)}")
+            logger.exception(f"Error fetching maintenances_planifiees list: {str(e)}")
             raise
 
     async def update(
@@ -112,7 +114,9 @@ class Maintenances_planifieesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating maintenances_planifiees {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error updating maintenances_planifiees {obj_id}: {str(e)}"
+            )
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -130,7 +134,9 @@ class Maintenances_planifieesService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting maintenances_planifiees {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error deleting maintenances_planifiees {obj_id}: {str(e)}"
+            )
             raise
 
     async def get_by_field(
@@ -149,7 +155,7 @@ class Maintenances_planifieesService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching maintenances_planifiees by {field_name}: {str(e)}"
             )
             raise
@@ -172,7 +178,7 @@ class Maintenances_planifieesService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching maintenances_planifieess by {field_name}: {str(e)}"
             )
             raise

@@ -7,6 +7,7 @@ Module-level explainer cache keyed by id(model).
 Avoids rebuilding SHAP explainer on every call (~100-500ms overhead for tree models).
 Uses id() which may alias after GC — acceptable: worst case is one extra build.
 """
+
 import pandas as pd
 import numpy as np
 from typing import List, Dict
@@ -26,6 +27,7 @@ def _get_explainer(model, X: pd.DataFrame) -> object:
     for non-tree models using X as background dataset.
     """
     import shap  # lazy import — optional dependency; install shap>=0.44.0
+
     key = id(model)
     if key not in _explainer_cache:
         try:
@@ -51,23 +53,24 @@ _P1_FEATURE_NAMES = [
 
 # Friendly French labels for frontend display
 _FRIENDLY_NAMES = {
-    "Air temperature [K]":      "Température Ambiante",
-    "Process temperature [K]":  "Température du Processus",
-    "Rotational speed [rpm]":   "Vitesse de Rotation",
-    "Torque [Nm]":              "Couple (Torque)",
-    "Tool wear [min]":          "Usure de l'Outil",
-    "air_temperature":          "Température Ambiante",
-    "process_temperature":      "Température du Processus",
-    "rotational_speed":         "Vitesse de Rotation",
-    "torque":                   "Couple (Torque)",
-    "tool_wear":                "Usure de l'Outil",
+    "Air temperature [K]": "Température Ambiante",
+    "Process temperature [K]": "Température du Processus",
+    "Rotational speed [rpm]": "Vitesse de Rotation",
+    "Torque [Nm]": "Couple (Torque)",
+    "Tool wear [min]": "Usure de l'Outil",
+    "air_temperature": "Température Ambiante",
+    "process_temperature": "Température du Processus",
+    "rotational_speed": "Vitesse de Rotation",
+    "torque": "Couple (Torque)",
+    "tool_wear": "Usure de l'Outil",
 }
 
 
 class XAIService:
-
     @staticmethod
-    def explain_prediction(model, features: List[float], feature_names: List[str]) -> List[Dict]:
+    def explain_prediction(
+        model, features: List[float], feature_names: List[str]
+    ) -> List[Dict]:
         """
         Generate SHAP explanations for a single prediction.
 
@@ -93,7 +96,9 @@ class XAIService:
             ]
             X = pd.DataFrame([features], columns=safe_names)
             actual_model = (
-                model['model'] if isinstance(model, dict) and 'model' in model else model
+                model["model"]
+                if isinstance(model, dict) and "model" in model
+                else model
             )
 
             explainer = _get_explainer(actual_model, X)
@@ -108,21 +113,25 @@ class XAIService:
             for i, name in enumerate(feature_names):
                 impact_val = float(values[i])
                 if abs(impact_val) > 0.01:
-                    impacts.append({
-                        "factor":    name,
-                        "impact":    round(impact_val, 6),
-                        "intensity": (
-                            "high"   if abs(impact_val) > 0.1  else
-                            "medium" if abs(impact_val) > 0.05 else
-                            "low"
-                        ),
-                    })
+                    impacts.append(
+                        {
+                            "factor": name,
+                            "impact": round(impact_val, 6),
+                            "intensity": (
+                                "high"
+                                if abs(impact_val) > 0.1
+                                else "medium"
+                                if abs(impact_val) > 0.05
+                                else "low"
+                            ),
+                        }
+                    )
 
             impacts.sort(key=lambda x: abs(x["impact"]), reverse=True)
             return impacts[:3]
 
         except Exception as exc:
-            logger.error(f"XAI Error: {exc}", exc_info=True)
+            logger.exception(f"XAI Error: {exc}", exc_info=True)
             return []
 
     @staticmethod

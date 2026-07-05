@@ -44,7 +44,7 @@ class DatabaseManager:
             url = make_url(raw_url)
         except Exception as e:
             # If parsing fails, fall back to original; engine creation will raise with details
-            logger.error(f"Failed to parse database URL: {e}")
+            logger.exception(f"Failed to parse database URL: {e}")
             return raw_url
 
         drivername = url.drivername or ""
@@ -192,7 +192,7 @@ class DatabaseManager:
 
             logger.info("Database connection initialized successfully")
         except Exception as e:
-            logger.error(f"Failed to initialize database: {e}", exc_info=True)
+            logger.exception(f"Failed to initialize database: {e}", exc_info=True)
             raise
 
     async def close_db(self):
@@ -246,7 +246,7 @@ class DatabaseManager:
                 self._initialized = True
                 logger.info(f"Duplicate table creation: {e}, ignored.")
             except Exception as e:
-                logger.error(f"Failed to create tables: {e}")
+                logger.exception(f"Failed to create tables: {e}")
                 raise
         finally:
             self._table_creation_lock.release()
@@ -293,7 +293,7 @@ class DatabaseManager:
             )
 
         except Exception as e:
-            logger.error(f"Failed to repair existing tables: {e}")
+            logger.exception(f"Failed to repair existing tables: {e}")
 
     def _escape_identifier(
         self, identifier: str, identifier_type: str = "identifier"
@@ -343,7 +343,7 @@ class DatabaseManager:
                 return [row[0] for row in result.fetchall()]
 
         except Exception as e:
-            logger.error(f"Failed to get existing tables: {e}")
+            logger.exception(f"Failed to get existing tables: {e}")
             return []
 
     async def _repair_table_structure(self, table_name: str):
@@ -396,7 +396,7 @@ class DatabaseManager:
             )
 
         except Exception as e:
-            logger.error(f"Failed to add columns to table {table_name}: {e}")
+            logger.exception(f"Failed to add columns to table {table_name}: {e}")
 
     async def _get_table_columns(self, table_name: str):
         """Get existing table column information"""
@@ -457,7 +457,7 @@ class DatabaseManager:
                         )
                 return columns
         except Exception as e:
-            logger.error(f"Failed to get columns for table {table_name}: {e}")
+            logger.exception(f"Failed to get columns for table {table_name}: {e}")
             return []
 
     def _get_model_columns(self, table_name: str):
@@ -491,7 +491,7 @@ class DatabaseManager:
 
             return columns
         except Exception as e:
-            logger.error(f"Failed to get model columns for table {table_name}: {e}")
+            logger.exception(f"Failed to get model columns for table {table_name}: {e}")
             return []
 
     def _map_sqlalchemy_type(self, sqlalchemy_type):
@@ -600,7 +600,7 @@ class DatabaseManager:
             await self.create_tables()
             logger.info("Lazy database initialization completed successfully")
         except Exception as e:
-            logger.error(f"Failed to lazy initialize database: {e}", exc_info=True)
+            logger.exception(f"Failed to lazy initialize database: {e}", exc_info=True)
             raise
 
 
@@ -620,7 +620,7 @@ async def get_db() -> AsyncSession:
         try:
             await db_manager.ensure_initialized()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Failed to ensure database initialization: {e}", exc_info=True
             )
             raise RuntimeError("Database initialization failed") from e
@@ -639,7 +639,7 @@ async def get_db() -> AsyncSession:
             try:
                 yield session
             except Exception as e:
-                logger.error(f"Database session error: {e}", exc_info=True)
+                logger.exception(f"Database session error: {e}", exc_info=True)
                 # Don't manually rollback here - AsyncSession.__aexit__ will automatically rollback on exception
                 # Manual rollback would cause "cannot switch to state 15" error due to double rollback
                 raise
@@ -649,5 +649,5 @@ async def get_db() -> AsyncSession:
                 )
                 # Session is automatically closed by the async context manager when exiting 'async with'
     except Exception as e:
-        logger.error(f"Failed to create database session: {e}", exc_info=True)
+        logger.exception(f"Failed to create database session: {e}", exc_info=True)
         raise

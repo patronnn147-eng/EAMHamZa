@@ -11,6 +11,7 @@ Endpoints:
   GET  /documents                — list documents
   DELETE /documents/{id}         — delete doc + all chunks (CASCADE)
 """
+
 import logging
 import os
 from typing import List, Optional
@@ -40,10 +41,19 @@ logger = logging.getLogger(__name__)
 app = FastAPI(title="EAM RAG Service", version="1.0.0")
 
 ALLOWED_EXTENSIONS = {
-    ".pdf", ".txt",
-    ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp", ".webp",
-    ".docx", ".xlsx",
-    ".html", ".htm",
+    ".pdf",
+    ".txt",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".tiff",
+    ".tif",
+    ".bmp",
+    ".webp",
+    ".docx",
+    ".xlsx",
+    ".html",
+    ".htm",
 }
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 
@@ -51,6 +61,7 @@ MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 @app.get("/health")
 async def health():
@@ -60,6 +71,7 @@ async def health():
 # ---------------------------------------------------------------------------
 # Retrieval
 # ---------------------------------------------------------------------------
+
 
 class RetrieveRequest(BaseModel):
     query: str
@@ -120,6 +132,7 @@ async def ocr_test(
     Does NOT store anything in the database.
     """
     import os as _os
+
     ext = _os.path.splitext(file.filename or "")[1].lower()
     if ext not in IMAGE_EXTENSIONS:
         raise HTTPException(
@@ -129,12 +142,16 @@ async def ocr_test(
 
     file_bytes = await file.read()
     if not file_bytes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file."
+        )
 
     try:
         pages, _ = extract_image_text(file_bytes)
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
 
     extracted = pages[0][1]
     return OCRTestResponse(
@@ -147,6 +164,7 @@ async def ocr_test(
 # ---------------------------------------------------------------------------
 # Ingestion
 # ---------------------------------------------------------------------------
+
 
 class IngestResponse(BaseModel):
     doc_id: str
@@ -166,6 +184,7 @@ async def ingest(
 ):
     """Ingest a document: extract → chunk → embed → store in pgvector."""
     import os as _os
+
     ext = _os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
@@ -186,7 +205,9 @@ async def ingest(
             detail=f"File too large. Max: {MAX_FILE_SIZE // 1024 // 1024}MB",
         )
     if not file_bytes:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file.")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Empty file."
+        )
 
     try:
         result = await ingest_document(
@@ -199,9 +220,11 @@ async def ingest(
             description=description,
         )
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e)
+        )
     except Exception as e:
-        logger.error(f"Ingestion failed: {e}")
+        logger.exception(f"Ingestion failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Ingestion failed. Check RAG service logs.",
@@ -227,6 +250,7 @@ async def ingest(
 # ---------------------------------------------------------------------------
 # Document management
 # ---------------------------------------------------------------------------
+
 
 class DocumentRecord(BaseModel):
     id: str
@@ -315,6 +339,7 @@ async def delete_document(
 # ---------------------------------------------------------------------------
 # Cache debug
 # ---------------------------------------------------------------------------
+
 
 @app.get("/cache-stats")
 async def cache_stats():

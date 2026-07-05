@@ -126,7 +126,7 @@ async def query_maintenances_planifieess(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error querying maintenances_planifieess: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -166,7 +166,7 @@ async def query_maintenances_planifieess_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error querying maintenances_planifieess: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -194,7 +194,7 @@ async def get_maintenances_planifiees(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error fetching maintenances_planifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -220,10 +220,12 @@ async def create_maintenances_planifiees(
         logger.info(f"Maintenances_planifiees created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating maintenances_planifiees: {str(e)}")
+        logger.exception(f"Validation error creating maintenances_planifiees: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating maintenances_planifiees: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error creating maintenances_planifiees: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -252,7 +254,7 @@ async def create_maintenances_planifieess_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -283,7 +285,7 @@ async def update_maintenances_planifieess_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -312,12 +314,12 @@ async def update_maintenances_planifiees(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(
+        logger.exception(
             f"Validation error updating maintenances_planifiees {id}: {str(e)}"
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error updating maintenances_planifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -349,7 +351,7 @@ async def delete_maintenances_planifieess_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -377,7 +379,7 @@ async def delete_maintenances_planifiees(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error deleting maintenances_planifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

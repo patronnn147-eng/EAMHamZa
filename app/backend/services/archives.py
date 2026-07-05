@@ -27,7 +27,7 @@ class ArchivesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating archives: {str(e)}")
+            logger.exception(f"Error creating archives: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Archives]:
@@ -37,7 +37,7 @@ class ArchivesService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching archives {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching archives {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -84,7 +84,7 @@ class ArchivesService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching archives list: {str(e)}")
+            logger.exception(f"Error fetching archives list: {str(e)}")
             raise
 
     async def update(
@@ -106,7 +106,7 @@ class ArchivesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating archives {obj_id}: {str(e)}")
+            logger.exception(f"Error updating archives {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -122,7 +122,7 @@ class ArchivesService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting archives {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting archives {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -137,7 +137,7 @@ class ArchivesService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching archives by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching archives by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -156,5 +156,5 @@ class ArchivesService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching archivess by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching archivess by {field_name}: {str(e)}")
             raise

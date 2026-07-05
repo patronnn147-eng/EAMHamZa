@@ -158,7 +158,7 @@ async def list_cheftech_work_orders(
         return PaginatedResponse.create(items=output, total=total, page=page, size=size)
 
     except Exception as e:
-        logger.error(f"Error listing cheftech work orders: {str(e)}")
+        logger.exception(f"Error listing cheftech work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -314,5 +314,5 @@ async def export_cheftech_work_order_report(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error exporting cheftech work order report: {str(e)}")
+        logger.exception(f"Error exporting cheftech work order report: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

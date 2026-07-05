@@ -35,7 +35,7 @@ def release_expired_reservations(self) -> Dict[str, Any]:
         finally:
             loop.close()
     except Exception as exc:
-        logger.error(f"release_expired_reservations failed: {exc}", exc_info=True)
+        logger.exception(f"release_expired_reservations failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
 

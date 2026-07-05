@@ -107,7 +107,7 @@ async def get_all_pending_requests(
 
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
-        logger.error(f"Error fetching pending requests: {str(e)}")
+        logger.exception(f"Error fetching pending requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -268,5 +268,5 @@ async def validate_itv_request(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error validating request: {str(e)}")
+        logger.exception(f"Error validating request: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

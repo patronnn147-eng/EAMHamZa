@@ -52,7 +52,7 @@ async def get_machines(
             for machine in machines
         ]
     except Exception as e:
-        logger.error(f"Error getting machines: {str(e)}")
+        logger.exception(f"Error getting machines: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -103,5 +103,5 @@ async def update_machine_status(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error updating machine status: {str(e)}")
+        logger.exception(f"Error updating machine status: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

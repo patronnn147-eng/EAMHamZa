@@ -150,7 +150,7 @@ async def get_my_work_orders(
 
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
-        logger.error(f"Error fetching work orders for technician: {str(e)}")
+        logger.exception(f"Error fetching work orders for technician: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -235,7 +235,7 @@ async def start_work_order(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error starting work order: {str(e)}")
+        logger.exception(f"Error starting work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -435,7 +435,7 @@ async def complete_work_order(
                 raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
             except Exception as exc:
                 await db.rollback()
-                logger.error(
+                logger.exception(
                     "Direct parts consumption error for OT %s: %s",
                     order_id,
                     exc,
@@ -523,5 +523,5 @@ async def complete_work_order(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error completing work order: {str(e)}")
+        logger.exception(f"Error completing work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

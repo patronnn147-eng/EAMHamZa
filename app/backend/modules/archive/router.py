@@ -161,7 +161,7 @@ async def list_archived(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"list_archived {module} failed: {e}", exc_info=True)
+        logger.exception(f"list_archived {module} failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -195,7 +195,9 @@ async def reactivate_archived(
         # nosemgrep: python.fastapi.log.tainted-log-injection-stdlib-fastapi -- `module`
         # is validated against VALID_MODULES and `item_id` is an int (FastAPI path
         # param), neither can carry newlines; `e` is repr'd defensively below anyway.
-        logger.error("reactivate %s/%s failed: %r", module, item_id, e, exc_info=True)
+        logger.exception(
+            "reactivate %s/%s failed: %r", module, item_id, e, exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -209,7 +211,7 @@ async def trigger_sweep_now(
         results = await ArchiveService(db).archive_past_due(auto_commit=True)
         return {"status": "ok", "archived": results, "total": sum(results.values())}
     except Exception as e:
-        logger.error(f"manual archive sweep failed: {e}", exc_info=True)
+        logger.exception(f"manual archive sweep failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -233,5 +235,5 @@ async def trigger_purge_now(
             "retention_days": retention_days,
         }
     except Exception as e:
-        logger.error(f"manual archive purge failed: {e}", exc_info=True)
+        logger.exception(f"manual archive purge failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -41,7 +41,7 @@ async def check_database_health() -> bool:
             )
             return True
     except Exception as e:
-        logger.error(f"Database health check failed: {e}")
+        logger.exception(f"Database health check failed: {e}")
         logger.debug(
             f"[DB_OP] Database health check failed in {time.time() - start_time:.4f}s - healthy: False"
         )
@@ -67,7 +67,7 @@ async def initialize_database():
             f"[DB_OP] Database initialization completed in {time.time() - start_time:.4f}s"
         )
     except Exception as e:
-        logger.error(f"Failed to initialize database: {e}")
+        logger.exception(f"Failed to initialize database: {e}")
         raise
 
 
@@ -82,7 +82,7 @@ async def close_database():
             f"[DB_OP] Database close completed in {time.time() - start_time:.4f}s"
         )
     except Exception as e:
-        logger.error(f"Error closing database: {e}")
+        logger.exception(f"Error closing database: {e}")
         logger.debug(
             f"[DB_OP] Database close failed in {time.time() - start_time:.4f}s"
         )

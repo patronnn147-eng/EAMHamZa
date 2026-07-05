@@ -75,7 +75,7 @@ async def list_active_reservations(
             for rp, piece_name in rows
         ]
     except Exception as e:
-        logger.error(f"list_active_reservations failed: {e}", exc_info=True)
+        logger.exception(f"list_active_reservations failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -100,7 +100,7 @@ async def release_intervention_reservations(
             "reason": reason,
         }
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"release_intervention_reservations failed for itv {intervention_id}: {e}",
             exc_info=True,
         )
@@ -122,5 +122,5 @@ async def release_expired_now(
         count = await svc.release_expired(auto_commit=True)
         return {"released_count": count}
     except Exception as e:
-        logger.error(f"release_expired_now failed: {e}", exc_info=True)
+        logger.exception(f"release_expired_now failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

@@ -29,7 +29,7 @@ class UtilisateursService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating utilisateurs: {str(e)}")
+            logger.exception(f"Error creating utilisateurs: {str(e)}")
             raise
 
     async def check_ownership(self, obj_id: int, id: str) -> bool:
@@ -38,7 +38,7 @@ class UtilisateursService:
             obj = await self.get_by_id(obj_id, id=id)
             return obj is not None
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error checking ownership for utilisateurs {obj_id}: {str(e)}"
             )
             return False
@@ -52,7 +52,7 @@ class UtilisateursService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -100,7 +100,7 @@ class UtilisateursService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching utilisateurs list: {str(e)}")
+            logger.exception(f"Error fetching utilisateurs list: {str(e)}")
             raise
 
     async def update(
@@ -122,7 +122,7 @@ class UtilisateursService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error updating utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int, id: Optional[str] = None) -> bool:
@@ -138,7 +138,7 @@ class UtilisateursService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -155,7 +155,7 @@ class UtilisateursService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching utilisateurs by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching utilisateurs by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -174,5 +174,5 @@ class UtilisateursService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching utilisateurss by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching utilisateurss by {field_name}: {str(e)}")
             raise

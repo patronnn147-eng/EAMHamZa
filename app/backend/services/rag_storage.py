@@ -51,7 +51,7 @@ def _get_minio_client() -> Optional[Minio]:
             region="us-east-1",
         )
     except Exception as e:
-        logger.error(f"[rag_storage] Failed to build MinIO client: {e}")
+        logger.exception(f"[rag_storage] Failed to build MinIO client: {e}")
         return None
 
 
@@ -61,7 +61,7 @@ def _ensure_bucket(client: Minio) -> None:
             client.make_bucket(RAG_BUCKET)
             logger.info(f"[rag_storage] Created bucket '{RAG_BUCKET}'")
     except S3Error as e:
-        logger.error(f"[rag_storage] Bucket check/create failed: {e}")
+        logger.exception(f"[rag_storage] Bucket check/create failed: {e}")
         raise
 
 
@@ -98,7 +98,7 @@ def upload_bytes(
         logger.info(f"[rag_storage] Uploaded {object_key} ({len(file_bytes)} bytes)")
         return object_key
     except S3Error as e:
-        logger.error(f"[rag_storage] Upload failed for {object_key}: {e}")
+        logger.exception(f"[rag_storage] Upload failed for {object_key}: {e}")
         raise
 
 
@@ -114,7 +114,7 @@ def delete_object(object_key: str) -> bool:
     except S3Error as e:
         if "NoSuchKey" in str(e):
             return False
-        logger.error(f"[rag_storage] Delete failed for {object_key}: {e}")
+        logger.exception(f"[rag_storage] Delete failed for {object_key}: {e}")
         return False
 
 
@@ -138,7 +138,7 @@ def list_bucket_objects() -> list[dict]:
             for o in objects
         ]
     except S3Error as e:
-        logger.error(f"[rag_storage] List failed: {e}")
+        logger.exception(f"[rag_storage] List failed: {e}")
         return []
 
 
@@ -155,7 +155,7 @@ def get_object_bytes(object_key: str) -> Optional[bytes]:
             response.close()
             response.release_conn()
     except S3Error as e:
-        logger.error(f"[rag_storage] Download failed for {object_key}: {e}")
+        logger.exception(f"[rag_storage] Download failed for {object_key}: {e}")
         return None
 
 
@@ -188,5 +188,5 @@ def presigned_download_url(object_key: str, expires_hours: int = 1) -> Optional[
             RAG_BUCKET, object_key, expires=timedelta(hours=expires_hours)
         )
     except S3Error as e:
-        logger.error(f"[rag_storage] Presign failed for {object_key}: {e}")
+        logger.exception(f"[rag_storage] Presign failed for {object_key}: {e}")
         return None

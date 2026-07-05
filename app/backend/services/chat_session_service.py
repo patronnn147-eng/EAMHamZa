@@ -167,7 +167,9 @@ class ChatSessionService:
             return session
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error appending chat messages to session {session_id}: {e}")
+            logger.exception(
+                f"Error appending chat messages to session {session_id}: {e}"
+            )
             raise
 
     # ------------------------------------------------------------------
@@ -232,5 +234,5 @@ class ChatSessionService:
             await self.db.commit()
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error clearing chat session: {e}")
+            logger.exception(f"Error clearing chat session: {e}")
             raise

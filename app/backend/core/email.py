@@ -62,7 +62,7 @@ class EmailService:
             return True
 
         except Exception as e:
-            logger.error(f"Failed to send email to {to_email}: {str(e)}")
+            logger.exception(f"Failed to send email to {to_email}: {str(e)}")
             return False
 
     def send_registration_pending_email(self, user_email: str, user_name: str) -> bool:

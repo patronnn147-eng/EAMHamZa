@@ -27,7 +27,7 @@ class MachinesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating machines: {str(e)}")
+            logger.exception(f"Error creating machines: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Machines]:
@@ -37,7 +37,7 @@ class MachinesService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching machines {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching machines {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -84,7 +84,7 @@ class MachinesService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching machines list: {str(e)}")
+            logger.exception(f"Error fetching machines list: {str(e)}")
             raise
 
     async def update(
@@ -106,7 +106,7 @@ class MachinesService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating machines {obj_id}: {str(e)}")
+            logger.exception(f"Error updating machines {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -122,7 +122,7 @@ class MachinesService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting machines {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting machines {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -137,7 +137,7 @@ class MachinesService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching machines by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching machines by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -156,5 +156,5 @@ class MachinesService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching machiness by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching machiness by {field_name}: {str(e)}")
             raise

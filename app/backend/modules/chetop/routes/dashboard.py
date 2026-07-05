@@ -72,5 +72,5 @@ async def get_dashboard_stats(
             machines_hors_service=machines_hors_service,
         )
     except Exception as e:
-        logger.error(f"Error getting dashboard stats: {str(e)}")
+        logger.exception(f"Error getting dashboard stats: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

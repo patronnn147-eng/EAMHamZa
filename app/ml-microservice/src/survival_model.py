@@ -6,6 +6,7 @@ Primary: Cox PH via lifelines (CoxPHFitter)
 Fallback: XGBoost-AFT with Weibull distribution
 Calibration: Platt Scaling to achieve ECE < 0.05
 """
+
 import logging
 import numpy as np
 import pandas as pd
@@ -16,8 +17,11 @@ from sklearn.isotonic import IsotonicRegression
 logger = logging.getLogger(__name__)
 
 FEATURE_COLS = [
-    "air_temperature", "process_temperature",
-    "rotational_speed", "torque", "tool_wear",
+    "air_temperature",
+    "process_temperature",
+    "rotational_speed",
+    "torque",
+    "tool_wear",
 ]
 
 
@@ -71,7 +75,7 @@ class SurvivalModel:
             raise ValueError(f"Need at least 10 samples, got {len(X)}")
 
         df = pd.DataFrame(X, columns=self._feature_cols)
-        df["duration"] = np.maximum(durations, 0.5)   # avoid zero duration
+        df["duration"] = np.maximum(durations, 0.5)  # avoid zero duration
         df["event"] = events
 
         self._fit_cox(df)
@@ -102,21 +106,24 @@ class SurvivalModel:
             # Duration in days between consecutive logs
             try:
                 from datetime import datetime
-                t_cur  = datetime.fromisoformat(str(log.get("created_at", "")))
+
+                t_cur = datetime.fromisoformat(str(log.get("created_at", "")))
                 t_prev = datetime.fromisoformat(str(prev.get("created_at", "")))
                 dur = max(0.5, (t_cur - t_prev).total_seconds() / 86400)
             except Exception:
                 dur = 1.0
             event = 1 if log.get("risk_level", "LOW") in ("HIGH", "CRITICAL") else 0
-            rows.append({
-                "air_temperature":     float(log.get("air_temperature", 298)),
-                "process_temperature": float(log.get("process_temperature", 308)),
-                "rotational_speed":    float(log.get("rotational_speed", 1500)),
-                "torque":              float(log.get("torque", 40)),
-                "tool_wear":           float(log.get("tool_wear", 0)),
-                "duration":            dur,
-                "event":               event,
-            })
+            rows.append(
+                {
+                    "air_temperature": float(log.get("air_temperature", 298)),
+                    "process_temperature": float(log.get("process_temperature", 308)),
+                    "rotational_speed": float(log.get("rotational_speed", 1500)),
+                    "torque": float(log.get("torque", 40)),
+                    "tool_wear": float(log.get("tool_wear", 0)),
+                    "duration": dur,
+                    "event": event,
+                }
+            )
         if not rows:
             raise ValueError("No survival episodes could be constructed from logs")
         df = pd.DataFrame(rows)
@@ -131,6 +138,7 @@ class SurvivalModel:
         try:
             from lifelines import CoxPHFitter
             from lifelines.utils import concordance_index
+
             cox = CoxPHFitter(penalizer=0.1)
             cox.fit(df, duration_col="duration", event_col="event")
             # Measure C-statistic
@@ -148,6 +156,7 @@ class SurvivalModel:
         """XGBoost Accelerated Failure Time with Weibull distribution."""
         try:
             import xgboost as xgb
+
             X_arr = df[self._feature_cols].values
             y_lower = df["duration"].values
             y_upper = np.where(df["event"] == 1, y_lower, np.inf)
@@ -165,7 +174,7 @@ class SurvivalModel:
             self._use_cox = False
             logger.info("XGBoost-AFT fitted as fallback")
         except Exception as e:
-            logger.error(f"XGBoost-AFT also failed: {e}")
+            logger.exception(f"XGBoost-AFT also failed: {e}")
             # Last resort: use a simple logistic on tool_wear
             self._xgb = None
             self._use_cox = False
@@ -220,6 +229,7 @@ class SurvivalModel:
             return np.asarray(scores, dtype=float)
         elif self._xgb is not None:
             import xgboost as xgb
+
             dmat = xgb.DMatrix(X)
             rul_pred = self._xgb.predict(dmat)
             # Convert predicted survival time to risk score (inverse)
@@ -244,13 +254,19 @@ class SurvivalModel:
             raise RuntimeError("Call fit_from_arrays() or fit_from_logs() first")
 
         if isinstance(X, list) and len(X) > 0 and isinstance(X[0], dict):
-            X = np.array([[
-                d.get("air_temperature", 298),
-                d.get("process_temperature", 308),
-                d.get("rotational_speed", 1500),
-                d.get("torque", 40),
-                d.get("tool_wear", 0),
-            ] for d in X], dtype=float)
+            X = np.array(
+                [
+                    [
+                        d.get("air_temperature", 298),
+                        d.get("process_temperature", 308),
+                        d.get("rotational_speed", 1500),
+                        d.get("torque", 40),
+                        d.get("tool_wear", 0),
+                    ]
+                    for d in X
+                ],
+                dtype=float,
+            )
         else:
             X = np.asarray(X, dtype=float)
         if X.ndim == 1:
@@ -288,24 +304,29 @@ class SurvivalModel:
                 "uncertainty": 10.0,
                 "confidence": 0.0,
             }
-        x = np.array([[
-            snapshot.get("air_temperature", 298),
-            snapshot.get("process_temperature", 308),
-            snapshot.get("rotational_speed", 1500),
-            snapshot.get("torque", 40),
-            snapshot.get("tool_wear", 0),
-        ]], dtype=float)
+        x = np.array(
+            [
+                [
+                    snapshot.get("air_temperature", 298),
+                    snapshot.get("process_temperature", 308),
+                    snapshot.get("rotational_speed", 1500),
+                    snapshot.get("torque", 40),
+                    snapshot.get("tool_wear", 0),
+                ]
+            ],
+            dtype=float,
+        )
         prob = float(self.predict_failure_probability(x)[0])
         health_index = round(float((1.0 - prob) * 100.0), 2)
         confidence = min(0.9, 0.5 + self._c_stat * 0.4) if self._c_stat > 0 else 0.6
 
         return {
-            "model_id":      "model_b_survival",
-            "health_index":  health_index,
+            "model_id": "model_b_survival",
+            "health_index": health_index,
             "critical_prob": prob,
-            "rul_estimate":  None,     # Cox median survival time not computed here
-            "uncertainty":   float(abs(prob - 0.5)),
-            "confidence":    confidence,
+            "rul_estimate": None,  # Cox median survival time not computed here
+            "uncertainty": float(abs(prob - 0.5)),
+            "confidence": confidence,
         }
 
     @property

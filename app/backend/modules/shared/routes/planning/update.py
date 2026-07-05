@@ -53,7 +53,7 @@ async def get_users_by_role(
             for user in users
         ]
     except Exception as e:
-        logger.error(f"Error fetching users by role {role}: {str(e)}")
+        logger.exception(f"Error fetching users by role {role}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch users: {str(e)}",
@@ -278,7 +278,9 @@ async def update_planning(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error updating planning {planning_id}: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error updating planning {planning_id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update planning: {str(e)}",

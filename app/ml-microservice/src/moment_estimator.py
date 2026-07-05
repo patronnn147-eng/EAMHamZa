@@ -9,6 +9,7 @@ Requires: pip install momentfm torch
 Pattern mirrors pinn_rul.py — optional import guard so the service starts
 even if momentfm / torch are not installed.
 """
+
 import logging
 import numpy as np
 from typing import Dict, List, Optional
@@ -21,16 +22,20 @@ logger = logging.getLogger(__name__)
 try:
     import torch
     from momentfm import MOMENTPipeline
+
     MOMENT_AVAILABLE = True
 except ImportError:
     MOMENT_AVAILABLE = False
-    logger.warning("momentfm not installed — MOMENT model disabled. "
-                   "Run: pip install momentfm")
+    logger.warning(
+        "momentfm not installed — MOMENT model disabled. Run: pip install momentfm"
+    )
 
 # MOMENT was pre-trained with a fixed context length of 512 timesteps
 MOMENT_SEQ_LEN = 512
 # Number of sensor channels we feed it
-N_CHANNELS = 5   # [air_temperature, process_temperature, rotational_speed, torque, tool_wear]
+N_CHANNELS = (
+    5  # [air_temperature, process_temperature, rotational_speed, torque, tool_wear]
+)
 # How many future steps to forecast (used for RUL estimation)
 FORECAST_HORIZON = 32
 
@@ -38,6 +43,7 @@ FORECAST_HORIZON = 32
 # -----------------------------------------------------------------------
 # Helper: build a (1, N_CHANNELS, MOMENT_SEQ_LEN) tensor from logs
 # -----------------------------------------------------------------------
+
 
 def _logs_to_tensor(logs: List[Dict]) -> "torch.Tensor":
     """
@@ -48,15 +54,20 @@ def _logs_to_tensor(logs: List[Dict]) -> "torch.Tensor":
     with the first known value (forward fill from the earliest reading).
     If more, only the most recent MOMENT_SEQ_LEN entries are used.
     """
-    keys = ["air_temperature", "process_temperature",
-            "rotational_speed", "torque", "tool_wear"]
+    keys = [
+        "air_temperature",
+        "process_temperature",
+        "rotational_speed",
+        "torque",
+        "tool_wear",
+    ]
     defaults = [298.0, 308.0, 1500.0, 40.0, 0.0]
 
     rows = []
     for lg in logs:
         rows.append([float(lg.get(k, d)) for k, d in zip(keys, defaults)])
 
-    arr = np.array(rows, dtype=np.float32)       # (T, 5)
+    arr = np.array(rows, dtype=np.float32)  # (T, 5)
 
     # Truncate to last MOMENT_SEQ_LEN steps
     if len(arr) > MOMENT_SEQ_LEN:
@@ -76,17 +87,19 @@ def _logs_to_tensor(logs: List[Dict]) -> "torch.Tensor":
 # Normalisation (channel-wise z-score, avoids MOMENT scale sensitivity)
 # -----------------------------------------------------------------------
 
+
 def _normalise(tensor: "torch.Tensor"):
     """Return (normalised_tensor, mean, std) — all per-channel."""
     # tensor: (1, C, T)
-    mean = tensor.mean(dim=-1, keepdim=True)   # (1, C, 1)
-    std  = tensor.std(dim=-1, keepdim=True).clamp(min=1e-6)
+    mean = tensor.mean(dim=-1, keepdim=True)  # (1, C, 1)
+    std = tensor.std(dim=-1, keepdim=True).clamp(min=1e-6)
     return (tensor - mean) / std, mean, std
 
 
 # -----------------------------------------------------------------------
 # MOMENTAnomalyDetector
 # -----------------------------------------------------------------------
+
 
 class MOMENTAnomalyDetector:
     """
@@ -99,9 +112,11 @@ class MOMENTAnomalyDetector:
 
     def __init__(self):
         self._model = None
-        self._fitted = False   # mirrors the _fitted convention in other models
+        self._fitted = False  # mirrors the _fitted convention in other models
 
-    def load(self, model_name: str = "AutonLab/MOMENT-1-large") -> "MOMENTAnomalyDetector":
+    def load(
+        self, model_name: str = "AutonLab/MOMENT-1-large"
+    ) -> "MOMENTAnomalyDetector":
         """Download / cache the model from HuggingFace Hub."""
         if not MOMENT_AVAILABLE:
             raise RuntimeError("momentfm not installed")
@@ -135,21 +150,23 @@ class MOMENTAnomalyDetector:
         if not self._fitted or self._model is None:
             raise RuntimeError("Call load() first")
 
-        tensor = _logs_to_tensor(logs)                 # (1, C, 512)
+        tensor = _logs_to_tensor(logs)  # (1, C, 512)
         normed, _, _ = _normalise(tensor)
-        input_mask = torch.ones(1, MOMENT_SEQ_LEN)    # all timesteps observed
+        input_mask = torch.ones(1, MOMENT_SEQ_LEN)  # all timesteps observed
 
         with torch.no_grad():
             output = self._model(normed, input_mask=input_mask)
 
         # output.reconstruction: (1, C, T) — MOMENT reconstructs the input
         # anomaly score = per-timestep MSE across channels
-        reconstruction = output.reconstruction         # (1, C, T)
-        scores = ((normed - reconstruction) ** 2).mean(dim=1).squeeze(0).detach().numpy()  # (T,)
+        reconstruction = output.reconstruction  # (1, C, T)
+        scores = (
+            ((normed - reconstruction) ** 2).mean(dim=1).squeeze(0).detach().numpy()
+        )  # (T,)
 
         # Focus on the most recent half of the window (the newest data)
-        recent_scores = scores[MOMENT_SEQ_LEN // 2:]
-        mse = float(np.mean(recent_scores ** 2))
+        recent_scores = scores[MOMENT_SEQ_LEN // 2 :]
+        mse = float(np.mean(recent_scores**2))
 
         # Convert MSE → health index: sigmoid-based mapping
         # mse=0 → HI=100, mse→∞ → HI→0
@@ -160,14 +177,14 @@ class MOMENTAnomalyDetector:
         is_anomaly = hi < 40.0
 
         return {
-            "model_id":           "model_m_moment_anomaly",
-            "health_index":       round(hi, 2),
-            "critical_prob":      round(critical_prob, 4),
-            "rul_estimate":       None,
-            "uncertainty":        float(np.std(recent_scores)),
-            "confidence":         0.85,
-            "is_anomaly":         bool(is_anomaly),
-            "anomaly_score":      round(float(np.max(np.abs(recent_scores))), 4),
+            "model_id": "model_m_moment_anomaly",
+            "health_index": round(hi, 2),
+            "critical_prob": round(critical_prob, 4),
+            "rul_estimate": None,
+            "uncertainty": float(np.std(recent_scores)),
+            "confidence": 0.85,
+            "is_anomaly": bool(is_anomaly),
+            "anomaly_score": round(float(np.max(np.abs(recent_scores))), 4),
             "reconstruction_mse": round(mse, 6),
         }
 
@@ -175,6 +192,7 @@ class MOMENTAnomalyDetector:
 # -----------------------------------------------------------------------
 # MOMENTRULEstimator
 # -----------------------------------------------------------------------
+
 
 class MOMENTRULEstimator:
     """
@@ -188,8 +206,8 @@ class MOMENTRULEstimator:
       4. Convert steps → days using the observed log cadence.
     """
 
-    TOOL_WEAR_CRITICAL = 250   # minutes — treat as failure threshold
-    CHANNEL_TOOL_WEAR  = 4     # index in the 5-feature vector
+    TOOL_WEAR_CRITICAL = 250  # minutes — treat as failure threshold
+    CHANNEL_TOOL_WEAR = 4  # index in the 5-feature vector
 
     def __init__(self):
         self._model = None
@@ -203,7 +221,7 @@ class MOMENTRULEstimator:
         self._model = MOMENTPipeline.from_pretrained(
             model_name,
             model_kwargs={
-                "task_name":        "forecasting",
+                "task_name": "forecasting",
                 "forecast_horizon": FORECAST_HORIZON,
             },
         )
@@ -228,9 +246,9 @@ class MOMENTRULEstimator:
         if not self._fitted or self._model is None:
             raise RuntimeError("Call load() first")
 
-        tensor = _logs_to_tensor(logs)                 # (1, C, 512)
+        tensor = _logs_to_tensor(logs)  # (1, C, 512)
         normed, mean, std = _normalise(tensor)
-        input_mask = torch.ones(1, MOMENT_SEQ_LEN)    # all timesteps observed
+        input_mask = torch.ones(1, MOMENT_SEQ_LEN)  # all timesteps observed
 
         with torch.no_grad():
             output = self._model(normed, input_mask=input_mask)
@@ -240,7 +258,7 @@ class MOMENTRULEstimator:
 
         # De-normalise the tool_wear channel
         tw_mean = float(mean[0, self.CHANNEL_TOOL_WEAR, 0])
-        tw_std  = float(std[0,  self.CHANNEL_TOOL_WEAR, 0])
+        tw_std = float(std[0, self.CHANNEL_TOOL_WEAR, 0])
         forecast_tw = forecast_normed[:, self.CHANNEL_TOOL_WEAR] * tw_std + tw_mean
 
         # Current tool_wear from latest log entry
@@ -263,12 +281,12 @@ class MOMENTRULEstimator:
         hi = max(0.0, min(100.0, 100.0 * (1.0 - current_tw / self.TOOL_WEAR_CRITICAL)))
 
         return {
-            "model_id":      "model_m_moment_rul",
-            "health_index":  round(hi, 2),
+            "model_id": "model_m_moment_rul",
+            "health_index": round(hi, 2),
             "critical_prob": round(1.0 - hi / 100.0, 4),
-            "rul_estimate":  round(rul_days, 1),
-            "uncertainty":   round(float(np.std(forecast_tw)), 2),
-            "confidence":    0.80,
+            "rul_estimate": round(rul_days, 1),
+            "uncertainty": round(float(np.std(forecast_tw)), 2),
+            "confidence": 0.80,
             "forecast_tool_wear": [round(float(v), 1) for v in forecast_tw],
             "wear_slope_per_step": round(slope, 4),
         }
@@ -285,14 +303,15 @@ class MOMENTRULEstimator:
         if len(logs) >= 2:
             try:
                 from datetime import datetime
+
                 t0 = datetime.fromisoformat(str(logs[0].get("created_at", "")))
                 t1 = datetime.fromisoformat(str(logs[-1].get("created_at", "")))
                 total_days = (t1 - t0).total_seconds() / 86400.0
                 cadence = total_days / max(1, len(logs) - 1)
-                return max(cadence, 1 / 24 / 60)   # floor at 1 minute
+                return max(cadence, 1 / 24 / 60)  # floor at 1 minute
             except Exception:
                 pass
-        return 1.0 / 24.0   # fallback: assume hourly readings
+        return 1.0 / 24.0  # fallback: assume hourly readings
 
 
 # -----------------------------------------------------------------------
@@ -300,7 +319,7 @@ class MOMENTRULEstimator:
 # -----------------------------------------------------------------------
 
 _moment_anomaly: Optional[MOMENTAnomalyDetector] = None
-_moment_rul:     Optional[MOMENTRULEstimator]     = None
+_moment_rul: Optional[MOMENTRULEstimator] = None
 
 
 def get_moment_anomaly_detector() -> Optional[MOMENTAnomalyDetector]:
@@ -312,7 +331,7 @@ def get_moment_anomaly_detector() -> Optional[MOMENTAnomalyDetector]:
         try:
             _moment_anomaly = MOMENTAnomalyDetector().load()
         except Exception as e:
-            logger.error(f"Failed to load MOMENT anomaly model: {e}")
+            logger.exception(f"Failed to load MOMENT anomaly model: {e}")
             return None
     return _moment_anomaly
 
@@ -326,6 +345,6 @@ def get_moment_rul_estimator() -> Optional[MOMENTRULEstimator]:
         try:
             _moment_rul = MOMENTRULEstimator().load()
         except Exception as e:
-            logger.error(f"Failed to load MOMENT RUL model: {e}")
+            logger.exception(f"Failed to load MOMENT RUL model: {e}")
             return None
     return _moment_rul

@@ -119,7 +119,7 @@ async def list_plannings(
             items=items_with_users, total=result["total"], page=page, size=size
         )
     except Exception as e:
-        logger.error(f"Error listing plannings: {str(e)}")
+        logger.exception(f"Error listing plannings: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list plannings: {str(e)}",
@@ -170,7 +170,7 @@ async def list_plannings_with_tasks(
             for row in rows
         ]
     except Exception as e:
-        logger.error(f"Error listing plannings with tasks: {str(e)}")
+        logger.exception(f"Error listing plannings with tasks: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to list plannings: {str(e)}",
@@ -222,7 +222,7 @@ async def get_planning(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching planning {planning_id}: {str(e)}")
+        logger.exception(f"Error fetching planning {planning_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch planning: {str(e)}",
@@ -281,7 +281,9 @@ async def get_planning_machines(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching planning machines for {planning_id}: {str(e)}")
+        logger.exception(
+            f"Error fetching planning machines for {planning_id}: {str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch planning machines: {str(e)}",
@@ -319,7 +321,7 @@ async def get_planning_users(
             for user in users
         ]
     except Exception as e:
-        logger.error(f"Error fetching planning users for {planning_id}: {str(e)}")
+        logger.exception(f"Error fetching planning users for {planning_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch planning users: {str(e)}",

@@ -45,5 +45,5 @@ def check_predictive_alerts():
         logger.info(f"Alert check complete: {result}")
         return {"status": "success", **result}
     except Exception as e:
-        logger.error(f"Error in check_predictive_alerts: {str(e)}", exc_info=True)
+        logger.exception(f"Error in check_predictive_alerts: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}

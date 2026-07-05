@@ -548,6 +548,6 @@ class RetrainingService:
             }
 
         except Exception as e:
-            logger.error(f"Retraining Error: {str(e)}", exc_info=True)
+            logger.exception(f"Retraining Error: {str(e)}", exc_info=True)
             await db.rollback()
             return {"status": "error", "message": str(e)}

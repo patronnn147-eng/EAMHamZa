@@ -306,7 +306,7 @@ async def ingest_one(
         log.info(f"[S3 OK] {object_key} ({len(file_bytes)}B)")
     except Exception as e:
         # Loud error — do NOT silently mark success. KB row exists without S3 backup = broken.
-        log.error(f"[S3 FAIL] {filename} ({doc_id}): {e}")
+        log.exception(f"[S3 FAIL] {filename} ({doc_id}): {e}")
         return False
 
     # 3. Link S3 key to documents row
@@ -464,7 +464,7 @@ async def run_sync(
                     h = await client.get(f"{RAG_SERVICE_URL}/health")
                     h.raise_for_status()
                 except Exception as e:
-                    log.error(f"RAG service unreachable at {RAG_SERVICE_URL}: {e}")
+                    log.exception(f"RAG service unreachable at {RAG_SERVICE_URL}: {e}")
                     return {
                         "ok": 0,
                         "fail": 0,

@@ -415,7 +415,7 @@ async def ai_chat(
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
-        logger.error(f"Groq error: {e}")
+        logger.exception(f"Groq error: {e}")
         raise HTTPException(status_code=503, detail=f"AI service unavailable: {e}")
 
     choices = response.get("choices", [])
@@ -450,7 +450,7 @@ async def ai_chat(
                     tool_failure = True
             except Exception as e:
                 safe_func_name = str(func_name).replace("\r", "").replace("\n", "")
-                logger.error(f"Tool {safe_func_name} failed: {e}")
+                logger.exception(f"Tool {safe_func_name} failed: {e}")
                 result = {"error": str(e)}
                 tool_failure = True
 
@@ -603,7 +603,7 @@ async def analyze(
     except ValueError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
-        logger.error(f"Multi-agent analysis failed: {e}")
+        logger.exception(f"Multi-agent analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
     try:

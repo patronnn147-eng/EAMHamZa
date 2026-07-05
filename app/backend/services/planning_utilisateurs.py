@@ -27,7 +27,7 @@ class Planning_utilisateursService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating planning_utilisateurs: {str(e)}")
+            logger.exception(f"Error creating planning_utilisateurs: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Planning_utilisateurs]:
@@ -39,7 +39,7 @@ class Planning_utilisateursService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching planning_utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching planning_utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -90,7 +90,7 @@ class Planning_utilisateursService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching planning_utilisateurs list: {str(e)}")
+            logger.exception(f"Error fetching planning_utilisateurs list: {str(e)}")
             raise
 
     async def update(
@@ -112,7 +112,7 @@ class Planning_utilisateursService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating planning_utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error updating planning_utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -128,7 +128,7 @@ class Planning_utilisateursService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting planning_utilisateurs {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting planning_utilisateurs {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -147,7 +147,7 @@ class Planning_utilisateursService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching planning_utilisateurs by {field_name}: {str(e)}"
             )
             raise
@@ -170,7 +170,7 @@ class Planning_utilisateursService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching planning_utilisateurss by {field_name}: {str(e)}"
             )
             raise

@@ -104,7 +104,7 @@ class AuditService:
             return entry
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating audit log: {str(e)}")
+            logger.exception(f"Error creating audit log: {str(e)}")
             raise
 
     async def log_create(

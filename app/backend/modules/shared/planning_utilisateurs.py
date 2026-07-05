@@ -120,7 +120,9 @@ async def query_planning_utilisateurss(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying planning_utilisateurss: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error querying planning_utilisateurss: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -158,7 +160,9 @@ async def query_planning_utilisateurss_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying planning_utilisateurss: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error querying planning_utilisateurss: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -184,7 +188,7 @@ async def get_planning_utilisateurs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error fetching planning_utilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -210,10 +214,12 @@ async def create_planning_utilisateurs(
         logger.info(f"Planning_utilisateurs created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating planning_utilisateurs: {str(e)}")
+        logger.exception(f"Validation error creating planning_utilisateurs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating planning_utilisateurs: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error creating planning_utilisateurs: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -240,7 +246,7 @@ async def create_planning_utilisateurss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -269,7 +275,7 @@ async def update_planning_utilisateurss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -298,10 +304,12 @@ async def update_planning_utilisateurs(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating planning_utilisateurs {id}: {str(e)}")
+        logger.exception(
+            f"Validation error updating planning_utilisateurs {id}: {str(e)}"
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error updating planning_utilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -333,7 +341,7 @@ async def delete_planning_utilisateurss_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -359,7 +367,7 @@ async def delete_planning_utilisateurs(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error deleting planning_utilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

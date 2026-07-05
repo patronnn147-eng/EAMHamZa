@@ -149,7 +149,7 @@ async def get_intervention_parts(
             "parts_replaced_json": parts_replaced_json,
         }
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"get_intervention_parts failed for itv {intervention_id}: {e}",
             exc_info=True,
         )

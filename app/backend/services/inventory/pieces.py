@@ -39,7 +39,7 @@ class PieceService:
             raise ValueError("Violation de contrainte: vérifiez les valeurs saisies.")
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating piece: {str(e)}")
+            logger.exception(f"Error creating piece: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Piece]:
@@ -48,7 +48,7 @@ class PieceService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching piece {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching piece {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -92,7 +92,7 @@ class PieceService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching piece list: {str(e)}")
+            logger.exception(f"Error fetching piece list: {str(e)}")
             raise
 
     async def update(self, obj_id: int, update_data: Dict[str, Any]) -> Optional[Piece]:
@@ -121,7 +121,7 @@ class PieceService:
             raise ValueError("Violation de contrainte lors de la mise à jour.")
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating piece {obj_id}: {str(e)}")
+            logger.exception(f"Error updating piece {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -135,7 +135,7 @@ class PieceService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting piece {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting piece {obj_id}: {str(e)}")
             raise
 
     async def get_pieces_by_machine(
@@ -386,7 +386,7 @@ class PieceService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"Error linking piece {piece_id} to machine {machine_id}: {str(e)}"
             )
             raise
@@ -402,7 +402,7 @@ class PieceService:
             return result.rowcount > 0
         except Exception as e:
             await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"Error unlinking piece {piece_id} from machine {machine_id}: {str(e)}"
             )
             raise
@@ -415,7 +415,7 @@ class PieceService:
             result = await self.db.execute(stmt)
             return [row[0] for row in result.fetchall()]
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching linked machines for piece {piece_id}: {str(e)}"
             )
             raise
@@ -473,7 +473,7 @@ async def batch_get_parts_readiness(db: AsyncSession) -> Dict[int, str]:
         return readiness
 
     except Exception as e:
-        logger.error(f"Error in batch_get_parts_readiness: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch_get_parts_readiness: {str(e)}", exc_info=True)
         return {}
 
 
@@ -539,7 +539,7 @@ async def get_machine_parts_readiness(
         }
 
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error in get_machine_parts_readiness for machine {machine_id}: {str(e)}",
             exc_info=True,
         )

@@ -97,7 +97,7 @@ async def create_intervention_request(
         )
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error creating request: {str(e)}")
+        logger.exception(f"Error creating request: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -133,5 +133,5 @@ async def get_my_intervention_requests(
             for itv, machine_nom in rows
         ]
     except Exception as e:
-        logger.error(f"Error listing requests: {str(e)}")
+        logger.exception(f"Error listing requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")

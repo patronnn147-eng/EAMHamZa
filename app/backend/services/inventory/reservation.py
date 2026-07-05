@@ -219,7 +219,7 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"try_reserve failed for itv {intervention_id}: {e}", exc_info=True
             )
             raise
@@ -278,7 +278,7 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"release_all failed for itv {intervention_id}: {e}", exc_info=True
             )
             raise
@@ -338,7 +338,7 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"release_expired failed: {e}", exc_info=True)
+            logger.exception(f"release_expired failed: {e}", exc_info=True)
             raise
 
     # ── Fulfill: completion-time consumption ────────────────────────────────
@@ -452,7 +452,7 @@ class InventoryReservationService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"fulfill_reservation failed for rp {required_piece_id}: {e}",
                 exc_info=True,
             )

@@ -74,7 +74,7 @@ class StockService:
             ]
             return {"items": items, "total": total}
         except Exception as e:
-            logger.error(f"Error fetching stock levels: {str(e)}")
+            logger.exception(f"Error fetching stock levels: {str(e)}")
             raise
 
     async def add_stock(
@@ -141,7 +141,7 @@ class StockService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"Error adding stock for piece {piece_id}: {str(e)}")
+            logger.exception(f"Error adding stock for piece {piece_id}: {str(e)}")
             raise
 
     async def consume_stock(
@@ -211,7 +211,7 @@ class StockService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"Error consuming stock for piece {piece_id}: {str(e)}")
+            logger.exception(f"Error consuming stock for piece {piece_id}: {str(e)}")
             raise
 
     async def get_alerts(self, skip: int = 0, limit: int = 10) -> Dict[str, Any]:
@@ -289,7 +289,7 @@ class StockService:
                 )
             return {"items": items, "total": total}
         except Exception as e:
-            logger.error(f"Error fetching stock alerts: {str(e)}")
+            logger.exception(f"Error fetching stock alerts: {str(e)}")
             raise
 
     async def get_movements(
@@ -344,7 +344,7 @@ class StockService:
             ]
             return {"items": items, "total": total}
         except Exception as e:
-            logger.error(f"Error fetching stock movements: {str(e)}")
+            logger.exception(f"Error fetching stock movements: {str(e)}")
             raise
 
 

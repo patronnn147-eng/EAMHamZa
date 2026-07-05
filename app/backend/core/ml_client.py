@@ -40,7 +40,7 @@ class MLClient:
             response = await client.get("/api/v1/ml/health")
             return response.json()
         except Exception as e:
-            logger.error(f"ML service health check failed: {e}")
+            logger.exception(f"ML service health check failed: {e}")
             return {"status": "unhealthy", "error": str(e)}
 
     async def predict_failure_probability(

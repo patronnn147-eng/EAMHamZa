@@ -127,7 +127,7 @@ async def query_ordress(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying ordress: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying ordress: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -165,7 +165,7 @@ async def query_ordress_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying ordress: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying ordress: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -189,7 +189,7 @@ async def get_ordres(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching ordres {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching ordres {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -211,10 +211,10 @@ async def create_ordres(
         logger.info(f"Ordres created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating ordres: {str(e)}")
+        logger.exception(f"Validation error creating ordres: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating ordres: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating ordres: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -239,7 +239,7 @@ async def create_ordress_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -268,7 +268,7 @@ async def update_ordress_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -295,10 +295,10 @@ async def update_ordres(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating ordres {id}: {str(e)}")
+        logger.exception(f"Validation error updating ordres {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating ordres {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating ordres {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -326,7 +326,7 @@ async def delete_ordress_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -350,5 +350,5 @@ async def delete_ordres(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting ordres {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting ordres {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

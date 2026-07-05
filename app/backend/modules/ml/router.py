@@ -415,9 +415,7 @@ async def get_machine_prediction(
     except Exception as e:
         import logging
 
-        logging.getLogger(__name__).error(
-            f"ML Calculation Error: {str(e)}", exc_info=True
-        )
+        logging.getLogger(__name__).exception(f"ML Calculation Error: {str(e)}")
         raise HTTPException(
             status_code=500, detail=f"Erreur lors du calcul ML: {str(e)}"
         )

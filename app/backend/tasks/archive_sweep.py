@@ -30,7 +30,7 @@ def archive_past_due(self) -> Dict[str, Any]:
         finally:
             loop.close()
     except Exception as exc:
-        logger.error(f"archive_past_due failed: {exc}", exc_info=True)
+        logger.exception(f"archive_past_due failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
 
@@ -47,7 +47,7 @@ def purge_archive_old(self) -> Dict[str, Any]:
         finally:
             loop.close()
     except Exception as exc:
-        logger.error(f"purge_archive_old failed: {exc}", exc_info=True)
+        logger.exception(f"purge_archive_old failed: {exc}", exc_info=True)
         raise self.retry(exc=exc)
 
 

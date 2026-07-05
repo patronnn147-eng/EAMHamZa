@@ -61,7 +61,7 @@ class RabbitMQService:
 
             logger.info("RabbitMQ connected and exchanges declared")
         except Exception as e:
-            logger.error(f"Failed to connect to RabbitMQ: {e}")
+            logger.exception(f"Failed to connect to RabbitMQ: {e}")
             self._connection = None
             self._channel = None
 
@@ -96,7 +96,7 @@ class RabbitMQService:
             await self._wo_exchange.publish(message, routing_key=routing_key)
             logger.info(f"Published work order event: {routing_key}")
         except Exception as e:
-            logger.error(f"Failed to publish work order event {routing_key}: {e}")
+            logger.exception(f"Failed to publish work order event {routing_key}: {e}")
 
     async def publish_intervention_event(self, routing_key: str, payload: dict) -> None:
         if self._int_exchange is None:
@@ -113,7 +113,7 @@ class RabbitMQService:
             await self._int_exchange.publish(message, routing_key=routing_key)
             logger.info(f"Published intervention event: {routing_key}")
         except Exception as e:
-            logger.error(f"Failed to publish intervention event {routing_key}: {e}")
+            logger.exception(f"Failed to publish intervention event {routing_key}: {e}")
 
 
 async def get_rabbitmq() -> RabbitMQService:

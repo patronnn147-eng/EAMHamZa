@@ -61,7 +61,9 @@ async def query_ordres_interventions(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying ordres_interventions: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error querying ordres_interventions: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -97,7 +99,9 @@ async def query_ordres_interventions_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying ordres_interventions: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error querying ordres_interventions: {str(e)}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -120,7 +124,7 @@ async def get_ordres_intervention(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error fetching ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -162,10 +166,10 @@ async def create_ordres_intervention(
 
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating ordres_intervention: {str(e)}")
+        logger.exception(f"Validation error creating ordres_intervention: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating ordres_intervention: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating ordres_intervention: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -205,7 +209,7 @@ async def create_ordres_interventions_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -247,7 +251,7 @@ async def update_ordres_interventions_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -294,10 +298,12 @@ async def update_ordres_intervention(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating ordres_intervention {id}: {str(e)}")
+        logger.exception(
+            f"Validation error updating ordres_intervention {id}: {str(e)}"
+        )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error updating ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
@@ -338,7 +344,7 @@ async def delete_ordres_interventions_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -373,7 +379,7 @@ async def delete_ordres_intervention(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"Error deleting ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

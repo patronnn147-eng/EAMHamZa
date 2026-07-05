@@ -27,7 +27,7 @@ class Planning_ordres_travailService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating planning_ordres_travail: {str(e)}")
+            logger.exception(f"Error creating planning_ordres_travail: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Planning_ordres_travail]:
@@ -39,7 +39,9 @@ class Planning_ordres_travailService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching planning_ordres_travail {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error fetching planning_ordres_travail {obj_id}: {str(e)}"
+            )
             raise
 
     async def get_list(
@@ -90,7 +92,7 @@ class Planning_ordres_travailService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching planning_ordres_travail list: {str(e)}")
+            logger.exception(f"Error fetching planning_ordres_travail list: {str(e)}")
             raise
 
     async def update(
@@ -112,7 +114,9 @@ class Planning_ordres_travailService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating planning_ordres_travail {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error updating planning_ordres_travail {obj_id}: {str(e)}"
+            )
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -130,7 +134,9 @@ class Planning_ordres_travailService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting planning_ordres_travail {obj_id}: {str(e)}")
+            logger.exception(
+                f"Error deleting planning_ordres_travail {obj_id}: {str(e)}"
+            )
             raise
 
     async def get_by_field(
@@ -149,7 +155,7 @@ class Planning_ordres_travailService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching planning_ordres_travail by {field_name}: {str(e)}"
             )
             raise
@@ -172,7 +178,7 @@ class Planning_ordres_travailService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching planning_ordres_travails by {field_name}: {str(e)}"
             )
             raise

@@ -98,7 +98,7 @@ async def submit_pending_piece(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"submit_pending_piece failed: {e}", exc_info=True)
+        logger.exception(f"submit_pending_piece failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -123,7 +123,7 @@ async def list_pending(
             items=items, total=result["total"], page=page, size=size
         )
     except Exception as e:
-        logger.error(f"list_pending failed: {e}", exc_info=True)
+        logger.exception(f"list_pending failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -183,7 +183,7 @@ async def match_pending(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"match_pending failed for {pending_id}: {e}", exc_info=True)
+        logger.exception(f"match_pending failed for {pending_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -243,7 +243,9 @@ async def create_from_pending(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"create_from_pending failed for {pending_id}: {e}", exc_info=True)
+        logger.exception(
+            f"create_from_pending failed for {pending_id}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -303,5 +305,5 @@ async def reject_pending(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"reject_pending failed for {pending_id}: {e}", exc_info=True)
+        logger.exception(f"reject_pending failed for {pending_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

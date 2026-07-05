@@ -27,7 +27,7 @@ class OrdresService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating ordres: {str(e)}")
+            logger.exception(f"Error creating ordres: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Ordres]:
@@ -37,7 +37,7 @@ class OrdresService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching ordres {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching ordres {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -82,7 +82,7 @@ class OrdresService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching ordres list: {str(e)}")
+            logger.exception(f"Error fetching ordres list: {str(e)}")
             raise
 
     async def update(
@@ -104,7 +104,7 @@ class OrdresService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating ordres {obj_id}: {str(e)}")
+            logger.exception(f"Error updating ordres {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -120,7 +120,7 @@ class OrdresService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting ordres {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting ordres {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(self, field_name: str, field_value: Any) -> Optional[Ordres]:
@@ -133,7 +133,7 @@ class OrdresService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching ordres by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching ordres by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -152,5 +152,5 @@ class OrdresService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching ordress by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching ordress by {field_name}: {str(e)}")
             raise

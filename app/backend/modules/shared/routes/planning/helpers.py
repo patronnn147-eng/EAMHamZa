@@ -164,7 +164,7 @@ async def send_planning_notifications(
                 f"Notification sent to user {user_id} for planning {planning_id}"
             )
         except Exception as e:
-            logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
+            logger.exception(f"Failed to send notification to user {user_id}: {str(e)}")
 
 
 async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict:

@@ -102,7 +102,7 @@ class StorageService:
             if not self._minio_client.bucket_exists(bucket_name):
                 self._minio_client.make_bucket(bucket_name)
         except S3Error as e:
-            logger.error(f"Failed to ensure bucket exists '{bucket_name}': {e}")
+            logger.exception(f"Failed to ensure bucket exists '{bucket_name}': {e}")
             raise
 
     async def create_bucket(self, request: BucketRequest) -> BucketResponse:
@@ -118,7 +118,7 @@ class StorageService:
                 created_at=result.get("created_at"),
             )
         except Exception as e:
-            logger.error(f"Failed to create bucket: {e}")
+            logger.exception(f"Failed to create bucket: {e}")
             raise
 
     async def list_buckets(self) -> BucketListResponse:
@@ -137,7 +137,7 @@ class StorageService:
                 )
             return list_buckets
         except Exception as e:
-            logger.error(f"Failed to list buckets: {e}")
+            logger.exception(f"Failed to list buckets: {e}")
             raise
 
     async def list_objects(self, request: OSSBaseModel) -> ObjectListResponse:
@@ -160,7 +160,7 @@ class StorageService:
                 )
             return list_objs
         except Exception as e:
-            logger.error(f"Failed to list bucket objects: {e}")
+            logger.exception(f"Failed to list bucket objects: {e}")
             raise
 
     async def get_object_info(self, request: ObjectRequest) -> ObjectInfo:
@@ -179,7 +179,7 @@ class StorageService:
                 etag=result["etag"],
             )
         except Exception as e:
-            logger.error(f"Failed to get object metadata: {e}")
+            logger.exception(f"Failed to get object metadata: {e}")
             raise
 
     async def rename_object(self, request: RenameRequest) -> dict:
@@ -195,7 +195,7 @@ class StorageService:
             await self._apost_oss_service(endpoint, payload)
             return RenameResponse(success=True)
         except Exception as e:
-            logger.error(f"Failed to rename object: {e}")
+            logger.exception(f"Failed to rename object: {e}")
             raise
 
     async def delete_object(self, request: ObjectRequest) -> DeleteResponse:
@@ -205,7 +205,7 @@ class StorageService:
             await self._adelete_oss_service(endpoint, payload)
             return DeleteResponse(success=True)
         except Exception as e:
-            logger.error(f"Failed to rename object: {e}")
+            logger.exception(f"Failed to rename object: {e}")
             raise
 
     async def create_upload_url(self, request: FileUpDownRequest) -> FileUpDownResponse:
@@ -222,7 +222,7 @@ class StorageService:
                     expires_at=result.get("expires_at"),
                 )
             except Exception as e:
-                logger.error(f"Failed to create upload URL: {e}")
+                logger.exception(f"Failed to create upload URL: {e}")
                 raise
 
         try:
@@ -240,7 +240,7 @@ class StorageService:
             expires_at = (datetime.now(timezone.utc) + expires).isoformat()
             return FileUpDownResponse(upload_url=url, expires_at=expires_at)
         except S3Error as e:
-            logger.error(f"Failed to create MinIO upload URL: {e}")
+            logger.exception(f"Failed to create MinIO upload URL: {e}")
             raise
 
     async def create_download_url(
@@ -266,7 +266,7 @@ class StorageService:
                     expires_at=result.get("expires_at"),
                 )
             except Exception as e:
-                logger.error(f"Failed to create upload URL: {e}")
+                logger.exception(f"Failed to create upload URL: {e}")
                 raise
 
         try:
@@ -284,7 +284,7 @@ class StorageService:
             expires_at = (datetime.now(timezone.utc) + expires).isoformat()
             return FileUpDownResponse(download_url=url, expires_at=expires_at)
         except S3Error as e:
-            logger.error(f"Failed to create MinIO download URL: {e}")
+            logger.exception(f"Failed to create MinIO download URL: {e}")
             raise
 
     async def _aget_oss_service(self, endpoint: str, params: dict) -> dict:
@@ -336,5 +336,5 @@ class StorageService:
             logger.error(error_msg)
             raise ValueError(error_msg)
         except Exception as e:
-            logger.error(f"Failed to call ObjectStorage service: {e}")
+            logger.exception(f"Failed to call ObjectStorage service: {e}")
             raise

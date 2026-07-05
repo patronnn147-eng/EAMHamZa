@@ -144,7 +144,7 @@ async def _ingest_one(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="RAG service is unavailable.",
             )
-        logger.error(f"Ingest failed for {filename}: {e}")
+        logger.exception(f"Ingest failed for {filename}: {e}")
         raise HTTPException(status_code=500, detail="Ingestion failed.")
 
     doc_id = result["doc_id"]
@@ -312,7 +312,7 @@ async def sync_from_minio(
                 )
             )
         except Exception as e:
-            logger.error(f"Sync failed for {obj['key']}: {e}")
+            logger.exception(f"Sync failed for {obj['key']}: {e}")
             failed.append({"filename": obj["key"], "error": str(e)})
 
     return BulkUploadResponse(
@@ -405,7 +405,7 @@ async def list_documents(
     except httpx.ConnectError:
         raise HTTPException(status_code=503, detail="RAG service is unavailable.")
     except Exception as e:
-        logger.error(f"Failed to list documents: {e}")
+        logger.exception(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve document list.")
 
     # Fetch s3_object_key directly from documents table (rag-service doesn't know about it)

@@ -19,6 +19,7 @@ restart and on any ingest/delete (see clear_retrieval_cache()).
 
 BM25 errors fail loud (per CONTEXT.md) -- no silent vector-only fallback.
 """
+
 import logging
 from typing import Optional
 
@@ -42,7 +43,9 @@ logger = logging.getLogger(__name__)
 # Retrieval result cache
 RETRIEVE_CACHE_SIZE = 512
 RETRIEVE_CACHE_TTL = 300  # 5 minutes
-_retrieve_cache: TTLCache = TTLCache(maxsize=RETRIEVE_CACHE_SIZE, ttl=RETRIEVE_CACHE_TTL)
+_retrieve_cache: TTLCache = TTLCache(
+    maxsize=RETRIEVE_CACHE_SIZE, ttl=RETRIEVE_CACHE_TTL
+)
 _retrieve_hits = 0
 _retrieve_misses = 0
 
@@ -106,7 +109,7 @@ async def retrieve_chunks(
         query_vec = await embed_text(query)
         vec_str = vec_to_str(query_vec)
     except Exception as e:
-        logger.error(f"Embedding failed for query: {e}")
+        logger.exception(f"Embedding failed for query: {e}")
         if not hybrid_on:
             return []
         vec_str = None  # skip vector SQL; let keyword branch run
@@ -124,12 +127,15 @@ async def retrieve_chunks(
                 LIMIT :top_k
             """)
 
-            result = await db.execute(sql, {
-                "vec": vec_str,
-                "machine_id": machine_id,
-                "threshold": threshold,
-                "top_k": overfetch,
-            })
+            result = await db.execute(
+                sql,
+                {
+                    "vec": vec_str,
+                    "machine_id": machine_id,
+                    "threshold": threshold,
+                    "top_k": overfetch,
+                },
+            )
             rows = result.fetchall()
 
             candidates = [
@@ -142,7 +148,7 @@ async def retrieve_chunks(
                 for r in rows
             ]
         except Exception as e:
-            logger.error(f"Retrieval SQL failed: {e}")
+            logger.exception(f"Retrieval SQL failed: {e}")
             if not hybrid_on:
                 return []
             candidates = []  # let keyword branch still contribute
@@ -155,7 +161,7 @@ async def retrieve_chunks(
                 query.strip(), db, machine_id, top_k=HYBRID_OVERFETCH
             )
         except Exception as e:
-            logger.error(f"BM25 keyword branch failed: {e}", exc_info=True)
+            logger.exception(f"BM25 keyword branch failed: {e}", exc_info=True)
             raise  # propagate to FastAPI -> 500
     else:
         keyword_hits = []
@@ -181,7 +187,8 @@ async def retrieve_chunks(
             has_v = "vector_rank" in c
             has_k = "keyword_rank" in c
             source_mix.append(
-                "both" if has_v and has_k
+                "both"
+                if has_v and has_k
                 else ("vector_only" if has_v else "keyword_only")
             )
         record_call(
@@ -192,8 +199,12 @@ async def retrieve_chunks(
         logger.info(
             "hybrid query=%r machine_id=%s vector_hits=%d keyword_hits=%d "
             "fused=%d returned=%d source_mix=(both:%d, vector_only:%d, keyword_only:%d)",
-            query.strip()[:80], machine_id,
-            len(candidates), len(keyword_hits), len(fused), len(results),
+            query.strip()[:80],
+            machine_id,
+            len(candidates),
+            len(keyword_hits),
+            len(fused),
+            len(results),
             source_mix.count("both"),
             source_mix.count("vector_only"),
             source_mix.count("keyword_only"),

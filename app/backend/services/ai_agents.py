@@ -91,7 +91,7 @@ async def run_collector(
     try:
         response = groq.chat(messages=messages, tools=tools, temperature=0.1)
     except Exception as e:
-        logger.error(f"Collector agent Groq error: {e}")
+        logger.exception(f"Collector agent Groq error: {e}")
         raise
 
     choices = response.get("choices", [])
@@ -122,7 +122,7 @@ async def run_collector(
                 f"Collector: {func_name} returned {len(result) if isinstance(result, list) else 1} items"
             )
         except Exception as e:
-            logger.error(f"Collector: tool {func_name} failed: {e}")
+            logger.exception(f"Collector: tool {func_name} failed: {e}")
             collected[func_name] = {"error": str(e)}
 
     return collected
@@ -168,7 +168,7 @@ def run_analyst(query: str, collected_data: Dict[str, Any]) -> str:
         if choices:
             return choices[0].get("message", {}).get("content", "") or ""
     except Exception as e:
-        logger.error(f"Analyst agent Groq error: {e}")
+        logger.exception(f"Analyst agent Groq error: {e}")
         raise
 
     return ""
@@ -218,7 +218,7 @@ def run_planner(query: str, analysis: str) -> Dict[str, Any]:
         logger.warning(f"Planner JSON parse failed: {e}. Raw: {content[:200]}")
         return _fallback_plan(content)
     except Exception as e:
-        logger.error(f"Planner agent Groq error: {e}")
+        logger.exception(f"Planner agent Groq error: {e}")
         raise
 
 

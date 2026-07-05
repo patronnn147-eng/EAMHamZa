@@ -31,7 +31,7 @@ class RapportsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating rapports: {str(e)}")
+            logger.exception(f"Error creating rapports: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Rapports]:
@@ -41,7 +41,7 @@ class RapportsService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching rapports {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching rapports {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -88,7 +88,7 @@ class RapportsService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching rapports list: {str(e)}")
+            logger.exception(f"Error fetching rapports list: {str(e)}")
             raise
 
     async def update(
@@ -110,7 +110,7 @@ class RapportsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating rapports {obj_id}: {str(e)}")
+            logger.exception(f"Error updating rapports {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -126,7 +126,7 @@ class RapportsService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting rapports {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting rapports {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -141,7 +141,7 @@ class RapportsService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching rapports by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching rapports by {field_name}: {str(e)}")
             raise
 
     async def list_by_field(
@@ -160,7 +160,7 @@ class RapportsService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(f"Error fetching rapportss by {field_name}: {str(e)}")
+            logger.exception(f"Error fetching rapportss by {field_name}: {str(e)}")
             raise
 
     async def get_scheduled_reports(self, active_only: bool = True) -> List[Rapports]:
@@ -172,7 +172,7 @@ class RapportsService:
             result = await self.db.execute(query.order_by(Rapports.id.desc()))
             return list(result.scalars().all())
         except Exception as e:
-            logger.error(f"Error fetching scheduled reports: {str(e)}")
+            logger.exception(f"Error fetching scheduled reports: {str(e)}")
             raise
 
     async def create_scheduled_report(
@@ -200,7 +200,7 @@ class RapportsService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating scheduled report: {str(e)}")
+            logger.exception(f"Error creating scheduled report: {str(e)}")
             raise
 
     async def generate_asset_health_report(self) -> Dict[str, Any]:
@@ -234,7 +234,7 @@ class RapportsService:
                 "report_type": "ASSET_HEALTH",
             }
         except Exception as e:
-            logger.error(f"Error generating asset health report: {str(e)}")
+            logger.exception(f"Error generating asset health report: {str(e)}")
             raise
 
     async def generate_weekly_digest(self) -> Dict[str, Any]:
@@ -262,5 +262,5 @@ class RapportsService:
                 "report_type": "WEEKLY_DIGEST",
             }
         except Exception as e:
-            logger.error(f"Error generating weekly digest: {str(e)}")
+            logger.exception(f"Error generating weekly digest: {str(e)}")
             raise

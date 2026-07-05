@@ -130,7 +130,7 @@ async def query_archivess(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying archivess: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying archivess: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -168,7 +168,7 @@ async def query_archivess_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying archivess: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying archivess: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -192,7 +192,7 @@ async def get_archives(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching archives {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching archives {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -214,10 +214,10 @@ async def create_archives(
         logger.info(f"Archives created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating archives: {str(e)}")
+        logger.exception(f"Validation error creating archives: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating archives: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating archives: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -242,7 +242,7 @@ async def create_archivess_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -271,7 +271,7 @@ async def update_archivess_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -298,10 +298,10 @@ async def update_archives(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating archives {id}: {str(e)}")
+        logger.exception(f"Validation error updating archives {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating archives {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating archives {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -329,7 +329,7 @@ async def delete_archivess_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -353,5 +353,5 @@ async def delete_archives(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting archives {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting archives {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

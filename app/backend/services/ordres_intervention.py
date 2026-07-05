@@ -27,7 +27,7 @@ class Ordres_interventionService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating ordres_intervention: {str(e)}")
+            logger.exception(f"Error creating ordres_intervention: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: int) -> Optional[Ordres_intervention]:
@@ -37,7 +37,7 @@ class Ordres_interventionService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching ordres_intervention {obj_id}: {str(e)}")
             raise
 
     async def get_list(
@@ -88,7 +88,7 @@ class Ordres_interventionService:
                 "limit": limit,
             }
         except Exception as e:
-            logger.error(f"Error fetching ordres_intervention list: {str(e)}")
+            logger.exception(f"Error fetching ordres_intervention list: {str(e)}")
             raise
 
     async def update(
@@ -110,7 +110,7 @@ class Ordres_interventionService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error updating ordres_intervention {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
@@ -126,7 +126,7 @@ class Ordres_interventionService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting ordres_intervention {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
@@ -145,7 +145,7 @@ class Ordres_interventionService:
             )
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching ordres_intervention by {field_name}: {str(e)}"
             )
             raise
@@ -168,7 +168,7 @@ class Ordres_interventionService:
             )
             return result.scalars().all()
         except Exception as e:
-            logger.error(
+            logger.exception(
                 f"Error fetching ordres_interventions by {field_name}: {str(e)}"
             )
             raise

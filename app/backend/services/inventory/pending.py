@@ -103,7 +103,7 @@ class PendingPieceService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"create_with_placeholder failed: {e}", exc_info=True)
+            logger.exception(f"create_with_placeholder failed: {e}", exc_info=True)
             raise
 
     # ── List ────────────────────────────────────────────────────────────────
@@ -158,7 +158,7 @@ class PendingPieceService:
                 )
             return {"items": items, "total": total}
         except Exception as e:
-            logger.error(f"list_pending failed: {e}", exc_info=True)
+            logger.exception(f"list_pending failed: {e}", exc_info=True)
             raise
 
     # ── Match: link to existing piece (in-place mvt conversion) ─────────────
@@ -255,7 +255,7 @@ class PendingPieceService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"match_to_existing failed for pending {pending_id}: {e}", exc_info=True
             )
             raise
@@ -346,7 +346,7 @@ class PendingPieceService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(
+            logger.exception(
                 f"create_new_piece failed for pending {pending_id}: {e}", exc_info=True
             )
             raise
@@ -396,7 +396,9 @@ class PendingPieceService:
         except Exception as e:
             if auto_commit:
                 await self.db.rollback()
-            logger.error(f"reject failed for pending {pending_id}: {e}", exc_info=True)
+            logger.exception(
+                f"reject failed for pending {pending_id}: {e}", exc_info=True
+            )
             raise
 
     async def _auto_link_pending_to_machine(

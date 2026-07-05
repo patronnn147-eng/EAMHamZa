@@ -44,7 +44,7 @@ class AIMemoryService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error creating AI memory: {str(e)}")
+            logger.exception(f"Error creating AI memory: {str(e)}")
             raise
 
     async def get_by_id(self, obj_id: str) -> Optional[AIMemories]:
@@ -54,7 +54,7 @@ class AIMemoryService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching AI memory {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching AI memory {obj_id}: {str(e)}")
             raise
 
     async def get_by_user(
@@ -74,7 +74,7 @@ class AIMemoryService:
             result = await self.db.execute(query)
             return list(result.scalars().all())
         except Exception as e:
-            logger.error(f"Error fetching AI memories: {str(e)}")
+            logger.exception(f"Error fetching AI memories: {str(e)}")
             raise
 
     async def get_by_key(
@@ -91,7 +91,7 @@ class AIMemoryService:
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"Error fetching AI memory by key: {str(e)}")
+            logger.exception(f"Error fetching AI memory by key: {str(e)}")
             raise
 
     async def update(
@@ -119,7 +119,7 @@ class AIMemoryService:
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error updating AI memory: {str(e)}")
+            logger.exception(f"Error updating AI memory: {str(e)}")
             raise
 
     async def increment_success(self, obj_id: str) -> Optional[AIMemories]:
@@ -156,7 +156,7 @@ class AIMemoryService:
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.error(f"Error deleting AI memory: {str(e)}")
+            logger.exception(f"Error deleting AI memory: {str(e)}")
             raise
 
     async def get_all_types(self, utilisateur_id: int) -> Dict[str, Any]:

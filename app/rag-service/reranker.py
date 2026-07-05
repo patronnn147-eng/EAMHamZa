@@ -8,6 +8,7 @@ slower per pair — feasible only because we only rerank a small candidate set.
 
 Same singleton + async-via-executor pattern as embedder.py.
 """
+
 import asyncio
 import logging
 import os
@@ -29,13 +30,18 @@ _model = None
 _load_lock = asyncio.Lock()
 
 # Stats (mirrors embedder/retriever stats pattern)
-_reranks = 0          # number of rerank() calls
+_reranks = 0  # number of rerank() calls
 _candidates_seen = 0  # total candidates scored (cumulative)
 
 
 def rerank_enabled() -> bool:
     """Toggle: env RERANK_ENABLED, default true."""
-    return os.getenv("RERANK_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+    return os.getenv("RERANK_ENABLED", "true").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def _get_model():
@@ -43,6 +49,7 @@ def _get_model():
     global _model
     if _model is None:
         from sentence_transformers import CrossEncoder
+
         logger.info(f"Loading cross-encoder model: {MODEL_NAME}")
         _model = CrossEncoder(MODEL_NAME)
         logger.info("Cross-encoder model loaded.")
@@ -84,7 +91,7 @@ async def rerank(query: str, candidates: list[dict], top_k: int) -> list[dict]:
         loop = asyncio.get_event_loop()
         scores = await loop.run_in_executor(None, _sync_score, query, contents)
     except Exception as e:
-        logger.error(f"Rerank failed, falling back to bi-encoder order: {e}")
+        logger.exception(f"Rerank failed, falling back to bi-encoder order: {e}")
         return candidates[:top_k]
 
     _reranks += 1

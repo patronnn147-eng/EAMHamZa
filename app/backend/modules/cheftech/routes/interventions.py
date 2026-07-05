@@ -118,5 +118,5 @@ async def get_interventions(
             items=enriched, total=total, page=page, size=size
         )
     except Exception as e:
-        logger.error(f"Error loading interventions: {e}", exc_info=True)
+        logger.exception(f"Error loading interventions: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

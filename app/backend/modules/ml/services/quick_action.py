@@ -408,5 +408,7 @@ async def quick_provision_parts(
 
     except Exception as e:
         await db.rollback()
-        logger.error(f"[quick_action] machine {machine_id} failed: {e}", exc_info=True)
+        logger.exception(
+            f"[quick_action] machine {machine_id} failed: {e}", exc_info=True
+        )
         return {"success": False, "error": str(e)}

@@ -113,7 +113,7 @@ async def attach_required_pieces(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"attach_required_pieces failed for itv {intervention_id}: {e}",
             exc_info=True,
         )
@@ -154,7 +154,7 @@ async def list_required_pieces(
             for rp, p in rows
         ]
     except Exception as e:
-        logger.error(f"list_required_pieces failed: {e}", exc_info=True)
+        logger.exception(f"list_required_pieces failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -187,5 +187,5 @@ async def remove_required_piece(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"remove_required_piece failed: {e}", exc_info=True)
+        logger.exception(f"remove_required_piece failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error")

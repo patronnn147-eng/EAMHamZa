@@ -125,7 +125,7 @@ async def generate_text(
                     async for content in service.gentxt_stream(request):
                         yield json.dumps({"content": content})
                 except Exception as e:
-                    logger.error(f"Stream error: {e}")
+                    logger.exception(f"Stream error: {e}")
                     yield json.dumps({"content": f"[ERROR] {extract_error_message(e)}"})
                 finally:
                     yield "[DONE]"
@@ -139,13 +139,13 @@ async def generate_text(
             return response
 
     except ValueError as e:
-        logger.error(f"AI service configuration error: {e}")
+        logger.exception(f"AI service configuration error: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=extract_error_message(e),
         )
     except Exception as e:
-        logger.error(f"Text generation failed: {e}")
+        logger.exception(f"Text generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=extract_error_message(e),
@@ -180,13 +180,13 @@ async def generate_image(
         logger.warning(f"Invalid image input: {e}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except ValueError as e:
-        logger.error(f"AI service configuration error: {e}")
+        logger.exception(f"AI service configuration error: {e}")
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=extract_error_message(e),
         )
     except Exception as e:
-        logger.error(f"Image generation failed: {e}")
+        logger.exception(f"Image generation failed: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=extract_error_message(e),

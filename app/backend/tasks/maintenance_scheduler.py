@@ -93,7 +93,7 @@ def check_preventive_maintenance():
         created = asyncio.run(run_maintenance_check())
         return {"status": "success", "created_orders": created}
     except Exception as e:
-        logger.error(
+        logger.exception(
             f"❌ Error in check_preventive_maintenance task: {str(e)}", exc_info=True
         )
         return {"status": "error", "message": str(e)}

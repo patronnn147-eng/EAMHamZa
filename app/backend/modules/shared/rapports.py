@@ -127,7 +127,7 @@ async def query_rapportss(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying rapportss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying rapportss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -165,7 +165,7 @@ async def query_rapportss_all(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error querying rapportss: {str(e)}", exc_info=True)
+        logger.exception(f"Error querying rapportss: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -189,7 +189,7 @@ async def get_rapports(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching rapports {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error fetching rapports {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -210,10 +210,10 @@ async def create_rapports(
         logger.info(f"Rapports created successfully with id: {result.id}")
         return result
     except ValueError as e:
-        logger.error(f"Validation error creating rapports: {str(e)}")
+        logger.exception(f"Validation error creating rapports: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creating rapports: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating rapports: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -238,7 +238,7 @@ async def create_rapportss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch create: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch create: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
@@ -267,7 +267,7 @@ async def update_rapportss_batch(
         return results
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch update: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch update: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
@@ -294,10 +294,10 @@ async def update_rapports(
     except HTTPException:
         raise
     except ValueError as e:
-        logger.error(f"Validation error updating rapports {id}: {str(e)}")
+        logger.exception(f"Validation error updating rapports {id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error(f"Error updating rapports {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error updating rapports {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -325,7 +325,7 @@ async def delete_rapportss_batch(
         }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error in batch delete: {str(e)}", exc_info=True)
+        logger.exception(f"Error in batch delete: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
@@ -349,5 +349,5 @@ async def delete_rapports(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting rapports {id}: {str(e)}", exc_info=True)
+        logger.exception(f"Error deleting rapports {id}: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

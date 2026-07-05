@@ -106,7 +106,7 @@ async def download_import_template():
             media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
     except Exception as e:
-        logger.error(f"Error generating template: {str(e)}", exc_info=True)
+        logger.exception(f"Error generating template: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Error generating template: {str(e)}"
         )
@@ -308,5 +308,5 @@ async def preview_machine_import(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error parsing import file: {str(e)}", exc_info=True)
+        logger.exception(f"Error parsing import file: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error parsing file: {str(e)}")

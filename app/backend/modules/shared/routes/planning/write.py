@@ -193,7 +193,7 @@ async def create_planning(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error creating planning: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating planning: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to create planning: {str(e)}",
@@ -303,7 +303,9 @@ async def delete_planning(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error deleting planning {planning_id}: {str(e)}", exc_info=True)
+        logger.exception(
+            f"Error deleting planning {planning_id}: {str(e)}", exc_info=True
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to delete planning: {str(e)}",

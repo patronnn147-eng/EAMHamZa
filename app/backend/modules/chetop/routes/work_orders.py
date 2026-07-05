@@ -88,7 +88,7 @@ async def get_my_work_orders(
 
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
-        logger.error(f"Error fetching work orders: {str(e)}")
+        logger.exception(f"Error fetching work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -149,7 +149,7 @@ async def start_work_order(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error starting work order: {str(e)}")
+        logger.exception(f"Error starting work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
@@ -322,5 +322,5 @@ async def complete_work_order(
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error completing work order: {str(e)}")
+        logger.exception(f"Error completing work order: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
