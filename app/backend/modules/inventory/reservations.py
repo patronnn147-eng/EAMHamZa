@@ -37,7 +37,7 @@ class ReservationRow(BaseModel):
     approved: Optional[bool] = None
 
 
-@router.get("", response_model=List[ReservationRow])
+@router.get("", response_model=List[ReservationRow], responses={500: {"description": "Internal server error"}})
 async def list_active_reservations(
     *, piece_id: Annotated[Optional[int], Query()] = None,
     intervention_id: Annotated[Optional[int], Query()] = None,
@@ -79,7 +79,7 @@ async def list_active_reservations(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/release/{intervention_id}", status_code=200)
+@router.post("/release/{intervention_id}", status_code=200, responses={500: {"description": "Internal server error"}})
 async def release_intervention_reservations(
     *, intervention_id: int,
     reason: Annotated[str, Query(max_length=50)] = "manual",
@@ -107,7 +107,7 @@ async def release_intervention_reservations(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/release-expired", status_code=200)
+@router.post("/release-expired", status_code=200, responses={500: {"description": "Internal server error"}})
 async def release_expired_now(
     _u: Annotated[Utilisateurs, Depends(require_role(ROLES_ADMIN))],
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -19,7 +19,7 @@ router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
+@router.get("/interventions", response_model=PaginatedResponse[InterventionResponse], responses={500: {"description": "Internal server error"}})
 async def get_interventions(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,

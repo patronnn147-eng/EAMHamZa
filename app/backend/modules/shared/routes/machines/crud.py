@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("", response_model=MachinesListResponse)
+@router.get("", response_model=MachinesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_machiness(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -64,7 +64,7 @@ async def query_machiness(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=MachinesListResponse)
+@router.get("/all", response_model=MachinesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_machiness_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -100,7 +100,7 @@ async def query_machiness_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=MachinesResponse)
+@router.get("/{id}", response_model=MachinesResponse, responses={404: {"description": "Machines not found"}, 500: {"description": "Internal Server Error"}})
 async def get_machines(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -123,7 +123,7 @@ async def get_machines(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=MachinesResponse, status_code=201)
+@router.post("", response_model=MachinesResponse, status_code=201, responses={400: {"description": "Failed to create machines"}, 500: {"description": "Internal Server Error"}})
 async def create_machines(
     data: MachinesData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -161,7 +161,7 @@ async def create_machines(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=list[MachinesResponse], status_code=201)
+@router.post("/batch", response_model=list[MachinesResponse], status_code=201, responses={500: {"description": "Internal Server Error"}})
 async def create_machiness_batch(
     request: MachinesBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -199,7 +199,7 @@ async def create_machiness_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=list[MachinesResponse])
+@router.put("/batch", response_model=list[MachinesResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_machiness_batch(
     request: MachinesBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -241,7 +241,7 @@ async def update_machiness_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=MachinesResponse)
+@router.put("/{id}", response_model=MachinesResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Machines not found"}, 500: {"description": "Internal Server Error"}})
 async def update_machines(
     id: int,
     data: MachinesUpdateData,
@@ -291,7 +291,7 @@ async def update_machines(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_machiness_batch(
     request: MachinesBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -330,7 +330,7 @@ async def delete_machiness_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Machines not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_machines(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

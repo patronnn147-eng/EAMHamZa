@@ -28,7 +28,7 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@router.get("", response_model=Planning_ordres_travailListResponse)
+@router.get("", response_model=Planning_ordres_travailListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planning_ordres_travails(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -70,7 +70,7 @@ async def query_planning_ordres_travails(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Planning_ordres_travailListResponse)
+@router.get("/all", response_model=Planning_ordres_travailListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planning_ordres_travails_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -109,7 +109,7 @@ async def query_planning_ordres_travails_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Planning_ordres_travailResponse)
+@router.get("/{id}", response_model=Planning_ordres_travailResponse, responses={404: {"description": "Planning_ordres_travail not found"}, 500: {"description": "Internal Server Error"}})
 async def get_planning_ordres_travail(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -136,7 +136,7 @@ async def get_planning_ordres_travail(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Planning_ordres_travailResponse, status_code=201)
+@router.post("", response_model=Planning_ordres_travailResponse, status_code=201, responses={400: {"description": "Failed to create planning_ordres_travail"}, 403: {"description": "You don't have permission to link work orders to this planning"}, 404: {"description": "Planning not found"}, 500: {"description": "Internal Server Error"}})
 async def create_planning_ordres_travail(
     data: Planning_ordres_travailData,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -195,8 +195,8 @@ async def create_planning_ordres_travail(
 
 
 @router.post(
-    "/batch", response_model=list[Planning_ordres_travailResponse], status_code=201
-)
+    "/batch", response_model=list[Planning_ordres_travailResponse], status_code=201, 
+responses={500: {"description": "Internal Server Error"}})
 async def create_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -222,7 +222,7 @@ async def create_planning_ordres_travails_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=list[Planning_ordres_travailResponse])
+@router.put("/batch", response_model=list[Planning_ordres_travailResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -251,7 +251,7 @@ async def update_planning_ordres_travails_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Planning_ordres_travailResponse)
+@router.put("/{id}", response_model=Planning_ordres_travailResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Planning_ordres_travail not found"}, 500: {"description": "Internal Server Error"}})
 async def update_planning_ordres_travail(
     id: int,
     data: Planning_ordres_travailUpdateData,
@@ -285,7 +285,7 @@ async def update_planning_ordres_travail(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -314,7 +314,7 @@ async def delete_planning_ordres_travails_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Planning_ordres_travail not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_planning_ordres_travail(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

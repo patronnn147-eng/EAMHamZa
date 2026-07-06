@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/inventory/stock", tags=["inventory-stock"])
 
 
 # ---------- Stock Levels ----------
-@router.get("", response_model=PaginatedResponse[StockResponse])
+@router.get("", response_model=PaginatedResponse[StockResponse], responses={500: {"description": "Internal Server Error"}})
 async def list_stock_levels(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=1000)] = 10,
@@ -41,7 +41,7 @@ async def list_stock_levels(
 
 
 # ---------- Add Stock ----------
-@router.post("", response_model=StockResponse, status_code=201)
+@router.post("", response_model=StockResponse, status_code=201, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal Server Error"}})
 async def add_stock(data: StockAddRequest, db: Annotated[AsyncSession, Depends(get_db)]):
     """Add stock for a spare part (e.g., received delivery)."""
     service = StockService(db)
@@ -60,7 +60,7 @@ async def add_stock(data: StockAddRequest, db: Annotated[AsyncSession, Depends(g
 
 
 # ---------- Consume Stock ----------
-@router.post("/consume", response_model=StockResponse)
+@router.post("/consume", response_model=StockResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal Server Error"}})
 async def consume_stock(data: StockConsumeRequest, db: Annotated[AsyncSession, Depends(get_db)]):
     """Consume stock for a spare part (e.g., used in an intervention)."""
     service = StockService(db)
@@ -80,7 +80,7 @@ async def consume_stock(data: StockConsumeRequest, db: Annotated[AsyncSession, D
 
 
 # ---------- Low Stock Alerts ----------
-@router.get("/alertes", response_model=PaginatedResponse[AlerteStockResponse])
+@router.get("/alertes", response_model=PaginatedResponse[AlerteStockResponse], responses={500: {"description": "Internal Server Error"}})
 async def get_stock_alerts(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=1000)] = 10,
@@ -100,7 +100,7 @@ async def get_stock_alerts(
 
 
 # ---------- Stock Movements History ----------
-@router.get("/movements", response_model=PaginatedResponse[MouvementStockResponse])
+@router.get("/movements", response_model=PaginatedResponse[MouvementStockResponse], responses={500: {"description": "Internal Server Error"}})
 async def get_stock_movements(
     *, piece_id: Annotated[Optional[int], Query(description="Filter by piece ID")] = None,
     page: Annotated[int, Query(ge=1)] = 1,

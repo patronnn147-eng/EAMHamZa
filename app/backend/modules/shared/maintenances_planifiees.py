@@ -89,7 +89,7 @@ class Maintenances_planifieesBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=Maintenances_planifieesListResponse)
+@router.get("", response_model=Maintenances_planifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_maintenances_planifieess(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -132,7 +132,7 @@ async def query_maintenances_planifieess(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Maintenances_planifieesListResponse)
+@router.get("/all", response_model=Maintenances_planifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_maintenances_planifieess_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -172,7 +172,7 @@ async def query_maintenances_planifieess_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Maintenances_planifieesResponse)
+@router.get("/{id}", response_model=Maintenances_planifieesResponse, responses={404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
 async def get_maintenances_planifiees(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -200,7 +200,7 @@ async def get_maintenances_planifiees(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Maintenances_planifieesResponse, status_code=201)
+@router.post("", response_model=Maintenances_planifieesResponse, status_code=201, responses={400: {"description": "Failed to create maintenances_planifiees"}, 500: {"description": "Internal Server Error"}})
 async def create_maintenances_planifiees(
     data: Maintenances_planifieesData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -230,8 +230,8 @@ async def create_maintenances_planifiees(
 
 
 @router.post(
-    "/batch", response_model=List[Maintenances_planifieesResponse], status_code=201
-)
+    "/batch", response_model=List[Maintenances_planifieesResponse], status_code=201, 
+responses={500: {"description": "Internal Server Error"}})
 async def create_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -258,7 +258,7 @@ async def create_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[Maintenances_planifieesResponse])
+@router.put("/batch", response_model=List[Maintenances_planifieesResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -289,7 +289,7 @@ async def update_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Maintenances_planifieesResponse)
+@router.put("/{id}", response_model=Maintenances_planifieesResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
 async def update_maintenances_planifiees(
     id: int,
     data: Maintenances_planifieesUpdateData,
@@ -325,7 +325,7 @@ async def update_maintenances_planifiees(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -355,7 +355,7 @@ async def delete_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_maintenances_planifiees(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

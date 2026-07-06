@@ -105,7 +105,7 @@ class PlanningsBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=PlanningsListResponse)
+@router.get("", response_model=PlanningsListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planningss(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -146,7 +146,7 @@ async def query_planningss(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=PlanningsListResponse)
+@router.get("/all", response_model=PlanningsListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planningss_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -184,7 +184,7 @@ async def query_planningss_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=PlanningsResponse)
+@router.get("/{id}", response_model=PlanningsResponse, responses={404: {"description": "Plannings not found"}, 500: {"description": "Internal Server Error"}})
 async def get_plannings(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -208,7 +208,7 @@ async def get_plannings(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=PlanningsResponse, status_code=201)
+@router.post("", response_model=PlanningsResponse, status_code=201, responses={400: {"description": "Failed to create plannings"}, 500: {"description": "Internal Server Error"}})
 async def create_plannings(
     data: PlanningsData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -233,7 +233,7 @@ async def create_plannings(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=List[PlanningsResponse], status_code=201)
+@router.post("/batch", response_model=List[PlanningsResponse], status_code=201, responses={500: {"description": "Internal Server Error"}})
 async def create_planningss_batch(
     request: PlanningsBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -258,7 +258,7 @@ async def create_planningss_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[PlanningsResponse])
+@router.put("/batch", response_model=List[PlanningsResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_planningss_batch(
     request: PlanningsBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -287,7 +287,7 @@ async def update_planningss_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=PlanningsResponse)
+@router.put("/{id}", response_model=PlanningsResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Plannings not found"}, 500: {"description": "Internal Server Error"}})
 async def update_plannings(
     id: int,
     data: PlanningsUpdateData,
@@ -317,7 +317,7 @@ async def update_plannings(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_planningss_batch(
     request: PlanningsBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -345,7 +345,7 @@ async def delete_planningss_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Plannings not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_plannings(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

@@ -90,7 +90,7 @@ class OrdresBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=OrdresListResponse)
+@router.get("", response_model=OrdresListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordress(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -131,7 +131,7 @@ async def query_ordress(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=OrdresListResponse)
+@router.get("/all", response_model=OrdresListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordress_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -169,7 +169,7 @@ async def query_ordress_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=OrdresResponse)
+@router.get("/{id}", response_model=OrdresResponse, responses={404: {"description": "Ordres not found"}, 500: {"description": "Internal Server Error"}})
 async def get_ordres(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -193,7 +193,7 @@ async def get_ordres(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=OrdresResponse, status_code=201)
+@router.post("", response_model=OrdresResponse, status_code=201, responses={400: {"description": "Failed to create ordres"}, 500: {"description": "Internal Server Error"}})
 async def create_ordres(
     data: OrdresData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -218,7 +218,7 @@ async def create_ordres(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=List[OrdresResponse], status_code=201)
+@router.post("/batch", response_model=List[OrdresResponse], status_code=201, responses={500: {"description": "Internal Server Error"}})
 async def create_ordress_batch(
     request: OrdresBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -243,7 +243,7 @@ async def create_ordress_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[OrdresResponse])
+@router.put("/batch", response_model=List[OrdresResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_ordress_batch(
     request: OrdresBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -272,7 +272,7 @@ async def update_ordress_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=OrdresResponse)
+@router.put("/{id}", response_model=OrdresResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Ordres not found"}, 500: {"description": "Internal Server Error"}})
 async def update_ordres(
     id: int,
     data: OrdresUpdateData,
@@ -302,7 +302,7 @@ async def update_ordres(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_ordress_batch(
     request: OrdresBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -330,7 +330,7 @@ async def delete_ordress_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Ordres not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_ordres(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

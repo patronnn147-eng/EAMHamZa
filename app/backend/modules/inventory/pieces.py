@@ -28,7 +28,7 @@ class LinkMachineRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=PieceListResponse)
+@router.get("", response_model=PieceListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def list_pieces(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -57,7 +57,7 @@ async def list_pieces(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{piece_id}", response_model=PieceResponse)
+@router.get("/{piece_id}", response_model=PieceResponse, responses={404: {"description": "Piece not found"}, 500: {"description": "Internal Server Error"}})
 async def get_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Get a single spare part by ID."""
     service = PieceService(db)
@@ -73,7 +73,7 @@ async def get_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)])
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=PieceResponse, status_code=201)
+@router.post("", response_model=PieceResponse, status_code=201, responses={400: {"description": "Failed to create piece"}, 500: {"description": "Internal Server Error"}})
 async def create_piece(data: PieceCreate, db: Annotated[AsyncSession, Depends(get_db)]):
     """Create a new spare part."""
     service = PieceService(db)
@@ -91,7 +91,7 @@ async def create_piece(data: PieceCreate, db: Annotated[AsyncSession, Depends(ge
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.put("/{piece_id}", response_model=PieceResponse)
+@router.put("/{piece_id}", response_model=PieceResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Piece not found"}, 500: {"description": "Internal Server Error"}})
 async def update_piece(
     piece_id: int, data: PieceUpdate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
@@ -112,7 +112,7 @@ async def update_piece(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/{piece_id}")
+@router.delete("/{piece_id}", responses={404: {"description": "Piece not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Delete a spare part."""
     service = PieceService(db)
@@ -181,7 +181,7 @@ async def list_in_scope_machines(
 
 
 # ---------- Machine Linking ----------
-@router.get("/{piece_id}/machines")
+@router.get("/{piece_id}/machines", responses={500: {"description": "Internal Server Error"}})
 async def get_piece_machines(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Get machines linked to a spare part."""
     service = PieceService(db)
@@ -195,7 +195,7 @@ async def get_piece_machines(piece_id: int, db: Annotated[AsyncSession, Depends(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/{piece_id}/machines")
+@router.post("/{piece_id}/machines", responses={500: {"description": "Internal Server Error"}})
 async def link_piece_to_machine(
     piece_id: int, data: LinkMachineRequest, db: Annotated[AsyncSession, Depends(get_db)]
 ):
@@ -213,7 +213,7 @@ async def link_piece_to_machine(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/{piece_id}/machines/{machine_id}")
+@router.delete("/{piece_id}/machines/{machine_id}", responses={404: {"description": "Link not found"}, 500: {"description": "Internal Server Error"}})
 async def unlink_piece_from_machine(
     piece_id: int, machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ):
@@ -234,7 +234,7 @@ async def unlink_piece_from_machine(
 # ---------- Smart-suggest + by-machine (for PiecePicker UI) ----------
 
 
-@router.get("/suggest/lookup", tags=["inventory-pieces"])
+@router.get("/suggest/lookup", tags=["inventory-pieces"], responses={500: {"description": "Internal server error"}})
 async def suggest_pieces(
     *, q: Annotated[str, Query(min_length=1, max_length=200, description="Search text")],
     machine_id: Annotated[Optional[int], Query(
@@ -265,7 +265,7 @@ async def suggest_pieces(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/by-machine/{machine_id}", tags=["inventory-pieces"])
+@router.get("/by-machine/{machine_id}", tags=["inventory-pieces"], responses={500: {"description": "Internal server error"}})
 async def list_pieces_by_machine(
     *, machine_id: int,
     include_consumables: Annotated[bool, Query()] = True,

@@ -63,7 +63,7 @@ def write_env_file(env_type: str, env_vars: Dict[str, str]):
             f.write(f"{key}={value}\n")
 
 
-@router.get("", response_model=EnvConfig)
+@router.get("", response_model=EnvConfig, responses={500: {"description": "Internal Server Error"}})
 async def get_settings(current_user: Annotated[UserResponse, Depends(get_admin_user)]):
     """Retrieve environment variable configuration."""
     try:
@@ -112,7 +112,7 @@ async def get_settings(current_user: Annotated[UserResponse, Depends(get_admin_u
         )
 
 
-@router.put("/backend/{key}")
+@router.put("/backend/{key}", responses={500: {"description": "Internal Server Error"}})
 async def update_backend_setting(
     key: str,
     update: EnvVariableUpdate,
@@ -132,7 +132,7 @@ async def update_backend_setting(
         )
 
 
-@router.put("/frontend/{key}")
+@router.put("/frontend/{key}", responses={500: {"description": "Internal Server Error"}})
 async def update_frontend_setting(
     key: str,
     update: EnvVariableUpdate,
@@ -152,7 +152,7 @@ async def update_frontend_setting(
         )
 
 
-@router.post("/backend/{key}")
+@router.post("/backend/{key}", responses={500: {"description": "Internal Server Error"}})
 async def add_backend_setting(
     key: str,
     update: EnvVariableUpdate,
@@ -172,7 +172,7 @@ async def add_backend_setting(
         )
 
 
-@router.post("/frontend/{key}")
+@router.post("/frontend/{key}", responses={500: {"description": "Internal Server Error"}})
 async def add_frontend_setting(
     key: str,
     update: EnvVariableUpdate,
@@ -192,7 +192,7 @@ async def add_frontend_setting(
         )
 
 
-@router.delete("/backend/{key}")
+@router.delete("/backend/{key}", responses={404: {"description": "Not Found"}, 500: {"description": "Internal Server Error"}})
 async def delete_backend_setting(
     key: str, current_user: Annotated[UserResponse, Depends(get_admin_user)]
 ):
@@ -215,7 +215,7 @@ async def delete_backend_setting(
         )
 
 
-@router.delete("/frontend/{key}")
+@router.delete("/frontend/{key}", responses={404: {"description": "Not Found"}, 500: {"description": "Internal Server Error"}})
 async def delete_frontend_setting(
     key: str, current_user: Annotated[UserResponse, Depends(get_admin_user)]
 ):

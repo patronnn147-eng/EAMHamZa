@@ -118,7 +118,7 @@ async def get_alerts_for_user_role(
     return list(result.scalars().all())
 
 
-@router.get("", response_model=List[AlertResponse])
+@router.get("", response_model=List[AlertResponse], responses={400: {"description": "Bad Request"}})
 async def get_alerts(
     *, machine_id: Annotated[Optional[int], Query(description="Filter by machine ID")] = None,
     severity: Annotated[Optional[str], Query(description="Filter by severity")] = None,
@@ -206,7 +206,7 @@ async def get_machine_alerts(
     return alerts
 
 
-@router.patch("/{alert_id}/dismiss")
+@router.patch("/{alert_id}/dismiss", responses={404: {"description": "Alert not found"}})
 async def dismiss_alert(
     alert_id: int,
     request: DismissAlertRequest,
@@ -221,7 +221,7 @@ async def dismiss_alert(
     return {"status": "dismissed", "alert_id": alert_id}
 
 
-@router.post("/{alert_id}/create-work-order")
+@router.post("/{alert_id}/create-work-order", responses={403: {"description": "Only admin or cheftech can create work orders from alerts"}, 404: {"description": "Alert not found"}})
 async def create_work_order_from_alert(
     alert_id: int,
     request: CreateWorkOrderRequest,

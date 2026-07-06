@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/admin/work-orders", tags=["admin-work-orders"])
 
 
-@router.get("")
+@router.get("", responses={403: {"description": "Forbidden: Admin only"}, 500: {"description": "Internal server error"}})
 async def list_work_orders(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -114,7 +114,7 @@ async def list_work_orders(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{order_id}/export")
+@router.get("/{order_id}/export", responses={403: {"description": "Forbidden: Admin only"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def export_work_order_report(
     order_id: int,
     current_user: Utilisateurs = Depends(get_current_user),

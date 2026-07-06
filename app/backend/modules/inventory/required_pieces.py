@@ -32,8 +32,7 @@ ROLES_ATTACH = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 @router.post(
     "/{intervention_id}",
     response_model=List[RequiredPieceResponse],
-    status_code=201,
-)
+    status_code=201, responses={400: {"description": "At most 100 required pieces per request"}, 404: {"description": "Intervention not found"}, 500: {"description": "Internal server error"}})
 async def attach_required_pieces(
     intervention_id: int,
     items: List[RequiredPieceItem],
@@ -121,7 +120,7 @@ async def attach_required_pieces(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{intervention_id}", response_model=List[RequiredPieceResponse])
+@router.get("/{intervention_id}", response_model=List[RequiredPieceResponse], responses={500: {"description": "Internal server error"}})
 async def list_required_pieces(
     intervention_id: int,
     current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_ATTACH))],
@@ -158,7 +157,7 @@ async def list_required_pieces(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.delete("/{intervention_id}/{required_piece_id}", status_code=204)
+@router.delete("/{intervention_id}/{required_piece_id}", status_code=204, responses={400: {"description": "Cannot remove reserved required piece — release first"}, 404: {"description": "Required piece not found"}, 500: {"description": "Internal server error"}})
 async def remove_required_piece(
     intervention_id: int,
     required_piece_id: int,

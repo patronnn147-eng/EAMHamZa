@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/import/template")
+@router.get("/import/template", responses={500: {"description": "Internal Server Error"}})
 async def download_import_template():
     """Download a template for mass importing machines"""
     logger.debug("Generating machines import template")
@@ -113,7 +113,7 @@ async def download_import_template():
         )
 
 
-@router.post("/import/preview")
+@router.post("/import/preview", responses={400: {"description": "Invalid file format. Only CSV and Excel files are supported."}, 500: {"description": "Internal Server Error"}})
 async def preview_machine_import(
     file: Annotated[UploadFile, File()], db: Annotated[AsyncSession, Depends(get_db)]
 ):

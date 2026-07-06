@@ -27,7 +27,7 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@router.get("", response_model=Ordres_interventionListResponse)
+@router.get("", response_model=Ordres_interventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordres_interventions(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -68,7 +68,7 @@ async def query_ordres_interventions(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Ordres_interventionListResponse)
+@router.get("/all", response_model=Ordres_interventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordres_interventions_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -106,7 +106,7 @@ async def query_ordres_interventions_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Ordres_interventionResponse)
+@router.get("/{id}", response_model=Ordres_interventionResponse, responses={404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
 async def get_ordres_intervention(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -131,7 +131,7 @@ async def get_ordres_intervention(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Ordres_interventionResponse, status_code=201)
+@router.post("", response_model=Ordres_interventionResponse, status_code=201, responses={400: {"description": "Failed to create ordres_intervention"}, 500: {"description": "Internal Server Error"}})
 async def create_ordres_intervention(
     data: Ordres_interventionData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -175,8 +175,8 @@ async def create_ordres_intervention(
 
 
 @router.post(
-    "/batch", response_model=list[Ordres_interventionResponse], status_code=201
-)
+    "/batch", response_model=list[Ordres_interventionResponse], status_code=201, 
+responses={500: {"description": "Internal Server Error"}})
 async def create_ordres_interventions_batch(
     request: Ordres_interventionBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -214,7 +214,7 @@ async def create_ordres_interventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=list[Ordres_interventionResponse])
+@router.put("/batch", response_model=list[Ordres_interventionResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_ordres_interventions_batch(
     request: Ordres_interventionBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -256,7 +256,7 @@ async def update_ordres_interventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Ordres_interventionResponse)
+@router.put("/{id}", response_model=Ordres_interventionResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
 async def update_ordres_intervention(
     id: int,
     data: Ordres_interventionUpdateData,
@@ -310,7 +310,7 @@ async def update_ordres_intervention(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_ordres_interventions_batch(
     request: Ordres_interventionBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -349,7 +349,7 @@ async def delete_ordres_interventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_ordres_intervention(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

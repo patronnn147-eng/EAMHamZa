@@ -90,7 +90,7 @@ class RapportsBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=RapportsListResponse)
+@router.get("", response_model=RapportsListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_rapportss(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -131,7 +131,7 @@ async def query_rapportss(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=RapportsListResponse)
+@router.get("/all", response_model=RapportsListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_rapportss_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -169,7 +169,7 @@ async def query_rapportss_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=RapportsResponse)
+@router.get("/{id}", response_model=RapportsResponse, responses={404: {"description": "Rapports not found"}, 500: {"description": "Internal Server Error"}})
 async def get_rapports(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -193,7 +193,7 @@ async def get_rapports(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=RapportsResponse, status_code=201)
+@router.post("", response_model=RapportsResponse, status_code=201, responses={400: {"description": "Failed to create rapports"}, 500: {"description": "Internal Server Error"}})
 async def create_rapports(
     data: RapportsData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -217,7 +217,7 @@ async def create_rapports(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=List[RapportsResponse], status_code=201)
+@router.post("/batch", response_model=List[RapportsResponse], status_code=201, responses={500: {"description": "Internal Server Error"}})
 async def create_rapportss_batch(
     request: RapportsBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -242,7 +242,7 @@ async def create_rapportss_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[RapportsResponse])
+@router.put("/batch", response_model=List[RapportsResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_rapportss_batch(
     request: RapportsBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -271,7 +271,7 @@ async def update_rapportss_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=RapportsResponse)
+@router.put("/{id}", response_model=RapportsResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Rapports not found"}, 500: {"description": "Internal Server Error"}})
 async def update_rapports(
     id: int,
     data: RapportsUpdateData,
@@ -301,7 +301,7 @@ async def update_rapports(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_rapportss_batch(
     request: RapportsBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -329,7 +329,7 @@ async def delete_rapportss_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Rapports not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_rapports(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

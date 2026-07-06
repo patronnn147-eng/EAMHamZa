@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_trava
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{id}/validate", response_model=Ordres_travailResponse)
+@router.post("/{id}/validate", response_model=Ordres_travailResponse, responses={400: {"description": "utilisateur_id is required to approve & assign.; Invalid action"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "Ordres_travail not found"}})
 async def validate_ordres_travail(
     id: int,
     data: Ordres_travailValidationData,
@@ -96,7 +96,7 @@ async def validate_ordres_travail(
     return result
 
 
-@router.post("/{id}/close", response_model=Ordres_travailResponse)
+@router.post("/{id}/close", response_model=Ordres_travailResponse, responses={400: {"description": "Only validated work orders can be closed"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "Ordres_travail not found"}})
 async def close_ordres_travail(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

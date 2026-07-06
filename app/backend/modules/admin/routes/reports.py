@@ -97,7 +97,7 @@ async def create_scheduled_report(
     return {"id": created.id, "status": "created"}
 
 
-@admin_router.patch("/scheduled/{report_id}")
+@admin_router.patch("/scheduled/{report_id}", responses={404: {"description": "Report not found"}})
 async def update_scheduled_report(
     report_id: int,
     update: ScheduledReportUpdate,
@@ -133,7 +133,7 @@ async def update_scheduled_report(
     return {"status": "updated", "id": report_id}
 
 
-@admin_router.delete("/scheduled/{report_id}")
+@admin_router.delete("/scheduled/{report_id}", responses={404: {"description": "Report not found"}})
 async def delete_scheduled_report(
     report_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -174,7 +174,7 @@ async def download_report(
     }
 
 
-@admin_router.post("/test-email")
+@admin_router.post("/test-email", responses={400: {"description": "User email not found"}})
 async def send_test_email(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],

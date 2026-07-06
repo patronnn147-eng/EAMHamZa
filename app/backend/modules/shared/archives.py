@@ -93,7 +93,7 @@ class ArchivesBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=ArchivesListResponse)
+@router.get("", response_model=ArchivesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_archivess(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -134,7 +134,7 @@ async def query_archivess(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=ArchivesListResponse)
+@router.get("/all", response_model=ArchivesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_archivess_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -172,7 +172,7 @@ async def query_archivess_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=ArchivesResponse)
+@router.get("/{id}", response_model=ArchivesResponse, responses={404: {"description": "Archives not found"}, 500: {"description": "Internal Server Error"}})
 async def get_archives(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -196,7 +196,7 @@ async def get_archives(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=ArchivesResponse, status_code=201)
+@router.post("", response_model=ArchivesResponse, status_code=201, responses={400: {"description": "Failed to create archives"}, 500: {"description": "Internal Server Error"}})
 async def create_archives(
     data: ArchivesData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -221,7 +221,7 @@ async def create_archives(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("/batch", response_model=List[ArchivesResponse], status_code=201)
+@router.post("/batch", response_model=List[ArchivesResponse], status_code=201, responses={500: {"description": "Internal Server Error"}})
 async def create_archivess_batch(
     request: ArchivesBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -246,7 +246,7 @@ async def create_archivess_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[ArchivesResponse])
+@router.put("/batch", response_model=List[ArchivesResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_archivess_batch(
     request: ArchivesBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -275,7 +275,7 @@ async def update_archivess_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=ArchivesResponse)
+@router.put("/{id}", response_model=ArchivesResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Archives not found"}, 500: {"description": "Internal Server Error"}})
 async def update_archives(
     id: int,
     data: ArchivesUpdateData,
@@ -305,7 +305,7 @@ async def update_archives(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_archivess_batch(
     request: ArchivesBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -333,7 +333,7 @@ async def delete_archivess_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Archives not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_archives(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

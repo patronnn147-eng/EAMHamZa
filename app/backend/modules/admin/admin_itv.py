@@ -47,7 +47,7 @@ class ItvRequestResponse(BaseModel):
         from_attributes = True
 
 
-@router.get("", response_model=PaginatedResponse[ItvRequestResponse])
+@router.get("", response_model=PaginatedResponse[ItvRequestResponse], responses={403: {"description": "Only Admins can see these requests"}, 500: {"description": "Internal server error"}})
 async def get_all_pending_requests(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -111,7 +111,7 @@ async def get_all_pending_requests(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/{request_id}/validate")
+@router.patch("/{request_id}/validate", responses={400: {"description": "Only pending approval requests can be validated"}, 403: {"description": "Only Admins can validate requests"}, 404: {"description": "Request not found"}, 409: {"description": "Conflict"}, 500: {"description": "Internal server error"}})
 async def validate_itv_request(
     request_id: int,
     data: ItvRequestValidation,

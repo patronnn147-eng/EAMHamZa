@@ -39,7 +39,7 @@ async def _count_by_column(db: AsyncSession, column) -> List[DistributionSlice]:
     ]
 
 
-@router.get("/dashboard", response_model=DashboardStats)
+@router.get("/dashboard", response_model=DashboardStats, responses={500: {"description": "Internal server error"}})
 async def get_dashboard_stats(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
@@ -101,7 +101,7 @@ async def get_dashboard_stats(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/dashboard/distributions", response_model=InterventionDistributions)
+@router.get("/dashboard/distributions", response_model=InterventionDistributions, responses={500: {"description": "Internal server error"}})
 async def get_intervention_distributions(
     db: Annotated[AsyncSession, Depends(get_db)],
     _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],

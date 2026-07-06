@@ -28,7 +28,7 @@ def _require_cheftech(current_user: Utilisateurs):
         raise HTTPException(status_code=403, detail="Forbidden: ChefTech only")
 
 
-@router.get("")
+@router.get("", responses={500: {"description": "Internal server error"}})
 async def list_cheftech_work_orders(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -162,7 +162,7 @@ async def list_cheftech_work_orders(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/{order_id}/export")
+@router.get("/{order_id}/export", responses={404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def export_cheftech_work_order_report(
     order_id: int,
     current_user: Utilisateurs = Depends(get_current_user),

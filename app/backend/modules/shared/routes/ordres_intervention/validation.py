@@ -23,7 +23,7 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{id}/validate", response_model=Ordres_interventionResponse)
+@router.post("/{id}/validate", response_model=Ordres_interventionResponse, responses={400: {"description": "Cannot create Work Order: Intervention must be associated with a machine.; Invalid action"}, 404: {"description": "Ordres_intervention not found"}, 500: {"description": "Failed to create linked Work Order."}})
 async def validate_ordres_intervention(
     id: int,
     data: Ordres_interventionValidationData,

@@ -33,7 +33,7 @@ router = APIRouter(
 ROLES_READ = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 
 
-@router.get("/{intervention_id}/parts", response_model=Dict[str, Any])
+@router.get("/{intervention_id}/parts", response_model=Dict[str, Any], responses={404: {"description": "Intervention not found"}, 500: {"description": "Internal server error"}})
 async def get_intervention_parts(
     intervention_id: int,
     _u: Annotated[Utilisateurs, Depends(require_role(ROLES_READ))],

@@ -110,8 +110,8 @@ async def list_my_interventions(
 
 
 @router.put(
-    "/interventions/{intervention_id}/status", response_model=InterventionResponse
-)
+    "/interventions/{intervention_id}/status", response_model=InterventionResponse, 
+responses={400: {"description": "Intervention must be approved by ChefTech before starting; Declined intervention cannot be started"}, 404: {"description": "Intervention not found"}})
 async def update_intervention_status(
     intervention_id: int,
     data: InterventionStatusUpdate,
@@ -280,8 +280,8 @@ async def update_intervention_status(
 
 
 @router.post(
-    "/interventions/request", response_model=InterventionResponse, status_code=201
-)
+    "/interventions/request", response_model=InterventionResponse, status_code=201, 
+responses={400: {"description": "Intervention cannot be requested in its current status"}})
 async def request_intervention(
     payload: InterventionRequestPayload,
     current_user: Annotated[Utilisateurs, Depends(verify_technicien)],

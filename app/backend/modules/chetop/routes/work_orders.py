@@ -25,7 +25,7 @@ router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
+@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse], responses={403: {"description": "Forbidden"}, 500: {"description": "Internal server error"}})
 async def get_my_work_orders(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
@@ -93,7 +93,7 @@ async def get_my_work_orders(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/work-orders/{order_id}/start")
+@router.patch("/work-orders/{order_id}/start", responses={400: {"description": "Only 'ASSIGNÉ' orders can be started"}, 403: {"description": "Forbidden; You can only start work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def start_work_order(
     order_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -154,7 +154,7 @@ async def start_work_order(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/work-orders/{order_id}/complete")
+@router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'EN_COURS' orders can be completed"}, 403: {"description": "Forbidden; You can only complete work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def complete_work_order(
     order_id: int,
     payload: WorkOrderCompletePayload,

@@ -80,7 +80,7 @@ class WorkOrderCompletePayload(BaseModel):
     pending_pieces_direct: Optional[List[PendingPieceDirect]] = None
 
 
-@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
+@router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse], responses={500: {"description": "Internal server error"}})
 async def get_my_work_orders(
     page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100),
@@ -154,7 +154,7 @@ async def get_my_work_orders(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/work-orders/{order_id}/start")
+@router.patch("/work-orders/{order_id}/start", responses={400: {"description": "Only pending/assigned orders can be started"}, 403: {"description": "You can only start work orders assigned to you"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def start_work_order(
     order_id: int,
     current_user: Utilisateurs = Depends(verify_technicien),
@@ -239,7 +239,7 @@ async def start_work_order(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/work-orders/{order_id}/complete")
+@router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'IN_PROGRESS' orders can be completed"}, 403: {"description": "You can only complete work orders assigned to you"}, 404: {"description": "Work order not found"}, 500: {"description": "Échec consommation directe; Internal server error"}})
 async def complete_work_order(
     order_id: int,
     payload: WorkOrderCompletePayload,

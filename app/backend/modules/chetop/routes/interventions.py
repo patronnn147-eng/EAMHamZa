@@ -21,8 +21,7 @@ logger = logging.getLogger(__name__)
 @router.post(
     "/intervention-requests",
     response_model=InterventionRequestResponse,
-    status_code=201,
-)
+    status_code=201, responses={404: {"description": "Machine not found"}, 500: {"description": "Internal server error"}})
 async def create_intervention_request(
     data: InterventionRequestCreate,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -101,7 +100,7 @@ async def create_intervention_request(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/intervention-requests", response_model=List[InterventionRequestResponse])
+@router.get("/intervention-requests", response_model=List[InterventionRequestResponse], responses={500: {"description": "Internal server error"}})
 async def get_my_intervention_requests(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],

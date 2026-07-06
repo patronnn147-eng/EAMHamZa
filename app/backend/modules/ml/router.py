@@ -88,7 +88,7 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     return entries, log_dicts
 
 
-@router.get("/machines/{machine_id}/unified-health")
+@router.get("/machines/{machine_id}/unified-health", responses={404: {"description": "Machine non trouvée"}})
 async def get_unified_health(
     machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
@@ -304,7 +304,7 @@ async def get_unified_health(
     return response
 
 
-@router.get("/machines/{machine_id}/prediction")
+@router.get("/machines/{machine_id}/prediction", responses={404: {"description": "Machine non trouvée"}, 500: {"description": "Internal Server Error"}})
 async def get_machine_prediction(
     machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
@@ -421,7 +421,7 @@ async def get_machine_prediction(
         )
 
 
-@router.get("/machines/{machine_id}/failure-probability")
+@router.get("/machines/{machine_id}/failure-probability", responses={404: {"description": "Machine non trouvée"}})
 async def get_failure_probability(
     machine_id: int,
     air: Annotated[float, Query(description="Air temperature [K]")],
@@ -472,7 +472,7 @@ async def get_failure_probability(
     }
 
 
-@router.get("/machines/{machine_id}/failure-type")
+@router.get("/machines/{machine_id}/failure-type", responses={404: {"description": "Machine non trouvée"}})
 async def get_failure_type(
     machine_id: int,
     air: Annotated[float, Query(description="Air temperature [K]")],
@@ -807,7 +807,7 @@ async def get_shadow_logs(
     )
 
 
-@router.patch("/machines/{machine_id}/telemetry")
+@router.patch("/machines/{machine_id}/telemetry", responses={404: {"description": "Machine non trouvée"}})
 async def update_machine_telemetry(
     machine_id: int,
     data: TelemetryUpdate,
@@ -860,7 +860,7 @@ async def get_retraining_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> 
     return await RetrainingService.get_retraining_stats(db)
 
 
-@router.post("/retrain")
+@router.post("/retrain", responses={500: {"description": "Internal Server Error"}})
 async def trigger_retraining(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -895,7 +895,7 @@ async def ml_service_status():
     }
 
 
-@router.get("/machines/{machine_id}/readiness")
+@router.get("/machines/{machine_id}/readiness", responses={404: {"description": "Machine not found"}})
 async def get_machine_readiness(
     machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
@@ -930,7 +930,7 @@ async def get_machine_readiness(
     return {"success": True, "machine_id": machine_id, **readiness}
 
 
-@router.get("/machines/{machine_id}/timeline")
+@router.get("/machines/{machine_id}/timeline", responses={404: {"description": "Machine not found"}})
 async def get_machine_timeline(
     *, machine_id: int,
     limit: int = 20,
@@ -1047,7 +1047,7 @@ async def get_procurement_queue(db: Annotated[AsyncSession, Depends(get_db)]) ->
     return {"success": True, "count": len(items), "items": items}
 
 
-@router.post("/procurement/draft/{machine_id}")
+@router.post("/procurement/draft/{machine_id}", responses={404: {"description": "No active PARTS_SHORTAGE alert for this machine"}})
 async def create_procurement_draft_endpoint(
     machine_id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1150,7 +1150,7 @@ async def reject_procurement_draft_endpoint(
     return await reject_procurement_draft(wo_id, db)
 
 
-@router.post("/procurement/quick-action/{machine_id}")
+@router.post("/procurement/quick-action/{machine_id}", responses={403: {"description": "Only ADMIN can run Quick Action."}})
 async def quick_action_endpoint(
     *, machine_id: int,
     dry_run: Annotated[bool, Query()] = False,
@@ -1343,7 +1343,7 @@ async def get_forecast_summary(
     return payload
 
 
-@router.get("/forecast/downtime")
+@router.get("/forecast/downtime", responses={400: {"description": "horizon must be 7, 30 or 60"}})
 async def get_forecast_downtime(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1358,7 +1358,7 @@ async def get_forecast_downtime(
     return await compute_fleet_downtime(db, horizon_days=horizon)
 
 
-@router.get("/forecast/labor")
+@router.get("/forecast/labor", responses={400: {"description": "horizon must be 7, 30 or 60"}})
 async def get_forecast_labor(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1388,7 +1388,7 @@ async def get_forecast_labor(
     return forecast_labor(downtime["machines"], open_wo_count, 4.0, tech_count, horizon)
 
 
-@router.get("/forecast/budget")
+@router.get("/forecast/budget", responses={400: {"description": "horizon must be 7, 30 or 60"}})
 async def get_forecast_budget(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1424,7 +1424,7 @@ async def get_forecast_budget(
     return forecast_budget(labor["demand_hours"], demand_data.get("items", []))
 
 
-@router.post("/forecast/optimize-schedule")
+@router.post("/forecast/optimize-schedule", responses={400: {"description": "horizon must be 7, 30 or 60"}})
 async def post_optimize_schedule(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],

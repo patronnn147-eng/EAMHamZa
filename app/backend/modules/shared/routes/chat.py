@@ -100,7 +100,7 @@ async def get_cache_stats(
     return {"groq_cache": groq_cache_stats()}
 
 
-@router.post("/cache-clear", status_code=204)
+@router.post("/cache-clear", status_code=204, responses={403: {"description": "ADMIN role required."}})
 async def post_cache_clear(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
@@ -116,7 +116,7 @@ async def post_cache_clear(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/history")
+@router.get("/history", responses={400: {"description": "Invalid session_id"}, 404: {"description": "Session not found"}})
 async def get_history(
     *,
     limit: Annotated[int, Query(le=50)] = 20,
@@ -202,7 +202,7 @@ async def create_session(
     }
 
 
-@router.delete("/sessions/{session_id}", status_code=204)
+@router.delete("/sessions/{session_id}", status_code=204, responses={400: {"description": "Invalid session_id"}, 404: {"description": "Session not found"}})
 async def delete_session(
     session_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -220,7 +220,7 @@ async def delete_session(
     return None
 
 
-@router.patch("/sessions/{session_id}", response_model=ChatSessionSummary)
+@router.patch("/sessions/{session_id}", response_model=ChatSessionSummary, responses={400: {"description": "Invalid session_id"}, 404: {"description": "Session not found"}})
 async def rename_session(
     session_id: str,
     payload: RenameSessionRequest,
@@ -251,7 +251,7 @@ async def rename_session(
 # ---------------------------------------------------------------------------
 
 
-@router.post("/ai/chat", response_model=ChatResponse)
+@router.post("/ai/chat", response_model=ChatResponse, responses={400: {"description": "Invalid session_id"}, 404: {"description": "Session not found"}, 500: {"description": "No response from AI"}, 503: {"description": "Service Unavailable"}})
 async def ai_chat(
     request: ChatRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -562,7 +562,7 @@ class AnalyzeResponse(BaseModel):
     data_sources: List[Dict[str, Any]]
 
 
-@router.post("/analyze", response_model=AnalyzeResponse)
+@router.post("/analyze", response_model=AnalyzeResponse, responses={500: {"description": "Internal Server Error"}, 503: {"description": "Service Unavailable"}})
 async def analyze(
     request: AnalyzeRequest,
     db: Annotated[AsyncSession, Depends(get_db)],

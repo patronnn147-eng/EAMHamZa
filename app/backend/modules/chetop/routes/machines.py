@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/machines", response_model=List[MachineResponse])
+@router.get("/machines", response_model=List[MachineResponse], responses={500: {"description": "Internal server error"}})
 async def get_machines(
     *, statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
     type: Annotated[Optional[str], Query(description="Filter by type")] = None,
@@ -56,7 +56,7 @@ async def get_machines(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/machines/{machine_id}/status", response_model=MachineResponse)
+@router.put("/machines/{machine_id}/status", response_model=MachineResponse, responses={404: {"description": "Machine not found"}, 500: {"description": "Internal server error"}})
 async def update_machine_status(
     machine_id: int,
     data: MachineStatusUpdate,

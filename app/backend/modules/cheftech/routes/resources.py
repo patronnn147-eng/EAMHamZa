@@ -13,7 +13,7 @@ from ..dependencies import verify_cheftech
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
 
-@router.get("/techniciens", response_model=PaginatedResponse[TechnicianResponse])
+@router.get("/techniciens", response_model=PaginatedResponse[TechnicianResponse], responses={500: {"description": "Internal server error"}})
 async def get_technicians(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
@@ -51,7 +51,7 @@ async def get_technicians(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("/machines", response_model=PaginatedResponse[MachineResponse])
+@router.get("/machines", response_model=PaginatedResponse[MachineResponse], responses={500: {"description": "Internal server error"}})
 async def get_machines(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
@@ -103,7 +103,7 @@ async def get_machines(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.put("/machines/{machine_id}/status")
+@router.put("/machines/{machine_id}/status", responses={400: {"description": "Le champ 'statut' est requis"}, 404: {"description": "Machine non trouvée"}, 500: {"description": "Internal server error"}})
 async def update_machine_status(
     machine_id: int,
     payload: dict,

@@ -71,7 +71,7 @@ async def get_archive_counts(
     return {"counts": counts, "total": sum(counts.values())}
 
 
-@router.get("/{module}")
+@router.get("/{module}", responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}, 500: {"description": "Internal server error"}})
 async def list_archived(
     *, module: str,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -165,7 +165,7 @@ async def list_archived(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/{module}/{item_id}/reactivate")
+@router.post("/{module}/{item_id}/reactivate", responses={400: {"description": "Bad Request"}, 404: {"description": "Item non archivé ou introuvable"}, 500: {"description": "Internal server error"}})
 async def reactivate_archived(
     module: str,
     item_id: int,
@@ -201,7 +201,7 @@ async def reactivate_archived(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/sweep")
+@router.post("/sweep", responses={500: {"description": "Internal server error"}})
 async def trigger_sweep_now(
     _current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -215,7 +215,7 @@ async def trigger_sweep_now(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/purge")
+@router.post("/purge", responses={500: {"description": "Internal server error"}})
 async def trigger_purge_now(
     *, retention_days: Annotated[int, Query(ge=1, le=3650)] = 30,
     _current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],

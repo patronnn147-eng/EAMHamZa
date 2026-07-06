@@ -116,7 +116,7 @@ async def get_completed_work_orders(
     return items
 
 
-@router.put("/work-orders/{ordre_id}/feedback")
+@router.put("/work-orders/{ordre_id}/feedback", responses={400: {"description": "Le feedback ne peut être ajouté qu'aux ordres terminés"}, 403: {"description": "Accès refusé. ChefTech ou Admin requis."}, 404: {"description": "Ordre de travail non trouvé"}})
 async def add_cheftech_feedback(
     ordre_id: int,
     data: ChefTechFeedbackRequest,

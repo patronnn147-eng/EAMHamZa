@@ -148,7 +148,7 @@ async def get_model_metrics():
         }
 
 
-@router.post("/predict")
+@router.post("/predict", responses={500: {"description": "Internal Server Error"}})
 async def predict(data: TelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]) -> PredictionResponse:
     """
     P1: Predict failure probability from telemetry.
@@ -181,7 +181,7 @@ async def predict(data: TelemetryInput, request: Request, _: Annotated[str, Depe
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict-all")
+@router.post("/predict-all", responses={422: {"description": "Unprocessable Content"}, 500: {"description": "Internal Server Error"}})
 async def predict_all(data: TelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]) -> AllPredictionsResponse:
     """
     Get all P1-P6 predictions in a single request.
@@ -220,7 +220,7 @@ async def predict_all(data: TelemetryInput, request: Request, _: Annotated[str, 
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.get("/predict/failure-type")
+@router.get("/predict/failure-type", responses={500: {"description": "Internal Server Error"}})
 async def predict_failure_type_get(
     air: float,
     process: float,
@@ -251,7 +251,7 @@ async def predict_failure_type_get(
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict/failure-type")
+@router.post("/predict/failure-type", responses={500: {"description": "Internal Server Error"}})
 async def predict_failure_type_post(data: TelemetryInput):
     """
     P2: Predict specific failure types (POST).
@@ -274,7 +274,7 @@ async def predict_failure_type_post(data: TelemetryInput):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.get("/predict/rul")
+@router.get("/predict/rul", responses={500: {"description": "Internal Server Error"}})
 async def predict_rul_get(
     air: float,
     process: float,
@@ -305,7 +305,7 @@ async def predict_rul_get(
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict/rul")
+@router.post("/predict/rul", responses={500: {"description": "Internal Server Error"}})
 async def predict_rul_post(data: TelemetryInput):
     """
     P3: Predict Remaining Useful Life (RUL) (POST).
@@ -331,7 +331,7 @@ async def predict_rul_post(data: TelemetryInput):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.get("/predict/anomaly")
+@router.get("/predict/anomaly", responses={500: {"description": "Internal Server Error"}})
 async def predict_anomaly_get(
     air: float,
     process: float,
@@ -360,7 +360,7 @@ async def predict_anomaly_get(
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict/anomaly")
+@router.post("/predict/anomaly", responses={500: {"description": "Internal Server Error"}})
 async def predict_anomaly_post(data: TelemetryInput):
     """
     P4: Detect anomalies (POST).
@@ -385,7 +385,7 @@ async def predict_anomaly_post(data: TelemetryInput):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.get("/predict/priority")
+@router.get("/predict/priority", responses={500: {"description": "Internal Server Error"}})
 async def predict_priority_get(
     air: float,
     process: float,
@@ -415,7 +415,7 @@ async def predict_priority_get(
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict/priority")
+@router.post("/predict/priority", responses={500: {"description": "Internal Server Error"}})
 async def predict_priority_post(data: TelemetryInput):
     """
     P5: Predict work order priority (POST).
@@ -438,7 +438,7 @@ async def predict_priority_post(data: TelemetryInput):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.get("/predict/schedule")
+@router.get("/predict/schedule", responses={500: {"description": "Internal Server Error"}})
 async def predict_schedule_get(
     air: float,
     process: float,
@@ -468,7 +468,7 @@ async def predict_schedule_get(
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
-@router.post("/predict/schedule")
+@router.post("/predict/schedule", responses={500: {"description": "Internal Server Error"}})
 async def predict_schedule_post(data: TelemetryInput):
     """
     P6: Predict maintenance schedule (POST).
@@ -501,7 +501,7 @@ class PartsDemandeInput(BaseModel):
     horizon_days:        Optional[int]         = 30
 
 
-@router.post("/predict/parts-demand")
+@router.post("/predict/parts-demand", responses={500: {"description": "Internal Server Error"}})
 async def predict_parts_demand(
     data: PartsDemandeInput,
     request: Request,
@@ -534,7 +534,7 @@ class BatchTelemetryInput(BaseModel):
     machines: List[TelemetryInput]
 
 
-@router.post("/predict/batch")
+@router.post("/predict/batch", responses={422: {"description": "Batch size exceeds maximum of 100 machines per request"}})
 async def predict_batch(data: BatchTelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]):
     """
     Batch predict for multiple machines.

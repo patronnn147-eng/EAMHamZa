@@ -41,7 +41,7 @@ class AuditStatsResponse(BaseModel):
     total: int
 
 
-@router.get("/log", response_model=dict)
+@router.get("/log", response_model=dict, responses={403: {"description": "Only admin can view audit logs"}})
 async def get_audit_log(
     *, entity_type: Annotated[Optional[str], Query(description="Filter by entity type")] = None,
     entity_id: Annotated[Optional[int], Query(description="Filter by entity ID")] = None,
@@ -139,7 +139,7 @@ async def get_entity_history(
     ]
 
 
-@router.get("/stats", response_model=AuditStatsResponse)
+@router.get("/stats", response_model=AuditStatsResponse, responses={403: {"description": "Only admin can view audit stats"}})
 async def get_audit_stats(
     *, entity_type: Annotated[Optional[str], Query(description="Filter by entity type")] = None,
     entity_id: Annotated[Optional[int], Query(description="Filter by entity ID")] = None,
@@ -155,7 +155,7 @@ async def get_audit_stats(
     return stats
 
 
-@router.get("/export")
+@router.get("/export", responses={403: {"description": "Only admin or cheftech can export audit logs"}})
 async def export_audit_log(
     *, entity_type: Annotated[Optional[str], Query()] = None,
     from_date: Annotated[Optional[datetime], Query()] = None,

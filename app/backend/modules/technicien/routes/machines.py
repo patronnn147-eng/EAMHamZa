@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/machines", response_model=List[MachineResponse])
+@router.get("/machines", response_model=List[MachineResponse], responses={500: {"description": "Internal server error"}})
 async def get_machines_list(
     *, statut: Annotated[Optional[str], Query()] = None,
     _current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
@@ -53,8 +53,7 @@ async def get_machines_list(
 
 @router.get(
     "/machines/{machine_id}/telemetry",
-    response_model=PaginatedResponse[MachineTelemetryResponse],
-)
+    response_model=PaginatedResponse[MachineTelemetryResponse], responses={404: {"description": "Machine not found"}})
 async def get_machine_telemetry(
     *, machine_id: int,
     page: Annotated[int, Query(ge=1)] = 1,
@@ -108,8 +107,8 @@ async def get_machine_telemetry(
 
 
 @router.get(
-    "/machines/{machine_id}/telemetry/latest", response_model=MachineTelemetryLatest
-)
+    "/machines/{machine_id}/telemetry/latest", response_model=MachineTelemetryLatest, 
+responses={404: {"description": "Machine not found; No telemetry data found for this machine"}})
 async def get_machine_latest_telemetry(
     machine_id: int,
     current_user: Annotated[Utilisateurs, Depends(verify_technicien)],

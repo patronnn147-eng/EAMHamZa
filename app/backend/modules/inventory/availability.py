@@ -18,7 +18,7 @@ router = APIRouter(
 )
 
 
-@router.get("/{piece_id}", response_model=AvailabilityResponse)
+@router.get("/{piece_id}", response_model=AvailabilityResponse, responses={500: {"description": "Internal server error"}})
 async def get_availability(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Return raw stock, reserved total, and computed available qty for one piece."""
     try:
@@ -41,7 +41,7 @@ async def get_availability(piece_id: int, db: Annotated[AsyncSession, Depends(ge
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("", response_model=List[AvailabilityResponse])
+@router.get("", response_model=List[AvailabilityResponse], responses={400: {"description": "At most 200 piece IDs per request"}, 500: {"description": "Internal server error"}})
 async def get_availability_batch(
     piece_ids: Annotated[str, Query(description="Comma-separated piece IDs")],
     db: Annotated[AsyncSession, Depends(get_db)],

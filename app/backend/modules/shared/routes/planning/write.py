@@ -28,7 +28,7 @@ router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("", response_model=PlanningResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PlanningResponse, status_code=status.HTTP_201_CREATED, responses={400: {"description": "Failed to create planning"}, 500: {"description": "Internal Server Error"}})
 async def create_planning(
     data: PlanningCreateData,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -201,7 +201,7 @@ async def create_planning(
         )
 
 
-@router.post("/{planning_id}/resend-emails")
+@router.post("/{planning_id}/resend-emails", responses={404: {"description": "Planning not found"}})
 async def resend_planning_emails(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -257,7 +257,7 @@ async def resend_planning_emails(
     return {"queued": len(recipients)}
 
 
-@router.delete("/{planning_id}")
+@router.delete("/{planning_id}", responses={404: {"description": "Planning not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_planning(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -316,7 +316,7 @@ async def delete_planning(
 # Planning workflow endpoints: Submit (CHEFTECH) and Approve/Reject (ADMIN)
 
 
-@router.post("/{planning_id}/submit")
+@router.post("/{planning_id}/submit", responses={404: {"description": "Planning not found"}})
 async def submit_planning(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -356,7 +356,7 @@ async def submit_planning(
     }
 
 
-@router.post("/{planning_id}/approve")
+@router.post("/{planning_id}/approve", responses={404: {"description": "Planning not found"}})
 async def approve_planning(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -396,7 +396,7 @@ async def approve_planning(
     }
 
 
-@router.post("/{planning_id}/reject")
+@router.post("/{planning_id}/reject", responses={404: {"description": "Planning not found"}})
 async def reject_planning(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],

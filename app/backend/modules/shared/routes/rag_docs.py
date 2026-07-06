@@ -177,7 +177,7 @@ async def _ingest_one(
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 
-@router.post("/documents", response_model=DocumentResponse, status_code=201)
+@router.post("/documents", response_model=DocumentResponse, status_code=201, responses={400: {"description": "doc_type must be: manual, sop, or report"}, 409: {"description": "Conflict"}})
 async def upload_document(
     *,
     file: Annotated[UploadFile, File(description="PDF or TXT file")],
@@ -322,7 +322,7 @@ async def sync_from_minio(
     )
 
 
-@router.post("/documents/bulk", response_model=BulkUploadResponse, status_code=201)
+@router.post("/documents/bulk", response_model=BulkUploadResponse, status_code=201, responses={400: {"description": "Invalid doc_type; No files provided; Max 50 files per bulk request"}})
 async def bulk_upload_documents(
     *,
     files: Annotated[List[UploadFile], File(description="Multiple PDF/TXT files")],
@@ -394,7 +394,7 @@ async def bulk_upload_documents(
     )
 
 
-@router.get("/documents", response_model=List[DocumentResponse])
+@router.get("/documents", response_model=List[DocumentResponse], responses={500: {"description": "Failed to retrieve document list."}, 503: {"description": "RAG service is unavailable."}})
 async def list_documents(
     *, doc_type: Optional[str] = None,
     machine_id: Optional[int] = None,
@@ -448,7 +448,7 @@ async def list_documents(
     return out
 
 
-@router.get("/documents/{doc_id}/download")
+@router.get("/documents/{doc_id}/download", responses={404: {"description": "File not stored in S3."}, 503: {"description": "Storage backend unavailable."}})
 async def download_document(
     doc_id: str,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -469,7 +469,7 @@ async def download_document(
     return {"download_url": url}
 
 
-@router.put("/documents/{doc_id}", response_model=DocumentResponse)
+@router.put("/documents/{doc_id}", response_model=DocumentResponse, responses={404: {"description": "Document not found."}})
 async def replace_document(
     doc_id: str,
     file: Annotated[UploadFile, File(description="Replacement PDF/TXT")],
@@ -534,7 +534,7 @@ async def replace_document(
     return new_doc
 
 
-@router.delete("/documents/{doc_id}", status_code=204)
+@router.delete("/documents/{doc_id}", status_code=204, responses={404: {"description": "Document not found."}, 500: {"description": "Failed to delete document."}, 503: {"description": "RAG service is unavailable."}})
 async def delete_document(
     doc_id: str,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],

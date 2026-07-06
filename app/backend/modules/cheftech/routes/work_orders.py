@@ -14,7 +14,7 @@ from ..dependencies import verify_cheftech
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
 
-@router.get("/ordres-travail", response_model=PaginatedResponse[WorkOrderResponse])
+@router.get("/ordres-travail", response_model=PaginatedResponse[WorkOrderResponse], responses={400: {"description": "Bad Request"}})
 async def get_work_orders(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,

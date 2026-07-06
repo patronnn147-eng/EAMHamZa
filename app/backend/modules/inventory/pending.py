@@ -32,7 +32,7 @@ ROLES_SUBMIT = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 ROLES_REVIEW = ["ADMIN", "CHEFTECH"]
 
 
-@router.post("", response_model=PendingPieceResponse, status_code=201)
+@router.post("", response_model=PendingPieceResponse, status_code=201, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
 async def submit_pending_piece(
     *, data: PendingPieceItem,
     intervention_id: Annotated[Optional[int], Query(description="Link to intervention")] = None,
@@ -102,7 +102,7 @@ async def submit_pending_piece(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get("", response_model=PaginatedResponse[PendingPieceResponse])
+@router.get("", response_model=PaginatedResponse[PendingPieceResponse], responses={500: {"description": "Internal server error"}})
 async def list_pending(
     *, status: Annotated[Optional[str], Query(
         description="Filter by status (or 'ALL')"
@@ -127,7 +127,7 @@ async def list_pending(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/{pending_id}/match", response_model=PendingPieceResponse)
+@router.patch("/{pending_id}/match", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
 async def match_pending(
     pending_id: int,
     data: PendingPieceMatchRequest,
@@ -187,7 +187,7 @@ async def match_pending(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/{pending_id}/create-piece", response_model=PendingPieceResponse)
+@router.post("/{pending_id}/create-piece", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
 async def create_from_pending(
     pending_id: int,
     data: PieceCreate,
@@ -249,7 +249,7 @@ async def create_from_pending(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.patch("/{pending_id}/reject", response_model=PendingPieceResponse)
+@router.patch("/{pending_id}/reject", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
 async def reject_pending(
     pending_id: int,
     data: PendingPieceRejectRequest,

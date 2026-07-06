@@ -61,7 +61,7 @@ async def list_tasks(
     return {"items": tasks, "total": len(tasks)}
 
 
-@router.post("", response_model=list[PlanningTacheResponse])
+@router.post("", response_model=list[PlanningTacheResponse], responses={400: {"description": "Only DRAFT plannings can have tasks"}})
 async def create_tasks(
     planning_id: int,
     request: PlanningTachesSubmitRequest,
@@ -147,7 +147,7 @@ async def create_tasks(
     return created_tasks
 
 
-@router.put("/{task_id}", response_model=PlanningTacheResponse)
+@router.put("/{task_id}", response_model=PlanningTacheResponse, responses={400: {"description": "Only DRAFT plannings can be modified"}, 404: {"description": "Task not found"}})
 async def update_task(
     planning_id: int,
     task_id: int,
@@ -192,7 +192,7 @@ async def update_task(
     return task
 
 
-@router.delete("/{task_id}")
+@router.delete("/{task_id}", responses={400: {"description": "Only DRAFT plannings can be modified"}, 404: {"description": "Task not found"}})
 async def delete_task(
     planning_id: int,
     task_id: int,

@@ -117,7 +117,7 @@ class BulkNotificationCreateRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=NotificationListResponse)
+@router.get("", response_model=NotificationListResponse, responses={500: {"description": "Internal Server Error"}})
 async def get_my_notifications(
     *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
     size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 50,
@@ -164,7 +164,7 @@ async def get_my_notifications(
         )
 
 
-@router.get("/unread-count")
+@router.get("/unread-count", responses={500: {"description": "Internal Server Error"}})
 async def get_unread_count(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -184,7 +184,7 @@ async def get_unread_count(
         )
 
 
-@router.post("/mark-as-read")
+@router.post("/mark-as-read", responses={500: {"description": "Internal Server Error"}})
 async def mark_notifications_as_read(
     data: MarkAsReadRequest,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -214,7 +214,7 @@ async def mark_notifications_as_read(
         )
 
 
-@router.post("/mark-all-as-read")
+@router.post("/mark-all-as-read", responses={500: {"description": "Internal Server Error"}})
 async def mark_all_as_read(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -247,7 +247,7 @@ async def mark_all_as_read(
         )
 
 
-@router.post("/bulk")
+@router.post("/bulk", responses={400: {"description": "utilisateur_ids is required"}, 403: {"description": "Not authorized"}})
 async def create_bulk_notifications(
     data: BulkNotificationCreateRequest,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -287,7 +287,7 @@ async def create_bulk_notifications(
     return {"created": created}
 
 
-@router.delete("/{notification_id}")
+@router.delete("/{notification_id}", responses={403: {"description": "You can only delete your own notifications"}, 404: {"description": "Notification not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_notification(
     notification_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],

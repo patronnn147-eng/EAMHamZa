@@ -83,7 +83,7 @@ class Planning_utilisateursBatchDeleteRequest(BaseModel):
 
 
 # ---------- Routes ----------
-@router.get("", response_model=Planning_utilisateursListResponse)
+@router.get("", response_model=Planning_utilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planning_utilisateurss(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -126,7 +126,7 @@ async def query_planning_utilisateurss(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Planning_utilisateursListResponse)
+@router.get("/all", response_model=Planning_utilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planning_utilisateurss_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
@@ -166,7 +166,7 @@ async def query_planning_utilisateurss_all(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Planning_utilisateursResponse)
+@router.get("/{id}", response_model=Planning_utilisateursResponse, responses={404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
 async def get_planning_utilisateurs(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
@@ -194,7 +194,7 @@ async def get_planning_utilisateurs(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Planning_utilisateursResponse, status_code=201)
+@router.post("", response_model=Planning_utilisateursResponse, status_code=201, responses={400: {"description": "Failed to create planning_utilisateurs"}, 500: {"description": "Internal Server Error"}})
 async def create_planning_utilisateurs(
     data: Planning_utilisateursData,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -224,8 +224,8 @@ async def create_planning_utilisateurs(
 
 
 @router.post(
-    "/batch", response_model=List[Planning_utilisateursResponse], status_code=201
-)
+    "/batch", response_model=List[Planning_utilisateursResponse], status_code=201, 
+responses={500: {"description": "Internal Server Error"}})
 async def create_planning_utilisateurss_batch(
     request: Planning_utilisateursBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -250,7 +250,7 @@ async def create_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[Planning_utilisateursResponse])
+@router.put("/batch", response_model=List[Planning_utilisateursResponse], responses={500: {"description": "Internal Server Error"}})
 async def update_planning_utilisateurss_batch(
     request: Planning_utilisateursBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -279,7 +279,7 @@ async def update_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Planning_utilisateursResponse)
+@router.put("/{id}", response_model=Planning_utilisateursResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
 async def update_planning_utilisateurs(
     id: int,
     data: Planning_utilisateursUpdateData,
@@ -315,7 +315,7 @@ async def update_planning_utilisateurs(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.delete("/batch")
+@router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
 async def delete_planning_utilisateurss_batch(
     request: Planning_utilisateursBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -345,7 +345,7 @@ async def delete_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}")
+@router.delete("/{id}", responses={404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
 async def delete_planning_utilisateurs(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],

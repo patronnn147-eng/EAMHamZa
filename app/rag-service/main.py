@@ -123,7 +123,7 @@ class OCRTestResponse(BaseModel):
     extracted_text: str
 
 
-@app.post("/ocr-test", response_model=OCRTestResponse)
+@app.post("/ocr-test", response_model=OCRTestResponse, responses={400: {"description": "Empty file."}, 422: {"description": "Unprocessable Content"}})
 async def ocr_test(
     file: Annotated[UploadFile, File(description="Image file to OCR")],
 ):
@@ -173,7 +173,7 @@ class IngestResponse(BaseModel):
     ocr_used: bool = False
 
 
-@app.post("/ingest", response_model=IngestResponse, status_code=201)
+@app.post("/ingest", response_model=IngestResponse, status_code=201, responses={400: {"description": "doc_type must be: manual, sop, or report; Empty file."}, 409: {"description": "Conflict"}, 413: {"description": "Content Too Large"}, 422: {"description": "Unprocessable Content"}, 500: {"description": "Ingestion failed. Check RAG service logs."}})
 async def ingest(
     *,
     file: Annotated[UploadFile, File(description="PDF or TXT file")],
@@ -317,7 +317,7 @@ async def list_documents(
     ]
 
 
-@app.delete("/documents/{doc_id}", status_code=204)
+@app.delete("/documents/{doc_id}", status_code=204, responses={404: {"description": "Document not found."}})
 async def delete_document(
     doc_id: str,
     db: Annotated[AsyncSession, Depends(get_db)],

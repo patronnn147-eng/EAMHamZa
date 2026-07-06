@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/dashboard", response_model=DashboardStats)
+@router.get("/dashboard", response_model=DashboardStats, responses={500: {"description": "Internal server error"}})
 async def get_dashboard_stats(
     _current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
