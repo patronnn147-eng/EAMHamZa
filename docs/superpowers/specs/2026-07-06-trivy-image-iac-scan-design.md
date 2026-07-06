@@ -28,7 +28,7 @@ Both blocking, all severities (CRITICAL/HIGH/MEDIUM/LOW), no suppression mechani
 - `app/frontend/Dockerfile`
 - `app/ml-microservice/Dockerfile`
 - `app/rag-service/Dockerfile`
-- `app/ml_research/Dockerfile` (dev-only Jupyter notebooks, scanned anyway for completeness)
+- `app/ml-microservice/ml_research/Dockerfile` (dev-only Jupyter notebooks, scanned anyway for completeness)
 
 `app/frontend/Dockerfile.dev` excluded — dev-only, never used in any built/shipped artifact path this pipeline cares about.
 
