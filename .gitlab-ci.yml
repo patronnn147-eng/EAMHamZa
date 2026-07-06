@@ -282,6 +282,9 @@ quality-gate:
     - sast-explicit
     - sast-custom
     - sonarqube-scan
+    - build-images
+    - iac-scan
+    - image-scan
     - job: lint-backend
       optional: true
     - job: lint-frontend
@@ -294,6 +297,9 @@ quality-gate:
       echo "  Frontend SCA  -- PASSED"
       echo "  SAST (auto/explicit/custom) -- PASSED"
       echo "  SonarQube     -- PASSED"
+      echo "  Image build   -- PASSED"
+      echo "  IaC scan (Trivy)    -- PASSED"
+      echo "  Image scan (Trivy)  -- PASSED"
       echo "  Lint jobs are non-blocking (warn only)"
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
