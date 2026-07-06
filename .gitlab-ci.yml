@@ -211,7 +211,35 @@ iac-scan:
   timeout: 10 minutes
   allow_failure: false
 
-# ─── Stage 5: Lint (non-blocking) ────────────────────────────────────────────
+
+# ─── Stage 6: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
+
+image-scan:
+  stage: image-scan
+  needs: [build-images]
+  tags: [local]
+  image: aquasec/trivy:latest
+  script:
+    - |
+      FAILED=0
+      for img in eam-backend:ci eam-frontend:ci eam-ml-microservice:ci eam-rag-service:ci eam-ml-research:ci; do
+        TAGNAME=$(echo "$img" | cut -d: -f1)
+        trivy image --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-image-${TAGNAME}.sarif" --exit-code 1 "$img" || FAILED=1
+      done
+      exit $FAILED
+  artifacts:
+    paths:
+      - trivy-image-*.sarif
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 15 minutes
+  allow_failure: false
+
+
+# ─── Stage 7: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
   stage: lint
@@ -241,7 +269,7 @@ lint-frontend:
   timeout: 5 minutes
   allow_failure: true
 
-# ─── Stage 6: Quality Gate ───────────────────────────────────────────────────
+# ─── Stage 8: Quality Gate ───────────────────────────────────────────────────
 
 quality-gate:
   stage: gate
