@@ -21,7 +21,7 @@ interface ScheduleResult {
 
 interface Props { horizon: number }
 
-export function ScheduleOptimizerPanel({ horizon }: Props) {
+export function ScheduleOptimizerPanel({ horizon }: Readonly<Props>) {
   const [result, setResult] = useState<ScheduleResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

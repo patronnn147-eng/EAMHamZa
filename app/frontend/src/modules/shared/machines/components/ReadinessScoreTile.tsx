@@ -48,7 +48,7 @@ function scoreLabel(score: number): string {
     return 'Not Ready';
 }
 
-export function ReadinessScoreTile({ machineId }: Props) {
+export function ReadinessScoreTile({ machineId }: Readonly<Props>) {
     const [data, setData]     = useState<ReadinessData | null>(null);
     const [loading, setLoading] = useState(true);
 

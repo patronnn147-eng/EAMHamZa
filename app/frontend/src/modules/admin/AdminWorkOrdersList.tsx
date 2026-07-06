@@ -119,6 +119,16 @@ export default function AdminWorkOrdersList() {
       <div className="grid grid-cols-1 gap-4">
         {filtered.map((wo) => {
           const isPreventive = wo.titre.startsWith('[PRÉVENTIF]');
+
+          let sourceLabel: string;
+          if (wo.created_by_role === 'CHETOP') {
+            sourceLabel = 'CHETOP (En attente ADMIN)';
+          } else if (wo.utilisateur_id) {
+            sourceLabel = 'ChefTech (Validation)';
+          } else {
+            sourceLabel = 'Généré Automatiquement';
+          }
+
           return (
             <Card key={wo.id} className={`hover:shadow-md transition-shadow ${isPreventive ? 'border-amber-200' : ''}`}>
               <CardHeader className="pb-3">
@@ -158,11 +168,7 @@ export default function AdminWorkOrdersList() {
                       <User className="h-4 w-4" /> Source
                     </p>
                     <p className="font-medium mt-1">
-                      {wo.created_by_role === 'CHETOP' 
-                        ? 'CHETOP (En attente ADMIN)' 
-                        : wo.utilisateur_id 
-                          ? `ChefTech (Validation)` 
-                          : 'Généré Automatiquement'}
+                      {sourceLabel}
                     </p>
                   </div>
                 </div>

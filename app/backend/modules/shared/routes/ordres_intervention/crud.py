@@ -26,6 +26,8 @@ router = APIRouter(
 )
 logger = logging.getLogger(__name__)
 
+_NOT_FOUND_MSG = "Ordres_intervention not found"
+
 
 @router.get("", response_model=Ordres_interventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordres_interventions(
@@ -119,7 +121,7 @@ async def get_ordres_intervention(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Ordres_intervention with id {id} not found")
-            raise HTTPException(status_code=404, detail="Ordres_intervention not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -277,7 +279,7 @@ async def update_ordres_intervention(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Ordres_intervention with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Ordres_intervention not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres_intervention {id} updated successfully")
 
@@ -362,7 +364,7 @@ async def delete_ordres_intervention(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Ordres_intervention with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Ordres_intervention not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres_intervention {id} deleted successfully")
 

@@ -42,7 +42,7 @@ function formatDate(iso: string): string {
     } catch { return iso.slice(0, 10); }
 }
 
-export function MaintenanceTimeline({ machineId, limit = 12 }: Props) {
+export function MaintenanceTimeline({ machineId, limit = 12 }: Readonly<Props>) {
     const [events, setEvents] = useState<TimelineEvent[]>([]);
     const [loading, setLoading] = useState(true);
 

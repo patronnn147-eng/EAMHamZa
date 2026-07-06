@@ -24,6 +24,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/inventory/pending", tags=["inventory-pending"])
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 
 # Roles allowed to *submit* a pending piece (anybody who can complete an
 # intervention: TECHNICIEN + management roles).
@@ -99,7 +101,7 @@ async def submit_pending_piece(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"submit_pending_piece failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.get("", response_model=PaginatedResponse[PendingPieceResponse], responses={500: {"description": "Internal server error"}})
@@ -124,7 +126,7 @@ async def list_pending(
         )
     except Exception as e:
         logger.exception(f"list_pending failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/{pending_id}/match", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
@@ -184,7 +186,7 @@ async def match_pending(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"match_pending failed for {pending_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/{pending_id}/create-piece", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
@@ -246,7 +248,7 @@ async def create_from_pending(
         logger.exception(
             f"create_from_pending failed for {pending_id}: {e}", exc_info=True
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/{pending_id}/reject", response_model=PendingPieceResponse, responses={400: {"description": "Bad Request"}, 500: {"description": "Internal server error"}})
@@ -306,4 +308,4 @@ async def reject_pending(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"reject_pending failed for {pending_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

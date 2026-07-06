@@ -42,6 +42,8 @@ router = APIRouter(
     prefix="/api/v1/entities/intervention-workflow", tags=["intervention-workflow"]
 )
 
+_INTERVENTION_NOT_FOUND_MSG = "Intervention not found"
+
 
 @router.post(
     "/create",
@@ -239,7 +241,7 @@ async def get_intervention(
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_INTERVENTION_NOT_FOUND_MSG
         )
     return intervention
 
@@ -269,7 +271,7 @@ async def validate_intervention(
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_INTERVENTION_NOT_FOUND_MSG
         )
 
     # Can only validate PENDING interventions
@@ -354,7 +356,7 @@ async def create_work_order_from_intervention(
     )
     if not intervention:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Intervention not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_INTERVENTION_NOT_FOUND_MSG
         )
 
     # Check status - must be APPROVED

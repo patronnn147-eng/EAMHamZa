@@ -15,6 +15,7 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import Ordres_travail
 from models.machines import Machines
 from models.ordres_intervention import Ordres_intervention
+from typing import Annotated
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,10 @@ def _require_cheftech(current_user: Utilisateurs):
 
 @router.get("", responses={500: {"description": "Internal server error"}})
 async def list_cheftech_work_orders(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List all Work Orders assigned to technicians (for ChefTech monitoring)"""
     _require_cheftech(current_user)
@@ -165,8 +166,8 @@ async def list_cheftech_work_orders(
 @router.get("/{order_id}/export", responses={404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def export_cheftech_work_order_report(
     order_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Export a complete Work Order report to Excel (horizontal format)"""
     _require_cheftech(current_user)

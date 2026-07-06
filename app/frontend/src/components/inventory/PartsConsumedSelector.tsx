@@ -59,7 +59,7 @@ export function buildInitialConsumedRows(required: RequiredPiece[]): ConsumedRow
   }));
 }
 
-export function PartsConsumedSelector({ required, rows, onChange }: PartsConsumedSelectorProps) {
+export function PartsConsumedSelector({ required, rows, onChange }: Readonly<PartsConsumedSelectorProps>) {
   const setRow = useCallback((idx: number, patch: Partial<ConsumedRow>) => {
     onChange(rows.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
   }, [rows, onChange]);
@@ -100,13 +100,31 @@ interface RowCardProps {
   onChange: (patch: Partial<ConsumedRow>) => void;
 }
 
-function ConsumedRowCard({ row, onChange }: RowCardProps) {
+function ConsumedRowCard({ row, onChange }: Readonly<RowCardProps>) {
   const used = Number(row.quantity_used || 0);
   const returned = Number(row.quantity_returned || 0);
   const wasted = Number(row.quantity_wasted || 0);
   const total = used + returned + wasted;
   const overflow = total > row.planned;
   const remaining = row.planned - total;
+
+  let sumStatus: React.ReactNode;
+  if (overflow) {
+    sumStatus = (
+      <span className="text-red-400 flex items-center gap-1">
+        <AlertTriangle className="h-3 w-3" />
+        dépasse plan de {formatNum(total - row.planned)}{row.unit}
+      </span>
+    );
+  } else if (remaining > 0) {
+    sumStatus = (
+      <span className="text-blue-400/60">
+        reste {formatNum(remaining)}{row.unit} sur réservation
+      </span>
+    );
+  } else {
+    sumStatus = <span className="text-emerald-400/80">total = plan ✓</span>;
+  }
 
   const setDisposition = (d: Disposition) => {
     let patch: Partial<ConsumedRow> = { disposition: d };
@@ -205,18 +223,7 @@ function ConsumedRowCard({ row, onChange }: RowCardProps) {
           <span>rebut <span className="text-red-400">{formatNum(wasted)}</span></span>
         </div>
         <div>
-          {overflow ? (
-            <span className="text-red-400 flex items-center gap-1">
-              <AlertTriangle className="h-3 w-3" />
-              dépasse plan de {formatNum(total - row.planned)}{row.unit}
-            </span>
-          ) : remaining > 0 ? (
-            <span className="text-blue-400/60">
-              reste {formatNum(remaining)}{row.unit} sur réservation
-            </span>
-          ) : (
-            <span className="text-emerald-400/80">total = plan ✓</span>
-          )}
+          {sumStatus}
         </div>
       </div>
 
@@ -244,7 +251,7 @@ interface QtyFieldProps {
   onChange: (v: string) => void;
 }
 
-function QtyField({ label, color, value, unit, onChange }: QtyFieldProps) {
+function QtyField({ label, color, value, unit, onChange }: Readonly<QtyFieldProps>) {
   const colorMap = {
     emerald: 'border-emerald-500/30 text-emerald-300 focus-visible:ring-emerald-400/50',
     blue:    'border-blue-500/30 text-blue-300 focus-visible:ring-blue-400/50',

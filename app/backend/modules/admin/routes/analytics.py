@@ -10,12 +10,13 @@ from models.ordres_intervention import Ordres_intervention
 from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs, UserRole
 from core.auth import get_current_user
+from typing import Annotated
 
 # Auto-discovered by main.py because of "admin_router" variable
 admin_router = APIRouter(prefix="/api/v1/admin/analytics", tags=["admin_analytics"])
 
 
-def verify_admin(current_user: Utilisateurs = Depends(get_current_user)):
+def verify_admin(current_user: Annotated[Utilisateurs, Depends(get_current_user)]):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=403, detail="Accès réservé aux administrateurs."
@@ -25,8 +26,8 @@ def verify_admin(current_user: Utilisateurs = Depends(get_current_user)):
 
 @admin_router.get("/dashboard")
 async def get_admin_analytics_dashboard(
-    current_user: Utilisateurs = Depends(verify_admin),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Returns system-wide analytics, technician performance, and request trends for Admin.
@@ -139,8 +140,8 @@ async def get_admin_analytics_dashboard(
 
 @admin_router.get("/export")
 async def export_admin_analytics(
-    current_user: Utilisateurs = Depends(verify_admin),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_admin)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Exports aggregate analytics data as a CSV file.

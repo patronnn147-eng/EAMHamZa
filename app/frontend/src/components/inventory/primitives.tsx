@@ -15,7 +15,7 @@ interface SectionDividerProps {
   className?: string;
 }
 
-export function SectionDivider({ label, tone = 'default', className = '' }: SectionDividerProps) {
+export function SectionDivider({ label, tone = 'default', className = '' }: Readonly<SectionDividerProps>) {
   const toneClass = {
     default: 'text-blue-400/60',
     success: 'text-emerald-400/80',
@@ -40,7 +40,7 @@ interface TierBadgeProps {
   machineMatch?: boolean;
 }
 
-export function TierBadge({ tier, similarity, machineMatch }: TierBadgeProps) {
+export function TierBadge({ tier, similarity, machineMatch }: Readonly<TierBadgeProps>) {
   const config = {
     high:   { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-400/40', count: 3, label: 'MATCH' },
     medium: { color: 'text-amber-400',   bg: 'bg-amber-500/10',   border: 'border-amber-400/40',   count: 2, label: 'POSSIBLE' },
@@ -83,7 +83,7 @@ interface QtyBadgeProps {
   className?: string;
 }
 
-export function QtyBadge({ value, min, unit = 'pcs', reserved, className = '' }: QtyBadgeProps) {
+export function QtyBadge({ value, min, unit = 'pcs', reserved, className = '' }: Readonly<QtyBadgeProps>) {
   const v = Number(value);
   const m = min != null ? Number(min) : null;
   const r = reserved != null ? Number(reserved) : 0;
@@ -120,7 +120,7 @@ export function QtyBadge({ value, min, unit = 'pcs', reserved, className = '' }:
 
 // ─── Blueprint grid background (composable overlay) ──────────────────────
 
-export function BlueprintBackground({ className = '' }: { className?: string }) {
+export function BlueprintBackground({ className = '' }: Readonly<{ className?: string }>) {
   return (
     <div
       aria-hidden="true"

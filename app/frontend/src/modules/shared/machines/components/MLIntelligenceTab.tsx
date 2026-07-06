@@ -128,7 +128,7 @@ function getHealthLabel(score: number): { label: string; color: string } {
     return { label: 'Critical', color: '#bc00ff' };
 }
 
-function DonutGauge({ score }: { score: number }) {
+function DonutGauge({ score }: Readonly<{ score: number }>) {
     const r = 88;
     const circ = 2 * Math.PI * r;
     const offset = circ * (1 - score / 100);
@@ -155,9 +155,9 @@ function DonutGauge({ score }: { score: number }) {
     );
 }
 
-function SensorCard({ label, value, unit, pct, accent }: {
+function SensorCard({ label, value, unit, pct, accent }: Readonly<{
     label: string; value: string; unit: string; pct: number; accent: 'cyan' | 'purple';
-}) {
+}>) {
     const color = accent === 'cyan' ? '#00f2ff' : '#bc00ff';
     const borderStyle = accent === 'cyan'
         ? { border: '1px solid rgba(0,242,255,0.3)', boxShadow: '0 0 20px rgba(0,242,255,0.08)' }
@@ -175,7 +175,7 @@ function SensorCard({ label, value, unit, pct, accent }: {
     );
 }
 
-function AnomalyBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+function AnomalyBar({ label, value, max, color }: Readonly<{ label: string; value: number; max: number; color: string }>) {
     const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
     return (
         <div>
@@ -190,7 +190,7 @@ function AnomalyBar({ label, value, max, color }: { label: string; value: number
     );
 }
 
-function PartsReadinessCard({ readiness }: { readiness: MLPredictionFull['parts_readiness'] }) {
+function PartsReadinessCard({ readiness }: Readonly<{ readiness: MLPredictionFull['parts_readiness'] }>) {
     if (!readiness || readiness.status === 'OK' || readiness.status === 'UNKNOWN') return null;
 
     const isCritical = readiness.status === 'CRITICAL';
@@ -264,12 +264,12 @@ function PartsDemandCard({
     machine,
     mlPrediction,
     onProvisioned,
-}: {
+}: Readonly<{
     demand: MLPredictionFull['parts_demand'];
     machine?: Machine;
     mlPrediction?: MLPredictionFull | null;
     onProvisioned?: () => void;
-}) {
+}>) {
     const [showAll, setShowAll] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [qaLoading, setQaLoading] = useState(false);
@@ -483,7 +483,7 @@ function PartsDemandCard({
     );
 }
 
-function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
+function PostMaintenanceRecoveryCard({ recovery }: Readonly<{ recovery: RecoveryInfo }>) {
     const { status, delta, score_before, current_score, days_since_completion, within_recovery_window, work_order_id } = recovery;
 
     // Color tokens per status
@@ -509,8 +509,13 @@ function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
         marginTop: '0.75rem',
     };
 
-    const deltaLabel =
-        delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} pts`;
+    let deltaLabel: string;
+    if (delta == null) {
+        deltaLabel = '—';
+    } else {
+        const deltaSign = delta > 0 ? '+' : '';
+        deltaLabel = `${deltaSign}${delta.toFixed(1)} pts`;
+    }
 
     let daysLabel: string | null;
     if (days_since_completion == null) {
@@ -590,7 +595,7 @@ function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
     );
 }
 
-export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Props) {
+export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Readonly<Props>) {
     const p = mlPrediction;
     const healthScore = p?.unified_health_score ?? p?.health_score ?? 0;
     const failureProb = p?.failure_probability ?? 0;
@@ -612,6 +617,15 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
         ? new Date(machine.date_prochaine_maintenance)
         : null;
     const scheduleOverdue = nextMaintDate != null && nextMaintDate < new Date();
+
+    let scheduleDateLabel: string;
+    if (!nextMaintDate) {
+        scheduleDateLabel = 'Next recommended interval';
+    } else if (scheduleOverdue) {
+        scheduleDateLabel = `Overdue · ${nextMaintDate.toLocaleDateString('fr-FR')}`;
+    } else {
+        scheduleDateLabel = nextMaintDate.toLocaleDateString('fr-FR');
+    }
 
     // Survival probability for chart
     const survivalPct = mo?.survival?.survival_probability != null
@@ -786,9 +800,7 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
                         {scheduleDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
                     </p>
                     <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>
-                        {nextMaintDate
-                            ? (scheduleOverdue ? `Overdue · ${nextMaintDate.toLocaleDateString('fr-FR')}` : nextMaintDate.toLocaleDateString('fr-FR'))
-                            : 'Next recommended interval'}
+                        {scheduleDateLabel}
                     </p>
                 </div>
 

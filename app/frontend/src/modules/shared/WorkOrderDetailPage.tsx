@@ -295,6 +295,12 @@ export default function WorkOrderDetailPage() {
                                         deltaColor = 'text-muted-foreground';
                                     }
 
+                                    let deltaLabel = '—';
+                                    if (delta != null) {
+                                        const deltaSign = delta > 0 ? '+' : '';
+                                        deltaLabel = `${deltaSign}${delta.toFixed(1)} pts`;
+                                    }
+
                                     let DeltaIcon: typeof Minus;
                                     if (delta == null) {
                                         DeltaIcon = Minus;
@@ -332,9 +338,7 @@ export default function WorkOrderDetailPage() {
                                                 </p>
                                                 <p className={`text-2xl font-bold flex items-center gap-1 ${deltaColor}`}>
                                                     <DeltaIcon className="h-5 w-5" />
-                                                    {delta == null
-                                                        ? '—'
-                                                        : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} pts`}
+                                                    {deltaLabel}
                                                 </p>
                                             </div>
                                         </div>

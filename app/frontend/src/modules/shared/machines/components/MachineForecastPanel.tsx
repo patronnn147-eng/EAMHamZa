@@ -15,7 +15,7 @@ interface MachineDowntime {
 
 interface Props { machineId: number }
 
-export function MachineForecastPanel({ machineId }: Props) {
+export function MachineForecastPanel({ machineId }: Readonly<Props>) {
   const [data, setData] = useState<MachineDowntime | null>(null);
   const [loading, setLoading] = useState(true);
 

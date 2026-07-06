@@ -26,7 +26,7 @@ interface MachineViewer3DProps {
   } | null;
 }
 
-export default function MachineViewer3D({ machine, mlPrediction }: MachineViewer3DProps) {
+export default function MachineViewer3D({ machine, mlPrediction }: Readonly<MachineViewer3DProps>) {
   if (!machine) return null;
 
   const healthScore = mlPrediction?.health_score ?? 50;

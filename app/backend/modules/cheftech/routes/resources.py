@@ -12,6 +12,8 @@ from ..dependencies import verify_cheftech
 
 router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 
 @router.get("/techniciens", response_model=PaginatedResponse[TechnicianResponse], responses={500: {"description": "Internal server error"}})
 async def get_technicians(
@@ -48,7 +50,7 @@ async def get_technicians(
             items=technicians, total=total, page=page, size=size
         )
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.get("/machines", response_model=PaginatedResponse[MachineResponse], responses={500: {"description": "Internal server error"}})
@@ -100,7 +102,7 @@ async def get_machines(
             items=machines, total=total, page=page, size=size
         )
     except Exception:
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.put("/machines/{machine_id}/status", responses={400: {"description": "Le champ 'statut' est requis"}, 404: {"description": "Machine non trouvée"}, 500: {"description": "Internal server error"}})
@@ -133,4 +135,4 @@ async def update_machine_status(
         raise
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

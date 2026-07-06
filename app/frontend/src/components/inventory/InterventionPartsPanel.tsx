@@ -26,7 +26,7 @@ interface InterventionPartsPanelProps {
   workOrderId?: number | null;
 }
 
-export function InterventionPartsPanel({ interventionId, workOrderId }: InterventionPartsPanelProps) {
+export function InterventionPartsPanel({ interventionId, workOrderId }: Readonly<InterventionPartsPanelProps>) {
   // Two hook variants — pick the one matching the caller's key
   const byItv = useInterventionParts(interventionId ?? null);
   const byWo  = useInterventionPartsByWO(interventionId ? null : workOrderId ?? null);
@@ -101,7 +101,7 @@ export function InterventionPartsPanel({ interventionId, workOrderId }: Interven
 
 // ─── Sections ────────────────────────────────────────────────────────────
 
-function RequiredSection({ items }: { items: RequiredPiece[] }) {
+function RequiredSection({ items }: Readonly<{ items: RequiredPiece[] }>) {
   return (
     <section className="space-y-2">
       <SectionDivider label={`Pièces requises · ${items.length}`} tone="default" />
@@ -139,7 +139,7 @@ function RequiredSection({ items }: { items: RequiredPiece[] }) {
   );
 }
 
-function ConsumedSection({ items }: { items: ConsumedPiece[] }) {
+function ConsumedSection({ items }: Readonly<{ items: ConsumedPiece[] }>) {
   return (
     <section className="space-y-2">
       <SectionDivider label={`Pièces consommées · ${items.length}`} tone="success" />
@@ -175,7 +175,7 @@ function ConsumedSection({ items }: { items: ConsumedPiece[] }) {
   );
 }
 
-function PendingSection({ items }: { items: PendingPiece[] }) {
+function PendingSection({ items }: Readonly<{ items: PendingPiece[] }>) {
   return (
     <section className="space-y-2">
       <SectionDivider label={`Pièces non-cataloguées · ${items.length}`} tone="warning" />
@@ -209,7 +209,7 @@ function PendingSection({ items }: { items: PendingPiece[] }) {
 
 // ─── Small helpers ──────────────────────────────────────────────────────
 
-function ApprovalBadge({ approved, reserved }: { approved: boolean | null; reserved: number }) {
+function ApprovalBadge({ approved, reserved }: Readonly<{ approved: boolean | null; reserved: number }>) {
   if (reserved > 0) {
     return (
       <Badge className="bg-emerald-500/15 text-emerald-300 border border-emerald-500/40 font-mono text-[9px] uppercase tracking-wider">

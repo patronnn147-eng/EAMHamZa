@@ -27,6 +27,12 @@ down_revision = "add_pgvector_rag"
 branch_labels = None
 depends_on = None
 
+# Shared literals (deduplicated per sonar S1192)
+_FK_ORDRES_INTERVENTION_ID = "ordres_intervention.id"
+_FK_PIECES_ID = "pieces.id"
+_ON_DELETE_SET_NULL = "SET NULL"
+_SQL_NOW = "now()"
+
 
 def upgrade() -> None:
     # ── Extensions ────────────────────────────────────────────────────────────
@@ -104,13 +110,13 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey("ordres_intervention.id", ondelete="SET NULL"),
+            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
             "submitted_by",
             sa.Integer(),
-            sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"),
+            sa.ForeignKey("utilisateurs.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column("name", sa.String(200), nullable=False),
@@ -125,13 +131,13 @@ def upgrade() -> None:
         sa.Column(
             "matched_piece_id",
             sa.Integer(),
-            sa.ForeignKey("pieces.id", ondelete="SET NULL"),
+            sa.ForeignKey(_FK_PIECES_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
             "reviewed_by",
             sa.Integer(),
-            sa.ForeignKey("utilisateurs.id", ondelete="SET NULL"),
+            sa.ForeignKey("utilisateurs.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
@@ -139,7 +145,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text(_SQL_NOW),
             nullable=False,
         ),
         sa.CheckConstraint("quantity > 0", name="ck_pending_pieces_qty_positive"),
@@ -167,7 +173,7 @@ def upgrade() -> None:
         sa.Column(
             "pending_piece_id",
             sa.Integer(),
-            sa.ForeignKey("pending_pieces.id", ondelete="SET NULL"),
+            sa.ForeignKey("pending_pieces.id", ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
     )
@@ -206,13 +212,13 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
+            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "piece_id",
             sa.Integer(),
-            sa.ForeignKey("pieces.id", ondelete="RESTRICT"),
+            sa.ForeignKey(_FK_PIECES_ID, ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column("quantity_planned", sa.Numeric(10, 2), nullable=False),
@@ -230,7 +236,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text(_SQL_NOW),
             nullable=False,
         ),
         sa.CheckConstraint(
@@ -258,7 +264,7 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
+            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -270,7 +276,7 @@ def upgrade() -> None:
         sa.Column(
             "piece_id",
             sa.Integer(),
-            sa.ForeignKey("pieces.id", ondelete="RESTRICT"),
+            sa.ForeignKey(_FK_PIECES_ID, ondelete="RESTRICT"),
             nullable=False,
         ),
         sa.Column(
@@ -297,7 +303,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
-            server_default=sa.text("now()"),
+            server_default=sa.text(_SQL_NOW),
             nullable=False,
         ),
         sa.CheckConstraint(

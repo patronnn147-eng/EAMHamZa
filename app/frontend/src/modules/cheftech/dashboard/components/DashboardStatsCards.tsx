@@ -37,6 +37,15 @@ export const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({ stats,
     maintenanceBadgeClass = 'text-blue-300';
   }
 
+  let maintenanceBadgeText: string;
+  if (overdueMaintenance > 0) {
+    maintenanceBadgeText = `${overdueMaintenance} EN RETARD`;
+  } else if (upcomingMaintenance > 0) {
+    maintenanceBadgeText = `${upcomingMaintenance} À VENIR (7j)`;
+  } else {
+    maintenanceBadgeText = 'Aucune à venir';
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10 mt-2">
       <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-slate-800 dark:bg-slate-900 group overflow-hidden relative">
@@ -144,11 +153,7 @@ export const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({ stats,
                 "text-[11px] font-bold mt-2",
                 maintenanceBadgeClass
               )}>
-                {overdueMaintenance > 0
-                  ? `${overdueMaintenance} EN RETARD`
-                  : upcomingMaintenance > 0
-                    ? `${upcomingMaintenance} À VENIR (7j)`
-                    : 'Aucune à venir'}
+                {maintenanceBadgeText}
               </p>
             </div>
             <div className={cn(

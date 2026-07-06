@@ -40,7 +40,7 @@ const STEPS = [
   { id: 3, label: 'Contexte' },
 ];
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current }: Readonly<{ current: number }>) {
   return (
     <div className="flex items-center w-full mb-2 px-6">
       {STEPS.map((s, i) => {

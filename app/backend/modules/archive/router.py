@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/archive", tags=["archive"])
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 VALID_MODULES = {r.module for r in ARCHIVE_RULES}
 
 # Role → which column gates user-visibility for archived items
@@ -162,7 +164,7 @@ async def list_archived(
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(f"list_archived {module} failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/{module}/{item_id}/reactivate", responses={400: {"description": "Bad Request"}, 404: {"description": "Item non archivé ou introuvable"}, 500: {"description": "Internal server error"}})
@@ -198,7 +200,7 @@ async def reactivate_archived(
         logger.exception(
             "reactivate %s/%s failed: %r", module, item_id, e, exc_info=True
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/sweep", responses={500: {"description": "Internal server error"}})
@@ -212,7 +214,7 @@ async def trigger_sweep_now(
         return {"status": "ok", "archived": results, "total": sum(results.values())}
     except Exception as e:
         logger.exception(f"manual archive sweep failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/purge", responses={500: {"description": "Internal server error"}})
@@ -236,4 +238,4 @@ async def trigger_purge_now(
         }
     except Exception as e:
         logger.exception(f"manual archive purge failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

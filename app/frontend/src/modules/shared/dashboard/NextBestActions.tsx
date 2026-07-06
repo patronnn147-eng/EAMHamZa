@@ -10,7 +10,7 @@ const SEV: Record<string, string> = {
   medium: 'border-blue-500 bg-blue-900/40 text-blue-200',
 };
 
-export function NextBestActions(props: NbaInput) {
+export function NextBestActions(props: Readonly<NbaInput>) {
   const actions = rankNextBestActions(props);
   if (actions.length === 0) {
     return <p className="text-sm text-blue-300 py-2">Aucune action prioritaire. Tout est à jour.</p>;
@@ -27,11 +27,21 @@ export function NextBestActions(props: NbaInput) {
         } else {
           border = 'border-l-blue-500';
         }
+
+        let severityLabel: string;
+        if (a.severity === 'critical') {
+          severityLabel = 'Critique';
+        } else if (a.severity === 'high') {
+          severityLabel = 'Urgent';
+        } else {
+          severityLabel = 'À faire';
+        }
+
         return (
           <Link key={a.key} to={a.href}
             className={`flex items-center gap-3 rounded-md border border-slate-700 border-l-[3px] ${border} bg-slate-800 px-3 py-2 hover:bg-slate-700/60`}>
             <span className={`text-[11px] font-medium px-2 py-0.5 rounded border ${SEV[a.severity]}`}>
-              {a.severity === 'critical' ? 'Critique' : a.severity === 'high' ? 'Urgent' : 'À faire'}
+              {severityLabel}
             </span>
             <span className="text-sm text-slate-100 flex-1">{a.label}</span>
             <WhyButton payload={buildNbaWhy(a)} className="mr-1" />

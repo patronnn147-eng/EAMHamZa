@@ -14,7 +14,7 @@ interface LaborData {
 
 interface Props { data: LaborData; horizon: number }
 
-export function LaborForecastChart({ data, horizon }: Props) {
+export function LaborForecastChart({ data, horizon }: Readonly<Props>) {
   const chartData = [
     { name: `${horizon}j`, demande: data.demand_hours, capacité: data.capacity_hours },
   ];

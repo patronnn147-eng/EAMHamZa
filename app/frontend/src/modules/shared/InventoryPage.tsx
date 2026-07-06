@@ -117,7 +117,7 @@ function QuickActionsPanel({
     onNewPiece,
     onAddStock,
     onConsume,
-}: QuickActionsPanelProps) {
+}: Readonly<QuickActionsPanelProps>) {
     return (
         <Card className="border-blue-500/30 bg-gradient-to-br from-slate-900 to-blue-950/40">
             <CardContent className="py-4 px-5">
@@ -573,6 +573,17 @@ export default function InventoryPage() {
                                             qtyClass = 'text-orange-400';
                                         }
 
+                                        let stockBadge: React.ReactNode;
+                                        if (noStock) {
+                                            stockBadge = <Badge className="bg-slate-800 text-slate-400 border border-slate-600 text-xs">Pas de stock</Badge>;
+                                        } else if (isOut) {
+                                            stockBadge = <Badge className="bg-red-900/60 text-red-300 border border-red-500/40 text-xs">Rupture</Badge>;
+                                        } else if (isLow) {
+                                            stockBadge = <Badge className="bg-orange-900/60 text-orange-300 border border-orange-500/40 text-xs">Bas — manque {deficit}</Badge>;
+                                        } else {
+                                            stockBadge = <Badge className="bg-green-900/60 text-green-300 border border-green-500/40 text-xs">OK</Badge>;
+                                        }
+
                                         return (
                                             <TableRow
                                                 key={piece.id}
@@ -594,15 +605,7 @@ export default function InventoryPage() {
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-300">{minStock ?? '—'}</TableCell>
                                                 <TableCell>
-                                                    {noStock ? (
-                                                        <Badge className="bg-slate-800 text-slate-400 border border-slate-600 text-xs">Pas de stock</Badge>
-                                                    ) : isOut ? (
-                                                        <Badge className="bg-red-900/60 text-red-300 border border-red-500/40 text-xs">Rupture</Badge>
-                                                    ) : isLow ? (
-                                                        <Badge className="bg-orange-900/60 text-orange-300 border border-orange-500/40 text-xs">Bas — manque {deficit}</Badge>
-                                                    ) : (
-                                                        <Badge className="bg-green-900/60 text-green-300 border border-green-500/40 text-xs">OK</Badge>
-                                                    )}
+                                                    {stockBadge}
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-1 justify-end">

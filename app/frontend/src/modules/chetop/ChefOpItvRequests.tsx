@@ -139,15 +139,22 @@ const ChefOpItvRequests: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-blue-400">Chargement...</TableCell>
-                </TableRow>
-              ) : filteredRequests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center py-12 text-blue-400">Aucune demande trouvée</TableCell>
-                </TableRow>
-              ) : filteredRequests.map((req) => (
+              {(() => {
+                if (loading) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-blue-400">Chargement...</TableCell>
+                    </TableRow>
+                  );
+                }
+                if (filteredRequests.length === 0) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-12 text-blue-400">Aucune demande trouvée</TableCell>
+                    </TableRow>
+                  );
+                }
+                return filteredRequests.map((req) => (
                 <TableRow key={req.id} className="hover:bg-slate-800/50/50 transition-colors">
                   <TableCell className="font-bold py-5">{req.machine_nom}</TableCell>
                   <TableCell>{getPriorityBadge(req.priorite)}</TableCell>
@@ -175,7 +182,8 @@ const ChefOpItvRequests: React.FC = () => {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                ));
+              })()}
             </TableBody>
           </Table>
         </div>

@@ -8,7 +8,7 @@ interface MachineMini3DProps {
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 }
 
-export function MachineMini3D({ riskLevel }: MachineMini3DProps) {
+export function MachineMini3D({ riskLevel }: Readonly<MachineMini3DProps>) {
   return (
     <ErrorBoundary3D height={120}>
       <div style={{ width: 120, height: 120, flexShrink: 0 }}>

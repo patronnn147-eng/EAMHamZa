@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/utilisateurs", tags=["utilisateurs"])
 
+_NOT_FOUND_MSG = "Utilisateurs not found"
+
 
 # ---------- Pydantic Schemas ----------
 class UtilisateursData(BaseModel):
@@ -181,7 +183,7 @@ async def get_utilisateurs(
         result = await service.get_by_id(id, id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found")
-            raise HTTPException(status_code=404, detail="Utilisateurs not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -292,7 +294,7 @@ async def update_utilisateurs(
         result = await service.update(id, update_dict, id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Utilisateurs not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Utilisateurs {id} updated successfully")
         return result
@@ -349,7 +351,7 @@ async def delete_utilisateurs(
         success = await service.delete(id, id=str(current_user.id))
         if not success:
             logger.warning(f"Utilisateurs with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Utilisateurs not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Utilisateurs {id} deleted successfully")
         return {"message": "Utilisateurs deleted successfully", "id": id}

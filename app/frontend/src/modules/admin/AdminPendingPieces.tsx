@@ -229,7 +229,7 @@ interface PendingCardProps {
   onCreate: () => void;
 }
 
-function PendingCard({ pending, index, onMatch, onReject, onCreate }: PendingCardProps) {
+function PendingCard({ pending, index, onMatch, onReject, onCreate }: Readonly<PendingCardProps>) {
   const isPending = pending.status === 'PENDING_REVIEW';
   const { data: suggestions, loading: suggestLoading } = usePieceSuggestions(
     isPending ? pending.name : '',
@@ -424,7 +424,7 @@ function PendingCard({ pending, index, onMatch, onReject, onCreate }: PendingCar
 
 // ─── Empty state ─────────────────────────────────────────────────────────
 
-function EmptyState({ filter }: { filter: StatusFilter }) {
+function EmptyState({ filter }: Readonly<{ filter: StatusFilter }>) {
   const message = {
     PENDING_REVIEW: 'aucune soumission en attente · file vide',
     MATCHED: 'aucune pièce associée',
@@ -454,7 +454,7 @@ interface CreateFromPendingDialogProps {
   onCreated: (payload: Record<string, unknown>) => Promise<void>;
 }
 
-function CreateFromPendingDialog({ pending, onCancel, onCreated }: CreateFromPendingDialogProps) {
+function CreateFromPendingDialog({ pending, onCancel, onCreated }: Readonly<CreateFromPendingDialogProps>) {
   const [form, setForm] = useState({
     reference: '',
     name: pending.name,

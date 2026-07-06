@@ -16,7 +16,7 @@ function riskColor(p: number): string {
   return '#34d399';
 }
 
-export function DowntimeForecastChart({ machines }: Props) {
+export function DowntimeForecastChart({ machines }: Readonly<Props>) {
   const data = machines.slice(0, 10).map(m => ({
     name: m.machine_name.length > 14 ? m.machine_name.slice(0, 14) + '…' : m.machine_name,
     heures: m.expected_downtime_hours,

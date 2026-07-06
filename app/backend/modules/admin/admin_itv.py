@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Annotated
 from datetime import datetime, timezone
 import logging
 
@@ -49,10 +49,10 @@ class ItvRequestResponse(BaseModel):
 
 @router.get("", response_model=PaginatedResponse[ItvRequestResponse], responses={403: {"description": "Only Admins can see these requests"}, 500: {"description": "Internal server error"}})
 async def get_all_pending_requests(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Admin: List all PENDING intervention requests"""
     if current_user.role != UserRole.ADMIN:
@@ -115,8 +115,8 @@ async def get_all_pending_requests(
 async def validate_itv_request(
     request_id: int,
     data: ItvRequestValidation,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Admin: Approve or Reject an intervention request"""
     if current_user.role != UserRole.ADMIN:

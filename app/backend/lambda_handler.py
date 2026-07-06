@@ -41,6 +41,15 @@ seo_paths = set()
 # SEO domain placeholder - will be replaced with actual request domain at runtime
 SEO_DOMAIN_PLACEHOLDER = "https://atoms.template.com"
 
+# Shared literals (deduplicated per sonar S1192)
+FRONTEND_DIST_DIR = "/var/task/frontend/dist"
+BACKEND_DIR = "/var/task/backend"
+INDEX_HTML_FILENAME = "index.html"
+CONTENT_TYPE_HTML = "text/html"
+CONTENT_TYPE_PLAIN = "text/plain"
+CONTENT_TYPE_JSON = "application/json"
+INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 
 def format_traceback() -> str:
     """Format traceback with newlines replaced by '\\n' string literal"""
@@ -54,12 +63,12 @@ def initialize_dynamic_routes():
     if dynamic_routes_initialized:
         return
 
-    dist_path = "/var/task/frontend/dist"
+    dist_path = FRONTEND_DIST_DIR
 
     try:
         if os.path.exists(dist_path):
             for root, dirs, files in os.walk(dist_path):
-                if "index.html" in files:
+                if INDEX_HTML_FILENAME in files:
                     rel_path = os.path.relpath(root, dist_path)
 
                     # Skip root index.html (for SPA)
@@ -93,8 +102,8 @@ async def initialize_services_once():
             # Add backend to sys.path for imports
             import sys
 
-            if "/var/task/backend" not in sys.path:
-                sys.path.append("/var/task/backend")
+            if BACKEND_DIR not in sys.path:
+                sys.path.append(BACKEND_DIR)
 
             # MODULE_IMPORTS_START
             from services.database import initialize_database
@@ -123,7 +132,7 @@ def get_backend_app():
             # Import the FastAPI app
             import sys
 
-            sys.path.append("/var/task/backend")
+            sys.path.append(BACKEND_DIR)
             # Check if main.py exists
             main_py_path = "/var/task/backend/main.py"
             if not os.path.exists(main_py_path):
@@ -248,7 +257,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return {
                 "statusCode": 200,
                 "headers": {
-                    "Content-Type": "application/json",
+                    "Content-Type": CONTENT_TYPE_JSON,
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({"status": "healthy"}),
@@ -259,7 +268,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             return {
                 "statusCode": 404,
                 "headers": {
-                    "Content-Type": "application/json",
+                    "Content-Type": CONTENT_TYPE_JSON,
                     "Access-Control-Allow-Origin": "*",
                 },
                 "body": json.dumps({"error": "Not found"}),
@@ -309,11 +318,11 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return {
             "statusCode": 500,
             "headers": {
-                "Content-Type": "application/json",
+                "Content-Type": CONTENT_TYPE_JSON,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": json.dumps(
-                {"error": error_info, "message": "Internal server error"}
+                {"error": error_info, "message": INTERNAL_SERVER_ERROR_MSG}
             ),
         }
 
@@ -362,7 +371,7 @@ def serve_frontend() -> Dict[str, Any]:
         response = {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": html_content,
@@ -407,7 +416,7 @@ def serve_frontend() -> Dict[str, Any]:
         return {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": html_content,
@@ -435,14 +444,14 @@ def serve_static_file(path: str) -> Dict[str, Any]:
     # Security: `path` comes from the request URL (untrusted). Resolve the
     # real path and verify it stays within the static root before opening it,
     # to prevent path traversal (e.g. "/../../etc/passwd").
-    static_root = os.path.realpath("/var/task/frontend/dist")
+    static_root = os.path.realpath(FRONTEND_DIST_DIR)
     file_path = os.path.realpath(os.path.join(static_root, path.lstrip("/")))
     if not (file_path == static_root or file_path.startswith(static_root + os.sep)):
         logger.warning(f"Blocked path traversal attempt: {path!r}")
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "File not found",
@@ -466,7 +475,7 @@ def serve_static_file(path: str) -> Dict[str, Any]:
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "File not found",
@@ -481,7 +490,7 @@ def handle_config_request(headers: dict, query_params: dict) -> Dict[str, Any]:
         return {
             "statusCode": 403,
             "headers": {
-                "Content-Type": "application/json",
+                "Content-Type": CONTENT_TYPE_JSON,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": json.dumps(
@@ -502,7 +511,7 @@ def handle_config_request(headers: dict, query_params: dict) -> Dict[str, Any]:
     return {
         "statusCode": 200,
         "headers": {
-            "Content-Type": "application/json",
+            "Content-Type": CONTENT_TYPE_JSON,
             "Access-Control-Allow-Origin": "*",
             "Cache-Control": "public, max-age=300",  # Cache for 5 minutes
             "X-Content-Type-Options": "nosniff",
@@ -607,7 +616,7 @@ def serve_sitemap(request_domain: str = "") -> Dict[str, Any]:
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "sitemap.xml not found",
@@ -631,10 +640,10 @@ def serve_sitemap(request_domain: str = "") -> Dict[str, Any]:
         return {
             "statusCode": 500,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": "Internal server error",
+            "body": INTERNAL_SERVER_ERROR_MSG,
         }
 
 
@@ -645,7 +654,7 @@ def serve_robots() -> Dict[str, Any]:
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "robots.txt not found",
@@ -658,7 +667,7 @@ def serve_robots() -> Dict[str, Any]:
         return {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "no-cache",
             },
@@ -669,10 +678,10 @@ def serve_robots() -> Dict[str, Any]:
         return {
             "statusCode": 500,
             "headers": {
-                "Content-Type": "text/plain",
+                "Content-Type": CONTENT_TYPE_PLAIN,
                 "Access-Control-Allow-Origin": "*",
             },
-            "body": "Internal server error",
+            "body": INTERNAL_SERVER_ERROR_MSG,
         }
 
 
@@ -682,19 +691,19 @@ def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
     # currently gate it against a whitelist of registered SEO paths). Resolve
     # the real path and verify it stays within the static root before opening
     # it, to prevent path traversal (e.g. "/../../etc/passwd").
-    static_root = os.path.realpath("/var/task/frontend/dist")
+    static_root = os.path.realpath(FRONTEND_DIST_DIR)
     html_path = os.path.realpath(
-        os.path.join(static_root, path.strip("/"), "index.html")
+        os.path.join(static_root, path.strip("/"), INDEX_HTML_FILENAME)
     )
     if not (
-        html_path == os.path.join(static_root, "index.html")
+        html_path == os.path.join(static_root, INDEX_HTML_FILENAME)
         or html_path.startswith(static_root + os.sep)
     ):
         logger.warning(f"Blocked path traversal attempt: {path!r}")
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "<html><body><h1>404 Not Found</h1></body></html>",
@@ -704,7 +713,7 @@ def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
         return {
             "statusCode": 404,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "<html><body><h1>404 Not Found</h1></body></html>",
@@ -717,7 +726,7 @@ def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
         return {
             "statusCode": 200,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
                 "Cache-Control": "no-cache",
             },
@@ -728,7 +737,7 @@ def serve_seo_html(path: str, request_domain: str = "") -> Dict[str, Any]:
         return {
             "statusCode": 500,
             "headers": {
-                "Content-Type": "text/html",
+                "Content-Type": CONTENT_TYPE_HTML,
                 "Access-Control-Allow-Origin": "*",
             },
             "body": "<html><body><h1>500 Internal Server Error</h1></body></html>",

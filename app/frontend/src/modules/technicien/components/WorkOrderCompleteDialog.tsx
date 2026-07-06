@@ -92,7 +92,7 @@ const STEPS = [
     { id: 4, label: 'Télémétrie' },
 ];
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current }: Readonly<{ current: number }>) {
     return (
         <div className="flex items-center w-full mb-2">
             {STEPS.map((s, i) => {

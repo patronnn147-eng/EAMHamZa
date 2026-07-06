@@ -24,6 +24,9 @@ from typing import Annotated
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+_STATUT_TERMINE = "TERMINÉ"
+
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse], responses={403: {"description": "Forbidden"}, 500: {"description": "Internal server error"}})
 async def get_my_work_orders(
@@ -90,7 +93,7 @@ async def get_my_work_orders(
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
         logger.exception(f"Error fetching work orders: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/work-orders/{order_id}/start", responses={400: {"description": "Only 'ASSIGNÉ' orders can be started"}, 403: {"description": "Forbidden; You can only start work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
@@ -151,7 +154,7 @@ async def start_work_order(
     except Exception as e:
         await db.rollback()
         logger.exception(f"Error starting work order: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'EN_COURS' orders can be completed"}, 403: {"description": "Forbidden; You can only complete work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
@@ -210,7 +213,7 @@ async def complete_work_order(
                 _rec_exc,
             )
 
-        wo.statut = "TERMINÉ"
+        wo.statut = _STATUT_TERMINE
         wo.date_fin = now
         wo.rapport = payload.rapport
 
@@ -221,7 +224,7 @@ async def complete_work_order(
             machine_obj.date_derniere_maintenance = now
 
         # Also update the associated intervention with enhanced fields
-        intervention.statut = "TERMINÉ"
+        intervention.statut = _STATUT_TERMINE
         intervention.rapport = payload.rapport
         if not intervention.date_debut:
             intervention.date_debut = wo.date_debut or now
@@ -311,17 +314,17 @@ async def complete_work_order(
                 entity_type=AuditEntityType.WORK_ORDER,
                 entity_id=order_id,
                 old_values={"statut": "EN_COURS"},
-                new_values={"statut": "TERMINÉ", "rapport": payload.rapport},
+                new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
                 user_id=current_user.id,
                 user_name=current_user.nom,
             )
         except Exception:
             logger.warning("Audit log failed for complete work order %s", order_id)
 
-        return {"message": "Work order completed", "statut": "TERMINÉ"}
+        return {"message": "Work order completed", "statut": _STATUT_TERMINE}
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
         logger.exception(f"Error completing work order: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

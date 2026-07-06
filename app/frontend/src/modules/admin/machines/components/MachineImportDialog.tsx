@@ -8,7 +8,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Upload, FileDown, CheckCircle2, XCircle } from 'lucide-react';
+import { Upload, FileDown, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSync } from '@/contexts/DataSyncContext';
 
@@ -25,6 +25,8 @@ interface PreviewItem {
   errors: string[];
 }
 
+const PREVIEW_PAGE_SIZE = 100;
+
 export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
   open,
   onOpenChange,
@@ -34,6 +36,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
   const [previewItems, setPreviewItems] = useState<PreviewItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ total: 0, valid: 0, invalid: 0 });
+  const [previewPage, setPreviewPage] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { notifyChange } = useDataSync();
@@ -42,6 +45,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
     setFile(null);
     setPreviewItems([]);
     setStats({ total: 0, valid: 0, invalid: 0 });
+    setPreviewPage(0);
     setLoading(false);
   };
 
@@ -61,6 +65,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
   const previewFile = async (uploadedFile: File) => {
     setLoading(true);
     setPreviewItems([]);
+    setPreviewPage(0);
     try {
       const token = localStorage.getItem('access_token');
       const formData = new FormData();
@@ -181,6 +186,15 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
     }
   };
 
+  let importButtonLabel: string;
+  if (loading) {
+    importButtonLabel = 'Vérification...';
+  } else if (file) {
+    importButtonLabel = `Nouveau fichier (${file.name})`;
+  } else {
+    importButtonLabel = 'Sélectionner un fichier CSV/Excel';
+  }
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] flex flex-col">
@@ -222,11 +236,17 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
               variant="outline"
             >
               <Upload size={24} />
-              {loading ? "Vérification..." : (file ? `Nouveau fichier (${file.name})` : "Sélectionner un fichier CSV/Excel")}
+              {importButtonLabel}
             </Button>
           </div>
 
-          {previewItems.length > 0 && (
+          {previewItems.length > 0 && (() => {
+            const totalPages = Math.ceil(previewItems.length / PREVIEW_PAGE_SIZE);
+            const pageItems = previewItems.slice(
+              previewPage * PREVIEW_PAGE_SIZE,
+              (previewPage + 1) * PREVIEW_PAGE_SIZE
+            );
+            return (
             <div className="flex-1 overflow-hidden flex flex-col gap-2 min-h-64">
               <div className="flex items-center justify-between text-sm py-2 px-1 border-b">
                 <div className="font-semibold text-blue-100">Aperçu ({stats.total} lignes)</div>
@@ -247,8 +267,8 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {previewItems.map((item, i) => (
-                      <tr key={i} className={`border-b border-blue-800/50 ${item.valid ? 'bg-slate-800' : 'bg-red-50'}`}>
+                    {pageItems.map((item) => (
+                      <tr key={item.row_index} className={`border-b border-blue-800/50 ${item.valid ? 'bg-slate-800' : 'bg-red-50'}`}>
                         <td className="px-3 py-2">
                           {item.valid ? (
                             <CheckCircle2 size={16} className="text-green-500" />
@@ -267,8 +287,36 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between text-sm px-1">
+                  <span className="text-blue-200">
+                    Page {previewPage + 1} / {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage((p) => Math.max(0, p - 1))}
+                      disabled={previewPage === 0}
+                    >
+                      <ChevronLeft size={16} />
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPreviewPage((p) => Math.min(totalPages - 1, p + 1))}
+                      disabled={previewPage >= totalPages - 1}
+                    >
+                      Suivant
+                      <ChevronRight size={16} />
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
         </div>
 
         <DialogFooter className="mt-4 pt-4 border-t">

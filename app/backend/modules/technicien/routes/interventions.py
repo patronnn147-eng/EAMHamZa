@@ -32,6 +32,9 @@ from ..schemas import (
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 logger = logging.getLogger(__name__)
 
+_STATUT_TERMINE = "TERMINÉ"
+_STATUT_BLOQUE = "BLOQUÉ"
+
 
 @router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
 async def list_my_interventions(
@@ -93,9 +96,9 @@ async def list_my_interventions(
     enriched: List[dict] = []
     for i in interventions:
         due = due_map.get(i.ordre_travail_id)
-        is_done = (i.statut or "") in {"TERMINÉ"} or i.date_fin is not None
+        is_done = (i.statut or "") in {_STATUT_TERMINE} or i.date_fin is not None
         status = i.statut or ""
-        eligible = status in {"APPROVED", "EN_COURS", "BLOQUÉ"}
+        eligible = status in {"APPROVED", "EN_COURS", _STATUT_BLOQUE}
         overdue = bool(eligible and due and (due < now) and (not is_done))
 
         enriched.append(
@@ -132,8 +135,8 @@ async def update_intervention_status(
     valid_statuses = {
         "EN_ATTENTE",
         "EN_COURS",
-        "TERMINÉ",
-        "BLOQUÉ",
+        _STATUT_TERMINE,
+        _STATUT_BLOQUE,
         "PENDING_APPROVAL",
         "APPROVED",
         "DECLINED",
@@ -152,7 +155,7 @@ async def update_intervention_status(
             detail="Intervention must be approved by ChefTech before starting",
         )
 
-    if intervention.statut == "DECLINED" and data.statut in {"EN_COURS", "TERMINÉ"}:
+    if intervention.statut == "DECLINED" and data.statut in {"EN_COURS", _STATUT_TERMINE}:
         raise HTTPException(
             status_code=400, detail="Declined intervention cannot be started"
         )
@@ -172,7 +175,7 @@ async def update_intervention_status(
         if intervention.date_debut is None:
             intervention.date_debut = data.date_debut or now
 
-    if data.statut == "TERMINÉ":
+    if data.statut == _STATUT_TERMINE:
         if data.date_debut:
             intervention.date_debut = data.date_debut
         elif intervention.date_debut is None:
@@ -182,7 +185,7 @@ async def update_intervention_status(
         else:
             intervention.date_fin = intervention.date_fin or now
 
-    if data.statut == "BLOQUÉ":
+    if data.statut == _STATUT_BLOQUE:
         if data.date_debut:
             intervention.date_debut = data.date_debut
         elif intervention.date_debut is None:
@@ -192,7 +195,7 @@ async def update_intervention_status(
     await db.refresh(intervention)
 
     # P7.6 feedback — compare predicted vs actual parts (non-fatal, async)
-    if data.statut in ("TERMINÉ", "VALIDATED") and intervention.legacy_parts_text:
+    if data.statut in (_STATUT_TERMINE, "VALIDATED") and intervention.legacy_parts_text:
         try:
             from modules.ml.services.p7_feedback import record_p7_feedback
 
@@ -249,13 +252,13 @@ async def update_intervention_status(
             select(
                 func.count(Ordres_intervention.id).label("total"),
                 func.sum(
-                    case((Ordres_intervention.statut == "TERMINÉ", 1), else_=0)
+                    case((Ordres_intervention.statut == _STATUT_TERMINE, 1), else_=0)
                 ).label("done"),
                 func.sum(
                     case((Ordres_intervention.statut == "EN_COURS", 1), else_=0)
                 ).label("in_progress"),
                 func.sum(
-                    case((Ordres_intervention.statut == "BLOQUÉ", 1), else_=0)
+                    case((Ordres_intervention.statut == _STATUT_BLOQUE, 1), else_=0)
                 ).label("blocked"),
             ).where(Ordres_intervention.ordre_travail_id == ordre_id)
         )
@@ -266,11 +269,11 @@ async def update_intervention_status(
         blocked = int((row.blocked or 0) if row else 0)
 
         if blocked > 0:
-            ordre.statut = "BLOQUÉ"
+            ordre.statut = _STATUT_BLOQUE
         elif in_progress > 0:
             ordre.statut = "EN_COURS"
         elif total > 0 and done == total:
-            ordre.statut = "TERMINÉ"
+            ordre.statut = _STATUT_TERMINE
         elif total > 0:
             ordre.statut = "ASSIGNÉ"
 

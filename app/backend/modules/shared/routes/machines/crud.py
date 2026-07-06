@@ -2,10 +2,12 @@ import json
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.auth import get_current_user
 from core.database import get_db
+from models.machines import Machines
 from models.utilisateurs import Utilisateurs
 from services.audit import AuditService, AuditEntityType
 from services.machines import MachinesService
@@ -22,6 +24,8 @@ from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
+
+_NOT_FOUND_MSG = "Machines not found"
 
 
 @router.get("", response_model=MachinesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
@@ -113,7 +117,7 @@ async def get_machines(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Machines with id {id} not found")
-            raise HTTPException(status_code=404, detail="Machines not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -169,27 +173,36 @@ async def create_machiness_batch(
 ):
     logger.debug(f"Batch creating {len(request.items)} machiness")
 
-    service = MachinesService(db)
-    results = []
+    if not request.items:
+        return []
 
     try:
-        for item_data in request.items:
-            result = await service.create(item_data.model_dump())
-            if result:
-                results.append(result)
-                try:
-                    await AuditService(db).log_create(
-                        entity_type=AuditEntityType.MACHINE,
-                        entity_id=result.id,
-                        new_values=item_data.model_dump(),
-                        user_id=current_user.id,
-                        user_name=current_user.nom,
-                        entity_name=getattr(result, "nom", None),
-                    )
-                except Exception:
-                    logger.warning(
-                        "Audit log failed for batch create machine %s", result.id
-                    )
+        values = [item_data.model_dump() for item_data in request.items]
+        stmt = insert(Machines).values(values).returning(Machines.id)
+        insert_result = await db.execute(stmt)
+        new_ids = [row[0] for row in insert_result.all()]
+        await db.commit()
+
+        fetch_result = await db.execute(
+            select(Machines).where(Machines.id.in_(new_ids)).order_by(Machines.id)
+        )
+        results = fetch_result.scalars().all()
+
+        audit_service = AuditService(db)
+        for result, item_data in zip(results, request.items):
+            try:
+                await audit_service.log_create(
+                    entity_type=AuditEntityType.MACHINE,
+                    entity_id=result.id,
+                    new_values=item_data.model_dump(),
+                    user_id=current_user.id,
+                    user_name=current_user.nom,
+                    entity_name=getattr(result, "nom", None),
+                )
+            except Exception:
+                logger.warning(
+                    "Audit log failed for batch create machine %s", result.id
+                )
 
         logger.info(f"Batch created {len(results)} machiness successfully")
         return results
@@ -262,7 +275,7 @@ async def update_machines(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Machines with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Machines not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Machines {id} updated successfully")
 
@@ -343,7 +356,7 @@ async def delete_machines(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Machines with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Machines not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Machines {id} deleted successfully")
 

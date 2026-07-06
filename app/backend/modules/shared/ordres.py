@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/ordres", tags=["ordres"])
 
+_NOT_FOUND_MSG = "Ordres not found"
+
 
 # ---------- Pydantic Schemas ----------
 class OrdresData(BaseModel):
@@ -183,7 +185,7 @@ async def get_ordres(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Ordres with id {id} not found")
-            raise HTTPException(status_code=404, detail="Ordres not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -288,7 +290,7 @@ async def update_ordres(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Ordres with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Ordres not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres {id} updated successfully")
         return result
@@ -343,7 +345,7 @@ async def delete_ordres(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Ordres with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Ordres not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres {id} deleted successfully")
         return {"message": "Ordres deleted successfully", "id": id}

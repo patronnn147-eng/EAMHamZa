@@ -3,7 +3,7 @@ import { HelpCircle } from 'lucide-react';
 import { WhyDrawer } from './WhyDrawer';
 import type { WhyPayload } from './whyTypes';
 
-export function WhyButton({ payload, className = '' }: { payload: WhyPayload; className?: string }) {
+export function WhyButton({ payload, className = '' }: Readonly<{ payload: WhyPayload; className?: string }>) {
   const [open, setOpen] = useState(false);
   return (
     <>

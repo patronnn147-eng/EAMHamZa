@@ -432,11 +432,16 @@ export default function RAGDocuments() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {(() => {
+          if (loading) {
+            return (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : filtered.length === 0 ? (
+            );
+          }
+          if (filtered.length === 0) {
+          return (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
               <Database className="h-12 w-12 opacity-20" />
               <p className="text-sm">
@@ -457,7 +462,9 @@ export default function RAGDocuments() {
                 </div>
               )}
             </div>
-          ) : (
+          );
+          }
+          return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -581,7 +588,8 @@ export default function RAGDocuments() {
                 </tbody>
               </table>
             </div>
-          )}
+          );
+          })()}
         </CardContent>
       </Card>
 

@@ -10,7 +10,7 @@ interface ReliabilityTabProps {
     machineName: string;
 }
 
-function ClassificationBadge({ classification }: { classification: ReliabilityMetrics['classification'] }) {
+function ClassificationBadge({ classification }: Readonly<{ classification: ReliabilityMetrics['classification'] }>) {
     const config = {
         Excellent: { className: 'bg-emerald-100 text-emerald-800 border-emerald-200', icon: CheckCircle2 },
         Bon: { className: 'bg-blue-100 text-blue-800 border-blue-200', icon: Activity },
@@ -28,14 +28,14 @@ function ClassificationBadge({ classification }: { classification: ReliabilityMe
 
 function MetricCard({
     label, value, sublabel, icon: Icon, colorClass = 'text-blue-50', tooltip,
-}: {
+}: Readonly<{
     label: string;
     value: string;
     sublabel?: string;
     icon: React.ElementType;
     colorClass?: string;
     tooltip?: string;
-}) {
+}>) {
     return (
         <Card className="flex-1" title={tooltip}>
             <CardContent className="pt-5 pb-4">
@@ -50,7 +50,7 @@ function MetricCard({
     );
 }
 
-function UptimeGauge({ pct }: { pct: number | null | undefined }) {
+function UptimeGauge({ pct }: Readonly<{ pct: number | null | undefined }>) {
     const value = pct ?? 100; // Default to 100% if unknown (e.g. new machine)
     let color: string;
     if (value >= 95) {
@@ -85,7 +85,7 @@ function UptimeGauge({ pct }: { pct: number | null | undefined }) {
     );
 }
 
-function DowntimeTimeline({ events }: { events: DowntimeEvent[] }) {
+function DowntimeTimeline({ events }: Readonly<{ events: DowntimeEvent[] }>) {
     if (events.length === 0) {
         return (
             <div className="text-center py-10 text-blue-400">

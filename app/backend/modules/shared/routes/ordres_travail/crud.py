@@ -23,6 +23,8 @@ from typing import Annotated
 router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_travail"])
 logger = logging.getLogger(__name__)
 
+_NOT_FOUND_MSG = "Ordres_travail not found"
+
 
 @router.get("", response_model=Ordres_travailListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_ordres_travails(
@@ -112,7 +114,7 @@ async def get_ordres_travail(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Ordres_travail with id {id} not found")
-            raise HTTPException(status_code=404, detail="Ordres_travail not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -265,7 +267,7 @@ async def update_ordres_travail(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Ordres_travail with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Ordres_travail not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres_travail {id} updated successfully")
 
@@ -346,7 +348,7 @@ async def delete_ordres_travail(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Ordres_travail with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Ordres_travail not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Ordres_travail {id} deleted successfully")
 

@@ -18,6 +18,8 @@ router = APIRouter(
     prefix="/api/v1/entities/planning_utilisateurs", tags=["planning_utilisateurs"]
 )
 
+_NOT_FOUND_MSG = "Planning_utilisateurs not found"
+
 
 # ---------- Pydantic Schemas ----------
 class Planning_utilisateursData(BaseModel):
@@ -181,7 +183,7 @@ async def get_planning_utilisateurs(
         if not result:
             logger.warning(f"Planning_utilisateurs with id {id} not found")
             raise HTTPException(
-                status_code=404, detail="Planning_utilisateurs not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         return result
@@ -296,7 +298,7 @@ async def update_planning_utilisateurs(
         if not result:
             logger.warning(f"Planning_utilisateurs with id {id} not found for update")
             raise HTTPException(
-                status_code=404, detail="Planning_utilisateurs not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Planning_utilisateurs {id} updated successfully")
@@ -359,7 +361,7 @@ async def delete_planning_utilisateurs(
         if not success:
             logger.warning(f"Planning_utilisateurs with id {id} not found for deletion")
             raise HTTPException(
-                status_code=404, detail="Planning_utilisateurs not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Planning_utilisateurs {id} deleted successfully")

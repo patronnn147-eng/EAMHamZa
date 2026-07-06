@@ -26,6 +26,8 @@ router = APIRouter(
     prefix="/api/v1/inventory/required-pieces", tags=["inventory-required"]
 )
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 ROLES_ATTACH = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 
 
@@ -117,7 +119,7 @@ async def attach_required_pieces(
             exc_info=True,
         )
         await db.rollback()
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.get("/{intervention_id}", response_model=List[RequiredPieceResponse], responses={500: {"description": "Internal server error"}})
@@ -154,7 +156,7 @@ async def list_required_pieces(
         ]
     except Exception as e:
         logger.exception(f"list_required_pieces failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.delete("/{intervention_id}/{required_piece_id}", status_code=204, responses={400: {"description": "Cannot remove reserved required piece — release first"}, 404: {"description": "Required piece not found"}, 500: {"description": "Internal server error"}})
@@ -187,4 +189,4 @@ async def remove_required_piece(
     except Exception as e:
         await db.rollback()
         logger.exception(f"remove_required_piece failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

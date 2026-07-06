@@ -42,7 +42,7 @@ export function PlanningMachinesDialog({
   planningId,
   initialMachineIds,
   onSaved,
-}: PlanningMachinesDialogProps) {
+}: Readonly<PlanningMachinesDialogProps>) {
   const { toast } = useToast();
   const [machines, setMachines] = useState<MachineEntry[]>([]);
   const [selected, setSelected] = useState<Set<number>>(new Set());

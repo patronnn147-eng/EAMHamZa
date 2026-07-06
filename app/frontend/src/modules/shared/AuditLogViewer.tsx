@@ -305,33 +305,45 @@ export const AuditLogViewer: React.FC = () => {
 
         {/* Table Body */}
         <div className="divide-y divide-white/5 max-h-[500px] overflow-y-auto">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
-            </div>
-          ) : hasError ? (
-            <div className="flex flex-col items-center justify-center py-16 text-red-400">
-              <AlertTriangle className="h-12 w-12 mb-4" />
-              <p className="font-medium">Something went wrong</p>
-              <p className="text-sm text-orchestrated-glass mt-1">Please refresh the page</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-16 text-red-400">
-              <AlertTriangle className="h-12 w-12 mb-4" />
-              <p className="font-medium">{error}</p>
-              <button 
-                onClick={fetchAuditLog}
-                className="mt-4 text-sm text-cyan-400 hover:underline"
-              >
-                Retry
-              </button>
-            </div>
-          ) : entries.length === 0 ? (
-            <div className="flex items-center justify-center py-16 text-orchestrated-glass font-body">
-              No audit entries found
-            </div>
-          ) : (
-            entries.map((entry, index) => {
+          {(() => {
+            if (loading) {
+              return (
+                <div className="flex items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-400" />
+                </div>
+              );
+            }
+            if (hasError) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 text-red-400">
+                  <AlertTriangle className="h-12 w-12 mb-4" />
+                  <p className="font-medium">Something went wrong</p>
+                  <p className="text-sm text-orchestrated-glass mt-1">Please refresh the page</p>
+                </div>
+              );
+            }
+            if (error) {
+              return (
+                <div className="flex flex-col items-center justify-center py-16 text-red-400">
+                  <AlertTriangle className="h-12 w-12 mb-4" />
+                  <p className="font-medium">{error}</p>
+                  <button
+                    onClick={fetchAuditLog}
+                    className="mt-4 text-sm text-cyan-400 hover:underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              );
+            }
+            if (entries.length === 0) {
+              return (
+                <div className="flex items-center justify-center py-16 text-orchestrated-glass font-body">
+                  No audit entries found
+                </div>
+              );
+            }
+            return entries.map((entry, index) => {
               const actionObj = actionConfig[entry.action_type] || { icon: <Eye className="h-4 w-4" />, color: 'text-gray-400' };
               const isSelected = selectedEntry?.id === entry.id;
               
@@ -365,8 +377,8 @@ export const AuditLogViewer: React.FC = () => {
                   </div>
                 </button>
               );
-            })
-          )}
+            });
+          })()}
         </div>
 
         {/* Pagination */}

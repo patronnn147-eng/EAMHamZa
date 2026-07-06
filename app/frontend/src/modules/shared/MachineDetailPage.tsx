@@ -253,9 +253,11 @@ export default function MachineDetailPage() {
             'No improvement': { className: 'bg-red-600 text-white border-red-700',         label: 'Aucune amélioration' },
         };
         const c = config[rec.status];
-        const deltaLabel = rec.delta == null
-            ? ''
-            : ` (${rec.delta > 0 ? '+' : ''}${rec.delta.toFixed(0)} pts)`;
+        let deltaLabel = '';
+        if (rec.delta != null) {
+            const deltaSign = rec.delta > 0 ? '+' : '';
+            deltaLabel = ` (${deltaSign}${rec.delta.toFixed(0)} pts)`;
+        }
         return (
             <Badge className={`shrink-0 text-sm px-3 py-1 flex items-center gap-1.5 shadow-sm ${c.className}`}>
                 <Activity className="h-4 w-4" />

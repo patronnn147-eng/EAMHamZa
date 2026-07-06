@@ -11,6 +11,10 @@ from models.ml_prediction_log import MlPredictionLog
 
 logger = logging.getLogger(__name__)
 
+# ai4i2020 dataset column names (deduplicated per sonar S1192)
+_COL_TOOL_WEAR = "Tool wear [min]"
+_COL_MACHINE_FAILURE = "Machine failure"
+
 # Models live in the ml-microservice container.
 # In Docker Compose this maps to the 'ml-models' named volume mounted at:
 #   ml-microservice: /app/models  (write)
@@ -163,8 +167,8 @@ class RetrainingService:
                     "Process temperature [K]": log.process_temperature,
                     "Rotational speed [rpm]": log.rotational_speed,
                     "Torque [Nm]": log.torque,
-                    "Tool wear [min]": log.tool_wear,
-                    "Machine failure": is_failure,
+                    _COL_TOOL_WEAR: log.tool_wear,
+                    _COL_MACHINE_FAILURE: is_failure,
                     "actual_failure_type": intervention.actual_failure_type,
                 }
             )
@@ -184,7 +188,7 @@ class RetrainingService:
                 combined_df,
                 test_size=0.2,
                 random_state=42,
-                stratify=combined_df.get("Machine failure", None),
+                stratify=combined_df.get(_COL_MACHINE_FAILURE, None),
             )
 
             # Minimum accuracy/F1 to accept new model (compared against val set).
@@ -236,15 +240,15 @@ class RetrainingService:
                         "Process temperature [K]",
                         "Rotational speed [rpm]",
                         "Torque [Nm]",
-                        "Tool wear [min]",
+                        _COL_TOOL_WEAR,
                     ]
                     X = _train_df[train_features]
                     X_val = _val_df[train_features]
 
                 # Model-specific target
                 if mt == "p1":
-                    y = _train_df["Machine failure"]
-                    _val_df["Machine failure"]
+                    y = _train_df[_COL_MACHINE_FAILURE]
+                    _val_df[_COL_MACHINE_FAILURE]
                 elif mt == "p2":
                     import pandas as _pd
 
@@ -265,22 +269,22 @@ class RetrainingService:
                     y_p2 = _train_df[_failure_types].fillna(0)
                     y_p2_val = _val_df[_failure_types].fillna(0)
                 elif mt == "p3":
-                    _max_wear = _train_df["Tool wear [min]"].max()
+                    _max_wear = _train_df[_COL_TOOL_WEAR].max()
                     _train_df = _train_df.copy()
                     _val_df = _val_df.copy()
                     _train_df["_rul_proxy"] = _train_df.apply(
                         lambda row: (
                             0.0
-                            if row["Machine failure"] == 1
-                            else max(0.0, (_max_wear - row["Tool wear [min]"]) / 60.0)
+                            if row[_COL_MACHINE_FAILURE] == 1
+                            else max(0.0, (_max_wear - row[_COL_TOOL_WEAR]) / 60.0)
                         ),
                         axis=1,
                     )
                     _val_df["_rul_proxy"] = _val_df.apply(
                         lambda row: (
                             0.0
-                            if row["Machine failure"] == 1
-                            else max(0.0, (_max_wear - row["Tool wear [min]"]) / 60.0)
+                            if row[_COL_MACHINE_FAILURE] == 1
+                            else max(0.0, (_max_wear - row[_COL_TOOL_WEAR]) / 60.0)
                         ),
                         axis=1,
                     )
@@ -302,7 +306,7 @@ class RetrainingService:
                     # P4 is unsupervised - retrain on combined features
                     pass
                 elif mt == "p5":
-                    _max_wear_p5 = _train_df["Tool wear [min]"].max()
+                    _max_wear_p5 = _train_df[_COL_TOOL_WEAR].max()
                     _high_wear_thresh = _max_wear_p5 * 0.75
                     _train_df = _train_df.copy()
                     _val_df = _val_df.copy()
@@ -310,10 +314,10 @@ class RetrainingService:
                         lambda row: (
                             0
                             if (
-                                row["Machine failure"] == 1
-                                and row["Tool wear [min]"] >= _high_wear_thresh
+                                row[_COL_MACHINE_FAILURE] == 1
+                                and row[_COL_TOOL_WEAR] >= _high_wear_thresh
                             )
-                            else (1 if row["Machine failure"] == 1 else 2)
+                            else (1 if row[_COL_MACHINE_FAILURE] == 1 else 2)
                         ),
                         axis=1,
                     )
@@ -321,17 +325,17 @@ class RetrainingService:
                         lambda row: (
                             0
                             if (
-                                row["Machine failure"] == 1
-                                and row["Tool wear [min]"] >= _high_wear_thresh
+                                row[_COL_MACHINE_FAILURE] == 1
+                                and row[_COL_TOOL_WEAR] >= _high_wear_thresh
                             )
-                            else (1 if row["Machine failure"] == 1 else 2)
+                            else (1 if row[_COL_MACHINE_FAILURE] == 1 else 2)
                         ),
                         axis=1,
                     )
                     y_p5 = _train_df["_priority_proxy"]
                     y_p5_val = _val_df["_priority_proxy"]
                 else:
-                    y = _train_df["Machine failure"]
+                    y = _train_df[_COL_MACHINE_FAILURE]
 
                 # Backup existing model
                 backup_path = RetrainingService._backup_model(mt)
@@ -467,7 +471,7 @@ class RetrainingService:
                     if mt == "p1":
                         _preds_val = _m.predict(X_val)
                         _f1_val = float(
-                            _f1(_val_df["Machine failure"], _preds_val, zero_division=0)
+                            _f1(_val_df[_COL_MACHINE_FAILURE], _preds_val, zero_division=0)
                         )
                         _acc_metrics = {"val_f1": round(_f1_val, 4)}
                         if _f1_val < _MIN_CLASSIFIER_F1:

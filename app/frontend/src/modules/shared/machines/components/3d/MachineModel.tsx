@@ -22,7 +22,7 @@ export function MachineModel({
   riskLevel = 'LOW',
   autoRotate = false,
   rotationSpeed = 0.4,
-}: MachineModelProps) {
+}: Readonly<MachineModelProps>) {
   const groupRef = useRef<THREE.Group>(null!);
   const rotorRef = useRef<THREE.Mesh>(null!);
 

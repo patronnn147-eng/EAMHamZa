@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 
-export function SectionRedirect({ section }: { section: 'machines' | 'work-orders' | 'interventions' | 'planning' }) {
+export function SectionRedirect({ section }: Readonly<{ section: 'machines' | 'work-orders' | 'interventions' | 'planning' }>) {
   const [loading, setLoading] = useState(true);
   const [redirectPath, setRedirectPath] = useState<string>('/');
 

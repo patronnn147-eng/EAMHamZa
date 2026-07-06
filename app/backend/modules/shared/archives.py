@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/archives", tags=["archives"])
 
+_NOT_FOUND_MSG = "Archives not found"
+
 
 # ---------- Pydantic Schemas ----------
 class ArchivesData(BaseModel):
@@ -186,7 +188,7 @@ async def get_archives(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Archives with id {id} not found")
-            raise HTTPException(status_code=404, detail="Archives not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -291,7 +293,7 @@ async def update_archives(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Archives with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Archives not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Archives {id} updated successfully")
         return result
@@ -346,7 +348,7 @@ async def delete_archives(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Archives with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Archives not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Archives {id} deleted successfully")
         return {"message": "Archives deleted successfully", "id": id}

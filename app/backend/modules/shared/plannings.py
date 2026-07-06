@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/entities/plannings", tags=["plannings"])
 
+_NOT_FOUND_MSG = "Plannings not found"
+
 
 # ---------- Pydantic Schemas ----------
 class PlanningsData(BaseModel):
@@ -198,7 +200,7 @@ async def get_plannings(
         result = await service.get_by_id(id)
         if not result:
             logger.warning(f"Plannings with id {id} not found")
-            raise HTTPException(status_code=404, detail="Plannings not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
     except HTTPException:
@@ -303,7 +305,7 @@ async def update_plannings(
         result = await service.update(id, update_dict)
         if not result:
             logger.warning(f"Plannings with id {id} not found for update")
-            raise HTTPException(status_code=404, detail="Plannings not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Plannings {id} updated successfully")
         return result
@@ -358,7 +360,7 @@ async def delete_plannings(
         success = await service.delete(id)
         if not success:
             logger.warning(f"Plannings with id {id} not found for deletion")
-            raise HTTPException(status_code=404, detail="Plannings not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         logger.info(f"Plannings {id} deleted successfully")
         return {"message": "Plannings deleted successfully", "id": id}

@@ -95,13 +95,19 @@ function whoActsContent(role: UserRole | null, machine: Machine, shortfallCount:
                 actionLabel: `Open Machine #${machine.id}`,
                 actionPath: `/machines/${machine.id}`,
             };
-        case 'CHETOP':
+        case 'CHETOP': {
+            let shortfallSummary = 'Stock levels are adequate.';
+            if (shortfallCount > 0) {
+                const partSuffix = shortfallCount !== 1 ? 's are' : ' is';
+                shortfallSummary = `${shortfallCount} part${partSuffix} missing.`;
+            }
             return {
                 title: 'Business risk overview',
-                body: `${shortfallCount > 0 ? `${shortfallCount} part${shortfallCount !== 1 ? 's are' : ' is'} missing.` : 'Stock levels are adequate.'} An unplanned breakdown on this machine risks production downtime, emergency procurement costs, and SLA delays. Proactive maintenance this cycle avoids those costs.`,
+                body: `${shortfallSummary} An unplanned breakdown on this machine risks production downtime, emergency procurement costs, and SLA delays. Proactive maintenance this cycle avoids those costs.`,
                 actionLabel: null,
                 actionPath: null,
             };
+        }
         case 'TECHNICIEN':
             return {
                 title: 'Before you start — Prepare these parts',
@@ -121,7 +127,7 @@ function whoActsContent(role: UserRole | null, machine: Machine, shortfallCount:
 
 // ── Sub-components ────────────────────────────────────────────────────────
 
-function Section({ icon, title, children }: { icon: string; title: string; children: React.ReactNode }) {
+function Section({ icon, title, children }: Readonly<{ icon: string; title: string; children: React.ReactNode }>) {
     return (
         <div style={{ marginBottom: '1.5rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
@@ -135,7 +141,7 @@ function Section({ icon, title, children }: { icon: string; title: string; child
     );
 }
 
-function BodyText({ children }: { children: React.ReactNode }) {
+function BodyText({ children }: Readonly<{ children: React.ReactNode }>) {
     return (
         <p style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.75, fontFamily: 'Manrope, sans-serif' }}>
             {children}
@@ -145,7 +151,7 @@ function BodyText({ children }: { children: React.ReactNode }) {
 
 // ── Main component ────────────────────────────────────────────────────────
 
-export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand, mlPrediction }: Props) {
+export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand, mlPrediction }: Readonly<Props>) {
     const role = useUserRole();
     const navigate = useNavigate();
     const [procModalOpen, setProcModalOpen] = useState(false);

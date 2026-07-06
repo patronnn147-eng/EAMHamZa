@@ -27,6 +27,8 @@ router = APIRouter(
 )
 logger = logging.getLogger(__name__)
 
+_NOT_FOUND_MSG = "Planning_ordres_travail not found"
+
 
 @router.get("", response_model=Planning_ordres_travailListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
 async def query_planning_ordres_travails(
@@ -123,7 +125,7 @@ async def get_planning_ordres_travail(
         if not result:
             logger.warning(f"Planning_ordres_travail with id {id} not found")
             raise HTTPException(
-                status_code=404, detail="Planning_ordres_travail not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         return result
@@ -266,7 +268,7 @@ async def update_planning_ordres_travail(
         if not result:
             logger.warning(f"Planning_ordres_travail with id {id} not found for update")
             raise HTTPException(
-                status_code=404, detail="Planning_ordres_travail not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Planning_ordres_travail {id} updated successfully")
@@ -329,7 +331,7 @@ async def delete_planning_ordres_travail(
                 f"Planning_ordres_travail with id {id} not found for deletion"
             )
             raise HTTPException(
-                status_code=404, detail="Planning_ordres_travail not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Planning_ordres_travail {id} deleted successfully")

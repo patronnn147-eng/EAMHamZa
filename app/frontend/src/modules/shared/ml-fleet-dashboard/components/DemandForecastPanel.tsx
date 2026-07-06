@@ -27,7 +27,7 @@ const urgencyConfig = {
   },
 };
 
-function ForecastItemCard({ item }: { item: ForecastItem }) {
+function ForecastItemCard({ item }: Readonly<{ item: ForecastItem }>) {
   const cfg = urgencyConfig[item.urgency_label] || urgencyConfig.MONITOR;
   const isEstimated = item.consumption_data === 'estimated';
 

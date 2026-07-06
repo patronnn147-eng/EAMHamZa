@@ -25,7 +25,22 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
 
     const renderCard = (item: KanbanItem) => {
         const baseCardClasses = "flex flex-col bg-slate-800 rounded-lg border border-blue-800/50 p-3 shadow-sm hover:shadow-md transition-all group relative";
-        
+
+        let actionButtonLabel: React.ReactNode;
+        if (actionLoading === item.id.toString()) {
+            actionButtonLabel = <RefreshCcw className="w-3 h-3 animate-spin" />;
+        } else if (item.type === 'PREDICTION') {
+            actionButtonLabel = 'Create Work Order';
+        } else if (item.statut === 'DRAFT') {
+            actionButtonLabel = 'Submit for approval';
+        } else if (item.statut === 'SUBMITTED') {
+            actionButtonLabel = 'Approve (CHEFTECH)';
+        } else if (item.statut === 'APPROVED') {
+            actionButtonLabel = 'Assign to technician';
+        } else {
+            actionButtonLabel = 'Advance status';
+        }
+
         return (
             <motion.div 
                 key={item.id} 
@@ -74,14 +89,7 @@ export const PlanColumn: React.FC<PlanColumnProps> = ({
                         disabled={actionLoading === item.id.toString()}
                         className={`w-full text-[10px] h-7 ${item.type === 'PREDICTION' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`}
                     >
-                        {actionLoading === item.id.toString()
-                            ? <RefreshCcw className="w-3 h-3 animate-spin" />
-                            : item.type === 'PREDICTION'
-                                ? 'Create Work Order'
-                                : item.statut === 'DRAFT' ? 'Submit for approval'
-                                : item.statut === 'SUBMITTED' ? 'Approve (CHEFTECH)'
-                                : item.statut === 'APPROVED' ? 'Assign to technician'
-                                : 'Advance status'}
+                        {actionButtonLabel}
                     </Button>
                 </div>
             </motion.div>

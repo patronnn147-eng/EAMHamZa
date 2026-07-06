@@ -280,33 +280,41 @@ export const PredictivePanel: React.FC<PredictivePanelProps> = ({ machineId }) =
                         <div className="bg-slate-800/50/50 rounded-xl p-4 border border-blue-800/50 space-y-3">
                             <p className="text-xs font-bold text-blue-400 uppercase tracking-wider">Action recommandée</p>
 
-                            {prediction.risk_level === 'CRITICAL' || prediction.risk_level === 'HIGH' ? (
-                                <div className="space-y-3">
-                                    <p className="text-sm text-blue-100 leading-relaxed">
-                                        <span className="font-bold text-red-600">Urgent :</span> Un arrêt non planifié est imminent.
-                                        Vérifiez les ordres de travail ouverts et programmez une inspection technique sous 48h.
-                                    </p>
-                                    <Badge variant="destructive" className="animate-pulse">Inspection Prioritaire</Badge>
-                                </div>
-                            ) : prediction.risk_level === 'MEDIUM' ? (
-                                <div className="space-y-3">
-                                    <p className="text-sm text-blue-100 leading-relaxed">
-                                        <span className="font-bold text-amber-600">Vigilance :</span> La dégradation de santé s'accélère.
-                                        Assurez-vous que la maintenance préventive est à jour.
-                                    </p>
-                                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Planifier révision</Badge>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    <p className="text-sm text-blue-100 leading-relaxed">
-                                        <span className="font-bold text-emerald-600">Stable :</span> Les indicateurs sont au vert. Continuez le suivi périodique normal.
-                                    </p>
-                                    <div className="flex items-center gap-2 text-emerald-600">
-                                        <Zap className="h-4 w-4" />
-                                        <span className="text-xs font-bold">Optimisation continue</span>
+                            {(() => {
+                                if (prediction.risk_level === 'CRITICAL' || prediction.risk_level === 'HIGH') {
+                                    return (
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-blue-100 leading-relaxed">
+                                            <span className="font-bold text-red-600">Urgent :</span> Un arrêt non planifié est imminent.
+                                            Vérifiez les ordres de travail ouverts et programmez une inspection technique sous 48h.
+                                        </p>
+                                        <Badge variant="destructive" className="animate-pulse">Inspection Prioritaire</Badge>
                                     </div>
-                                </div>
-                            )}
+                                    );
+                                }
+                                if (prediction.risk_level === 'MEDIUM') {
+                                    return (
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-blue-100 leading-relaxed">
+                                            <span className="font-bold text-amber-600">Vigilance :</span> La dégradation de santé s'accélère.
+                                            Assurez-vous que la maintenance préventive est à jour.
+                                        </p>
+                                        <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100">Planifier révision</Badge>
+                                    </div>
+                                    );
+                                }
+                                return (
+                                    <div className="space-y-3">
+                                        <p className="text-sm text-blue-100 leading-relaxed">
+                                            <span className="font-bold text-emerald-600">Stable :</span> Les indicateurs sont au vert. Continuez le suivi périodique normal.
+                                        </p>
+                                        <div className="flex items-center gap-2 text-emerald-600">
+                                            <Zap className="h-4 w-4" />
+                                            <span className="text-xs font-bold">Optimisation continue</span>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>

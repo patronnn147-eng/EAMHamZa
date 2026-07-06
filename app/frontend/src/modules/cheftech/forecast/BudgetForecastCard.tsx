@@ -13,7 +13,7 @@ interface Props { data: BudgetData }
 
 const COLORS = ['#60a5fa', '#f59e0b'];
 
-export function BudgetForecastCard({ data }: Props) {
+export function BudgetForecastCard({ data }: Readonly<Props>) {
   const pieData = data.breakdown.filter(b => b.value > 0);
 
   return (

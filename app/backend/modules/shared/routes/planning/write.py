@@ -27,6 +27,8 @@ from typing import Annotated
 router = APIRouter(prefix="/api/v1/plannings", tags=["plannings"])
 logger = logging.getLogger(__name__)
 
+_PLANNING_NOT_FOUND_MSG = "Planning not found"
+
 
 @router.post("", response_model=PlanningResponse, status_code=status.HTTP_201_CREATED, responses={400: {"description": "Failed to create planning"}, 500: {"description": "Internal Server Error"}})
 async def create_planning(
@@ -214,7 +216,7 @@ async def resend_planning_emails(
     planning = await service.get_by_id(planning_id)
     if not planning:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Planning not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_PLANNING_NOT_FOUND_MSG
         )
 
     assigned_ids_result = await db.execute(
@@ -285,7 +287,7 @@ async def delete_planning(
 
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Planning not found"
+                status_code=status.HTTP_404_NOT_FOUND, detail=_PLANNING_NOT_FOUND_MSG
             )
 
         try:
@@ -327,7 +329,7 @@ async def submit_planning(
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
-        raise HTTPException(status_code=404, detail="Planning not found")
+        raise HTTPException(status_code=404, detail=_PLANNING_NOT_FOUND_MSG)
 
     # Update status to SUBMITTED
     await service.update(planning_id, {"planning_statut": PlanningStatut.SUBMITTED})
@@ -367,7 +369,7 @@ async def approve_planning(
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
-        raise HTTPException(status_code=404, detail="Planning not found")
+        raise HTTPException(status_code=404, detail=_PLANNING_NOT_FOUND_MSG)
 
     # Update status to APPROVED
     await service.update(planning_id, {"planning_statut": PlanningStatut.APPROVED})
@@ -407,7 +409,7 @@ async def reject_planning(
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
-        raise HTTPException(status_code=404, detail="Planning not found")
+        raise HTTPException(status_code=404, detail=_PLANNING_NOT_FOUND_MSG)
 
     # Update status to REJECTED
     await service.update(planning_id, {"planning_statut": PlanningStatut.REJECTED})

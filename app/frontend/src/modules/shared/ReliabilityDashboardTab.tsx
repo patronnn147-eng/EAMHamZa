@@ -25,7 +25,7 @@ import {
 } from './machines/utils/reliabilityMetrics';
 import { KpiTrendCard } from './machines/components/KpiTrendCard';
 
-function SimpleBar({ pct, colorClass }: { pct: number; colorClass: string }) {
+function SimpleBar({ pct, colorClass }: Readonly<{ pct: number; colorClass: string }>) {
     return (
         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
             <div

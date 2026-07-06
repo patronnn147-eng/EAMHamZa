@@ -18,6 +18,8 @@ down_revision: Union[str, Sequence[str], None] = "db0b16342160"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
+_VARCHAR_255 = "VARCHAR(255)"
+
 
 def upgrade() -> None:
     """Upgrade schema: standardize utilisateurs table."""
@@ -25,9 +27,9 @@ def upgrade() -> None:
 
     # Add columns only if they don't already exist (idempotent)
     for col_name, col_type in [
-        ("nom", "VARCHAR(255)"),
-        ("email", "VARCHAR(255)"),
-        ("mot_de_passe", "VARCHAR(255)"),
+        ("nom", _VARCHAR_255),
+        ("email", _VARCHAR_255),
+        ("mot_de_passe", _VARCHAR_255),
     ]:
         exists = conn.execute(
             sa.text(

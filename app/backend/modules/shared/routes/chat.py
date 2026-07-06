@@ -38,6 +38,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
+# Shared literals (deduplicated per sonar S1192)
+_INVALID_SESSION_ID_MSG = "Invalid session_id"
+_SESSION_NOT_FOUND_MSG = "Session not found"
+_DEFAULT_SESSION_TITLE = "Nouvelle conversation"
+
 
 # ---------------------------------------------------------------------------
 # Suggestions — static per role, no external import needed
@@ -133,16 +138,16 @@ async def get_history(
         try:
             sid = UUID(session_id)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid session_id")
+            raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
         session = await session_svc.get_by_id(sid, current_user.id)
         if session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
         messages = session.messages or []
         return {
             "history": messages[-limit:],
             "total": len(messages),
             "session_id": str(session.id),
-            "title": session.title or "Nouvelle conversation",
+            "title": session.title or _DEFAULT_SESSION_TITLE,
             "last_query": session.last_query,
         }
     info = await session_svc.get_session_info(current_user.id)
@@ -151,7 +156,7 @@ async def get_history(
         "history": messages[-limit:],
         "total": info["total"],
         "session_id": info["session_id"],
-        "title": info.get("title", "Nouvelle conversation"),
+        "title": info.get("title", _DEFAULT_SESSION_TITLE),
         "last_query": info["last_query"],
     }
 
@@ -212,11 +217,11 @@ async def delete_session(
     try:
         sid = UUID(session_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid session_id")
+        raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
     session_svc = ChatSessionService(db)
     ok = await session_svc.delete(sid, current_user.id)
     if not ok:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
     return None
 
 
@@ -231,11 +236,11 @@ async def rename_session(
     try:
         sid = UUID(session_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid session_id")
+        raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
     session_svc = ChatSessionService(db)
     s = await session_svc.rename(sid, current_user.id, payload.title)
     if s is None:
-        raise HTTPException(status_code=404, detail="Session not found")
+        raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
     return {
         "id": str(s.id),
         "title": s.title,
@@ -277,10 +282,10 @@ async def ai_chat(
         try:
             sid = UUID(request.session_id)
         except ValueError:
-            raise HTTPException(status_code=400, detail="Invalid session_id")
+            raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
         target_session = await session_svc.get_by_id(sid, current_user.id)
         if target_session is None:
-            raise HTTPException(status_code=404, detail="Session not found")
+            raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
     else:
         # Backward-compat: no session_id → use user's most-recent (or create one)
         target_session = await session_svc.get_or_create(current_user.id)
@@ -541,7 +546,7 @@ async def ai_chat(
         ),
         sources=sources,
         session_id=str(target_session.id),
-        session_title=target_session.title or "Nouvelle conversation",
+        session_title=target_session.title or _DEFAULT_SESSION_TITLE,
         ml_context_used=ml_context_injected,
     )
 

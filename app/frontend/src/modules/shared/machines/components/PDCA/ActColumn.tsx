@@ -18,7 +18,16 @@ export const ActColumn: React.FC<ActColumnProps> = ({
 }) => {
     const renderCard = (item: KanbanItem) => {
         const baseCardClasses = "flex flex-col bg-slate-800 rounded-lg border border-blue-800/50 p-3 shadow-sm hover:shadow-md transition-all group relative";
-        
+
+        let retrainButtonLabel: React.ReactNode;
+        if (actionLoading === 'retrain') {
+            retrainButtonLabel = <RefreshCcw className="w-3 h-3 animate-spin" />;
+        } else if (item.implementationStatus === 'RETRAINED') {
+            retrainButtonLabel = '✓ Done';
+        } else {
+            retrainButtonLabel = 'Retrain AI';
+        }
+
         return (
             <motion.div 
                 key={item.id} 
@@ -69,11 +78,7 @@ export const ActColumn: React.FC<ActColumnProps> = ({
                             className="flex-1 text-[9px] h-7 bg-purple-700 hover:bg-purple-800 text-white disabled:bg-slate-700"
                             title="Trigger ML retraining with validated feedback"
                         >
-                            {actionLoading === 'retrain'
-                                ? <RefreshCcw className="w-3 h-3 animate-spin" />
-                                : item.implementationStatus === 'RETRAINED'
-                                    ? '✓ Done'
-                                    : 'Retrain AI'}
+                            {retrainButtonLabel}
                         </Button>
                     </div>
                 </div>

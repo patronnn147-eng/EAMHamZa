@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from schemas.pagination import PaginatedResponse
 from datetime import datetime, timezone
 import logging
@@ -23,6 +23,9 @@ from schemas.stock import ConsumedPieceItem, ConsumedPieceDirect, PendingPieceDi
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
+
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+_STATUT_TERMINE = "TERMINÉ"
 
 
 class WorkOrderResponse(BaseModel):
@@ -82,10 +85,10 @@ class WorkOrderCompletePayload(BaseModel):
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse], responses={500: {"description": "Internal server error"}})
 async def get_my_work_orders(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """TECHNICIEN: List work orders assigned to this technician"""
     try:
@@ -151,14 +154,14 @@ async def get_my_work_orders(
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
     except Exception as e:
         logger.exception(f"Error fetching work orders for technician: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/work-orders/{order_id}/start", responses={400: {"description": "Only pending/assigned orders can be started"}, 403: {"description": "You can only start work orders assigned to you"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def start_work_order(
     order_id: int,
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """TECHNICIEN: Start an assigned work order"""
     try:
@@ -236,15 +239,15 @@ async def start_work_order(
     except Exception as e:
         await db.rollback()
         logger.exception(f"Error starting work order: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'IN_PROGRESS' orders can be completed"}, 403: {"description": "You can only complete work orders assigned to you"}, 404: {"description": "Work order not found"}, 500: {"description": "Échec consommation directe; Internal server error"}})
 async def complete_work_order(
     order_id: int,
     payload: WorkOrderCompletePayload,
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """TECHNICIEN: Complete a work order with full PDCA data"""
     try:
@@ -316,7 +319,7 @@ async def complete_work_order(
         )
         intervention = int_result.scalar_one_or_none()
         if intervention:
-            intervention.statut = "TERMINÉ"
+            intervention.statut = _STATUT_TERMINE
             intervention.rapport = payload.rapport
             if not intervention.date_debut:
                 intervention.date_debut = wo.date_debut or now
@@ -508,7 +511,7 @@ async def complete_work_order(
                 entity_type=AuditEntityType.WORK_ORDER,
                 entity_id=order_id,
                 old_values={"statut": "EN_COURS"},
-                new_values={"statut": "TERMINÉ", "rapport": payload.rapport},
+                new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=wo.titre,
@@ -518,10 +521,10 @@ async def complete_work_order(
                 "Audit log failed for technician complete work order %s", order_id
             )
 
-        return {"message": "Work order completed via PDCA form", "statut": "TERMINÉ"}
+        return {"message": "Work order completed via PDCA form", "statut": _STATUT_TERMINE}
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
         logger.exception(f"Error completing work order: {str(e)}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

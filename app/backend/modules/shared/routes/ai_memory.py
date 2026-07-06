@@ -16,6 +16,8 @@ from services.ai_memory import AIMemoryService
 
 router = APIRouter(prefix="/api/v1/ai/memory", tags=["AI Memory"])
 
+_MEMORY_NOT_FOUND_MSG = "Memory not found"
+
 
 @router.post("", response_model=AIMemoryResponse, status_code=201)
 async def create_memory(
@@ -68,7 +70,7 @@ async def get_memory(
     if not memory:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Memory not found",
+            detail=_MEMORY_NOT_FOUND_MSG,
         )
     # Only allow users to view their own memories
     if memory.utilisateur_id != current_user.id:
@@ -92,7 +94,7 @@ async def update_memory(
     if not memory:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Memory not found",
+            detail=_MEMORY_NOT_FOUND_MSG,
         )
     # Only allow users to update their own memories
     if memory.utilisateur_id != current_user.id:
@@ -114,7 +116,7 @@ async def mark_success(
     memory = await service.get_by_id(str(memory_id))
     if not memory or memory.utilisateur_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_MEMORY_NOT_FOUND_MSG
         )
     return await service.increment_success(str(memory_id))
 
@@ -130,7 +132,7 @@ async def mark_failure(
     memory = await service.get_by_id(str(memory_id))
     if not memory or memory.utilisateur_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="Memory not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_MEMORY_NOT_FOUND_MSG
         )
     return await service.increment_failure(str(memory_id))
 
@@ -147,7 +149,7 @@ async def delete_memory(
     if not memory:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Memory not found",
+            detail=_MEMORY_NOT_FOUND_MSG,
         )
     # Only allow users to delete their own memories
     if memory.utilisateur_id != current_user.id:

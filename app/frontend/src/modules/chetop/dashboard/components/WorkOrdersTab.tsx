@@ -19,7 +19,19 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, onSele
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {workOrders.map((order) => (
+          {workOrders.map((order) => {
+            let statutLabel: string;
+            if (order.statut === 'EN_ATTENTE') {
+              statutLabel = 'En attente';
+            } else if (order.statut === 'VALIDE') {
+              statutLabel = 'Validé';
+            } else if (order.statut === 'REJETE') {
+              statutLabel = 'Rejeté';
+            } else {
+              statutLabel = order.statut.replace('_', ' ');
+            }
+
+            return (
             <div key={order.id} className="border rounded-lg p-4 hover:bg-slate-800/50">
               <div className="flex justify-between items-start mb-2">
                 <div className="flex-1">
@@ -31,10 +43,7 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, onSele
                     >
                       {getStatusIcon(order.statut)}
                       <span>
-                        {order.statut === 'EN_ATTENTE' ? 'En attente' : 
-                         order.statut === 'VALIDE' ? 'Validé' : 
-                         order.statut === 'REJETE' ? 'Rejeté' : 
-                         order.statut.replace('_', ' ')}
+                        {statutLabel}
                       </span>
                     </div>
                   </div>
@@ -55,7 +64,8 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({ workOrders, onSele
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

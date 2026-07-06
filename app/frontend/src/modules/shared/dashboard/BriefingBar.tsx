@@ -4,7 +4,7 @@ import { client } from '@/lib/api';
 import { WhyButton } from '@/modules/shared/explain/WhyButton';
 import { buildBriefingWhy, BriefingFacts } from '@/modules/shared/explain/producers/buildBriefingWhy';
 
-export function BriefingBar({ site = 'all' }: { site?: string }) {
+export function BriefingBar({ site = 'all' }: Readonly<{ site?: string }>) {
   const [text, setText] = useState<string | null>(null);
   const [facts, setFacts] = useState<BriefingFacts | null>(null);
   const [loading, setLoading] = useState(true);

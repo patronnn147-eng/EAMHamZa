@@ -16,12 +16,12 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   ANNULÉ: { label: 'Annulé', className: 'bg-slate-100 text-slate-600 border-slate-300' },
 };
 
-export function PriorityBadge({ priorite }: { priorite: string }) {
+export function PriorityBadge({ priorite }: Readonly<{ priorite: string }>) {
   const config = PRIORITY_CONFIG[priorite] ?? { label: priorite, className: 'bg-gray-100 text-gray-700' };
   return <Badge className={config.className}>{config.label}</Badge>;
 }
 
-export function StatusBadge({ statut }: { statut: string }) {
+export function StatusBadge({ statut }: Readonly<{ statut: string }>) {
   const config = STATUS_CONFIG[statut] ?? { label: statut, className: 'bg-gray-100 text-gray-700' };
   return <Badge className={config.className}>{config.label}</Badge>;
 }

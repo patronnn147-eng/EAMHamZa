@@ -107,11 +107,11 @@ function parseLists(content: string): string[] | null {
 
 // ─── Component: RenderedMessage ──────────────────────────────────────────────
 
-function RenderedMessage({ content, toolCalls, sources }: {
+function RenderedMessage({ content, toolCalls, sources }: Readonly<{
   content: string;
   toolCalls?: ToolCall[];
   sources?: Source[];
-}) {
+}>) {
   const [showSources, setShowSources] = useState(false);
 
   // Try markdown table first
@@ -121,7 +121,9 @@ function RenderedMessage({ content, toolCalls, sources }: {
   return (
     <div className="space-y-3">
       {/* Main content */}
-      {tableData ? (
+      {(() => {
+      if (tableData) {
+      return (
         <div className="overflow-x-auto">
           <div className="inline-block min-w-full">
             <table className="w-full text-sm border-collapse">
@@ -148,7 +150,10 @@ function RenderedMessage({ content, toolCalls, sources }: {
             </table>
           </div>
         </div>
-      ) : listItems ? (
+      );
+      }
+      if (listItems) {
+      return (
         <ul className="space-y-1.5 pl-4">
           {listItems.map((item, i) => (
             <li key={i} className="flex items-start gap-2 text-sm">
@@ -157,9 +162,12 @@ function RenderedMessage({ content, toolCalls, sources }: {
             </li>
           ))}
         </ul>
-      ) : (
+      );
+      }
+      return (
         <p className="text-sm whitespace-pre-wrap leading-relaxed">{content}</p>
-      )}
+      );
+      })()}
 
       {/* Sources panel */}
       {sources && sources.length > 0 && (
@@ -196,17 +204,21 @@ function RenderedMessage({ content, toolCalls, sources }: {
                     <tbody>
                       {src.result.slice(0, 5).map((row: any, ri: number) => (
                         <tr key={ri} className="border-b last:border-0 hover:bg-muted/20">
-                          {Object.values(row).map((val: any, vi: number) => (
+                          {Object.values(row).map((val: any, vi: number) => {
+                            let cellContent: React.ReactNode;
+                            if (val === null || val === undefined) {
+                              cellContent = <span className="text-muted-foreground">—</span>;
+                            } else if (typeof val === 'object') {
+                              cellContent = JSON.stringify(val).slice(0, 40);
+                            } else {
+                              cellContent = String(val);
+                            }
+                            return (
                             <td key={vi} className="px-2 py-1 first:last:rounded-l-md last:rounded-r-md">
-                              {val === null || val === undefined ? (
-                                <span className="text-muted-foreground">—</span>
-                              ) : typeof val === 'object' ? (
-                                JSON.stringify(val).slice(0, 40)
-                              ) : (
-                                String(val)
-                              )}
+                              {cellContent}
                             </td>
-                          ))}
+                            );
+                          })}
                         </tr>
                       ))}
                     </tbody>

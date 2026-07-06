@@ -22,6 +22,8 @@ router = APIRouter(
     prefix="/api/v1/inventory/reservations", tags=["inventory-reservations"]
 )
 
+_INTERNAL_SERVER_ERROR_MSG = "Internal server error"
+
 ROLES_ADMIN = ["ADMIN", "CHEFTECH"]
 
 
@@ -76,7 +78,7 @@ async def list_active_reservations(
         ]
     except Exception as e:
         logger.exception(f"list_active_reservations failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/release/{intervention_id}", status_code=200, responses={500: {"description": "Internal server error"}})
@@ -104,7 +106,7 @@ async def release_intervention_reservations(
             f"release_intervention_reservations failed for itv {intervention_id}: {e}",
             exc_info=True,
         )
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
 @router.post("/release-expired", status_code=200, responses={500: {"description": "Internal server error"}})
@@ -123,4 +125,4 @@ async def release_expired_now(
         return {"released_count": count}
     except Exception as e:
         logger.exception(f"release_expired_now failed: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)

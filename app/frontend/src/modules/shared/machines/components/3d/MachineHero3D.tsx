@@ -20,7 +20,7 @@ interface HeroSceneProps {
   wrapperRef: React.RefObject<HTMLDivElement>;
 }
 
-function HeroScene({ healthScore, riskLevel, wrapperRef }: HeroSceneProps) {
+function HeroScene({ healthScore, riskLevel, wrapperRef }: Readonly<HeroSceneProps>) {
   const { camera } = useThree();
 
   useEffect(() => {
@@ -64,7 +64,7 @@ function HeroScene({ healthScore, riskLevel, wrapperRef }: HeroSceneProps) {
   );
 }
 
-export function MachineHero3D({ machine, mlPrediction }: MachineHero3DProps) {
+export function MachineHero3D({ machine, mlPrediction }: Readonly<MachineHero3DProps>) {
   const wrapperRef = useRef<HTMLDivElement>(null!);
 
   if (!machine) return null;

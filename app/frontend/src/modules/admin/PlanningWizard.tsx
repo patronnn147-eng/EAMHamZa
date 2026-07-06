@@ -114,11 +114,11 @@ function StepSidebar({
   currentStep,
   completedSteps,
   onJump,
-}: {
+}: Readonly<{
   currentStep: number;
   completedSteps: Set<number>;
   onJump: (step: number) => void;
-}) {
+}>) {
   return (
     <div className="w-60 flex-shrink-0 border-r border-slate-700 bg-slate-900 flex flex-col py-8 px-4 gap-1">
       <p className="text-xs font-semibold uppercase tracking-wider text-blue-400 mb-4 px-2">
@@ -191,7 +191,7 @@ export default function PlanningWizard({
   onClose,
   planning,
   onSuccess,
-}: PlanningWizardProps) {
+}: Readonly<PlanningWizardProps>) {
   const { toast } = useToast();
 
   const [currentStep, setCurrentStep] = useState(1);
@@ -964,11 +964,11 @@ export default function PlanningWizard({
                   className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Bell className="h-4 w-4" />
-                  {submitting
-                    ? 'Enregistrement...'
-                    : planning
-                    ? 'Enregistrer & Notifier'
-                    : 'Créer & Notifier'}
+                  {(() => {
+                    if (submitting) return 'Enregistrement...';
+                    if (planning) return 'Enregistrer & Notifier';
+                    return 'Créer & Notifier';
+                  })()}
                 </Button>
               ) : (
                 <Button

@@ -14,6 +14,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/inventory/pieces", tags=["inventory-pieces"])
 
+_NOT_FOUND_MSG = "Piece not found"
+
 
 # ---------- Response Schemas ----------
 class PieceListResponse(BaseModel):
@@ -64,7 +66,7 @@ async def get_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)])
     try:
         result = await service.get_by_id(piece_id)
         if not result:
-            raise HTTPException(status_code=404, detail="Piece not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
         return result
     except HTTPException:
         raise
@@ -101,7 +103,7 @@ async def update_piece(
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
         result = await service.update(piece_id, update_dict)
         if not result:
-            raise HTTPException(status_code=404, detail="Piece not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
         return result
     except HTTPException:
         raise
@@ -119,7 +121,7 @@ async def delete_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db
     try:
         success = await service.delete(piece_id)
         if not success:
-            raise HTTPException(status_code=404, detail="Piece not found")
+            raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
         return {"message": "Piece deleted successfully", "id": piece_id}
     except HTTPException:
         raise

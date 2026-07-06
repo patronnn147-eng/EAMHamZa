@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -18,6 +18,8 @@ from models.utilisateurs import Utilisateurs, UserRole, UserShiftType, UserStatu
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/admin/users", tags=["admin-users"])
+
+_USER_NOT_FOUND_MSG = "User not found"
 
 
 class AdminUserResponse(BaseModel):
@@ -52,10 +54,10 @@ async def _require_admin(current_user: Utilisateurs) -> None:
 
 @router.get("", response_model=PaginatedResponse[AdminUserResponse])
 async def list_users(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 10,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await _require_admin(current_user)
 
@@ -97,8 +99,8 @@ async def list_users(
 async def update_user_status(
     user_id: int,
     data: UpdateUserStatusRequest,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await _require_admin(current_user)
 
@@ -106,7 +108,7 @@ async def update_user_status(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_USER_NOT_FOUND_MSG
         )
 
     user.status = data.status
@@ -132,8 +134,8 @@ async def update_user_status(
 async def update_user_shift_type(
     user_id: int,
     data: UpdateUserShiftRequest,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await _require_admin(current_user)
 
@@ -141,7 +143,7 @@ async def update_user_shift_type(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_USER_NOT_FOUND_MSG
         )
 
     user.shift_type = data.shift_type
@@ -166,8 +168,8 @@ async def update_user_shift_type(
 @router.delete("/{user_id}")
 async def delete_user(
     user_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     await _require_admin(current_user)
 
@@ -181,7 +183,7 @@ async def delete_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail=_USER_NOT_FOUND_MSG
         )
 
     await db.delete(user)

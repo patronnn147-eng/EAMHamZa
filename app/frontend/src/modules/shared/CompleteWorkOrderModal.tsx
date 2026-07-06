@@ -45,7 +45,7 @@ const STEPS = [
   { id: 5, label: 'Preuves' },
 ];
 
-function StepIndicator({ current }: { current: number }) {
+function StepIndicator({ current }: Readonly<{ current: number }>) {
   return (
     <div className="flex items-center w-full mb-2">
       {STEPS.map((s, i) => {
@@ -85,7 +85,7 @@ function StepIndicator({ current }: { current: number }) {
   );
 }
 
-export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machineId, onSuccess }: CompleteWorkOrderModalProps) {
+export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machineId, onSuccess }: Readonly<CompleteWorkOrderModalProps>) {
   const { user } = useAuth();
   const { toast } = useToast();
   const apiBase = import.meta.env.VITE_API_BASE_URL || '';

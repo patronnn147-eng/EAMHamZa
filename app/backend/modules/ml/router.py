@@ -38,6 +38,9 @@ _MICRO_MODELS = str(_Path(__file__).resolve().parents[3] / "ml-microservice" / "
 
 router = APIRouter(prefix="/api/v1/ml", tags=["Machine Learning"])
 
+_MACHINE_NOT_FOUND_MSG = "Machine non trouvée"
+_INVALID_HORIZON_MSG = "horizon must be 7, 30 or 60"
+
 # Simple in-memory cache for fleet dashboard
 _fleet_cache = {
     "data": None,
@@ -113,7 +116,7 @@ async def get_unified_health(
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
     if not machine:
-        raise HTTPException(status_code=404, detail="Machine non trouvée")
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     interventions_query = select(Ordres_intervention).where(
         Ordres_intervention.machine_id == machine_id
@@ -322,7 +325,7 @@ async def get_machine_prediction(
     machine = result.scalar_one_or_none()
 
     if not machine:
-        raise HTTPException(status_code=404, detail="Machine non trouvée")
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     # 2. Fetch intervention history for this machine
     interventions_query = select(Ordres_intervention).where(
@@ -444,7 +447,7 @@ async def get_failure_probability(
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
     if not machine:
-        raise HTTPException(status_code=404, detail="Machine non trouvée")
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     # Delegate to ML microservice
     try:
@@ -490,7 +493,7 @@ async def get_failure_type(
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
     if not machine:
-        raise HTTPException(status_code=404, detail="Machine non trouvée")
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     # Delegate to ML microservice
     try:
@@ -820,7 +823,7 @@ async def update_machine_telemetry(
     result = await db.execute(select(Machines).where(Machines.id == machine_id))
     machine = result.scalar_one_or_none()
     if not machine:
-        raise HTTPException(status_code=404, detail="Machine non trouvée")
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     entry = MachineTelemetry(
         machine_id=machine_id,
@@ -1352,7 +1355,7 @@ async def get_forecast_downtime(
     """Per-machine downtime forecast. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
     if horizon not in _VALID_HORIZONS:
-        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+        raise HTTPException(400, detail=_INVALID_HORIZON_MSG)
     from .services.downtime_forecast import compute_fleet_downtime
 
     return await compute_fleet_downtime(db, horizon_days=horizon)
@@ -1367,7 +1370,7 @@ async def get_forecast_labor(
     """Labor demand vs capacity. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
     if horizon not in _VALID_HORIZONS:
-        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+        raise HTTPException(400, detail=_INVALID_HORIZON_MSG)
     from .services.downtime_forecast import compute_fleet_downtime
     from .services.labor_forecast import forecast_labor
     from models.utilisateurs import Utilisateurs as U
@@ -1397,7 +1400,7 @@ async def get_forecast_budget(
     """Cost breakdown. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
     if horizon not in _VALID_HORIZONS:
-        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+        raise HTTPException(400, detail=_INVALID_HORIZON_MSG)
     from .services.downtime_forecast import compute_fleet_downtime
     from .services.labor_forecast import forecast_labor
     from .services.budget_forecast import forecast_budget
@@ -1433,7 +1436,7 @@ async def post_optimize_schedule(
     """Trigger OR-Tools schedule optimizer. CHEFTECH + ADMIN only. Cached 30 min."""
     _require_planner(current_user)
     if horizon not in _VALID_HORIZONS:
-        raise HTTPException(400, detail="horizon must be 7, 30 or 60")
+        raise HTTPException(400, detail=_INVALID_HORIZON_MSG)
     from .services.schedule_optimizer import compute_schedule
 
     return await compute_schedule(db, horizon_days=horizon)

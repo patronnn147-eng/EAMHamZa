@@ -81,7 +81,7 @@ export function DirectConsumeSelector({
   pendingRows,
   onConsumedChange,
   onPendingChange,
-}: DirectConsumeSelectorProps) {
+}: Readonly<DirectConsumeSelectorProps>) {
   const [search, setSearch] = useState('');
   const { data, loading } = useMachinePieces(machineId, search.length >= 2 ? search : undefined);
 
@@ -363,7 +363,7 @@ interface PickerSectionProps {
   children: React.ReactNode;
 }
 
-function PickerSection({ icon, label, count, loading, children }: PickerSectionProps) {
+function PickerSection({ icon, label, count, loading, children }: Readonly<PickerSectionProps>) {
   return (
     <div className="relative rounded-md border border-blue-500/20 bg-slate-950/40 overflow-hidden">
       <div className="flex items-center gap-2 px-3 py-1.5 border-b border-blue-500/10 bg-slate-900/60">
@@ -388,7 +388,7 @@ interface PieceRowProps {
   onAdd: () => void;
 }
 
-function PieceRow({ piece, selected, onAdd }: PieceRowProps) {
+function PieceRow({ piece, selected, onAdd }: Readonly<PieceRowProps>) {
   const stockQty = Number(piece.stock_quantity ?? 0);
   const avail = Number(piece.available_quantity ?? stockQty);
   const reserved = Number(piece.reserved_quantity ?? 0);
@@ -411,6 +411,19 @@ function PieceRow({ piece, selected, onAdd }: PieceRowProps) {
     rowStateClass = 'hover:bg-blue-500/5 cursor-pointer';
     refStateClass = 'text-blue-400/80';
     nameStateClass = 'text-blue-100';
+  }
+
+  let trailingIndicator: React.ReactNode;
+  if (selected) {
+    trailingIndicator = (
+      <span className="text-emerald-400/60 font-mono text-[10px] uppercase tracking-wider">sélectionnée</span>
+    );
+  } else if (rupture) {
+    trailingIndicator = (
+      <span className="text-red-400/60 font-mono text-[10px] uppercase tracking-wider">indispo</span>
+    );
+  } else {
+    trailingIndicator = <Plus className="h-3.5 w-3.5 text-blue-400/60" />;
   }
 
   return (
@@ -443,13 +456,7 @@ function PieceRow({ piece, selected, onAdd }: PieceRowProps) {
           </>
         )}
       </span>
-      {selected ? (
-        <span className="text-emerald-400/60 font-mono text-[10px] uppercase tracking-wider">sélectionnée</span>
-      ) : rupture ? (
-        <span className="text-red-400/60 font-mono text-[10px] uppercase tracking-wider">indispo</span>
-      ) : (
-        <Plus className="h-3.5 w-3.5 text-blue-400/60" />
-      )}
+      {trailingIndicator}
     </button>
   );
 }

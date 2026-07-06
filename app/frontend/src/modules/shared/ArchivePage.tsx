@@ -354,7 +354,7 @@ interface CardProps {
   onReactivate: () => void;
 }
 
-function ArchivedItemCard({ item, module, canReactivate, reactivating, onReactivate }: CardProps) {
+function ArchivedItemCard({ item, module, canReactivate, reactivating, onReactivate }: Readonly<CardProps>) {
   const dueColumnKey = MODULE_META[module].dueColumn as keyof ArchivedRow;
   const dueDateRaw = item[dueColumnKey] as string | null | undefined;
   const dueDate = dueDateRaw ? new Date(dueDateRaw) : null;

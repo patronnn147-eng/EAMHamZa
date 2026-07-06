@@ -45,7 +45,7 @@ type Step = 'review' | 'creating' | 'created' | 'approving' | 'approved' | 'reje
 
 export function ProcurementRecommendationModal({
     open, onOpenChange, machineId, machineName, partsDemand, onDraftCreated,
-}: Props) {
+}: Readonly<Props>) {
     const [step, setStep]         = useState<Step>('review');
     const [woId, setWoId]         = useState<number | null>(null);
     const [errorMsg, setErrorMsg] = useState('');

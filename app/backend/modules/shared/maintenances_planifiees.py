@@ -18,6 +18,8 @@ router = APIRouter(
     prefix="/api/v1/entities/maintenances_planifiees", tags=["maintenances_planifiees"]
 )
 
+_NOT_FOUND_MSG = "Maintenances_planifiees not found"
+
 
 # ---------- Pydantic Schemas ----------
 class Maintenances_planifieesData(BaseModel):
@@ -187,7 +189,7 @@ async def get_maintenances_planifiees(
         if not result:
             logger.warning(f"Maintenances_planifiees with id {id} not found")
             raise HTTPException(
-                status_code=404, detail="Maintenances_planifiees not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         return result
@@ -306,7 +308,7 @@ async def update_maintenances_planifiees(
         if not result:
             logger.warning(f"Maintenances_planifiees with id {id} not found for update")
             raise HTTPException(
-                status_code=404, detail="Maintenances_planifiees not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Maintenances_planifiees {id} updated successfully")
@@ -371,7 +373,7 @@ async def delete_maintenances_planifiees(
                 f"Maintenances_planifiees with id {id} not found for deletion"
             )
             raise HTTPException(
-                status_code=404, detail="Maintenances_planifiees not found"
+                status_code=404, detail=_NOT_FOUND_MSG
             )
 
         logger.info(f"Maintenances_planifiees {id} deleted successfully")

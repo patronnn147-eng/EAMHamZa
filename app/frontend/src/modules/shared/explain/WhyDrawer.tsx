@@ -13,7 +13,7 @@ const TONE: Record<WhyTone, string> = {
 };
 
 export function WhyDrawer({ open, onOpenChange, payload }:
-  { open: boolean; onOpenChange: (o: boolean) => void; payload: WhyPayload | null }) {
+  Readonly<{ open: boolean; onOpenChange: (o: boolean) => void; payload: WhyPayload | null }>) {
   const [plain, setPlain] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   if (!payload) return null;

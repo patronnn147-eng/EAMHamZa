@@ -85,12 +85,12 @@ function MonthCalendar({
     startDate,
     endDate,
     typeColor,
-}: {
+}: Readonly<{
     viewMonth: Date;
     startDate: Date;
     endDate: Date;
     typeColor: string;
-}) {
+}>) {
     const monthStart = startOfMonth(viewMonth);
     const monthEnd = endOfMonth(viewMonth);
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });

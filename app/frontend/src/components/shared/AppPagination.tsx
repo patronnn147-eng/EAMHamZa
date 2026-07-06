@@ -15,7 +15,7 @@ interface AppPaginationProps {
   onPageChange: (page: number) => void;
 }
 
-export function AppPagination({ currentPage, totalPages, onPageChange }: AppPaginationProps) {
+export function AppPagination({ currentPage, totalPages, onPageChange }: Readonly<AppPaginationProps>) {
   if (totalPages <= 1) return null;
 
   const handlePrevious = (e: React.MouseEvent) => {

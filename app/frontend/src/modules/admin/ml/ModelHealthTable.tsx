@@ -55,17 +55,28 @@ export function ModelHealthTable() {
             <tr><th className="text-left px-3 py-2">Modèle</th><th className="text-left px-3 py-2">Synchro</th><th className="text-left px-3 py-2">Dernier entraînement</th></tr>
           </thead>
           <tbody>
-            {h.models.map((m) => (
+            {h.models.map((m) => {
+              const inSync = m.in_backend && m.in_micro && m.hash_match;
+
+              let mismatchReason = 'diffère';
+              if (!m.in_micro) {
+                mismatchReason = 'manquant côté service';
+              } else if (!m.in_backend) {
+                mismatchReason = 'manquant côté moteur';
+              }
+
+              return (
               <tr key={m.key} className="border-t border-slate-800">
                 <td className="px-3 py-2 text-slate-100">{m.label}</td>
                 <td className="px-3 py-2">
-                  {m.in_backend && m.in_micro && m.hash_match
+                  {inSync
                     ? <span className="text-emerald-400 inline-flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> à jour</span>
-                    : <span className="text-red-400 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {!m.in_micro ? 'manquant côté service' : !m.in_backend ? 'manquant côté moteur' : 'diffère'}</span>}
+                    : <span className="text-red-400 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {mismatchReason}</span>}
                 </td>
                 <td className="px-3 py-2 text-blue-300">{ago(m.mtime_backend)}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

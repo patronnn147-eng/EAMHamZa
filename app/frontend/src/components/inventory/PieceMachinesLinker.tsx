@@ -9,7 +9,7 @@
  * Already-linked machines are pre-checked. Clicking a checkbox immediately
  * fires the link/unlink endpoint (optimistic update with rollback on error).
  */
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Loader2, Link2, X, AlertTriangle, Cog, Filter, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -55,7 +55,7 @@ export function PieceMachinesLinker({
   pieceId,
   pieceName,
   pieceReference,
-}: PieceMachinesLinkerProps) {
+}: Readonly<PieceMachinesLinkerProps>) {
   const { toast } = useToast();
   const [scopeMode, setScopeMode] = useState<'in-scope' | 'all'>('in-scope');
   const [machines, setMachines] = useState<MachineEntry[]>([]);
@@ -266,6 +266,18 @@ export function PieceMachinesLinker({
                 {filtered.map((m) => {
                   const linked = linkedIds.has(m.id);
                   const busy = busyIds.has(m.id);
+
+                  let toggleIcon: ReactNode = null;
+                  if (busy) {
+                    toggleIcon = <Loader2 className="h-3 w-3 animate-spin text-white" />;
+                  } else if (linked) {
+                    toggleIcon = (
+                      <svg viewBox="0 0 20 20" fill="white" className="h-3 w-3">
+                        <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4L8.5 12 15.3 5.3a1 1 0 0 1 1.4 0Z" />
+                      </svg>
+                    );
+                  }
+
                   return (
                     <li
                       key={m.id}
@@ -284,13 +296,7 @@ export function PieceMachinesLinker({
                         } ${busy ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
                         aria-label={linked ? `Retirer le lien à ${m.nom}` : `Lier à ${m.nom}`}
                       >
-                        {busy ? (
-                          <Loader2 className="h-3 w-3 animate-spin text-white" />
-                        ) : linked ? (
-                          <svg viewBox="0 0 20 20" fill="white" className="h-3 w-3">
-                            <path fillRule="evenodd" d="M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4L8.5 12 15.3 5.3a1 1 0 0 1 1.4 0Z" />
-                          </svg>
-                        ) : null}
+                        {toggleIcon}
                       </button>
 
                       <Cog className="h-3.5 w-3.5 text-blue-400/60 shrink-0" />

@@ -244,20 +244,26 @@ const AdminItvApprovals: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-20 text-blue-400 italic font-medium">
-                    Récupération des demandes...
-                  </TableCell>
-                </TableRow>
-              ) : filteredRequests.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-20 text-blue-400 font-bold tracking-tight">
-                    Aucune demande en attente
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredRequests.map((req) => (
+              {(() => {
+                if (loading) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-20 text-blue-400 italic font-medium">
+                        Récupération des demandes...
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                if (filteredRequests.length === 0) {
+                  return (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-20 text-blue-400 font-bold tracking-tight">
+                        Aucune demande en attente
+                      </TableCell>
+                    </TableRow>
+                  );
+                }
+                return filteredRequests.map((req) => (
                   <React.Fragment key={req.id}>
                     <TableRow className="hover:bg-white/50 transition-all group">
                       <TableCell className="px-2">
@@ -328,8 +334,8 @@ const AdminItvApprovals: React.FC = () => {
                       </TableRow>
                     )}
                   </React.Fragment>
-                ))
-              )}
+                ));
+              })()}
             </TableBody>
           </Table>
         </div>
@@ -465,7 +471,7 @@ interface PartsDetailPanelProps {
   interventionId: number;
 }
 
-function PartsDetailPanel({ interventionId }: PartsDetailPanelProps) {
+function PartsDetailPanel({ interventionId }: Readonly<PartsDetailPanelProps>) {
   const { data, loading, error } = useInterventionParts(interventionId);
 
   if (loading) {
@@ -533,7 +539,7 @@ function PartsDetailPanel({ interventionId }: PartsDetailPanelProps) {
   );
 }
 
-function ReservationStatusBadge({ approved, reserved }: { approved: boolean | null; reserved: string }) {
+function ReservationStatusBadge({ approved, reserved }: Readonly<{ approved: boolean | null; reserved: string }>) {
   const r = Number(reserved);
   if (r > 0) {
     return (
