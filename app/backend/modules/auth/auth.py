@@ -15,13 +15,14 @@ from core.auth import (
 )
 from models.utilisateurs import Utilisateurs
 from schemas.auth import UserRegister, UserLogin, TokenResponse, UserResponse
+from typing import Annotated
 
 # Remove prefix from router - it will be added by main.py's auto-discovery
 router = APIRouter(tags=["authentication"])
 
 
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
+async def register(user_data: UserRegister, db: Annotated[AsyncSession, Depends(get_db)]):
     """
     Register a new user - Account will be pending until admin approval
 
@@ -80,7 +81,7 @@ async def register(user_data: UserRegister, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
+async def login(credentials: UserLogin, db: Annotated[AsyncSession, Depends(get_db)]):
     """
     Login with email and password
 
@@ -143,7 +144,7 @@ async def login(credentials: UserLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/me", response_model=UserResponse)
-async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
+async def get_me(current_user: Annotated[Utilisateurs, Depends(get_current_user)]):
     """
     Get current authenticated user information
     """
@@ -165,7 +166,7 @@ async def get_me(current_user: Utilisateurs = Depends(get_current_user)):
 
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(db: AsyncSession = Depends(get_db)):
+async def refresh_token(db: Annotated[AsyncSession, Depends(get_db)]):
     """
     Refresh access token using refresh token from cookie
     """

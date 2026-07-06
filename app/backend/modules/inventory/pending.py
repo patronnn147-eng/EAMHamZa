@@ -1,7 +1,7 @@
 """Pending pieces router — submission + admin review queue."""
 
 import logging
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,10 +34,10 @@ ROLES_REVIEW = ["ADMIN", "CHEFTECH"]
 
 @router.post("", response_model=PendingPieceResponse, status_code=201)
 async def submit_pending_piece(
-    data: PendingPieceItem,
-    intervention_id: Optional[int] = Query(None, description="Link to intervention"),
-    current_user: Utilisateurs = Depends(require_role(ROLES_SUBMIT)),
-    db: AsyncSession = Depends(get_db),
+    *, data: PendingPieceItem,
+    intervention_id: Annotated[Optional[int], Query(description="Link to intervention")] = None,
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_SUBMIT))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Submit an uncatalogued piece during an intervention.
 
@@ -104,13 +104,13 @@ async def submit_pending_piece(
 
 @router.get("", response_model=PaginatedResponse[PendingPieceResponse])
 async def list_pending(
-    status: Optional[str] = Query(
-        "PENDING_REVIEW", description="Filter by status (or 'ALL')"
-    ),
-    page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=200),
-    _current_user: Utilisateurs = Depends(require_role(ROLES_REVIEW)),
-    db: AsyncSession = Depends(get_db),
+    *, status: Annotated[Optional[str], Query(
+        description="Filter by status (or 'ALL')"
+    )] = "PENDING_REVIEW",
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=200)] = 50,
+    _current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Admin queue. Default shows only PENDING_REVIEW; pass status=ALL for full history."""
     try:
@@ -131,8 +131,8 @@ async def list_pending(
 async def match_pending(
     pending_id: int,
     data: PendingPieceMatchRequest,
-    current_user: Utilisateurs = Depends(require_role(ROLES_REVIEW)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Match an existing catalog piece — in-place mvt conversion preserves chronology."""
     try:
@@ -191,8 +191,8 @@ async def match_pending(
 async def create_from_pending(
     pending_id: int,
     data: PieceCreate,
-    current_user: Utilisateurs = Depends(require_role(ROLES_REVIEW)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a brand-new catalog piece from a pending submission."""
     try:
@@ -253,8 +253,8 @@ async def create_from_pending(
 async def reject_pending(
     pending_id: int,
     data: PendingPieceRejectRequest,
-    current_user: Utilisateurs = Depends(require_role(ROLES_REVIEW)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Reject a pending submission. Placeholder mvt marked REJECTED, no stock change."""
     try:

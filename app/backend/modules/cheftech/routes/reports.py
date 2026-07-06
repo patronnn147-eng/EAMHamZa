@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -18,15 +18,15 @@ router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
 @router.get("/completed-work-orders", response_model=List[CompletedWorkOrderItem])
 async def get_completed_work_orders(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    technician_id: Optional[int] = Query(None),
-    machine_id: Optional[int] = Query(None),
-    failure_type: Optional[str] = Query(None),
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    technician_id: Annotated[Optional[int], Query()] = None,
+    machine_id: Annotated[Optional[int], Query()] = None,
+    failure_type: Annotated[Optional[str], Query()] = None,
+    date_from: Annotated[Optional[datetime], Query()] = None,
+    date_to: Annotated[Optional[datetime], Query()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech_or_admin)],
 ):
     """Get all completed Work Orders enriched with technician and machine info."""
     skip = (page - 1) * size
@@ -120,8 +120,8 @@ async def get_completed_work_orders(
 async def add_cheftech_feedback(
     ordre_id: int,
     data: ChefTechFeedbackRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(verify_cheftech_or_admin)],
 ):
     """Add ChefTech feedback to a completed Work Order. Does not alter execution data."""
     if current_user.role not in [UserRole.CHEFTECH, UserRole.ADMIN]:
@@ -155,10 +155,10 @@ async def add_cheftech_feedback(
 
 @router.get("/reports/kpi")
 async def get_kpi_report(
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
+    *, date_from: Annotated[Optional[datetime], Query()] = None,
+    date_to: Annotated[Optional[datetime], Query()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech_or_admin)],
 ):
     """KPI summary for completed Work Orders. Available to ChefTech and Admin."""
     base_query = select(Ordres_travail).where(
@@ -206,8 +206,8 @@ async def get_kpi_report(
 
 @router.get("/analytics/dashboard")
 async def get_cheftech_analytics_dashboard(
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech_or_admin),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech_or_admin)],
 ):
     """
     Returns analytics and PDCA metrics for the ChefTech dashboard.

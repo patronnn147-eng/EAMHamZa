@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from datetime import datetime
 
@@ -91,14 +91,14 @@ class Maintenances_planifieesBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=Maintenances_planifieesListResponse)
 async def query_maintenances_planifieess(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query maintenances_planifieess with filtering, sorting, and pagination"""
     logger.debug(
@@ -134,14 +134,14 @@ async def query_maintenances_planifieess(
 
 @router.get("/all", response_model=Maintenances_planifieesListResponse)
 async def query_maintenances_planifieess_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query maintenances_planifieess with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -174,9 +174,9 @@ async def query_maintenances_planifieess_all(
 
 @router.get("/{id}", response_model=Maintenances_planifieesResponse)
 async def get_maintenances_planifiees(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single maintenances_planifiees by ID"""
     logger.debug(f"Fetching maintenances_planifiees with id: {id}, fields={fields}")
@@ -203,7 +203,7 @@ async def get_maintenances_planifiees(
 @router.post("", response_model=Maintenances_planifieesResponse, status_code=201)
 async def create_maintenances_planifiees(
     data: Maintenances_planifieesData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new maintenances_planifiees"""
     logger.debug(f"Creating new maintenances_planifiees with data: {data}")
@@ -234,7 +234,7 @@ async def create_maintenances_planifiees(
 )
 async def create_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple maintenances_planifieess in a single request"""
     logger.debug(f"Batch creating {len(request.items)} maintenances_planifieess")
@@ -261,7 +261,7 @@ async def create_maintenances_planifieess_batch(
 @router.put("/batch", response_model=List[Maintenances_planifieesResponse])
 async def update_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple maintenances_planifieess in a single request"""
     logger.debug(f"Batch updating {len(request.items)} maintenances_planifieess")
@@ -293,7 +293,7 @@ async def update_maintenances_planifieess_batch(
 async def update_maintenances_planifiees(
     id: int,
     data: Maintenances_planifieesUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing maintenances_planifiees"""
     logger.debug(f"Updating maintenances_planifiees {id} with data: {data}")
@@ -328,7 +328,7 @@ async def update_maintenances_planifiees(
 @router.delete("/batch")
 async def delete_maintenances_planifieess_batch(
     request: Maintenances_planifieesBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple maintenances_planifieess by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} maintenances_planifieess")
@@ -358,7 +358,7 @@ async def delete_maintenances_planifieess_batch(
 @router.delete("/{id}")
 async def delete_maintenances_planifiees(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single maintenances_planifiees by ID"""
     logger.debug(f"Deleting maintenances_planifiees with id: {id}")

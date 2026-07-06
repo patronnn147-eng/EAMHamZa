@@ -16,6 +16,7 @@ from ..ordres_travail.schemas import (
     Ordres_travailValidationData,
     Ordres_travailResponse,
 )
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_travail"])
 logger = logging.getLogger(__name__)
@@ -25,8 +26,8 @@ logger = logging.getLogger(__name__)
 async def validate_ordres_travail(
     id: int,
     data: Ordres_travailValidationData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(require_role(["CHEFTECH"])),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],
 ):
     """Validate or reject a Work Order (CHEFTECH only)"""
     # Also allow TECHNICIEN to validate completed work
@@ -98,8 +99,8 @@ async def validate_ordres_travail(
 @router.post("/{id}/close", response_model=Ordres_travailResponse)
 async def close_ordres_travail(
     id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(require_role(["ADMIN"])),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],
 ):
     """Close a Work Order (ADMIN only)"""
     if current_user.role != UserRole.ADMIN:

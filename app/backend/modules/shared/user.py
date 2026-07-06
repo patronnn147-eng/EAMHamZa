@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Annotated
 
 from core.database import get_db
 from dependencies.auth import get_current_user
@@ -17,8 +17,8 @@ class UpdateProfileRequest(BaseModel):
 
 @router.get("/profile", response_model=UserResponse)
 async def get_profile(
-    db: AsyncSession = Depends(get_db),
-    current_user: UserResponse = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
 ):
     """Get current user profile"""
     profile = await UserService.get_user_profile(db, current_user.id)
@@ -32,8 +32,8 @@ async def get_profile(
 @router.put("/profile", response_model=UserResponse)
 async def update_profile(
     profile_data: UpdateProfileRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: UserResponse = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
 ):
     """Update current user profile"""
     profile = await UserService.update_user_profile(

@@ -15,6 +15,7 @@ from modules.shared.admin_machine_standards import (
     MACHINE_STATUS_OPTIONS,
     generate_machine_name,
 )
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
@@ -114,7 +115,7 @@ async def download_import_template():
 
 @router.post("/import/preview")
 async def preview_machine_import(
-    file: UploadFile = File(...), db: AsyncSession = Depends(get_db)
+    file: Annotated[UploadFile, File()], db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Parse an uploaded file (CSV or Excel) and validate its contents for machines import"""
     logger.debug(f"Previewing import file: {file.filename}")

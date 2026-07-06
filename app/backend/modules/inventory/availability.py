@@ -2,7 +2,7 @@
 
 import logging
 from decimal import Decimal
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,7 @@ router = APIRouter(
 
 
 @router.get("/{piece_id}", response_model=AvailabilityResponse)
-async def get_availability(piece_id: int, db: AsyncSession = Depends(get_db)):
+async def get_availability(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Return raw stock, reserved total, and computed available qty for one piece."""
     try:
         svc = InventoryReservationService(db)
@@ -43,8 +43,8 @@ async def get_availability(piece_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.get("", response_model=List[AvailabilityResponse])
 async def get_availability_batch(
-    piece_ids: str = Query(..., description="Comma-separated piece IDs"),
-    db: AsyncSession = Depends(get_db),
+    piece_ids: Annotated[str, Query(description="Comma-separated piece IDs")],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Batch availability lookup — single query, returns one row per input id."""
     try:

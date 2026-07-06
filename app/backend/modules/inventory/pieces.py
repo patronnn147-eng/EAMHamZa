@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -30,11 +30,11 @@ class LinkMachineRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=PieceListResponse)
 async def list_pieces(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=2000),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=2000)] = 100,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List all spare parts with optional filtering and pagination."""
     service = PieceService(db)
@@ -58,7 +58,7 @@ async def list_pieces(
 
 
 @router.get("/{piece_id}", response_model=PieceResponse)
-async def get_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
+async def get_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Get a single spare part by ID."""
     service = PieceService(db)
     try:
@@ -74,7 +74,7 @@ async def get_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("", response_model=PieceResponse, status_code=201)
-async def create_piece(data: PieceCreate, db: AsyncSession = Depends(get_db)):
+async def create_piece(data: PieceCreate, db: Annotated[AsyncSession, Depends(get_db)]):
     """Create a new spare part."""
     service = PieceService(db)
     try:
@@ -93,7 +93,7 @@ async def create_piece(data: PieceCreate, db: AsyncSession = Depends(get_db)):
 
 @router.put("/{piece_id}", response_model=PieceResponse)
 async def update_piece(
-    piece_id: int, data: PieceUpdate, db: AsyncSession = Depends(get_db)
+    piece_id: int, data: PieceUpdate, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Update an existing spare part."""
     service = PieceService(db)
@@ -113,7 +113,7 @@ async def update_piece(
 
 
 @router.delete("/{piece_id}")
-async def delete_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_piece(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Delete a spare part."""
     service = PieceService(db)
     try:
@@ -131,10 +131,10 @@ async def delete_piece(piece_id: int, db: AsyncSession = Depends(get_db)):
 # ---------- Operational scope: machines worth linking pieces to ----------
 @router.get("/scope/machines", tags=["inventory-pieces"])
 async def list_in_scope_machines(
-    days: int = Query(
-        90, ge=1, le=365, description="Recency window (days) for WO inclusion"
-    ),
-    db: AsyncSession = Depends(get_db),
+    *, days: Annotated[int, Query(
+        ge=1, le=365, description="Recency window (days) for WO inclusion"
+    )] = 90,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return machines that are operationally relevant for piece linking.
 
@@ -182,7 +182,7 @@ async def list_in_scope_machines(
 
 # ---------- Machine Linking ----------
 @router.get("/{piece_id}/machines")
-async def get_piece_machines(piece_id: int, db: AsyncSession = Depends(get_db)):
+async def get_piece_machines(piece_id: int, db: Annotated[AsyncSession, Depends(get_db)]):
     """Get machines linked to a spare part."""
     service = PieceService(db)
     try:
@@ -197,7 +197,7 @@ async def get_piece_machines(piece_id: int, db: AsyncSession = Depends(get_db)):
 
 @router.post("/{piece_id}/machines")
 async def link_piece_to_machine(
-    piece_id: int, data: LinkMachineRequest, db: AsyncSession = Depends(get_db)
+    piece_id: int, data: LinkMachineRequest, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Link a spare part to a machine."""
     service = PieceService(db)
@@ -215,7 +215,7 @@ async def link_piece_to_machine(
 
 @router.delete("/{piece_id}/machines/{machine_id}")
 async def unlink_piece_from_machine(
-    piece_id: int, machine_id: int, db: AsyncSession = Depends(get_db)
+    piece_id: int, machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """Unlink a spare part from a machine."""
     service = PieceService(db)
@@ -236,14 +236,14 @@ async def unlink_piece_from_machine(
 
 @router.get("/suggest/lookup", tags=["inventory-pieces"])
 async def suggest_pieces(
-    q: str = Query(..., min_length=1, max_length=200, description="Search text"),
-    machine_id: Optional[int] = Query(
-        None, description="Boost pieces compatible with this machine"
-    ),
-    threshold_low: float = Query(0.40, ge=0.0, le=1.0),
-    threshold_high: float = Query(0.80, ge=0.0, le=1.0),
-    limit: int = Query(10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
+    *, q: Annotated[str, Query(min_length=1, max_length=200, description="Search text")],
+    machine_id: Annotated[Optional[int], Query(
+        description="Boost pieces compatible with this machine"
+    )] = None,
+    threshold_low: Annotated[float, Query(ge=0.0, le=1.0)] = 0.40,
+    threshold_high: Annotated[float, Query(ge=0.0, le=1.0)] = 0.80,
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Fuzzy match a free-text query against the catalog (pg_trgm similarity).
 
@@ -267,10 +267,10 @@ async def suggest_pieces(
 
 @router.get("/by-machine/{machine_id}", tags=["inventory-pieces"])
 async def list_pieces_by_machine(
-    machine_id: int,
-    include_consumables: bool = Query(True),
-    search: Optional[str] = Query(None, max_length=200),
-    db: AsyncSession = Depends(get_db),
+    *, machine_id: int,
+    include_consumables: Annotated[bool, Query()] = True,
+    search: Annotated[Optional[str], Query(max_length=200)] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return pieces organized into picker-friendly sections for a machine.
 

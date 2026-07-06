@@ -7,7 +7,7 @@ validation workflow, and work order generation.
 
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import and_, or_, select, func
@@ -49,16 +49,16 @@ router = APIRouter(
     status_code=status.HTTP_201_CREATED,
 )
 async def create_intervention_from_planning(
-    planning_id: int = Query(..., description="Planning ID to link intervention to"),
-    machine_id: int = Query(..., description="Machine ID"),
-    problem_description: str = Query(..., description="Description of the issue"),
-    priority: str = Query("MOYENNE", description="Priority: HAUTE, MOYENNE, BASSE"),
-    estimated_duration_minutes: Optional[int] = Query(
-        None, description="Estimated duration in minutes"
-    ),
-    required_materials: Optional[str] = Query(None, description="Required materials"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, planning_id: Annotated[int, Query(description="Planning ID to link intervention to")],
+    machine_id: Annotated[int, Query(description="Machine ID")],
+    problem_description: Annotated[str, Query(description="Description of the issue")],
+    priority: Annotated[str, Query(description="Priority: HAUTE, MOYENNE, BASSE")] = "MOYENNE",
+    estimated_duration_minutes: Annotated[Optional[int], Query(
+        description="Estimated duration in minutes"
+    )] = None,
+    required_materials: Annotated[Optional[str], Query(description="Required materials")] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Create intervention from a planning.
@@ -169,12 +169,12 @@ async def create_intervention_from_planning(
 
 @router.get("", response_model=PaginatedResponse[Ordres_interventionResponse])
 async def list_interventions(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    planning_id: Optional[int] = Query(None, description="Filter by planning ID"),
-    statut: Optional[str] = Query(None, description="Filter by status"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    planning_id: Annotated[Optional[int], Query(description="Filter by planning ID")] = None,
+    statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List interventions with optional filtering."""
     skip = (page - 1) * size
@@ -230,8 +230,8 @@ async def list_interventions(
 @router.get("/{intervention_id}", response_model=Ordres_interventionResponse)
 async def get_intervention(
     intervention_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get intervention by ID."""
     intervention = await db.scalar(
@@ -248,8 +248,8 @@ async def get_intervention(
 async def validate_intervention(
     intervention_id: int,
     data: Ordres_interventionValidationData,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Validate or reject an intervention.
@@ -329,12 +329,12 @@ async def validate_intervention(
     "/{intervention_id}/create-work-order", response_model=Ordres_travailResponse
 )
 async def create_work_order_from_intervention(
-    intervention_id: int,
-    technician_id: Optional[int] = Query(
-        None, description="Technician to assign the work order to"
-    ),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, intervention_id: int,
+    technician_id: Annotated[Optional[int], Query(
+        description="Technician to assign the work order to"
+    )] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Create a work order from an approved intervention.
@@ -450,8 +450,8 @@ async def create_work_order_from_intervention(
 
 @router.get("/pending", response_model=List[Ordres_interventionResponse])
 async def get_pending_interventions(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get all interventions pending validation.

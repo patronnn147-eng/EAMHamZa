@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Annotated
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -120,12 +120,12 @@ async def get_alerts_for_user_role(
 
 @router.get("", response_model=List[AlertResponse])
 async def get_alerts(
-    machine_id: Optional[int] = Query(None, description="Filter by machine ID"),
-    severity: Optional[str] = Query(None, description="Filter by severity"),
-    page: int = Query(1, ge=1, description="Page number"),
-    page_size: int = Query(20, ge=1, le=100, description="Page size"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, machine_id: Annotated[Optional[int], Query(description="Filter by machine ID")] = None,
+    severity: Annotated[Optional[str], Query(description="Filter by severity")] = None,
+    page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100, description="Page size")] = 20,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get list of active alerts, filtered by user role"""
     alert_severity = None
@@ -149,8 +149,8 @@ async def get_alerts(
 
 @router.get("/stats", response_model=AlertStatsResponse)
 async def get_alert_stats(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get alert statistics summary"""
     service = AlertService(db)
@@ -160,8 +160,8 @@ async def get_alert_stats(
 
 @router.get("/config", response_model=AlertConfigResponse)
 async def get_alert_config(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get alert configuration"""
     service = AlertService(db)
@@ -172,8 +172,8 @@ async def get_alert_config(
 @router.patch("/config", response_model=AlertConfigResponse)
 async def update_alert_config(
     config_data: AlertConfigUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Update alert configuration (admin only)"""
     # TODO: Add role check for admin
@@ -184,8 +184,8 @@ async def update_alert_config(
 
 @router.post("/check")
 async def trigger_alert_check(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Manually trigger alert checking and creation"""
     # TODO: Add role check for admin
@@ -197,8 +197,8 @@ async def trigger_alert_check(
 @router.get("/machines/{machine_id}", response_model=List[AlertResponse])
 async def get_machine_alerts(
     machine_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get alerts for a specific machine"""
     service = AlertService(db)
@@ -210,8 +210,8 @@ async def get_machine_alerts(
 async def dismiss_alert(
     alert_id: int,
     request: DismissAlertRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Dismiss an alert"""
     service = AlertService(db)
@@ -225,8 +225,8 @@ async def dismiss_alert(
 async def create_work_order_from_alert(
     alert_id: int,
     request: CreateWorkOrderRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Create a work order from an alert"""
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
@@ -261,8 +261,8 @@ async def create_work_order_from_alert(
 
 @router.get("/my", response_model=List[AlertResponse])
 async def get_my_alerts(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get alerts relevant to the current user based on their role and assignments"""
     alerts = await get_alerts_for_user_role(db, current_user)

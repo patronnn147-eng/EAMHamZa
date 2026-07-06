@@ -1,7 +1,7 @@
 import asyncio
 import json
 import logging
-from typing import List, Any, Dict, Optional
+from typing import List, Any, Dict, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -80,7 +80,7 @@ _DEFAULT_SUGGESTIONS = [
 
 @router.get("/suggestions", response_model=List[str])
 async def get_suggestions(
-    current_user: Utilisateurs = Depends(get_current_user),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Role-based query suggestions."""
     role = current_user.role.value if current_user.role else ""
@@ -94,7 +94,7 @@ async def get_suggestions(
 
 @router.get("/cache-stats")
 async def get_cache_stats(
-    current_user: Utilisateurs = Depends(get_current_user),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Return Groq LLM response cache hit/miss counters."""
     return {"groq_cache": groq_cache_stats()}
@@ -102,7 +102,7 @@ async def get_cache_stats(
 
 @router.post("/cache-clear", status_code=204)
 async def post_cache_clear(
-    current_user: Utilisateurs = Depends(get_current_user),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Force clear Groq response cache."""
     if not current_user.role or current_user.role.value != "ADMIN":
@@ -118,10 +118,11 @@ async def post_cache_clear(
 
 @router.get("/history")
 async def get_history(
-    limit: int = Query(default=20, le=50),
-    session_id: Optional[str] = Query(default=None),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *,
+    limit: Annotated[int, Query(le=50)] = 20,
+    session_id: Annotated[Optional[str], Query()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
     Chat history. If session_id is given, returns that session's messages
@@ -157,8 +158,8 @@ async def get_history(
 
 @router.delete("/history")
 async def clear_history(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Clear messages on user's most-recent session (does NOT delete the row)."""
     session_svc = ChatSessionService(db)
@@ -173,8 +174,8 @@ async def clear_history(
 
 @router.get("/sessions", response_model=List[ChatSessionSummary])
 async def list_sessions(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """List all chat sessions for the current user, newest first."""
     session_svc = ChatSessionService(db)
@@ -184,9 +185,9 @@ async def list_sessions(
 
 @router.post("/sessions", response_model=ChatSessionSummary, status_code=201)
 async def create_session(
-    payload: CreateSessionRequest = CreateSessionRequest(),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, payload: CreateSessionRequest = CreateSessionRequest(),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Create a new empty chat session."""
     session_svc = ChatSessionService(db)
@@ -204,8 +205,8 @@ async def create_session(
 @router.delete("/sessions/{session_id}", status_code=204)
 async def delete_session(
     session_id: str,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Delete a chat session (ownership-checked)."""
     try:
@@ -223,8 +224,8 @@ async def delete_session(
 async def rename_session(
     session_id: str,
     payload: RenameSessionRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Rename a chat session (ownership-checked)."""
     try:
@@ -253,8 +254,8 @@ async def rename_session(
 @router.post("/ai/chat", response_model=ChatResponse)
 async def ai_chat(
     request: ChatRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
     AI-powered chat using Groq LLM with:
@@ -564,8 +565,8 @@ class AnalyzeResponse(BaseModel):
 @router.post("/analyze", response_model=AnalyzeResponse)
 async def analyze(
     request: AnalyzeRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
     Multi-agent deep EAM analysis.

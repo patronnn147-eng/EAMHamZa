@@ -6,7 +6,7 @@ becomes a reservation candidate when the CHEFTECH approves the intervention.
 
 import logging
 from decimal import Decimal
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -37,8 +37,8 @@ ROLES_ATTACH = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 async def attach_required_pieces(
     intervention_id: int,
     items: List[RequiredPieceItem],
-    current_user: Utilisateurs = Depends(require_role(ROLES_ATTACH)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_ATTACH))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Attach a list of required pieces to an intervention.
 
@@ -124,8 +124,8 @@ async def attach_required_pieces(
 @router.get("/{intervention_id}", response_model=List[RequiredPieceResponse])
 async def list_required_pieces(
     intervention_id: int,
-    current_user: Utilisateurs = Depends(require_role(ROLES_ATTACH)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_ATTACH))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List required pieces for an intervention with piece-name join."""
     try:
@@ -162,8 +162,8 @@ async def list_required_pieces(
 async def remove_required_piece(
     intervention_id: int,
     required_piece_id: int,
-    current_user: Utilisateurs = Depends(require_role(ROLES_ATTACH)),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_ATTACH))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Remove a not-yet-reserved required piece (e.g. user mistake in picker)."""
     try:

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 )
 async def create_intervention_request(
     data: InterventionRequestCreate,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """ChefOp requests an intervention (PDS)"""
     try:
@@ -103,8 +103,8 @@ async def create_intervention_request(
 
 @router.get("/intervention-requests", response_model=List[InterventionRequestResponse])
 async def get_my_intervention_requests(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List ChefOp's own intervention requests"""
     try:

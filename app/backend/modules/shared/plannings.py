@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from datetime import datetime
 
@@ -107,14 +107,14 @@ class PlanningsBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=PlanningsListResponse)
 async def query_planningss(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query planningss with filtering, sorting, and pagination"""
     logger.debug(
@@ -148,14 +148,14 @@ async def query_planningss(
 
 @router.get("/all", response_model=PlanningsListResponse)
 async def query_planningss_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query planningss with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -186,9 +186,9 @@ async def query_planningss_all(
 
 @router.get("/{id}", response_model=PlanningsResponse)
 async def get_plannings(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single plannings by ID"""
     logger.debug(f"Fetching plannings with id: {id}, fields={fields}")
@@ -211,7 +211,7 @@ async def get_plannings(
 @router.post("", response_model=PlanningsResponse, status_code=201)
 async def create_plannings(
     data: PlanningsData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new plannings"""
     logger.debug(f"Creating new plannings with data: {data}")
@@ -236,7 +236,7 @@ async def create_plannings(
 @router.post("/batch", response_model=List[PlanningsResponse], status_code=201)
 async def create_planningss_batch(
     request: PlanningsBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple planningss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} planningss")
@@ -261,7 +261,7 @@ async def create_planningss_batch(
 @router.put("/batch", response_model=List[PlanningsResponse])
 async def update_planningss_batch(
     request: PlanningsBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple planningss in a single request"""
     logger.debug(f"Batch updating {len(request.items)} planningss")
@@ -291,7 +291,7 @@ async def update_planningss_batch(
 async def update_plannings(
     id: int,
     data: PlanningsUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing plannings"""
     logger.debug(f"Updating plannings {id} with data: {data}")
@@ -320,7 +320,7 @@ async def update_plannings(
 @router.delete("/batch")
 async def delete_planningss_batch(
     request: PlanningsBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple planningss by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} planningss")
@@ -348,7 +348,7 @@ async def delete_planningss_batch(
 @router.delete("/{id}")
 async def delete_plannings(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single plannings by ID"""
     logger.debug(f"Deleting plannings with id: {id}")

@@ -18,6 +18,7 @@ from ..machines.schemas import (
     MachinesBatchUpdateRequest,
     MachinesBatchDeleteRequest,
 )
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
@@ -25,14 +26,14 @@ logger = logging.getLogger(__name__)
 
 @router.get("", response_model=MachinesListResponse)
 async def query_machiness(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query machiness with filtering, sorting, and pagination"""
     logger.debug(
@@ -65,14 +66,14 @@ async def query_machiness(
 
 @router.get("/all", response_model=MachinesListResponse)
 async def query_machiness_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
         f"Querying machiness: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
@@ -101,9 +102,9 @@ async def query_machiness_all(
 
 @router.get("/{id}", response_model=MachinesResponse)
 async def get_machines(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Fetching machines with id: {id}, fields={fields}")
 
@@ -125,8 +126,8 @@ async def get_machines(
 @router.post("", response_model=MachinesResponse, status_code=201)
 async def create_machines(
     data: MachinesData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Creating new machines with data: {data}")
 
@@ -163,8 +164,8 @@ async def create_machines(
 @router.post("/batch", response_model=list[MachinesResponse], status_code=201)
 async def create_machiness_batch(
     request: MachinesBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch creating {len(request.items)} machiness")
 
@@ -201,8 +202,8 @@ async def create_machiness_batch(
 @router.put("/batch", response_model=list[MachinesResponse])
 async def update_machiness_batch(
     request: MachinesBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch updating {len(request.items)} machiness")
 
@@ -244,8 +245,8 @@ async def update_machiness_batch(
 async def update_machines(
     id: int,
     data: MachinesUpdateData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Updating machines {id} with data: {data}")
 
@@ -293,8 +294,8 @@ async def update_machines(
 @router.delete("/batch")
 async def delete_machiness_batch(
     request: MachinesBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch deleting {len(request.ids)} machiness")
 
@@ -332,8 +333,8 @@ async def delete_machiness_batch(
 @router.delete("/{id}")
 async def delete_machines(
     id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Deleting machines with id: {id}")
 

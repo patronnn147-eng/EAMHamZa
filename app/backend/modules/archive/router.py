@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, select
@@ -48,8 +48,8 @@ SCOPE_COLUMN_BY_MODULE_ROLE = {
 
 @router.get("/counts")
 async def get_archive_counts(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return {module: count} of archived items visible to the caller."""
     counts: Dict[str, int] = {}
@@ -73,14 +73,14 @@ async def get_archive_counts(
 
 @router.get("/{module}")
 async def list_archived(
-    module: str,
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=200),
-    search: Optional[str] = Query(None, max_length=200),
-    date_from: Optional[datetime] = Query(None),
-    date_to: Optional[datetime] = Query(None),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, module: str,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=200)] = 20,
+    search: Annotated[Optional[str], Query(max_length=200)] = None,
+    date_from: Annotated[Optional[datetime], Query()] = None,
+    date_to: Annotated[Optional[datetime], Query()] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List archived items for a module, role-scoped + paginated."""
     if module not in VALID_MODULES:
@@ -169,8 +169,8 @@ async def list_archived(
 async def reactivate_archived(
     module: str,
     item_id: int,
-    current_user: Utilisateurs = Depends(require_role(["ADMIN", "CHEFTECH"])),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN", "CHEFTECH"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Reactivate an archived item — sets archived_at=NULL.
     Admin + CHEFTECH only.
@@ -203,8 +203,8 @@ async def reactivate_archived(
 
 @router.post("/sweep")
 async def trigger_sweep_now(
-    _current_user: Utilisateurs = Depends(require_role(["ADMIN"])),
-    db: AsyncSession = Depends(get_db),
+    _current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Run the archive sweep immediately (admin button — bypasses Celery beat)."""
     try:
@@ -217,9 +217,9 @@ async def trigger_sweep_now(
 
 @router.post("/purge")
 async def trigger_purge_now(
-    retention_days: int = Query(30, ge=1, le=3650),
-    _current_user: Utilisateurs = Depends(require_role(["ADMIN"])),
-    db: AsyncSession = Depends(get_db),
+    *, retention_days: Annotated[int, Query(ge=1, le=3650)] = 30,
+    _current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Run the purge sweep immediately (admin button — bypasses Celery beat).
     DANGEROUS: hard-deletes archived rows older than retention_days.

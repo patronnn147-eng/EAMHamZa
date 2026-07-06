@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +11,7 @@ from core.security import verify_technicien
 from models.machines import Machines
 from models.planning_taches import Planning_taches, TaskType
 from models.plannings import PlanningStatut, Plannings
+from models.utilisateurs import Utilisateurs
 
 router = APIRouter(prefix="/api/v1/technicien", tags=["technicien"])
 
@@ -36,8 +37,8 @@ class TechnicianTaskResponse(BaseModel):
 
 @router.get("/planning-taches", response_model=list[TechnicianTaskResponse])
 async def get_my_planning_tasks(
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(verify_technicien),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
 ):
     result = await db.execute(
         select(Planning_taches)

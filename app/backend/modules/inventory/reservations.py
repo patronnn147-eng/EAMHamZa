@@ -2,7 +2,7 @@
 
 import logging
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -39,10 +39,10 @@ class ReservationRow(BaseModel):
 
 @router.get("", response_model=List[ReservationRow])
 async def list_active_reservations(
-    piece_id: Optional[int] = Query(None),
-    intervention_id: Optional[int] = Query(None),
-    _u: Utilisateurs = Depends(require_role(ROLES_ADMIN)),
-    db: AsyncSession = Depends(get_db),
+    *, piece_id: Annotated[Optional[int], Query()] = None,
+    intervention_id: Annotated[Optional[int], Query()] = None,
+    _u: Annotated[Utilisateurs, Depends(require_role(ROLES_ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List active reservations (quantity_reserved > 0) — observability."""
     try:
@@ -81,10 +81,10 @@ async def list_active_reservations(
 
 @router.post("/release/{intervention_id}", status_code=200)
 async def release_intervention_reservations(
-    intervention_id: int,
-    reason: str = Query("manual", max_length=50),
-    current_user: Utilisateurs = Depends(require_role(ROLES_ADMIN)),
-    db: AsyncSession = Depends(get_db),
+    *, intervention_id: int,
+    reason: Annotated[str, Query(max_length=50)] = "manual",
+    current_user: Annotated[Utilisateurs, Depends(require_role(ROLES_ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Manually release all reservations for an intervention.
 
@@ -109,8 +109,8 @@ async def release_intervention_reservations(
 
 @router.post("/release-expired", status_code=200)
 async def release_expired_now(
-    _u: Utilisateurs = Depends(require_role(ROLES_ADMIN)),
-    db: AsyncSession = Depends(get_db),
+    _u: Annotated[Utilisateurs, Depends(require_role(ROLES_ADMIN))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Trigger the expired-reservation sweep manually (admin button).
 

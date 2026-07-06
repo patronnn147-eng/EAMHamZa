@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -87,15 +87,15 @@ class UtilisateursBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=UtilisateursListResponse)
 async def query_utilisateurss(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query utilisateurss with filtering, sorting, and pagination (user can only see their own records)"""
     logger.debug(
@@ -130,14 +130,14 @@ async def query_utilisateurss(
 
 @router.get("/all", response_model=UtilisateursListResponse)
 async def query_utilisateurss_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query utilisateurss with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -168,10 +168,10 @@ async def query_utilisateurss_all(
 
 @router.get("/{id}", response_model=UtilisateursResponse)
 async def get_utilisateurs(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single utilisateurs by ID (user can only see their own records)"""
     logger.debug(f"Fetching utilisateurs with id: {id}, fields={fields}")
@@ -194,8 +194,8 @@ async def get_utilisateurs(
 @router.post("", response_model=UtilisateursResponse, status_code=201)
 async def create_utilisateurs(
     data: UtilisateursData,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new utilisateurs"""
     logger.debug(f"Creating new utilisateurs with data: {data}")
@@ -220,8 +220,8 @@ async def create_utilisateurs(
 @router.post("/batch", response_model=List[UtilisateursResponse], status_code=201)
 async def create_utilisateurss_batch(
     request: UtilisateursBatchCreateRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple utilisateurss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} utilisateurss")
@@ -248,8 +248,8 @@ async def create_utilisateurss_batch(
 @router.put("/batch", response_model=List[UtilisateursResponse])
 async def update_utilisateurss_batch(
     request: UtilisateursBatchUpdateRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple utilisateurss in a single request (requires ownership)"""
     logger.debug(f"Batch updating {len(request.items)} utilisateurss")
@@ -279,8 +279,8 @@ async def update_utilisateurss_batch(
 async def update_utilisateurs(
     id: int,
     data: UtilisateursUpdateData,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing utilisateurs (requires ownership)"""
     logger.debug(f"Updating utilisateurs {id} with data: {data}")
@@ -309,8 +309,8 @@ async def update_utilisateurs(
 @router.delete("/batch")
 async def delete_utilisateurss_batch(
     request: UtilisateursBatchDeleteRequest,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple utilisateurss by their IDs (requires ownership)"""
     logger.debug(f"Batch deleting {len(request.ids)} utilisateurss")
@@ -338,8 +338,8 @@ async def delete_utilisateurss_batch(
 @router.delete("/{id}")
 async def delete_utilisateurs(
     id: int,
-    current_user: UserResponse = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[UserResponse, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single utilisateurs by ID (requires ownership)"""
     logger.debug(f"Deleting utilisateurs with id: {id}")

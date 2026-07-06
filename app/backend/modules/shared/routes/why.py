@@ -3,7 +3,7 @@
 import hashlib
 import json
 import logging
-from typing import Callable, List
+from typing import Callable, List, Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
@@ -67,7 +67,7 @@ class WhyExplainResponse(BaseModel):
 @router.post("/explain", response_model=WhyExplainResponse)
 async def explain(
     body: WhyExplainRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     return WhyExplainResponse(**make_explanation(body.reasons, llm_call=_llm))

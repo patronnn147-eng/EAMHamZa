@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from datetime import datetime
 
@@ -95,14 +95,14 @@ class ArchivesBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=ArchivesListResponse)
 async def query_archivess(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query archivess with filtering, sorting, and pagination"""
     logger.debug(
@@ -136,14 +136,14 @@ async def query_archivess(
 
 @router.get("/all", response_model=ArchivesListResponse)
 async def query_archivess_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query archivess with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -174,9 +174,9 @@ async def query_archivess_all(
 
 @router.get("/{id}", response_model=ArchivesResponse)
 async def get_archives(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single archives by ID"""
     logger.debug(f"Fetching archives with id: {id}, fields={fields}")
@@ -199,7 +199,7 @@ async def get_archives(
 @router.post("", response_model=ArchivesResponse, status_code=201)
 async def create_archives(
     data: ArchivesData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new archives"""
     logger.debug(f"Creating new archives with data: {data}")
@@ -224,7 +224,7 @@ async def create_archives(
 @router.post("/batch", response_model=List[ArchivesResponse], status_code=201)
 async def create_archivess_batch(
     request: ArchivesBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple archivess in a single request"""
     logger.debug(f"Batch creating {len(request.items)} archivess")
@@ -249,7 +249,7 @@ async def create_archivess_batch(
 @router.put("/batch", response_model=List[ArchivesResponse])
 async def update_archivess_batch(
     request: ArchivesBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple archivess in a single request"""
     logger.debug(f"Batch updating {len(request.items)} archivess")
@@ -279,7 +279,7 @@ async def update_archivess_batch(
 async def update_archives(
     id: int,
     data: ArchivesUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing archives"""
     logger.debug(f"Updating archives {id} with data: {data}")
@@ -308,7 +308,7 @@ async def update_archives(
 @router.delete("/batch")
 async def delete_archivess_batch(
     request: ArchivesBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple archivess by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} archivess")
@@ -336,7 +336,7 @@ async def delete_archivess_batch(
 @router.delete("/{id}")
 async def delete_archives(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single archives by ID"""
     logger.debug(f"Deleting archives with id: {id}")

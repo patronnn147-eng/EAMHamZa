@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
@@ -24,10 +24,10 @@ logger = logging.getLogger(__name__)
 
 @router.get("", response_model=PaginatedResponse[PlanningResponse])
 async def list_plannings(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(10, ge=1, le=100, description="Items per page"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 10,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List plannings filtered by user role and assignments"""
     skip = (page - 1) * size
@@ -128,8 +128,8 @@ async def list_plannings(
 
 @router.get("/all-with-taches", response_model=list[dict])
 async def list_plannings_with_tasks(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List all plannings with their task counts"""
     try:
@@ -180,8 +180,8 @@ async def list_plannings_with_tasks(
 @router.get("/{planning_id}", response_model=PlanningResponse)
 async def get_planning(
     planning_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get planning details with role-based access control"""
     try:
@@ -232,8 +232,8 @@ async def get_planning(
 @router.get("/{planning_id}/machines", response_model=List[PlanningMachineResponse])
 async def get_planning_machines(
     planning_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get machines assigned to a planning with role-based access control"""
     try:
@@ -293,8 +293,8 @@ async def get_planning_machines(
 @router.get("/{planning_id}/users", response_model=List[UserOption])
 async def get_planning_users(
     planning_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get users assigned to a planning"""
     try:

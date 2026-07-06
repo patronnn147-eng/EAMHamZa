@@ -19,6 +19,7 @@ from services.inventory import InventoryReservationService
 from services.ml.recovery import PostMaintenanceRecoveryService
 from schemas.stock import ConsumedPieceItem
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
@@ -26,10 +27,10 @@ logger = logging.getLogger(__name__)
 
 @router.get("/work-orders", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_my_work_orders(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """CHETOP: List work orders generated from my intervention requests"""
     if current_user.role != UserRole.CHETOP:
@@ -95,8 +96,8 @@ async def get_my_work_orders(
 @router.patch("/work-orders/{order_id}/start")
 async def start_work_order(
     order_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """CHETOP: Start a work order"""
     if current_user.role != UserRole.CHETOP:
@@ -157,8 +158,8 @@ async def start_work_order(
 async def complete_work_order(
     order_id: int,
     payload: WorkOrderCompletePayload,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """CHETOP: Complete a work order"""
     if current_user.role != UserRole.CHETOP:

@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Annotated
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -49,10 +49,10 @@ class ReportResponse(BaseModel):
 
 @admin_router.get("/scheduled")
 async def get_scheduled_reports(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get list of scheduled reports"""
     service = RapportsService(db)
@@ -74,8 +74,8 @@ async def get_scheduled_reports(
 @admin_router.post("/scheduled")
 async def create_scheduled_report(
     report: ScheduledReportCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Create a new scheduled report"""
     service = RapportsService(db)
@@ -101,8 +101,8 @@ async def create_scheduled_report(
 async def update_scheduled_report(
     report_id: int,
     update: ScheduledReportUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Update a scheduled report"""
     service = RapportsService(db)
@@ -136,8 +136,8 @@ async def update_scheduled_report(
 @admin_router.delete("/scheduled/{report_id}")
 async def delete_scheduled_report(
     report_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Delete a scheduled report"""
     service = RapportsService(db)
@@ -151,10 +151,10 @@ async def delete_scheduled_report(
 
 @admin_router.get("/download/{report_type}")
 async def download_report(
-    report_type: str,
-    format: str = Query("json", regex="^(json|pdf|excel)$"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, report_type: str,
+    format: Annotated[str, Query(regex="^(json|pdf|excel)$")] = "json",
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Generate and download a report on-demand"""
     service = RapportsService(db)
@@ -176,8 +176,8 @@ async def download_report(
 
 @admin_router.post("/test-email")
 async def send_test_email(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Send a test email with sample report"""
     from core.email import EmailService

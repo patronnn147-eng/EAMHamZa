@@ -2,7 +2,7 @@
 
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
@@ -113,9 +113,10 @@ async def _gather_facts(role: str, user_id, db: AsyncSession) -> dict:
 
 @router.get("/briefing", response_model=BriefingResponse)
 async def get_briefing(
-    site: str = Query(default="all"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *,
+    site: Annotated[str, Query()] = "all",
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
     Daily AI briefing. Role-scoped facts, cache-first, LLM on miss,

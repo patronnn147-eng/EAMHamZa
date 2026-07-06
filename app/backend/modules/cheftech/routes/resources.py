@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,10 +15,10 @@ router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
 @router.get("/techniciens", response_model=PaginatedResponse[TechnicianResponse])
 async def get_technicians(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Get all technicians"""
     try:
@@ -53,11 +53,11 @@ async def get_technicians(
 
 @router.get("/machines", response_model=PaginatedResponse[MachineResponse])
 async def get_machines(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    statut: Optional[str] = Query(None, description="Filter by status"),
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Get machines with optional status filter"""
     try:
@@ -107,8 +107,8 @@ async def get_machines(
 async def update_machine_status(
     machine_id: int,
     payload: dict,
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Update machine status"""
     statut = payload.get("statut")

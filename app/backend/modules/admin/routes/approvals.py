@@ -13,6 +13,7 @@ from core.email import email_service
 from core.websocket import websocket_manager
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs, UserStatus, UserRole
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/user-approvals", tags=["user-approvals"])
 
@@ -37,10 +38,10 @@ class PendingUserResponse(BaseModel):
 
 @router.get("/pending", response_model=PaginatedResponse[PendingUserResponse])
 async def get_pending_users(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    _current_user: Annotated[Utilisateurs, Depends(require_role([UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get all pending user registrations (Admin only)
@@ -87,8 +88,8 @@ async def get_pending_users(
 @router.post("/approve/{user_id}", response_model=dict)
 async def approve_user(
     user_id: str,
-    _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
-    db: AsyncSession = Depends(get_db),
+    _current_user: Annotated[Utilisateurs, Depends(require_role([UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Approve a pending user registration (Admin only)
@@ -145,8 +146,8 @@ async def approve_user(
 @router.post("/reject/{user_id}", response_model=dict)
 async def reject_user(
     user_id: str,
-    _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
-    db: AsyncSession = Depends(get_db),
+    _current_user: Annotated[Utilisateurs, Depends(require_role([UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Reject a pending user registration (Admin only)
@@ -205,10 +206,10 @@ async def reject_user(
 
 @router.get("/all", response_model=PaginatedResponse[PendingUserResponse])
 async def get_all_users_with_status(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    _current_user: Utilisateurs = Depends(require_role([UserRole.ADMIN])),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    _current_user: Annotated[Utilisateurs, Depends(require_role([UserRole.ADMIN]))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Get all users with their approval status (Admin only)

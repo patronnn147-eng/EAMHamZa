@@ -15,6 +15,7 @@ from ..ordres_intervention.schemas import (
     Ordres_interventionValidationData,
     Ordres_interventionResponse,
 )
+from typing import Annotated
 
 router = APIRouter(
     prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"]
@@ -26,8 +27,8 @@ logger = logging.getLogger(__name__)
 async def validate_ordres_intervention(
     id: int,
     data: Ordres_interventionValidationData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(require_role(["CHEFTECH"])),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],
 ):
     """Validate or reject an Intervention (CHEFTECH only)"""
     logger.debug(f"Validating ordres_intervention {id} with action: {data.action}")

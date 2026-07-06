@@ -4,7 +4,7 @@ Provides all P1-P6 prediction endpoints
 """
 from fastapi import APIRouter, HTTPException, Request, Depends
 from pydantic import BaseModel
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Annotated
 from .predictions import MachineLearningService, failure_prob_to_risk
 from .core.config import config
 from .core.feature_pipeline import FeaturePipeline, SensorReading
@@ -149,7 +149,7 @@ async def get_model_metrics():
 
 
 @router.post("/predict")
-async def predict(data: TelemetryInput, request: Request, _: str = Depends(check_rate_limit)) -> PredictionResponse:
+async def predict(data: TelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]) -> PredictionResponse:
     """
     P1: Predict failure probability from telemetry.
     
@@ -182,7 +182,7 @@ async def predict(data: TelemetryInput, request: Request, _: str = Depends(check
 
 
 @router.post("/predict-all")
-async def predict_all(data: TelemetryInput, request: Request, _: str = Depends(check_rate_limit)) -> AllPredictionsResponse:
+async def predict_all(data: TelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]) -> AllPredictionsResponse:
     """
     Get all P1-P6 predictions in a single request.
     
@@ -228,7 +228,7 @@ async def predict_failure_type_get(
     torque: float,
     wear: int,
     request: Request,
-    _: str = Depends(check_rate_limit)
+    _: Annotated[str, Depends(check_rate_limit)]
 ):
     """
     P2: Predict specific failure types.
@@ -282,7 +282,7 @@ async def predict_rul_get(
     torque: float,
     wear: int,
     request: Request,
-    _: str = Depends(check_rate_limit)
+    _: Annotated[str, Depends(check_rate_limit)]
 ):
     """
     P3: Predict Remaining Useful Life (RUL).
@@ -339,7 +339,7 @@ async def predict_anomaly_get(
     torque: float,
     wear: int,
     request: Request,
-    _: str = Depends(check_rate_limit)
+    _: Annotated[str, Depends(check_rate_limit)]
 ):
     """
     P4: Detect anomalies using Isolation Forest.
@@ -393,7 +393,7 @@ async def predict_priority_get(
     torque: float,
     wear: int,
     request: Request,
-    _: str = Depends(check_rate_limit)
+    _: Annotated[str, Depends(check_rate_limit)]
 ):
     """
     P5: Predict work order priority.
@@ -446,7 +446,7 @@ async def predict_schedule_get(
     torque: float,
     wear: int,
     request: Request,
-    _: str = Depends(check_rate_limit)
+    _: Annotated[str, Depends(check_rate_limit)]
 ):
     """
     P6: Predict maintenance schedule.
@@ -505,7 +505,7 @@ class PartsDemandeInput(BaseModel):
 async def predict_parts_demand(
     data: PartsDemandeInput,
     request: Request,
-    _: str = Depends(check_rate_limit),
+    _: Annotated[str, Depends(check_rate_limit)],
 ):
     """
     P7: Predict parts needed in the next horizon_days.
@@ -535,7 +535,7 @@ class BatchTelemetryInput(BaseModel):
 
 
 @router.post("/predict/batch")
-async def predict_batch(data: BatchTelemetryInput, request: Request, _: str = Depends(check_rate_limit)):
+async def predict_batch(data: BatchTelemetryInput, request: Request, _: Annotated[str, Depends(check_rate_limit)]):
     """
     Batch predict for multiple machines.
     

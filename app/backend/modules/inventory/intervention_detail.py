@@ -9,7 +9,7 @@ intervention's parts panel:
 """
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, text
@@ -36,8 +36,8 @@ ROLES_READ = ["TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN"]
 @router.get("/{intervention_id}/parts", response_model=Dict[str, Any])
 async def get_intervention_parts(
     intervention_id: int,
-    _u: Utilisateurs = Depends(require_role(ROLES_READ)),
-    db: AsyncSession = Depends(get_db),
+    _u: Annotated[Utilisateurs, Depends(require_role(ROLES_READ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return all pieces-related data for an intervention in one payload."""
     # Verify intervention exists
@@ -159,8 +159,8 @@ async def get_intervention_parts(
 @router.get("/by-wo/{work_order_id}/parts", response_model=Dict[str, Any])
 async def get_parts_by_work_order(
     work_order_id: int,
-    _u: Utilisateurs = Depends(require_role(ROLES_READ)),
-    db: AsyncSession = Depends(get_db),
+    _u: Annotated[Utilisateurs, Depends(require_role(ROLES_READ))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Same payload as `/intervention/{id}/parts` but keyed by work_order_id."""
     itv_id = await db.scalar(

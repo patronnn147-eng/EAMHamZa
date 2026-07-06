@@ -16,6 +16,7 @@ from .schemas import (
     PlanningTacheListResponse,
     PlanningTachesSubmitRequest,
 )
+from typing import Annotated
 
 router = APIRouter(
     prefix="/api/v1/plannings/{planning_id}/taches", tags=["planning-taches"]
@@ -47,8 +48,8 @@ def validate_task_dates(planning: Plannings, date_debut: datetime, date_fin: dat
 @router.get("", response_model=PlanningTacheListResponse)
 async def list_tasks(
     planning_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """List all tasks for a planning."""
     result = await db.execute(
@@ -64,8 +65,8 @@ async def list_tasks(
 async def create_tasks(
     planning_id: int,
     request: PlanningTachesSubmitRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Create tasks and submit planning for approval."""
     planning = await get_planning_or_404(planning_id, db)
@@ -151,8 +152,8 @@ async def update_task(
     planning_id: int,
     task_id: int,
     request: PlanningTacheUpdate,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Update a task."""
     planning = await get_planning_or_404(planning_id, db)
@@ -195,8 +196,8 @@ async def update_task(
 async def delete_task(
     planning_id: int,
     task_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Delete a task."""
     planning = await get_planning_or_404(planning_id, db)
@@ -222,8 +223,8 @@ async def delete_task(
 
 @all_taches_router.get("/all-with-taches", response_model=list[dict])
 async def list_plannings_with_tasks(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """List all plannings with their task counts."""
     tasks_subquery = (

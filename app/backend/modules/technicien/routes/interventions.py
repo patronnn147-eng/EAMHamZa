@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, case, func, select
@@ -35,11 +35,11 @@ logger = logging.getLogger(__name__)
 
 @router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
 async def list_my_interventions(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    statut: Optional[str] = Query(None, description="Filter by status"),
-    _current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
+    _current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     skip = (page - 1) * size
 
@@ -115,8 +115,8 @@ async def list_my_interventions(
 async def update_intervention_status(
     intervention_id: int,
     data: InterventionStatusUpdate,
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     intervention = await db.scalar(
         select(Ordres_intervention).where(
@@ -284,8 +284,8 @@ async def update_intervention_status(
 )
 async def request_intervention(
     payload: InterventionRequestPayload,
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     now = datetime.now(timezone.utc)
 

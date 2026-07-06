@@ -14,7 +14,7 @@ Endpoints:
 
 import logging
 import os
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import FastAPI, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -94,7 +94,7 @@ class RetrieveResponse(BaseModel):
 @app.post("/retrieve", response_model=RetrieveResponse)
 async def retrieve(
     request: RetrieveRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Semantic retrieval — returns top-k chunks above similarity threshold."""
     chunks = await retrieve_chunks(
@@ -125,7 +125,7 @@ class OCRTestResponse(BaseModel):
 
 @app.post("/ocr-test", response_model=OCRTestResponse)
 async def ocr_test(
-    file: UploadFile = File(..., description="Image file to OCR"),
+    file: Annotated[UploadFile, File(description="Image file to OCR")],
 ):
     """
     Debug endpoint — upload an image, get back the raw OCR text.
@@ -175,12 +175,13 @@ class IngestResponse(BaseModel):
 
 @app.post("/ingest", response_model=IngestResponse, status_code=201)
 async def ingest(
-    file: UploadFile = File(..., description="PDF or TXT file"),
-    doc_type: str = Form(..., description="manual | sop | report"),
-    machine_id: Optional[int] = Form(default=None),
-    uploaded_by: Optional[int] = Form(default=None),
-    description: Optional[str] = Form(default=None),
-    db: AsyncSession = Depends(get_db),
+    *,
+    file: Annotated[UploadFile, File(description="PDF or TXT file")],
+    doc_type: Annotated[str, Form(description="manual | sop | report")],
+    machine_id: Annotated[Optional[int], Form()] = None,
+    uploaded_by: Annotated[Optional[int], Form()] = None,
+    description: Annotated[Optional[str], Form()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Ingest a document: extract → chunk → embed → store in pgvector."""
     import os as _os
@@ -267,9 +268,9 @@ class DocumentRecord(BaseModel):
 
 @app.get("/documents", response_model=List[DocumentRecord])
 async def list_documents(
-    doc_type: Optional[str] = None,
+    *, doc_type: Optional[str] = None,
     machine_id: Optional[int] = None,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List ingested documents with optional filters."""
     where_clauses = []
@@ -319,7 +320,7 @@ async def list_documents(
 @app.delete("/documents/{doc_id}", status_code=204)
 async def delete_document(
     doc_id: str,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete document and all its chunks (FK CASCADE handles chunk deletion)."""
     result = await db.execute(

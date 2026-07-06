@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
@@ -18,11 +18,11 @@ logger = logging.getLogger(__name__)
 
 @router.get("/machines", response_model=List[MachineResponse])
 async def get_machines(
-    statut: Optional[str] = Query(None, description="Filter by status"),
-    type: Optional[str] = Query(None, description="Filter by type"),
-    emplacement: Optional[str] = Query(None, description="Filter by location"),
-    _current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
+    type: Annotated[Optional[str], Query(description="Filter by type")] = None,
+    emplacement: Annotated[Optional[str], Query(description="Filter by location")] = None,
+    _current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """US-CHETOP-006: Get machines with status overview"""
     try:
@@ -60,8 +60,8 @@ async def get_machines(
 async def update_machine_status(
     machine_id: int,
     data: MachineStatusUpdate,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """US-CHETOP-007: Update machine status"""
     try:

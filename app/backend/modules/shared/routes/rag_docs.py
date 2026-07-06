@@ -18,7 +18,7 @@ import hashlib
 import logging
 import os
 import uuid
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -179,12 +179,13 @@ async def _ingest_one(
 
 @router.post("/documents", response_model=DocumentResponse, status_code=201)
 async def upload_document(
-    file: UploadFile = File(..., description="PDF or TXT file"),
-    doc_type: str = Form(..., description="manual | sop | report"),
-    machine_id: Optional[int] = Form(default=None),
-    description: Optional[str] = Form(default=None),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *,
+    file: Annotated[UploadFile, File(description="PDF or TXT file")],
+    doc_type: Annotated[str, Form(description="manual | sop | report")],
+    machine_id: Annotated[Optional[int], Form()] = None,
+    description: Annotated[Optional[str], Form()] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Upload a single document — S3 + ingest. ADMIN only."""
     _require_admin(current_user)
@@ -230,9 +231,10 @@ async def upload_document(
 
 @router.post("/documents/sync", response_model=BulkUploadResponse, status_code=200)
 async def sync_from_minio(
-    doc_type: str = Form(default="manual"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *,
+    doc_type: Annotated[str, Form()] = "manual",
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Scan the rag-docs bucket for files that aren't yet in the documents table
@@ -322,11 +324,12 @@ async def sync_from_minio(
 
 @router.post("/documents/bulk", response_model=BulkUploadResponse, status_code=201)
 async def bulk_upload_documents(
-    files: List[UploadFile] = File(..., description="Multiple PDF/TXT files"),
-    doc_type: str = Form(default="manual"),
-    machine_id: Optional[int] = Form(default=None),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *,
+    files: Annotated[List[UploadFile], File(description="Multiple PDF/TXT files")],
+    doc_type: Annotated[str, Form()] = "manual",
+    machine_id: Annotated[Optional[int], Form()] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Bulk import N documents for RAG training. Runs ingests in parallel
@@ -393,11 +396,11 @@ async def bulk_upload_documents(
 
 @router.get("/documents", response_model=List[DocumentResponse])
 async def list_documents(
-    doc_type: Optional[str] = None,
+    *, doc_type: Optional[str] = None,
     machine_id: Optional[int] = None,
     include_download_url: bool = False,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """List documents. Admins can request presigned download URLs."""
     try:
@@ -448,8 +451,8 @@ async def list_documents(
 @router.get("/documents/{doc_id}/download")
 async def download_document(
     doc_id: str,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return presigned URL for the doc file. ADMIN only."""
     _require_admin(current_user)
@@ -469,9 +472,9 @@ async def download_document(
 @router.put("/documents/{doc_id}", response_model=DocumentResponse)
 async def replace_document(
     doc_id: str,
-    file: UploadFile = File(..., description="Replacement PDF/TXT"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    file: Annotated[UploadFile, File(description="Replacement PDF/TXT")],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """
     Replace a document's file: deletes old doc + chunks + old S3 object,
@@ -534,8 +537,8 @@ async def replace_document(
 @router.delete("/documents/{doc_id}", status_code=204)
 async def delete_document(
     doc_id: str,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete doc, chunks, and S3 file. ADMIN only."""
     _require_admin(current_user)

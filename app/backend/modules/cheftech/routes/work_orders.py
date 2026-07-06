@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func
@@ -16,12 +16,12 @@ router = APIRouter(prefix="/api/v1/cheftech", tags=["cheftech"])
 
 @router.get("/ordres-travail", response_model=PaginatedResponse[WorkOrderResponse])
 async def get_work_orders(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    statut: Optional[str] = Query(None),
-    priorite: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    statut: Annotated[Optional[str], Query()] = None,
+    priorite: Annotated[Optional[str], Query()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     skip = (page - 1) * size
 

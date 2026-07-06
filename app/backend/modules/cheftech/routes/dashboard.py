@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
@@ -41,8 +41,8 @@ async def _count_by_column(db: AsyncSession, column) -> List[DistributionSlice]:
 
 @router.get("/dashboard", response_model=DashboardStats)
 async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Get dashboard statistics for CHEFTECH"""
     try:
@@ -103,8 +103,8 @@ async def get_dashboard_stats(
 
 @router.get("/dashboard/distributions", response_model=InterventionDistributions)
 async def get_intervention_distributions(
-    db: AsyncSession = Depends(get_db),
-    _current_user: Utilisateurs = Depends(verify_cheftech),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    _current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Intervention breakdowns (status / type / root cause / machine category)
     for the dashboard pie charts. Includes archived interventions — only rows

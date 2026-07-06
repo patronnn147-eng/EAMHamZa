@@ -1,6 +1,6 @@
 import logging
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Annotated
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status, Request
@@ -51,7 +51,7 @@ async def get_user_from_token(token: str, db: AsyncSession) -> Utilisateurs:
 
 @router.get("/stream")
 async def notification_stream(
-    request: Request, token: str, db: AsyncSession = Depends(get_db)
+    request: Request, token: str, db: Annotated[AsyncSession, Depends(get_db)]
 ):
     """SSE endpoint for real-time notifications"""
     user = await get_user_from_token(token, db)
@@ -119,11 +119,11 @@ class BulkNotificationCreateRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=NotificationListResponse)
 async def get_my_notifications(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(50, ge=1, le=100, description="Items per page"),
+    *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    size: Annotated[int, Query(ge=1, le=100, description="Items per page")] = 50,
     unread_only: bool = False,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get current user's notifications"""
     skip = (page - 1) * size
@@ -166,8 +166,8 @@ async def get_my_notifications(
 
 @router.get("/unread-count")
 async def get_unread_count(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get count of unread notifications"""
     try:
@@ -187,8 +187,8 @@ async def get_unread_count(
 @router.post("/mark-as-read")
 async def mark_notifications_as_read(
     data: MarkAsReadRequest,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Mark notifications as read"""
     try:
@@ -216,8 +216,8 @@ async def mark_notifications_as_read(
 
 @router.post("/mark-all-as-read")
 async def mark_all_as_read(
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Mark all user's notifications as read"""
     try:
@@ -250,8 +250,8 @@ async def mark_all_as_read(
 @router.post("/bulk")
 async def create_bulk_notifications(
     data: BulkNotificationCreateRequest,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create notifications for multiple users (ChefOp/ChefTech/Admin)."""
     if current_user.role not in {"CHETOP", "CHEFTECH", "ADMIN"}:
@@ -290,8 +290,8 @@ async def create_bulk_notifications(
 @router.delete("/{notification_id}")
 async def delete_notification(
     notification_id: int,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a notification (only if it belongs to current user)"""
     try:

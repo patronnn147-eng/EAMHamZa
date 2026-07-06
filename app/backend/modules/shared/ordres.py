@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from datetime import datetime
 
@@ -92,14 +92,14 @@ class OrdresBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=OrdresListResponse)
 async def query_ordress(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query ordress with filtering, sorting, and pagination"""
     logger.debug(
@@ -133,14 +133,14 @@ async def query_ordress(
 
 @router.get("/all", response_model=OrdresListResponse)
 async def query_ordress_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query ordress with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -171,9 +171,9 @@ async def query_ordress_all(
 
 @router.get("/{id}", response_model=OrdresResponse)
 async def get_ordres(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single ordres by ID"""
     logger.debug(f"Fetching ordres with id: {id}, fields={fields}")
@@ -196,7 +196,7 @@ async def get_ordres(
 @router.post("", response_model=OrdresResponse, status_code=201)
 async def create_ordres(
     data: OrdresData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new ordres"""
     logger.debug(f"Creating new ordres with data: {data}")
@@ -221,7 +221,7 @@ async def create_ordres(
 @router.post("/batch", response_model=List[OrdresResponse], status_code=201)
 async def create_ordress_batch(
     request: OrdresBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple ordress in a single request"""
     logger.debug(f"Batch creating {len(request.items)} ordress")
@@ -246,7 +246,7 @@ async def create_ordress_batch(
 @router.put("/batch", response_model=List[OrdresResponse])
 async def update_ordress_batch(
     request: OrdresBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple ordress in a single request"""
     logger.debug(f"Batch updating {len(request.items)} ordress")
@@ -276,7 +276,7 @@ async def update_ordress_batch(
 async def update_ordres(
     id: int,
     data: OrdresUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing ordres"""
     logger.debug(f"Updating ordres {id} with data: {data}")
@@ -305,7 +305,7 @@ async def update_ordres(
 @router.delete("/batch")
 async def delete_ordress_batch(
     request: OrdresBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple ordress by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} ordress")
@@ -333,7 +333,7 @@ async def delete_ordress_batch(
 @router.delete("/{id}")
 async def delete_ordres(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single ordres by ID"""
     logger.debug(f"Deleting ordres with id: {id}")

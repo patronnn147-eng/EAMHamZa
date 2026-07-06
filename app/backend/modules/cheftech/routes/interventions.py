@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, or_
@@ -21,11 +21,11 @@ logger = logging.getLogger(__name__)
 
 @router.get("/interventions", response_model=PaginatedResponse[InterventionResponse])
 async def get_interventions(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=100),
-    statut: Optional[str] = Query(None, description="Filter by status"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(verify_cheftech),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 10,
+    statut: Annotated[Optional[str], Query(description="Filter by status")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(verify_cheftech)],
 ):
     """Get all interventions (including approval workflow fields)"""
     try:

@@ -9,6 +9,7 @@ from models.utilisateurs import Utilisateurs
 from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from ..schemas import DashboardStats
+from typing import Annotated
 
 router = APIRouter(prefix="/api/v1/chetop", tags=["chetop"])
 logger = logging.getLogger(__name__)
@@ -16,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 @router.get("/dashboard", response_model=DashboardStats)
 async def get_dashboard_stats(
-    _current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    _current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """CHETOP Dashboard - Updated for Intervention Requests"""
     try:

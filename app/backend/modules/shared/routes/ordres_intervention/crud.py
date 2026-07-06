@@ -19,6 +19,7 @@ from ..ordres_intervention.schemas import (
     Ordres_interventionBatchUpdateRequest,
     Ordres_interventionBatchDeleteRequest,
 )
+from typing import Annotated
 
 router = APIRouter(
     prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"]
@@ -28,14 +29,14 @@ logger = logging.getLogger(__name__)
 
 @router.get("", response_model=Ordres_interventionListResponse)
 async def query_ordres_interventions(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
         f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
@@ -69,14 +70,14 @@ async def query_ordres_interventions(
 
 @router.get("/all", response_model=Ordres_interventionListResponse)
 async def query_ordres_interventions_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
         f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
@@ -107,9 +108,9 @@ async def query_ordres_interventions_all(
 
 @router.get("/{id}", response_model=Ordres_interventionResponse)
 async def get_ordres_intervention(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Fetching ordres_intervention with id: {id}, fields={fields}")
 
@@ -133,8 +134,8 @@ async def get_ordres_intervention(
 @router.post("", response_model=Ordres_interventionResponse, status_code=201)
 async def create_ordres_intervention(
     data: Ordres_interventionData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Creating new ordres_intervention with data: {data}")
 
@@ -178,8 +179,8 @@ async def create_ordres_intervention(
 )
 async def create_ordres_interventions_batch(
     request: Ordres_interventionBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch creating {len(request.items)} ordres_interventions")
 
@@ -216,8 +217,8 @@ async def create_ordres_interventions_batch(
 @router.put("/batch", response_model=list[Ordres_interventionResponse])
 async def update_ordres_interventions_batch(
     request: Ordres_interventionBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch updating {len(request.items)} ordres_interventions")
 
@@ -259,8 +260,8 @@ async def update_ordres_interventions_batch(
 async def update_ordres_intervention(
     id: int,
     data: Ordres_interventionUpdateData,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Updating ordres_intervention {id} with data: {data}")
 
@@ -312,8 +313,8 @@ async def update_ordres_intervention(
 @router.delete("/batch")
 async def delete_ordres_interventions_batch(
     request: Ordres_interventionBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Batch deleting {len(request.ids)} ordres_interventions")
 
@@ -351,8 +352,8 @@ async def delete_ordres_interventions_batch(
 @router.delete("/{id}")
 async def delete_ordres_intervention(
     id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     logger.debug(f"Deleting ordres_intervention with id: {id}")
 

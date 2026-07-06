@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from datetime import datetime
 
@@ -92,14 +92,14 @@ class RapportsBatchDeleteRequest(BaseModel):
 # ---------- Routes ----------
 @router.get("", response_model=RapportsListResponse)
 async def query_rapportss(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Query rapportss with filtering, sorting, and pagination"""
     logger.debug(
@@ -133,14 +133,14 @@ async def query_rapportss(
 
 @router.get("/all", response_model=RapportsListResponse)
 async def query_rapportss_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     # Query rapportss with filtering, sorting, and pagination without user limitation
     logger.debug(
@@ -171,9 +171,9 @@ async def query_rapportss_all(
 
 @router.get("/{id}", response_model=RapportsResponse)
 async def get_rapports(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get a single rapports by ID"""
     logger.debug(f"Fetching rapports with id: {id}, fields={fields}")
@@ -196,7 +196,7 @@ async def get_rapports(
 @router.post("", response_model=RapportsResponse, status_code=201)
 async def create_rapports(
     data: RapportsData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new rapports"""
     logger.debug(f"Creating new rapports with data: {data}")
@@ -220,7 +220,7 @@ async def create_rapports(
 @router.post("/batch", response_model=List[RapportsResponse], status_code=201)
 async def create_rapportss_batch(
     request: RapportsBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create multiple rapportss in a single request"""
     logger.debug(f"Batch creating {len(request.items)} rapportss")
@@ -245,7 +245,7 @@ async def create_rapportss_batch(
 @router.put("/batch", response_model=List[RapportsResponse])
 async def update_rapportss_batch(
     request: RapportsBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update multiple rapportss in a single request"""
     logger.debug(f"Batch updating {len(request.items)} rapportss")
@@ -275,7 +275,7 @@ async def update_rapportss_batch(
 async def update_rapports(
     id: int,
     data: RapportsUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update an existing rapports"""
     logger.debug(f"Updating rapports {id} with data: {data}")
@@ -304,7 +304,7 @@ async def update_rapports(
 @router.delete("/batch")
 async def delete_rapportss_batch(
     request: RapportsBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete multiple rapportss by their IDs"""
     logger.debug(f"Batch deleting {len(request.ids)} rapportss")
@@ -332,7 +332,7 @@ async def delete_rapportss_batch(
 @router.delete("/{id}")
 async def delete_rapports(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a single rapports by ID"""
     logger.debug(f"Deleting rapports with id: {id}")

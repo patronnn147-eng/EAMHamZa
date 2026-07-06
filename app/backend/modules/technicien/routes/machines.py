@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select, func, desc
@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 
 @router.get("/machines", response_model=List[MachineResponse])
 async def get_machines_list(
-    statut: Optional[str] = Query(None),
-    _current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    *, statut: Annotated[Optional[str], Query()] = None,
+    _current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Return all machines for the technician's intervention request form."""
     try:
@@ -56,11 +56,11 @@ async def get_machines_list(
     response_model=PaginatedResponse[MachineTelemetryResponse],
 )
 async def get_machine_telemetry(
-    machine_id: int,
-    page: int = Query(1, ge=1),
-    size: int = Query(20, ge=1, le=100),
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    *, machine_id: int,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=100)] = 20,
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """TECHNICIEN: Get telemetry logs for a specific machine"""
     machine_result = await db.execute(select(Machines).where(Machines.id == machine_id))
@@ -112,8 +112,8 @@ async def get_machine_telemetry(
 )
 async def get_machine_latest_telemetry(
     machine_id: int,
-    current_user: Utilisateurs = Depends(verify_technicien),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """TECHNICIEN: Get latest telemetry reading for a machine"""
     machine_result = await db.execute(select(Machines).where(Machines.id == machine_id))

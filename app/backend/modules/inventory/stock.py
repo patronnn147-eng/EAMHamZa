@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,9 +23,9 @@ router = APIRouter(prefix="/api/v1/inventory/stock", tags=["inventory-stock"])
 # ---------- Stock Levels ----------
 @router.get("", response_model=PaginatedResponse[StockResponse])
 async def list_stock_levels(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=1000)] = 10,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get current stock levels for all parts with pagination."""
     service = StockService(db)
@@ -42,7 +42,7 @@ async def list_stock_levels(
 
 # ---------- Add Stock ----------
 @router.post("", response_model=StockResponse, status_code=201)
-async def add_stock(data: StockAddRequest, db: AsyncSession = Depends(get_db)):
+async def add_stock(data: StockAddRequest, db: Annotated[AsyncSession, Depends(get_db)]):
     """Add stock for a spare part (e.g., received delivery)."""
     service = StockService(db)
     try:
@@ -61,7 +61,7 @@ async def add_stock(data: StockAddRequest, db: AsyncSession = Depends(get_db)):
 
 # ---------- Consume Stock ----------
 @router.post("/consume", response_model=StockResponse)
-async def consume_stock(data: StockConsumeRequest, db: AsyncSession = Depends(get_db)):
+async def consume_stock(data: StockConsumeRequest, db: Annotated[AsyncSession, Depends(get_db)]):
     """Consume stock for a spare part (e.g., used in an intervention)."""
     service = StockService(db)
     try:
@@ -82,9 +82,9 @@ async def consume_stock(data: StockConsumeRequest, db: AsyncSession = Depends(ge
 # ---------- Low Stock Alerts ----------
 @router.get("/alertes", response_model=PaginatedResponse[AlerteStockResponse])
 async def get_stock_alerts(
-    page: int = Query(1, ge=1),
-    size: int = Query(10, ge=1, le=1000),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=1000)] = 10,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get alerts for parts with stock below minimum threshold with pagination."""
     service = StockService(db)
@@ -102,10 +102,10 @@ async def get_stock_alerts(
 # ---------- Stock Movements History ----------
 @router.get("/movements", response_model=PaginatedResponse[MouvementStockResponse])
 async def get_stock_movements(
-    piece_id: Optional[int] = Query(None, description="Filter by piece ID"),
-    page: int = Query(1, ge=1),
-    size: int = Query(50, ge=1, le=500),
-    db: AsyncSession = Depends(get_db),
+    *, piece_id: Annotated[Optional[int], Query(description="Filter by piece ID")] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    size: Annotated[int, Query(ge=1, le=500)] = 50,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get stock movement history (additions and consumptions) with pagination."""
     service = StockService(db)

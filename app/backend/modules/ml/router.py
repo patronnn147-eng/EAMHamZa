@@ -20,7 +20,7 @@ from services.inventory.pieces import (
 from services.ai_prompts import build_sensor_status
 
 from pydantic import BaseModel
-from typing import Dict, Optional
+from typing import Dict, Optional, Annotated
 from schemas.pagination import PaginatedResponse
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
@@ -90,7 +90,7 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
 
 @router.get("/machines/{machine_id}/unified-health")
 async def get_unified_health(
-    machine_id: int, db: AsyncSession = Depends(get_db)
+    machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
     """
     Get the DST-fused unified health score for a machine.
@@ -306,7 +306,7 @@ async def get_unified_health(
 
 @router.get("/machines/{machine_id}/prediction")
 async def get_machine_prediction(
-    machine_id: int, db: AsyncSession = Depends(get_db)
+    machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
     """
     Get ML-based predictive maintenance data for a specific machine.
@@ -424,12 +424,12 @@ async def get_machine_prediction(
 @router.get("/machines/{machine_id}/failure-probability")
 async def get_failure_probability(
     machine_id: int,
-    air: float = Query(..., description="Air temperature [K]"),
-    process: float = Query(..., description="Process temperature [K]"),
-    rpm: int = Query(..., description="Rotational speed [rpm]"),
-    torque: float = Query(..., description="Torque [Nm]"),
-    wear: int = Query(..., description="Tool wear [min]"),
-    db: AsyncSession = Depends(get_db),
+    air: Annotated[float, Query(description="Air temperature [K]")],
+    process: Annotated[float, Query(description="Process temperature [K]")],
+    rpm: Annotated[int, Query(description="Rotational speed [rpm]")],
+    torque: Annotated[float, Query(description="Torque [Nm]")],
+    wear: Annotated[int, Query(description="Tool wear [min]")],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """
     Return failure probability for a machine using the trained ML model (P1).
@@ -475,12 +475,12 @@ async def get_failure_probability(
 @router.get("/machines/{machine_id}/failure-type")
 async def get_failure_type(
     machine_id: int,
-    air: float = Query(..., description="Air temperature [K]"),
-    process: float = Query(..., description="Process temperature [K]"),
-    rpm: int = Query(..., description="Rotational speed [rpm]"),
-    torque: float = Query(..., description="Torque [Nm]"),
-    wear: int = Query(..., description="Tool wear [min]"),
-    db: AsyncSession = Depends(get_db),
+    air: Annotated[float, Query(description="Air temperature [K]")],
+    process: Annotated[float, Query(description="Process temperature [K]")],
+    rpm: Annotated[int, Query(description="Rotational speed [rpm]")],
+    torque: Annotated[float, Query(description="Torque [Nm]")],
+    wear: Annotated[int, Query(description="Tool wear [min]")],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """
     Predict specific failure types for a machine (P2).
@@ -513,7 +513,7 @@ async def get_failure_type(
 
 
 @router.get("/fleet/critical")
-async def get_fleet_critical_predictions(db: AsyncSession = Depends(get_db)):
+async def get_fleet_critical_predictions(db: Annotated[AsyncSession, Depends(get_db)]):
     """
     Get machines with the highest risk of failure across the fleet.
     Returns only HIGH and CRITICAL risk machines, sorted by rul_days ascending.
@@ -602,7 +602,7 @@ async def _process_single_machine(
 
 
 @router.get("/fleet/dashboard")
-async def get_fleet_dashboard(db: AsyncSession = Depends(get_db)):
+async def get_fleet_dashboard(db: Annotated[AsyncSession, Depends(get_db)]):
     """
     PDCA Fleet Dashboard: Full overview of ALL machines with ML predictions.
     Cached for 5 minutes + parallel processing for speed.
@@ -721,14 +721,13 @@ async def refresh_fleet_dashboard():
 
 @router.get("/inventory/demand-forecast")
 async def get_demand_forecast(
-    horizon_days: int = Query(
-        60,
+    *, horizon_days: Annotated[int, Query(
         ge=7,
         le=180,
         description="Only include machines failing within this many days",
-    ),
-    limit: int = Query(20, ge=1, le=100, description="Max items to return"),
-    db: AsyncSession = Depends(get_db),
+    )] = 60,
+    limit: Annotated[int, Query(ge=1, le=100, description="Max items to return")] = 20,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """
     Ranked spare parts reorder list based on RUL predictions x stock levels x consumption history.
@@ -750,13 +749,13 @@ async def refresh_demand_forecast():
 
 @router.get("/shadow-logs")
 async def get_shadow_logs(
-    page: int = Query(1, ge=1, description="Page number"),
-    size: int = Query(100, ge=1, le=1000, description="Items per page"),
-    machine_id: int = Query(None, description="Filter by machine ID"),
-    risk_level: str = Query(
-        None, description="Filter by risk level (CRITICAL, HIGH, MEDIUM, LOW)"
-    ),
-    db: AsyncSession = Depends(get_db),
+    *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
+    size: Annotated[int, Query(ge=1, le=1000, description="Items per page")] = 100,
+    machine_id: Annotated[int, Query(description="Filter by machine ID")] = None,
+    risk_level: Annotated[str, Query(
+        description="Filter by risk level (CRITICAL, HIGH, MEDIUM, LOW)"
+    )] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> PaginatedResponse[Dict]:
     """
     PDCA Audit: Retrieve shadow-logged ML predictions.
@@ -812,7 +811,7 @@ async def get_shadow_logs(
 async def update_machine_telemetry(
     machine_id: int,
     data: TelemetryUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """
     Insert a manual telemetry entry for a machine (simulation / testing).
@@ -853,7 +852,7 @@ async def update_machine_telemetry(
 
 
 @router.get("/retrain/stats")
-async def get_retraining_stats(db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_retraining_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
     """
     Get statistics on new ground truth data available for retraining.
     Used by the ML Admin Dashboard.
@@ -863,8 +862,8 @@ async def get_retraining_stats(db: AsyncSession = Depends(get_db)) -> Dict:
 
 @router.post("/retrain")
 async def trigger_retraining(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
     Manually trigger the PDCA Act Phase: automated retraining. ADMIN only.
@@ -898,7 +897,7 @@ async def ml_service_status():
 
 @router.get("/machines/{machine_id}/readiness")
 async def get_machine_readiness(
-    machine_id: int, db: AsyncSession = Depends(get_db)
+    machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
 ) -> Dict:
     """
     P7.5: 0-100 readiness score for a machine.
@@ -933,9 +932,9 @@ async def get_machine_readiness(
 
 @router.get("/machines/{machine_id}/timeline")
 async def get_machine_timeline(
-    machine_id: int,
+    *, machine_id: int,
     limit: int = 20,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """P7.5: Chronological maintenance event timeline for a machine."""
     from modules.ml.services.readiness import get_timeline_for_machine
@@ -954,7 +953,7 @@ async def get_machine_timeline(
 
 
 @router.get("/kpis")
-async def get_p7_kpis(db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_p7_kpis(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
     """
     P7.5: Fleet-wide P7 KPIs derived from existing data.
     - stock_readiness_rate: % machines without active PARTS_SHORTAGE alert
@@ -1010,7 +1009,7 @@ async def get_p7_kpis(db: AsyncSession = Depends(get_db)) -> Dict:
 
 
 @router.get("/procurement/queue")
-async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
+async def get_procurement_queue(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
     """
     P7: List machines with active PARTS_SHORTAGE alerts.
     Used by ADMIN procurement queue widget to review and act on shortfalls.
@@ -1051,8 +1050,8 @@ async def get_procurement_queue(db: AsyncSession = Depends(get_db)) -> Dict:
 @router.post("/procurement/draft/{machine_id}")
 async def create_procurement_draft_endpoint(
     machine_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> Dict:
     """
     P7.4: Create a DRAFT work order from the latest parts_demand shortfall
@@ -1129,8 +1128,8 @@ async def create_procurement_draft_endpoint(
 @router.patch("/procurement/draft/{wo_id}/approve")
 async def approve_procurement_draft_endpoint(
     wo_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> Dict:
     """P7.4: Approve draft → SUBMITTED. Enters normal WO workflow."""
     from modules.ml.services.parts_drafts import approve_procurement_draft
@@ -1143,7 +1142,7 @@ async def approve_procurement_draft_endpoint(
 @router.delete("/procurement/draft/{wo_id}")
 async def reject_procurement_draft_endpoint(
     wo_id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Dict:
     """P7.4: Reject/discard draft → ANNULÉ. Unlinks from PARTS_SHORTAGE alert."""
     from modules.ml.services.parts_drafts import reject_procurement_draft
@@ -1153,10 +1152,10 @@ async def reject_procurement_draft_endpoint(
 
 @router.post("/procurement/quick-action/{machine_id}")
 async def quick_action_endpoint(
-    machine_id: int,
-    dry_run: bool = Query(False),
-    db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    *, machine_id: int,
+    dry_run: Annotated[bool, Query()] = False,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> Dict:
     """
     Quick Action — ADMIN one-click: convert ML-recommended parts into real
@@ -1230,8 +1229,8 @@ async def _drift_rows(db: AsyncSession, start, end):
 
 @router.get("/model-health")
 async def model_health(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     _require_admin(current_user)
     models = scan_models(_BACKEND_MODELS, _MICRO_MODELS)
@@ -1281,8 +1280,8 @@ _VALID_HORIZONS = {7, 30, 60}
 
 @router.get("/forecast/summary")
 async def get_forecast_summary(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """3 KPI cards for all roles — 30-day horizon, cached 30 min."""
     from .services.downtime_forecast import compute_fleet_downtime
@@ -1346,9 +1345,9 @@ async def get_forecast_summary(
 
 @router.get("/forecast/downtime")
 async def get_forecast_downtime(
-    horizon: int = Query(30, description="7, 30 or 60"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """Per-machine downtime forecast. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
@@ -1361,9 +1360,9 @@ async def get_forecast_downtime(
 
 @router.get("/forecast/labor")
 async def get_forecast_labor(
-    horizon: int = Query(30, description="7, 30 or 60"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """Labor demand vs capacity. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
@@ -1391,9 +1390,9 @@ async def get_forecast_labor(
 
 @router.get("/forecast/budget")
 async def get_forecast_budget(
-    horizon: int = Query(30, description="7, 30 or 60"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """Cost breakdown. CHEFTECH + ADMIN only."""
     _require_planner(current_user)
@@ -1427,9 +1426,9 @@ async def get_forecast_budget(
 
 @router.post("/forecast/optimize-schedule")
 async def post_optimize_schedule(
-    horizon: int = Query(30, description="7, 30 or 60"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """Trigger OR-Tools schedule optimizer. CHEFTECH + ADMIN only. Cached 30 min."""
     _require_planner(current_user)
@@ -1442,8 +1441,8 @@ async def post_optimize_schedule(
 
 @router.get("/forecast/my-schedule")
 async def get_my_schedule(
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ) -> dict:
     """TECHNICIEN: returns their own assignments from the cached schedule."""
     from .services.schedule_optimizer import compute_schedule

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 @router.get("/users/by-role/{role}", response_model=List[UserOption])
 async def get_users_by_role(
     role: UserRole,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Get users by role for dropdown selection"""
     await verify_admin(current_user)
@@ -64,8 +64,8 @@ async def get_users_by_role(
 async def update_planning(
     planning_id: int,
     data: PlanningUpdateData,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Update a planning (admin only)"""
     await verify_admin(current_user)

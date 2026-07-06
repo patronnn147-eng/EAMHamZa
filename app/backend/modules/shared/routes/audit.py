@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, Annotated
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -43,17 +43,17 @@ class AuditStatsResponse(BaseModel):
 
 @router.get("/log", response_model=dict)
 async def get_audit_log(
-    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
-    entity_id: Optional[int] = Query(None, description="Filter by entity ID"),
-    user_id: Optional[int] = Query(None, description="Filter by user ID"),
-    action_type: Optional[str] = Query(None, description="Filter by action type"),
-    user_search: Optional[str] = Query(None, description="Search by user name"),
-    from_date: Optional[datetime] = Query(None, description="From date"),
-    to_date: Optional[datetime] = Query(None, description="To date"),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, entity_type: Annotated[Optional[str], Query(description="Filter by entity type")] = None,
+    entity_id: Annotated[Optional[int], Query(description="Filter by entity ID")] = None,
+    user_id: Annotated[Optional[int], Query(description="Filter by user ID")] = None,
+    action_type: Annotated[Optional[str], Query(description="Filter by action type")] = None,
+    user_search: Annotated[Optional[str], Query(description="Search by user name")] = None,
+    from_date: Annotated[Optional[datetime], Query(description="From date")] = None,
+    to_date: Annotated[Optional[datetime], Query(description="To date")] = None,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get audit log entries with filters"""
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
@@ -106,11 +106,11 @@ async def get_audit_log(
 
 @router.get("/log/{entity_type}/{entity_id}", response_model=list)
 async def get_entity_history(
-    entity_type: str,
+    *, entity_type: str,
     entity_id: int,
-    limit: int = Query(100, ge=1, le=500),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    limit: Annotated[int, Query(ge=1, le=500)] = 100,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get complete history for a specific entity"""
     service = AuditService(db)
@@ -141,10 +141,10 @@ async def get_entity_history(
 
 @router.get("/stats", response_model=AuditStatsResponse)
 async def get_audit_stats(
-    entity_type: Optional[str] = Query(None, description="Filter by entity type"),
-    entity_id: Optional[int] = Query(None, description="Filter by entity ID"),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, entity_type: Annotated[Optional[str], Query(description="Filter by entity type")] = None,
+    entity_id: Annotated[Optional[int], Query(description="Filter by entity ID")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get audit log statistics"""
     if current_user.role not in [UserRole.ADMIN, UserRole.CHEFTECH]:
@@ -157,11 +157,11 @@ async def get_audit_stats(
 
 @router.get("/export")
 async def export_audit_log(
-    entity_type: Optional[str] = Query(None),
-    from_date: Optional[datetime] = Query(None),
-    to_date: Optional[datetime] = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: Utilisateurs = Depends(get_current_user),
+    *, entity_type: Annotated[Optional[str], Query()] = None,
+    from_date: Annotated[Optional[datetime], Query()] = None,
+    to_date: Annotated[Optional[datetime], Query()] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Export audit log to CSV"""
     if current_user.role not in (UserRole.ADMIN, UserRole.CHEFTECH):

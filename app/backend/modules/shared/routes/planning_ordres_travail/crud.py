@@ -20,6 +20,7 @@ from ..planning_ordres_travail.schemas import (
     Planning_ordres_travailBatchUpdateRequest,
     Planning_ordres_travailBatchDeleteRequest,
 )
+from typing import Annotated
 
 router = APIRouter(
     prefix="/api/v1/entities/planning_ordres_travail", tags=["planning_ordres_travail"]
@@ -29,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 @router.get("", response_model=Planning_ordres_travailListResponse)
 async def query_planning_ordres_travails(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
         f"User {current_user.email} querying planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}"
@@ -71,15 +72,15 @@ async def query_planning_ordres_travails(
 
 @router.get("/all", response_model=Planning_ordres_travailListResponse)
 async def query_planning_ordres_travails_all(
-    query: str = Query(None, description="Query conditions (JSON string)"),
-    sort: str = Query(None, description="Sort field (prefix with '-' for descending)"),
-    skip: int = Query(0, ge=0, description="Number of records to skip"),
-    limit: int = Query(
-        20, ge=1, le=2000, description="Max number of records to return"
-    ),
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
+    sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
+    skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
+    limit: Annotated[int, Query(
+        ge=1, le=2000, description="Max number of records to return"
+    )] = 20,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
         f"User {current_user.email} querying all planning_ordres_travails: query={query}, sort={sort}, skip={skip}, limit={limit}"
@@ -110,9 +111,9 @@ async def query_planning_ordres_travails_all(
 
 @router.get("/{id}", response_model=Planning_ordres_travailResponse)
 async def get_planning_ordres_travail(
-    id: int,
-    fields: str = Query(None, description="Comma-separated list of fields to return"),
-    db: AsyncSession = Depends(get_db),
+    *, id: int,
+    fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Fetching planning_ordres_travail with id: {id}, fields={fields}")
 
@@ -138,8 +139,8 @@ async def get_planning_ordres_travail(
 @router.post("", response_model=Planning_ordres_travailResponse, status_code=201)
 async def create_planning_ordres_travail(
     data: Planning_ordres_travailData,
-    current_user: Utilisateurs = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Creating new planning_ordres_travail with data: {data}")
 
@@ -198,7 +199,7 @@ async def create_planning_ordres_travail(
 )
 async def create_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchCreateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Batch creating {len(request.items)} planning_ordres_travails")
 
@@ -224,7 +225,7 @@ async def create_planning_ordres_travails_batch(
 @router.put("/batch", response_model=list[Planning_ordres_travailResponse])
 async def update_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchUpdateRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Batch updating {len(request.items)} planning_ordres_travails")
 
@@ -254,7 +255,7 @@ async def update_planning_ordres_travails_batch(
 async def update_planning_ordres_travail(
     id: int,
     data: Planning_ordres_travailUpdateData,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Updating planning_ordres_travail {id} with data: {data}")
 
@@ -287,7 +288,7 @@ async def update_planning_ordres_travail(
 @router.delete("/batch")
 async def delete_planning_ordres_travails_batch(
     request: Planning_ordres_travailBatchDeleteRequest,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Batch deleting {len(request.ids)} planning_ordres_travails")
 
@@ -316,7 +317,7 @@ async def delete_planning_ordres_travails_batch(
 @router.delete("/{id}")
 async def delete_planning_ordres_travail(
     id: int,
-    db: AsyncSession = Depends(get_db),
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(f"Deleting planning_ordres_travail with id: {id}")
 
