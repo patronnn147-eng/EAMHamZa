@@ -1,6 +1,6 @@
 # EAMSagemCom — Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → sast → sonarqube → lint → gate
-# Blocking: secret-scan, sca-deps, sast, sonarqube, gate
+# Stages: secret-scan → sca-deps → sast → sonarqube → build → image-scan → lint → gate
+# Blocking: secret-scan, sca-deps, sast, sonarqube, build, image-scan, gate
 # Non-blocking: lint (allow_failure: true)
 # sonarqube-scan requires a self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
 
@@ -9,6 +9,8 @@ stages:
   - sca-deps
   - sast
   - sonarqube
+  - build
+  - image-scan
   - lint
   - gate
 
@@ -164,6 +166,49 @@ sonarqube-scan:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 15 minutes
+  allow_failure: false
+
+# ─── Stage 5: Build images + IaC scan (parallel, self-hosted local runner) ──
+
+build-images:
+  stage: build
+  needs: [sonarqube-scan]
+  tags: [local]
+  image: docker:24-cli
+  script:
+    - docker build -t eam-backend:ci ./app/backend
+    - docker build -t eam-frontend:ci --build-arg VITE_API_BASE_URL=http://localhost:8000 ./app/frontend
+    - docker build -t eam-ml-microservice:ci ./app/ml-microservice
+    - docker build -t eam-rag-service:ci ./app/rag-service
+    - docker build -t eam-ml-research:ci -f app/ml-microservice/ml_research/Dockerfile .
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 20 minutes
+  allow_failure: false
+
+iac-scan:
+  stage: build
+  needs: [sonarqube-scan]
+  tags: [local]
+  image: aquasec/trivy:latest
+  script:
+    - |
+      FAILED=0
+      for f in docker-compose.yml docker-compose.sonarqube.yml docker-compose.notebooks.yml; do
+        BASENAME=$(echo "$f" | sed 's/\.yml$//' | sed 's/[^a-zA-Z0-9_-]/-/g')
+        trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-iac-${BASENAME}.sarif" --exit-code 1 "$f" || FAILED=1
+      done
+      exit $FAILED
+  artifacts:
+    paths:
+      - trivy-iac-*.sarif
+    expire_in: 1 week
+    when: always
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 10 minutes
   allow_failure: false
 
 # ─── Stage 5: Lint (non-blocking) ────────────────────────────────────────────
