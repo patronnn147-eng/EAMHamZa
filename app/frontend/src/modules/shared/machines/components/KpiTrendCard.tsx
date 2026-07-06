@@ -39,21 +39,43 @@ export const KpiTrendCard: React.FC<KpiTrendCardProps> = ({
 }) => {
     const gradientId = useId();
 
-    const isFavorable =
-        trend.pctChange === null
-            ? null
-            : trend.goodDirection === 'up'
-                ? trend.pctChange > 0
-                : trend.pctChange < 0;
+    let isFavorable: boolean | null;
+    if (trend.pctChange === null) {
+        isFavorable = null;
+    } else if (trend.goodDirection === 'up') {
+        isFavorable = trend.pctChange > 0;
+    } else {
+        isFavorable = trend.pctChange < 0;
+    }
 
-    const chartColor = isFavorable === null ? '#60a5fa' : isFavorable ? '#34d399' : '#f87171';
-    const badgeColorClass =
-        isFavorable === null
-            ? 'bg-blue-500/15 text-blue-300'
-            : isFavorable
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-red-500/15 text-red-400';
-    const arrow = trend.pctChange === null ? '—' : trend.pctChange > 0 ? '▲' : trend.pctChange < 0 ? '▼' : '—';
+    let chartColor: string;
+    if (isFavorable === null) {
+        chartColor = '#60a5fa';
+    } else if (isFavorable) {
+        chartColor = '#34d399';
+    } else {
+        chartColor = '#f87171';
+    }
+
+    let badgeColorClass: string;
+    if (isFavorable === null) {
+        badgeColorClass = 'bg-blue-500/15 text-blue-300';
+    } else if (isFavorable) {
+        badgeColorClass = 'bg-emerald-500/15 text-emerald-400';
+    } else {
+        badgeColorClass = 'bg-red-500/15 text-red-400';
+    }
+
+    let arrow: string;
+    if (trend.pctChange === null) {
+        arrow = '—';
+    } else if (trend.pctChange > 0) {
+        arrow = '▲';
+    } else if (trend.pctChange < 0) {
+        arrow = '▼';
+    } else {
+        arrow = '—';
+    }
 
     return (
         <motion.div

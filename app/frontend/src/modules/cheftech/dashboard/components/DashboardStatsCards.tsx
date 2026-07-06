@@ -24,6 +24,19 @@ export const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({ stats,
     return new Date(m.date_prochaine_maintenance) < now;
   }).length;
 
+  let maintenanceCardBg: string;
+  let maintenanceBadgeClass: string;
+  if (overdueMaintenance > 0) {
+    maintenanceCardBg = 'bg-red-50 dark:bg-red-950';
+    maintenanceBadgeClass = 'text-red-600 animate-pulse';
+  } else if (upcomingMaintenance > 0) {
+    maintenanceCardBg = 'bg-amber-50 dark:bg-amber-950';
+    maintenanceBadgeClass = 'text-amber-600';
+  } else {
+    maintenanceCardBg = 'bg-slate-800 dark:bg-slate-900';
+    maintenanceBadgeClass = 'text-blue-300';
+  }
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-10 mt-2">
       <Card className="border-none shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-slate-800 dark:bg-slate-900 group overflow-hidden relative">
@@ -112,7 +125,7 @@ export const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({ stats,
 
       <Card className={cn(
         "border-none shadow-xl hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 group overflow-hidden relative",
-        overdueMaintenance > 0 ? 'bg-red-50 dark:bg-red-950' : upcomingMaintenance > 0 ? 'bg-amber-50 dark:bg-amber-950' : 'bg-slate-800 dark:bg-slate-900'
+        maintenanceCardBg
       )}>
         <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity text-current">
           <CalendarClock className="h-16 w-16 -mr-4 -mt-4 text-current" />
@@ -129,7 +142,7 @@ export const DashboardStatsCards: React.FC<DashboardStatsCardsProps> = ({ stats,
               </p>
               <p className={cn(
                 "text-[11px] font-bold mt-2",
-                overdueMaintenance > 0 ? 'text-red-600 animate-pulse' : upcomingMaintenance > 0 ? 'text-amber-600' : 'text-blue-300'
+                maintenanceBadgeClass
               )}>
                 {overdueMaintenance > 0
                   ? `${overdueMaintenance} EN RETARD`

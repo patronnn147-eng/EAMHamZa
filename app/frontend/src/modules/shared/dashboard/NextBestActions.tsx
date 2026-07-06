@@ -19,8 +19,14 @@ export function NextBestActions(props: NbaInput) {
     <div className="space-y-2">
       <p className="text-xs font-medium text-blue-300">Actions prioritaires</p>
       {actions.map((a) => {
-        const border = a.severity === 'critical' ? 'border-l-red-500'
-          : a.severity === 'high' ? 'border-l-amber-500' : 'border-l-blue-500';
+        let border: string;
+        if (a.severity === 'critical') {
+          border = 'border-l-red-500';
+        } else if (a.severity === 'high') {
+          border = 'border-l-amber-500';
+        } else {
+          border = 'border-l-blue-500';
+        }
         return (
           <Link key={a.key} to={a.href}
             className={`flex items-center gap-3 rounded-md border border-slate-700 border-l-[3px] ${border} bg-slate-800 px-3 py-2 hover:bg-slate-700/60`}>

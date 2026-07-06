@@ -133,33 +133,43 @@ function MonthCalendar({
                     const isCurrentMonth = isSameMonth(day, viewMonth);
                     const isToday = isSameDay(day, startOfDay(new Date()));
 
+                    let cellBackground: string;
+                    let cellBorder: string;
+                    if (isStart || isEnd) {
+                        cellBackground = `${typeColor}22`;
+                        cellBorder = `1px solid ${typeColor}60`;
+                    } else if (inRange) {
+                        cellBackground = 'rgba(19,27,46,0.6)';
+                        cellBorder = `1px solid ${typeColor}25`;
+                    } else {
+                        cellBackground = 'rgba(19,27,46,0.3)';
+                        cellBorder = '1px solid transparent';
+                    }
+
+                    let dayNumberColor: string;
+                    if (isStart || isEnd) {
+                        dayNumberColor = typeColor;
+                    } else if (isToday) {
+                        dayNumberColor = COLORS.primary;
+                    } else {
+                        dayNumberColor = COLORS.onSurface;
+                    }
+
                     return (
                         <div
                             key={day.toISOString()}
                             className="flex flex-col p-1 rounded-lg transition-all"
                             style={{
                                 aspectRatio: '1/1',
-                                background: isStart || isEnd
-                                    ? `${typeColor}22`
-                                    : inRange
-                                        ? 'rgba(19,27,46,0.6)'
-                                        : 'rgba(19,27,46,0.3)',
-                                border: isStart || isEnd
-                                    ? `1px solid ${typeColor}60`
-                                    : inRange
-                                        ? `1px solid ${typeColor}25`
-                                        : `1px solid transparent`,
+                                background: cellBackground,
+                                border: cellBorder,
                                 opacity: isCurrentMonth ? 1 : 0.3,
                             }}
                         >
                             <span
                                 className="text-xs font-bold leading-none"
                                 style={{
-                                    color: isStart || isEnd
-                                        ? typeColor
-                                        : isToday
-                                            ? COLORS.primary
-                                            : COLORS.onSurface,
+                                    color: dayNumberColor,
                                     fontFamily: 'Space Grotesk, sans-serif',
                                 }}
                             >

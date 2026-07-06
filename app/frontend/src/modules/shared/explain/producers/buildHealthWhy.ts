@@ -18,8 +18,11 @@ const VERDICT_TITLE: Record<string, string> = {
   Degrading: 'État qui se dégrade',
   Healthy: 'Machine en bon état',
 };
-const toneOf = (s: string): WhyTone =>
-  s === 'CRITIQUE' ? 'critical' : s === 'ATTENTION' ? 'warning' : 'normal';
+const toneOf = (s: string): WhyTone => {
+  if (s === 'CRITIQUE') return 'critical';
+  if (s === 'ATTENTION') return 'warning';
+  return 'normal';
+};
 
 export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
   const sensors = health.sensor_status ?? [];

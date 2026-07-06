@@ -113,11 +113,14 @@ export const AuditLogViewer: React.FC = () => {
         setEntries(data.items || []);
         setTotal(data.total || 0);
       } else {
-        const errMsg = res.status === 401 
-          ? "Authentication required. Please log in."
-          : res.status === 403 
-            ? "Access denied. You don't have permission to view audit logs."
-            : `Server error (${res.status})`;
+        let errMsg: string;
+        if (res.status === 401) {
+          errMsg = "Authentication required. Please log in.";
+        } else if (res.status === 403) {
+          errMsg = "Access denied. You don't have permission to view audit logs.";
+        } else {
+          errMsg = `Server error (${res.status})`;
+        }
         setError(errMsg);
         setEntries([]);
         setTotal(0);

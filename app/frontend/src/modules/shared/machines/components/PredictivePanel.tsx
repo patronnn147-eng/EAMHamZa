@@ -219,19 +219,25 @@ export const PredictivePanel: React.FC<PredictivePanelProps> = ({ machineId }) =
                                     <span className="text-sm font-bold text-blue-100">Facteurs de Risque IA (SHAP)</span>
                                 </div>
                                 <div className="space-y-2">
-                                    {prediction.explanations.map((exp, idx) => (
+                                    {prediction.explanations.map((exp, idx) => {
+                                        let intensityClass = 'text-blue-600 border-blue-200 bg-blue-50';
+                                        if (exp.intensity === 'high') {
+                                            intensityClass = 'text-red-600 border-red-200 bg-red-50';
+                                        } else if (exp.intensity === 'medium') {
+                                            intensityClass = 'text-orange-600 border-orange-200 bg-orange-50';
+                                        }
+                                        return (
                                         <div key={idx} className="flex items-center justify-between text-xs p-2 bg-slate-800 border border-blue-800/50 rounded-md shadow-sm">
                                             <span className="font-medium text-blue-200">{exp.factor}</span>
                                             <Badge variant="outline" className={`
-                                                ${exp.intensity === 'high' ? 'text-red-600 border-red-200 bg-red-50' :
-                                                    exp.intensity === 'medium' ? 'text-orange-600 border-orange-200 bg-orange-50' :
-                                                        'text-blue-600 border-blue-200 bg-blue-50'}
+                                                ${intensityClass}
                                                 capitalize py-0 px-1.5 text-[10px]
                                             `}>
                                                 {exp.intensity}
                                             </Badge>
                                         </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         )}
@@ -319,16 +325,20 @@ export const PredictivePanel: React.FC<PredictivePanelProps> = ({ machineId }) =
                         {showSignalBreakdown && (
                             <div className="mt-3 space-y-3">
                                 {/* Verdict + conflict */}
-                                {prediction.dst_verdict && (
+                                {prediction.dst_verdict && (() => {
+                                    let verdictClass = 'bg-gray-100 text-gray-600';
+                                    if (prediction.dst_verdict === 'Healthy') {
+                                        verdictClass = 'bg-emerald-100 text-emerald-700';
+                                    } else if (prediction.dst_verdict === 'Degrading') {
+                                        verdictClass = 'bg-amber-100 text-amber-700';
+                                    } else if (prediction.dst_verdict === 'Critical') {
+                                        verdictClass = 'bg-red-100 text-red-700';
+                                    }
+                                    return (
                                     <div className="flex items-center justify-between text-xs p-2 bg-slate-700/50 rounded-md border border-blue-800/40">
                                         <span className="text-blue-300 font-medium">Verdict DST</span>
                                         <div className="flex items-center gap-2">
-                                            <Badge className={`text-[10px] py-0 px-1.5 ${
-                                                prediction.dst_verdict === 'Healthy' ? 'bg-emerald-100 text-emerald-700' :
-                                                prediction.dst_verdict === 'Degrading' ? 'bg-amber-100 text-amber-700' :
-                                                prediction.dst_verdict === 'Critical' ? 'bg-red-100 text-red-700' :
-                                                'bg-gray-100 text-gray-600'
-                                            }`}>
+                                            <Badge className={`text-[10px] py-0 px-1.5 ${verdictClass}`}>
                                                 {prediction.dst_verdict}
                                             </Badge>
                                             {prediction.conflict_factor_K !== undefined && (
@@ -347,7 +357,8 @@ export const PredictivePanel: React.FC<PredictivePanelProps> = ({ machineId }) =
                                             )}
                                         </div>
                                     </div>
-                                )}
+                                    );
+                                })()}
 
                                 {/* Kalman smoothed state */}
                                 {prediction.kalman_hi !== undefined && (

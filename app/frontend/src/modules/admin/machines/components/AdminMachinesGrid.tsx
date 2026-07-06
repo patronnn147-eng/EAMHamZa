@@ -67,6 +67,15 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
 
           const isCritical = health.score < 60;
 
+          let riskLevelClass = 'bg-emerald-100 text-emerald-700';
+          if (prediction?.risk_level === 'CRITICAL') {
+            riskLevelClass = 'bg-red-100 text-red-700';
+          } else if (prediction?.risk_level === 'HIGH') {
+            riskLevelClass = 'bg-orange-100 text-orange-700';
+          } else if (prediction?.risk_level === 'MEDIUM') {
+            riskLevelClass = 'bg-amber-100 text-amber-700';
+          }
+
           return (
             <Card
               key={machine.id}
@@ -119,12 +128,7 @@ export const AdminMachinesGrid: React.FC<AdminMachinesGridProps> = ({
                   {prediction?.risk_level && (
                     <div className="flex justify-between">
                       <span className="text-blue-300">Risque IA</span>
-                      <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${
-                        prediction.risk_level === 'CRITICAL' ? 'bg-red-100 text-red-700' :
-                        prediction.risk_level === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                        prediction.risk_level === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
-                        'bg-emerald-100 text-emerald-700'
-                      }`}>
+                      <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${riskLevelClass}`}>
                         {prediction.risk_level}
                       </span>
                     </div>

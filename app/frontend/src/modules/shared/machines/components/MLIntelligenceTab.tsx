@@ -511,14 +511,24 @@ function PostMaintenanceRecoveryCard({ recovery }: { recovery: RecoveryInfo }) {
 
     const deltaLabel =
         delta == null ? '—' : `${delta > 0 ? '+' : ''}${delta.toFixed(1)} pts`;
-    const daysLabel =
-        days_since_completion == null
-            ? null
-            : `${days_since_completion} day${days_since_completion === 1 ? '' : 's'} ago`;
-    const windowLabel =
-        within_recovery_window && days_since_completion != null
-            ? `${Math.max(0, 7 - days_since_completion)} day${(7 - days_since_completion) === 1 ? '' : 's'} remaining`
-            : 'Window closed';
+
+    let daysLabel: string | null;
+    if (days_since_completion == null) {
+        daysLabel = null;
+    } else {
+        const daySuffix = days_since_completion === 1 ? '' : 's';
+        daysLabel = `${days_since_completion} day${daySuffix} ago`;
+    }
+
+    let windowLabel: string;
+    if (within_recovery_window && days_since_completion != null) {
+        const daysRemainingRaw = 7 - days_since_completion;
+        const daysRemaining = Math.max(0, daysRemainingRaw);
+        const remSuffix = daysRemainingRaw === 1 ? '' : 's';
+        windowLabel = `${daysRemaining} day${remSuffix} remaining`;
+    } else {
+        windowLabel = 'Window closed';
+    }
 
     return (
         <div style={cardStyle}>
@@ -837,14 +847,22 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Prop
                 <div style={{ marginTop: '0.75rem', ...glass, padding: '1.25rem' }}>
                     <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.75rem' }}>DST Belief Function</p>
                     <div style={{ display: 'flex', gap: '1.5rem' }}>
-                        {Object.entries(p.bpa).map(([k, v]) => (
+                        {Object.entries(p.bpa).map(([k, v]) => {
+                            let bpaColor = '#e2e8f0';
+                            if (k === 'healthy') {
+                                bpaColor = '#00f2ff';
+                            } else if (k === 'critical') {
+                                bpaColor = '#bc00ff';
+                            }
+                            return (
                             <div key={k} style={{ flex: 1 }}>
                                 <p style={{ fontSize: '0.6rem', textTransform: 'capitalize', color: '#475569', fontFamily: 'Space Grotesk, monospace', marginBottom: 4 }}>{k}</p>
-                                <p style={{ fontSize: '1rem', fontWeight: 700, color: k === 'healthy' ? '#00f2ff' : k === 'critical' ? '#bc00ff' : '#e2e8f0', fontFamily: 'Manrope, sans-serif' }}>
+                                <p style={{ fontSize: '1rem', fontWeight: 700, color: bpaColor, fontFamily: 'Manrope, sans-serif' }}>
                                     {(v * 100).toFixed(0)}%
                                 </p>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}

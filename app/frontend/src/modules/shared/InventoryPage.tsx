@@ -558,10 +558,25 @@ export default function InventoryPage() {
                                         const isOut  = qty === 0;
                                         const isLow  = !noStock && !isOut && minStock !== null && qty < minStock;
                                         const deficit = (isOut || isLow) && minStock ? minStock - (qty ?? 0) : 0;
+
+                                        let rowClass = '';
+                                        if (isOut) {
+                                            rowClass = 'bg-red-950/20';
+                                        } else if (isLow) {
+                                            rowClass = 'bg-orange-950/15';
+                                        }
+
+                                        let qtyClass = 'text-green-400';
+                                        if (isOut) {
+                                            qtyClass = 'text-red-400';
+                                        } else if (isLow) {
+                                            qtyClass = 'text-orange-400';
+                                        }
+
                                         return (
                                             <TableRow
                                                 key={piece.id}
-                                                className={isOut ? 'bg-red-950/20' : isLow ? 'bg-orange-950/15' : ''}
+                                                className={rowClass}
                                             >
                                                 <TableCell className="font-mono text-xs text-blue-300">{piece.reference}</TableCell>
                                                 <TableCell className="font-medium">{piece.name}</TableCell>
@@ -574,7 +589,7 @@ export default function InventoryPage() {
                                                 <TableCell className="text-center">
                                                     {noStock
                                                         ? <span className="text-slate-500 text-sm">—</span>
-                                                        : <span className={`font-bold text-base ${isOut ? 'text-red-400' : isLow ? 'text-orange-400' : 'text-green-400'}`}>{qty}</span>
+                                                        : <span className={`font-bold text-base ${qtyClass}`}>{qty}</span>
                                                     }
                                                 </TableCell>
                                                 <TableCell className="text-center text-blue-300">{minStock ?? '—'}</TableCell>
@@ -881,13 +896,17 @@ export default function InventoryPage() {
                         </div>
 
                         {/* Stock context badge */}
-                        {stockForm.piece_id && (
-                            <div className={`rounded-md px-3 py-2.5 text-sm flex items-center justify-between border
-                                ${!selectedPieceStock || selectedPieceStock.quantity === 0
-                                    ? 'bg-red-950/40 border-red-500/40 text-red-300'
-                                    : selectedPieceStock.min_stock != null && selectedPieceStock.quantity < selectedPieceStock.min_stock
-                                        ? 'bg-orange-950/40 border-orange-500/40 text-orange-300'
-                                        : 'bg-green-950/40 border-green-500/40 text-green-300'}`}
+                        {stockForm.piece_id && (() => {
+                            let stockBadgeClass: string;
+                            if (!selectedPieceStock || selectedPieceStock.quantity === 0) {
+                                stockBadgeClass = 'bg-red-950/40 border-red-500/40 text-red-300';
+                            } else if (selectedPieceStock.min_stock != null && selectedPieceStock.quantity < selectedPieceStock.min_stock) {
+                                stockBadgeClass = 'bg-orange-950/40 border-orange-500/40 text-orange-300';
+                            } else {
+                                stockBadgeClass = 'bg-green-950/40 border-green-500/40 text-green-300';
+                            }
+                            return (
+                            <div className={`rounded-md px-3 py-2.5 text-sm flex items-center justify-between border ${stockBadgeClass}`}
                             >
                                 <span className="font-medium">{selectedPieceInfo?.name}</span>
                                 <span className="font-mono text-lg font-bold">
@@ -897,7 +916,8 @@ export default function InventoryPage() {
                                     </span>
                                 </span>
                             </div>
-                        )}
+                            );
+                        })()}
 
                         {/* Quantity */}
                         <div className="space-y-2">

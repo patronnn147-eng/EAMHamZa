@@ -8,11 +8,20 @@ const WHY: Record<string, string> = {
 };
 
 export function buildNbaWhy(action: RankedAction): WhyPayload {
+  let actionTone: 'critical' | 'warning' | 'normal';
+  if (action.severity === 'critical') {
+    actionTone = 'critical';
+  } else if (action.severity === 'high') {
+    actionTone = 'warning';
+  } else {
+    actionTone = 'normal';
+  }
+
   return {
     title: 'Pourquoi cette action ?',
     summary: WHY[action.severity] ?? 'Action recommandée.',
     reasons: [
-      { label: action.label, tone: action.severity === 'critical' ? 'critical' : action.severity === 'high' ? 'warning' : 'normal' },
+      { label: action.label, tone: actionTone },
       { label: WHY[action.severity] ?? 'Recommandé', tone: 'info' },
     ],
     source: 'Classé par urgence et impact sur la production.',

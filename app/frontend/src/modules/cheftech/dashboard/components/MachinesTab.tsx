@@ -60,12 +60,14 @@ export const MachinesTab: React.FC<MachinesTabProps> = ({
           {machines.map((machine) => {
             const urgency = getMaintenanceUrgency(machine.date_prochaine_maintenance);
             const health = computeHealthScore(machine);
-            const cardBorder =
-              urgency === 'overdue'
-                ? 'border-red-400 bg-red-50'
-                : urgency === 'soon'
-                  ? 'border-orange-400 bg-orange-50'
-                  : 'border';
+            let cardBorder: string;
+            if (urgency === 'overdue') {
+              cardBorder = 'border-red-400 bg-red-50';
+            } else if (urgency === 'soon') {
+              cardBorder = 'border-orange-400 bg-orange-50';
+            } else {
+              cardBorder = 'border';
+            }
 
             return (
               <div key={machine.id} className={`rounded-lg p-4 border ${cardBorder}`}>

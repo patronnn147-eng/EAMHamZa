@@ -360,11 +360,14 @@ function ArchivedItemCard({ item, module, canReactivate, reactivating, onReactiv
   const dueDate = dueDateRaw ? new Date(dueDateRaw) : null;
   const archivedAt = item.archived_at ? new Date(item.archived_at) : null;
 
-  const reasonStyle = item.archive_reason === 'PAST_DUE_DATE'
-    ? 'bg-orange-500/15 text-orange-300 border-orange-500/40'
-    : item.archive_reason === 'COMPLETED'
-      ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40'
-      : 'bg-slate-500/15 text-slate-300 border-slate-500/40';
+  let reasonStyle: string;
+  if (item.archive_reason === 'PAST_DUE_DATE') {
+    reasonStyle = 'bg-orange-500/15 text-orange-300 border-orange-500/40';
+  } else if (item.archive_reason === 'COMPLETED') {
+    reasonStyle = 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40';
+  } else {
+    reasonStyle = 'bg-slate-500/15 text-slate-300 border-slate-500/40';
+  }
 
   const title = item.titre || item.identifiant_planning || item.problem_description?.slice(0, 80) || `#${item.id}`;
   const subtitle =

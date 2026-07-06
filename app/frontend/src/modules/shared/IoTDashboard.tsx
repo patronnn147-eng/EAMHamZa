@@ -258,7 +258,16 @@ export const IoTDashboard: React.FC = () => {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredMachines.map((machine) => {
           const health = getHealthStatus(machine);
-          
+
+          let statusBadgeVariant: 'default' | 'destructive' | 'secondary';
+          if (machine.status === 'OPERATIONAL') {
+            statusBadgeVariant = 'default';
+          } else if (machine.status === 'PANNE') {
+            statusBadgeVariant = 'destructive';
+          } else {
+            statusBadgeVariant = 'secondary';
+          }
+
           return (
             <Card 
               key={machine.id} 
@@ -278,9 +287,8 @@ export const IoTDashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant="outline" className="text-xs">{machine.zone}</Badge>
-                  <Badge 
-                    variant={machine.status === 'OPERATIONAL' ? 'default' : 
-                            machine.status === 'PANNE' ? 'destructive' : 'secondary'}
+                  <Badge
+                    variant={statusBadgeVariant}
                     className="text-xs"
                   >
                     {machine.status}

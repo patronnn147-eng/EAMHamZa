@@ -128,40 +128,50 @@ function StepSidebar({
         const isCompleted = completedSteps.has(step.id);
         const isCurrent = currentStep === step.id;
         const isClickable = isCompleted || step.id < currentStep;
+
+        let buttonStateClass: string;
+        if (isCurrent) {
+          buttonStateClass = 'bg-blue-600/20 border border-blue-500/40';
+        } else if (isCompleted) {
+          buttonStateClass = 'hover:bg-slate-800 cursor-pointer';
+        } else {
+          buttonStateClass = 'opacity-40 cursor-not-allowed';
+        }
+
+        let iconStateClass: string;
+        if (isCompleted) {
+          iconStateClass = 'bg-green-500 border-green-500 text-white';
+        } else if (isCurrent) {
+          iconStateClass = 'border-blue-400 text-blue-400';
+        } else {
+          iconStateClass = 'border-slate-600 text-slate-500';
+        }
+
+        let titleStateClass: string;
+        if (isCurrent) {
+          titleStateClass = 'text-white';
+        } else if (isCompleted) {
+          titleStateClass = 'text-slate-200';
+        } else {
+          titleStateClass = 'text-slate-500';
+        }
+
         return (
           <button
             key={step.id}
             type="button"
             disabled={!isClickable}
             onClick={() => isClickable && onJump(step.id)}
-            className={`flex items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors ${
-              isCurrent
-                ? 'bg-blue-600/20 border border-blue-500/40'
-                : isCompleted
-                ? 'hover:bg-slate-800 cursor-pointer'
-                : 'opacity-40 cursor-not-allowed'
-            }`}
+            className={`flex items-start gap-3 rounded-lg px-3 py-3 text-left transition-colors ${buttonStateClass}`}
           >
             <div
-              className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${
-                isCompleted
-                  ? 'bg-green-500 border-green-500 text-white'
-                  : isCurrent
-                  ? 'border-blue-400 text-blue-400'
-                  : 'border-slate-600 text-slate-500'
-              }`}
+              className={`mt-0.5 h-5 w-5 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold border-2 ${iconStateClass}`}
             >
               {isCompleted ? <Check className="h-3 w-3" /> : step.id}
             </div>
             <div>
               <p
-                className={`text-sm font-medium ${
-                  isCurrent
-                    ? 'text-white'
-                    : isCompleted
-                    ? 'text-slate-200'
-                    : 'text-slate-500'
-                }`}
+                className={`text-sm font-medium ${titleStateClass}`}
               >
                 {step.title}
               </p>

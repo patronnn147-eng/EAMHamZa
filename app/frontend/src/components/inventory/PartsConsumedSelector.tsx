@@ -250,9 +250,14 @@ function QtyField({ label, color, value, unit, onChange }: QtyFieldProps) {
     blue:    'border-blue-500/30 text-blue-300 focus-visible:ring-blue-400/50',
     red:     'border-red-500/30 text-red-300 focus-visible:ring-red-400/50',
   }[color];
+  const labelColorClass = {
+    emerald: 'text-emerald-400',
+    blue: 'text-blue-400',
+    red: 'text-red-400',
+  }[color];
   return (
     <label className="flex flex-col gap-1">
-      <span className={`font-mono text-[9px] uppercase tracking-[0.18em] ${color === 'emerald' ? 'text-emerald-400' : color === 'blue' ? 'text-blue-400' : 'text-red-400'}`}>
+      <span className={`font-mono text-[9px] uppercase tracking-[0.18em] ${labelColorClass}`}>
         {label} <span className="opacity-60">[{unit}]</span>
       </span>
       <Input

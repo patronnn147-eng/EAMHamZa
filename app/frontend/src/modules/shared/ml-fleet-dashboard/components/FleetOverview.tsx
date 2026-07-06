@@ -126,29 +126,31 @@ export const FleetOverview: React.FC<FleetOverviewProps> = ({ machines, summary 
           <Filter className="h-4 w-4 text-blue-400" />
           <span className="text-sm font-medium text-blue-200">Filtrer:</span>
           <div className="flex gap-1">
-            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as RiskFilter[]).map((level) => (
+            {(['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as RiskFilter[]).map((level) => {
+              let activeFilterClass = '';
+              if (riskFilter === level) {
+                if (level === 'CRITICAL') {
+                  activeFilterClass = 'bg-red-600 hover:bg-red-700';
+                } else if (level === 'HIGH') {
+                  activeFilterClass = 'bg-orange-500 hover:bg-orange-600';
+                } else if (level === 'MEDIUM') {
+                  activeFilterClass = 'bg-amber-500 hover:bg-amber-600';
+                } else if (level === 'LOW') {
+                  activeFilterClass = 'bg-emerald-500 hover:bg-emerald-600';
+                }
+              }
+              return (
               <Button
                 key={level}
                 variant={riskFilter === level ? 'default' : 'outline'}
                 size="sm"
                 onClick={() => setRiskFilter(level)}
-                className={`text-xs h-7 ${
-                  riskFilter === level
-                    ? level === 'CRITICAL'
-                      ? 'bg-red-600 hover:bg-red-700'
-                      : level === 'HIGH'
-                      ? 'bg-orange-500 hover:bg-orange-600'
-                      : level === 'MEDIUM'
-                      ? 'bg-amber-500 hover:bg-amber-600'
-                      : level === 'LOW'
-                      ? 'bg-emerald-500 hover:bg-emerald-600'
-                      : ''
-                    : ''
-                }`}
+                className={`text-xs h-7 ${activeFilterClass}`}
               >
                 {level === 'ALL' ? 'Toutes' : riskConfig[level]?.label}
               </Button>
-            ))}
+              );
+            })}
           </div>
         </div>
 

@@ -42,7 +42,23 @@ export function MachineForecastPanel({ machineId }: Props) {
   );
 
   const pct = Math.round(data.p_failure * 100);
-  const riskColor = pct >= 70 ? 'text-red-400' : pct >= 40 ? 'text-amber-400' : 'text-emerald-400';
+  let riskColor: string;
+  if (pct >= 70) {
+    riskColor = 'text-red-400';
+  } else if (pct >= 40) {
+    riskColor = 'text-amber-400';
+  } else {
+    riskColor = 'text-emerald-400';
+  }
+
+  let progressColor: string;
+  if (pct >= 70) {
+    progressColor = 'bg-red-500';
+  } else if (pct >= 40) {
+    progressColor = 'bg-amber-500';
+  } else {
+    progressColor = 'bg-emerald-500';
+  }
 
   return (
     <div className="rounded-lg border border-slate-700 bg-slate-800/60 p-4 space-y-3">
@@ -65,7 +81,7 @@ export function MachineForecastPanel({ machineId }: Props) {
       </div>
       <div className="h-1.5 rounded-full bg-slate-700">
         <div
-          className={`h-1.5 rounded-full ${pct >= 70 ? 'bg-red-500' : pct >= 40 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+          className={`h-1.5 rounded-full ${progressColor}`}
           style={{ width: `${pct}%` }}
         />
       </div>

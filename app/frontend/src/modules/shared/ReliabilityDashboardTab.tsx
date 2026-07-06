@@ -104,6 +104,15 @@ export const ReliabilityDashboardTab: React.FC = () => {
         (a, b) => a.metrics.reliabilityScore - b.metrics.reliabilityScore
     );
 
+    let avgUptimeColorClass: string;
+    if (avgUptimePct >= 95) {
+        avgUptimeColorClass = 'text-emerald-600';
+    } else if (avgUptimePct >= 85) {
+        avgUptimeColorClass = 'text-blue-600';
+    } else {
+        avgUptimeColorClass = 'text-red-600';
+    }
+
     return (
         <div className="space-y-6">
             {/* Fleet KPI row */}
@@ -113,7 +122,7 @@ export const ReliabilityDashboardTab: React.FC = () => {
                     label="Disponibilité moyenne"
                     icon={Activity}
                     valueFormatted={`${avgUptimePct.toFixed(1)}%`}
-                    valueColorClass={avgUptimePct >= 95 ? 'text-emerald-600' : avgUptimePct >= 85 ? 'text-blue-600' : 'text-red-600'}
+                    valueColorClass={avgUptimeColorClass}
                     trend={kpiTrends.availability}
                     targetLabel="Cible 95%"
                     captionSuffix="Flotte complète · 90j"

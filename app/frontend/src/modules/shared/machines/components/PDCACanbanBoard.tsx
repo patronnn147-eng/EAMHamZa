@@ -123,9 +123,14 @@ export const PDCACanbanBoard = () => {
 
             // ── PLAN: Work orders awaiting assignment / start ──
             planWOs.forEach((wo: any) => {
-                const statusLabel = wo.statut === 'DRAFT' ? 'Draft — needs approval'
-                    : wo.statut === 'SUBMITTED' ? 'Awaiting CHEFTECH approval'
-                    : 'Approved — ready to assign';
+                let statusLabel: string;
+                if (wo.statut === 'DRAFT') {
+                    statusLabel = 'Draft — needs approval';
+                } else if (wo.statut === 'SUBMITTED') {
+                    statusLabel = 'Awaiting CHEFTECH approval';
+                } else {
+                    statusLabel = 'Approved — ready to assign';
+                }
                 kanbanItems.push({
                     id: `wo-${wo.id}`,
                     machineId: wo.machine_id,
@@ -273,14 +278,20 @@ export const PDCACanbanBoard = () => {
                 });
                 return;
             }
+            let aiPriorite: string;
+            if (item.priority === 'CRITICAL') {
+                aiPriorite = 'URGENTE';
+            } else if (item.priority === 'HIGH') {
+                aiPriorite = 'ÉLEVÉE';
+            } else {
+                aiPriorite = 'MOYENNE';
+            }
             setFormData({
                 ...formData,
                 machine_id: item.machineId,
                 titre: `[AI] ${item.title}`,
                 description: `Preventive maintenance suggested by AI (Risk score: ${item.riskScore}%).`,
-                priorite: item.priority === 'CRITICAL' ? 'URGENTE'
-                    : item.priority === 'HIGH' ? 'ÉLEVÉE'
-                    : 'MOYENNE',
+                priorite: aiPriorite,
                 date_echeance: toDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
             });
             setDialogOpen(true);

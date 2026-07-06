@@ -52,7 +52,16 @@ function MetricCard({
 
 function UptimeGauge({ pct }: { pct: number | null | undefined }) {
     const value = pct ?? 100; // Default to 100% if unknown (e.g. new machine)
-    const color = value >= 95 ? 'stroke-emerald-500' : value >= 85 ? 'stroke-blue-500' : value >= 70 ? 'stroke-amber-500' : 'stroke-red-500';
+    let color: string;
+    if (value >= 95) {
+        color = 'stroke-emerald-500';
+    } else if (value >= 85) {
+        color = 'stroke-blue-500';
+    } else if (value >= 70) {
+        color = 'stroke-amber-500';
+    } else {
+        color = 'stroke-red-500';
+    }
     const R = 40;
     const circumference = 2 * Math.PI * R;
     const arc = (value / 100) * circumference;
@@ -129,6 +138,13 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
         failureCount, downtimeEvents, reliabilityScore, classification, colorClass, windowDays
     } = metrics;
 
+    let failureCountClass = 'text-amber-600';
+    if (failureCount === 0) {
+        failureCountClass = 'text-emerald-600';
+    } else if (failureCount > 5) {
+        failureCountClass = 'text-red-600';
+    }
+
     return (
         <div className="space-y-6">
             {/* Header summary */}
@@ -200,7 +216,7 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
                     value={String(failureCount)}
                     sublabel={`sur ${windowDays} jours`}
                     icon={AlertTriangle}
-                    colorClass={failureCount === 0 ? 'text-emerald-600' : failureCount > 5 ? 'text-red-600' : 'text-amber-600'}
+                    colorClass={failureCountClass}
                 />
                 <MetricCard
                     label="Temps d'arrêt"

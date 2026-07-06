@@ -62,29 +62,39 @@ const STEPS = [
 function StepIndicator({ current }: { current: number }) {
   return (
     <div className="flex items-center w-full mb-2 px-6">
-      {STEPS.map((s, i) => (
-        <React.Fragment key={s.id}>
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors ${
-              current > s.id
-                ? 'bg-green-600 border-green-600 text-white'
-                : current === s.id
-                ? 'bg-violet-600 border-violet-600 text-white'
-                : 'bg-transparent border-slate-600 text-slate-400'
-            }`}>
-              {current > s.id ? <Check className="h-3.5 w-3.5" /> : s.id}
+      {STEPS.map((s, i) => {
+        let circleClass: string;
+        if (current > s.id) {
+          circleClass = 'bg-green-600 border-green-600 text-white';
+        } else if (current === s.id) {
+          circleClass = 'bg-violet-600 border-violet-600 text-white';
+        } else {
+          circleClass = 'bg-transparent border-slate-600 text-slate-400';
+        }
+
+        let connectorClass = 'bg-slate-700';
+        if (current > s.id + 1) {
+          connectorClass = 'bg-green-600';
+        } else if (current > s.id) {
+          connectorClass = 'bg-violet-600';
+        }
+
+        return (
+          <React.Fragment key={s.id}>
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold border-2 transition-colors ${circleClass}`}>
+                {current > s.id ? <Check className="h-3.5 w-3.5" /> : s.id}
+              </div>
+              <span className={`text-[10px] whitespace-nowrap ${current === s.id ? 'text-violet-400 font-medium' : 'text-slate-500'}`}>
+                {s.label}
+              </span>
             </div>
-            <span className={`text-[10px] whitespace-nowrap ${current === s.id ? 'text-violet-400 font-medium' : 'text-slate-500'}`}>
-              {s.label}
-            </span>
-          </div>
-          {i < STEPS.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-2 mb-4 transition-colors ${
-              current > s.id + 1 ? 'bg-green-600' : current > s.id ? 'bg-violet-600' : 'bg-slate-700'
-            }`} />
-          )}
-        </React.Fragment>
-      ))}
+            {i < STEPS.length - 1 && (
+              <div className={`flex-1 h-0.5 mx-2 mb-4 transition-colors ${connectorClass}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -339,14 +349,35 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
                     <Loader2 className="w-3 h-3 animate-spin" /> Analyse IA en cours...
                   </div>
                 )}
-                {!loadingHealth && machineHealth && (
+                {!loadingHealth && machineHealth && (() => {
+                  let healthScoreClass: string;
+                  if (machineHealth.health_score >= 70) {
+                    healthScoreClass = 'text-emerald-400';
+                  } else if (machineHealth.health_score >= 40) {
+                    healthScoreClass = 'text-orange-400';
+                  } else {
+                    healthScoreClass = 'text-red-400';
+                  }
+
+                  let riskLevelClass: string;
+                  if (machineHealth.risk_level === 'CRITICAL') {
+                    riskLevelClass = 'text-red-400';
+                  } else if (machineHealth.risk_level === 'HIGH') {
+                    riskLevelClass = 'text-orange-400';
+                  } else if (machineHealth.risk_level === 'MEDIUM') {
+                    riskLevelClass = 'text-yellow-400';
+                  } else {
+                    riskLevelClass = 'text-emerald-400';
+                  }
+
+                  return (
                   <div className="rounded-xl border border-violet-700/40 bg-violet-950/30 px-4 py-3 space-y-1.5">
                     <div className="flex items-center gap-1.5 text-xs font-bold text-violet-300 uppercase tracking-wide">
                       <Brain className="w-3.5 h-3.5" /> Santé IA — Machine sélectionnée
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                       <span>Score santé:{' '}
-                        <span className={`font-bold ${machineHealth.health_score >= 70 ? 'text-emerald-400' : machineHealth.health_score >= 40 ? 'text-orange-400' : 'text-red-400'}`}>
+                        <span className={`font-bold ${healthScoreClass}`}>
                           {machineHealth.health_score.toFixed(0)}%
                         </span>
                       </span>
@@ -354,7 +385,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
                         <span className="font-bold text-orange-300">{machineHealth.failure_probability.toFixed(0)}%</span>
                       </span>
                       <span>Risque:{' '}
-                        <span className={`font-bold ${machineHealth.risk_level === 'CRITICAL' ? 'text-red-400' : machineHealth.risk_level === 'HIGH' ? 'text-orange-400' : machineHealth.risk_level === 'MEDIUM' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                        <span className={`font-bold ${riskLevelClass}`}>
                           {machineHealth.risk_level}
                         </span>
                       </span>
@@ -367,7 +398,8 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
                       <div className="text-xs italic text-slate-400">Cause probable: {machineHealth.suggested_cause}</div>
                     )}
                   </div>
-                )}
+                  );
+                })()}
               </>
             )}
 

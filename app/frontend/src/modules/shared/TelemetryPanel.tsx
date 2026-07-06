@@ -76,7 +76,14 @@ const generateMockHistory = (metric: string, days: number = 7): { timestamp: str
   const data: { timestamp: string; value: number }[] = [];
   const now = new Date();
   const config = metricConfig[metric as keyof typeof metricConfig];
-  const baseValue = metric === 'rpm' ? 3000 : metric === 'temperature' ? 45 : 50;
+  let baseValue: number;
+  if (metric === 'rpm') {
+    baseValue = 3000;
+  } else if (metric === 'temperature') {
+    baseValue = 45;
+  } else {
+    baseValue = 50;
+  }
   
   for (let i = days * 24; i >= 0; i--) {
     const timestamp = new Date(now.getTime() - i * 60 * 60 * 1000);

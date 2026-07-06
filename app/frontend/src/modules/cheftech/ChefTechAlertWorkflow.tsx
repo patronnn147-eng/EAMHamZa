@@ -70,6 +70,13 @@ const AlertCard: React.FC<AlertCardProps> = ({
       ? Math.round(alert.failure_probability * 100)
       : null;
 
+  let failurePctClass = 'text-yellow-400';
+  if (failurePct != null && failurePct >= 80) {
+    failurePctClass = 'text-red-400';
+  } else if (failurePct != null && failurePct >= 60) {
+    failurePctClass = 'text-orange-400';
+  }
+
   return (
     <div
       onClick={onClick}
@@ -156,13 +163,7 @@ const AlertCard: React.FC<AlertCardProps> = ({
           <div className="flex items-center gap-1.5">
             <Activity className="h-2.5 w-2.5 text-white/40" />
             <span
-              className={`text-[10px] font-bold ${
-                failurePct >= 80
-                  ? 'text-red-400'
-                  : failurePct >= 60
-                  ? 'text-orange-400'
-                  : 'text-yellow-400'
-              }`}
+              className={`text-[10px] font-bold ${failurePctClass}`}
             >
               {failurePct}%
             </span>

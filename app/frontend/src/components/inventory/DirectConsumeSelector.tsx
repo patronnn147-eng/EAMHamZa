@@ -396,31 +396,38 @@ function PieceRow({ piece, selected, onAdd }: PieceRowProps) {
   const lowAvail = !rupture && piece.min_stock != null && avail < Number(piece.min_stock);
   const disabled = selected || rupture;
 
+  let rowStateClass: string;
+  let refStateClass: string;
+  let nameStateClass: string;
+  if (selected) {
+    rowStateClass = 'bg-emerald-500/5 cursor-default';
+    refStateClass = 'text-emerald-400/60';
+    nameStateClass = 'text-emerald-300/80';
+  } else if (rupture) {
+    rowStateClass = 'bg-red-950/20 cursor-not-allowed opacity-60';
+    refStateClass = 'text-red-400/80';
+    nameStateClass = 'text-red-300/70 line-through';
+  } else {
+    rowStateClass = 'hover:bg-blue-500/5 cursor-pointer';
+    refStateClass = 'text-blue-400/80';
+    nameStateClass = 'text-blue-100';
+  }
+
   return (
     <button
       type="button"
       onClick={onAdd}
       disabled={disabled}
-      className={`w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors ${
-        selected
-          ? 'bg-emerald-500/5 cursor-default'
-          : rupture
-            ? 'bg-red-950/20 cursor-not-allowed opacity-60'
-            : 'hover:bg-blue-500/5 cursor-pointer'
-      }`}
+      className={`w-full flex items-center gap-3 px-3 py-1.5 text-left transition-colors ${rowStateClass}`}
       title={rupture ? `Rupture · 0 ${piece.default_unit} disponibles` : undefined}
     >
       <span
-        className={`font-mono text-[10px] tracking-wider min-w-[80px] ${
-          selected ? 'text-emerald-400/60' : rupture ? 'text-red-400/80' : 'text-blue-400/80'
-        }`}
+        className={`font-mono text-[10px] tracking-wider min-w-[80px] ${refStateClass}`}
       >
         {piece.reference}
       </span>
       <span
-        className={`flex-1 text-sm truncate ${
-          selected ? 'text-emerald-300/80' : rupture ? 'text-red-300/70 line-through' : 'text-blue-100'
-        }`}
+        className={`flex-1 text-sm truncate ${nameStateClass}`}
       >
         {piece.name}
       </span>

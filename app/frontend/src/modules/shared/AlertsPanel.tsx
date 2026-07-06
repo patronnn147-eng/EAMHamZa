@@ -284,6 +284,12 @@ export const AlertsPanel: React.FC = () => {
             const failurePct = alert.failure_probability != null
               ? Math.round(alert.failure_probability * 100)
               : null;
+            let failurePctClass = 'text-yellow-400';
+            if (failurePct != null && failurePct >= 80) {
+              failurePctClass = 'text-red-400';
+            } else if (failurePct != null && failurePct >= 60) {
+              failurePctClass = 'text-orange-400';
+            }
             const typeLabel = alert.alert_type === 'PARTS_SHORTAGE'
               ? 'Parts Shortage'
               : alert.alert_type.replace(/_/g, ' ');
@@ -405,7 +411,7 @@ export const AlertsPanel: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <Activity className="h-3 w-3 text-white/40" />
                       <span className="text-[11px] text-white/40">Failure prob:</span>
-                      <span className={`text-[11px] font-bold ${failurePct >= 80 ? 'text-red-400' : failurePct >= 60 ? 'text-orange-400' : 'text-yellow-400'}`}>
+                      <span className={`text-[11px] font-bold ${failurePctClass}`}>
                         {failurePct}%
                       </span>
                       <div className="w-20 h-1.5 rounded-full bg-white/10 overflow-hidden">

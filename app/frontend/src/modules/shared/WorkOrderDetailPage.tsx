@@ -284,16 +284,27 @@ export default function WorkOrderDetailPage() {
                                     const now = currentHealthScore;
                                     const delta = (before != null && now != null) ? (now - before) : null;
                                     const fmt = (v: number | null) => v == null ? '—' : v.toFixed(0);
-                                    const deltaColor = delta == null
-                                        ? 'text-muted-foreground'
-                                        : delta > 0 ? 'text-emerald-500'
-                                        : delta < 0 ? 'text-red-500'
-                                        : 'text-muted-foreground';
-                                    const DeltaIcon = delta == null
-                                        ? Minus
-                                        : delta > 0 ? TrendingUp
-                                        : delta < 0 ? TrendingDown
-                                        : Minus;
+                                    let deltaColor: string;
+                                    if (delta == null) {
+                                        deltaColor = 'text-muted-foreground';
+                                    } else if (delta > 0) {
+                                        deltaColor = 'text-emerald-500';
+                                    } else if (delta < 0) {
+                                        deltaColor = 'text-red-500';
+                                    } else {
+                                        deltaColor = 'text-muted-foreground';
+                                    }
+
+                                    let DeltaIcon: typeof Minus;
+                                    if (delta == null) {
+                                        DeltaIcon = Minus;
+                                    } else if (delta > 0) {
+                                        DeltaIcon = TrendingUp;
+                                    } else if (delta < 0) {
+                                        DeltaIcon = TrendingDown;
+                                    } else {
+                                        DeltaIcon = Minus;
+                                    }
 
                                     return (
                                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
