@@ -1,0 +1,29 @@
+# Root .dockerignore — used by the eam-ml-research build (context = repo root).
+# That Dockerfile only COPYs app/ml-microservice/ml_research/requirements-notebooks.txt,
+# so everything else here is just wasted build-context transfer.
+
+.git/
+.claude/
+.superpowers/
+.planning/
+node_modules/
+**/node_modules/
+presentation/
+db_ml_training/
+graphify-out/
+ml_problems/
+claude-code/
+rapport/
+uploads/
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+**/__pycache__/
+*.pyc
+
+# Per-service dirs already have their own .dockerignore for their own builds;
+# exclude them here too since the root build never needs their contents.
+app/backend/
+app/frontend/
+app/ml-microservice/models/
+app/ml-microservice/ml_research/mlruns/
+app/rag-service/

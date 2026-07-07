@@ -184,7 +184,7 @@ build-images:
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  timeout: 20 minutes
+  timeout: 30 minutes
   allow_failure: false
 
 iac-scan:
