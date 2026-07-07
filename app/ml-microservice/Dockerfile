@@ -15,6 +15,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # this layer is invalidated.
 # HEAVY_CACHE_BUST can be passed via --build-arg to force reinstall.
 ARG HEAVY_CACHE_BUST=4
+# CPU-only torch: this is an inference service with no GPU in CI/prod. Installing
+# torch from the dedicated CPU index FIRST avoids pulling PyPI's default CUDA
+# build (~2.5GB of nvidia-* wheels) which blew past the CI build-images timeout.
+# The subsequent requirements-heavy install then sees torch already satisfied.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2.0'
 COPY requirements-heavy.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements-heavy.txt
