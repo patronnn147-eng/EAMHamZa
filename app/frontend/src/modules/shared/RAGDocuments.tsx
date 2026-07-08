@@ -231,6 +231,9 @@ export default function RAGDocuments() {
     }
   };
 
+  const removeBulkFile = (index: number) =>
+    setBulkFiles((prev) => prev.filter((_, i) => i !== index));
+
   const onBulkDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setDragOver(false);
@@ -605,7 +608,7 @@ export default function RAGDocuments() {
 
           <div className="space-y-4 py-2">
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">File <span className="text-destructive">*</span></label>
+              <label htmlFor="rag-upload-file" className="text-sm font-medium">File <span className="text-destructive">*</span></label>
               <div className="flex items-center gap-2">
                 <label className="flex-1 cursor-pointer">
                   <div className="border-2 border-dashed rounded-lg p-4 text-center hover:border-primary/50 transition-colors">
@@ -623,6 +626,7 @@ export default function RAGDocuments() {
                     )}
                   </div>
                   <input
+                    id="rag-upload-file"
                     type="file"
                     accept=".pdf,.txt"
                     className="sr-only"
@@ -633,9 +637,9 @@ export default function RAGDocuments() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Document type <span className="text-destructive">*</span></label>
+              <label htmlFor="rag-upload-doctype" className="text-sm font-medium">Document type <span className="text-destructive">*</span></label>
               <Select value={uploadDocType} onValueChange={(v: any) => setUploadDocType(v)}>
-                <SelectTrigger>
+                <SelectTrigger id="rag-upload-doctype">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -647,10 +651,11 @@ export default function RAGDocuments() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
+              <label htmlFor="rag-upload-machine-id" className="text-sm font-medium">
                 Machine ID <span className="text-muted-foreground text-xs">(optional)</span>
               </label>
               <Input
+                id="rag-upload-machine-id"
                 type="number"
                 placeholder="e.g. 42"
                 value={uploadMachineId}
@@ -662,10 +667,11 @@ export default function RAGDocuments() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">
+              <label htmlFor="rag-upload-description" className="text-sm font-medium">
                 Description <span className="text-muted-foreground text-xs">(optional)</span>
               </label>
               <Textarea
+                id="rag-upload-description"
                 placeholder="e.g. Maintenance manual for Atlas Copco GA18 compressor"
                 value={uploadDescription}
                 onChange={(e) => setUploadDescription(e.target.value)}
@@ -751,7 +757,7 @@ export default function RAGDocuments() {
                       <span className="text-muted-foreground ml-2">{formatFileSize(f.size)}</span>
                       <button
                         className="ml-2 text-destructive hover:underline"
-                        onClick={() => setBulkFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        onClick={() => removeBulkFile(idx)}
                         disabled={bulkUploading}
                       >
                         Remove
@@ -765,9 +771,9 @@ export default function RAGDocuments() {
             {/* Shared metadata */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Default type</label>
+                <label htmlFor="rag-bulk-doctype" className="text-xs font-medium">Default type</label>
                 <Select value={bulkDocType} onValueChange={(v: any) => setBulkDocType(v)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="rag-bulk-doctype"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="manual">Manual</SelectItem>
                     <SelectItem value="sop">SOP</SelectItem>
@@ -776,8 +782,9 @@ export default function RAGDocuments() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Default machine ID</label>
+                <label htmlFor="rag-bulk-machine-id" className="text-xs font-medium">Default machine ID</label>
                 <Input
+                  id="rag-bulk-machine-id"
                   type="number"
                   placeholder="(optional)"
                   value={bulkMachineId}

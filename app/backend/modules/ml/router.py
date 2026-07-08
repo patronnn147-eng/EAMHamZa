@@ -863,7 +863,13 @@ async def get_retraining_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> 
     return await RetrainingService.get_retraining_stats(db)
 
 
-@router.post("/retrain", responses={500: {"description": "Internal Server Error"}})
+@router.post(
+    "/retrain",
+    responses={
+        500: {"description": "Internal Server Error"},
+        403: {"description": "ADMIN role required."},
+    },
+)
 async def trigger_retraining(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -1230,7 +1236,7 @@ async def _drift_rows(db: AsyncSession, start, end):
     return [dict(zip(SENSORS, row)) for row in res.all()]
 
 
-@router.get("/model-health")
+@router.get("/model-health", responses={403: {"description": "ADMIN role required."}})
 async def model_health(
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -1346,7 +1352,7 @@ async def get_forecast_summary(
     return payload
 
 
-@router.get("/forecast/downtime", responses={400: {"description": "horizon must be 7, 30 or 60"}})
+@router.get("/forecast/downtime", responses={400: {"description": "horizon must be 7, 30 or 60"}, 403: {"description": "CHEFTECH or ADMIN role required."}})
 async def get_forecast_downtime(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1361,7 +1367,7 @@ async def get_forecast_downtime(
     return await compute_fleet_downtime(db, horizon_days=horizon)
 
 
-@router.get("/forecast/labor", responses={400: {"description": "horizon must be 7, 30 or 60"}})
+@router.get("/forecast/labor", responses={400: {"description": "horizon must be 7, 30 or 60"}, 403: {"description": "CHEFTECH or ADMIN role required."}})
 async def get_forecast_labor(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1391,7 +1397,7 @@ async def get_forecast_labor(
     return forecast_labor(downtime["machines"], open_wo_count, 4.0, tech_count, horizon)
 
 
-@router.get("/forecast/budget", responses={400: {"description": "horizon must be 7, 30 or 60"}})
+@router.get("/forecast/budget", responses={400: {"description": "horizon must be 7, 30 or 60"}, 403: {"description": "CHEFTECH or ADMIN role required."}})
 async def get_forecast_budget(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -1427,7 +1433,7 @@ async def get_forecast_budget(
     return forecast_budget(labor["demand_hours"], demand_data.get("items", []))
 
 
-@router.post("/forecast/optimize-schedule", responses={400: {"description": "horizon must be 7, 30 or 60"}})
+@router.post("/forecast/optimize-schedule", responses={400: {"description": "horizon must be 7, 30 or 60"}, 403: {"description": "CHEFTECH or ADMIN role required."}})
 async def post_optimize_schedule(
     *, horizon: Annotated[int, Query(description="7, 30 or 60")] = 30,
     db: Annotated[AsyncSession, Depends(get_db)],

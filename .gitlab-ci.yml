@@ -160,6 +160,9 @@ sonarqube-scan:
       -Dsonar.projectKey=eamsagemcom
       -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
       -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**
+      -Dsonar.issue.ignore.multicriteria=r3f
+      -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747
+      -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx
       -Dsonar.host.url=$SONAR_HOST_URL
       -Dsonar.token=$sonar
   rules:

@@ -105,6 +105,66 @@ function parseLists(content: string): string[] | null {
   return lines.map((l) => l.replace(/^[-*•]\s?|^(\d+)\.\s?/, '').trim());
 }
 
+// ─── Shared hook: doc upload (used by both ChatWidget and ChatPage) ─────────
+
+function useDocUpload(toast: ReturnType<typeof useToast>['toast']) {
+  const [showDocUpload, setShowDocUpload] = useState(false);
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docType, setDocType] = useState<'manual' | 'sop' | 'report'>('manual');
+  const [docUploading, setDocUploading] = useState(false);
+
+  const handleDocUpload = async () => {
+    if (!docFile) return;
+    setDocUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', docFile);
+      fd.append('doc_type', docType);
+      const res = await fetch(`${API}/api/v1/rag/documents`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: 'include',
+        body: fd,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erreur ${res.status}`);
+      }
+      toast({ title: 'Document ajouté à la base documentaire IA' });
+      setShowDocUpload(false);
+      setDocFile(null);
+    } catch (e: any) {
+      toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' });
+    } finally {
+      setDocUploading(false);
+    }
+  };
+
+  return { showDocUpload, setShowDocUpload, docFile, setDocFile, docType, setDocType, docUploading, handleDocUpload };
+}
+
+// ─── Shared hook: suggestions fetcher (used by both ChatWidget and ChatPage) ─
+
+function useSuggestionsFetcher() {
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+
+  const fetchSuggestions = async () => {
+    try {
+      const res = await fetch(`${API}/api/v1/chat/suggestions`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestions(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch suggestions', err);
+    }
+  };
+
+  return { suggestions, fetchSuggestions };
+}
+
 // ─── Component: RenderedMessage ──────────────────────────────────────────────
 
 function RenderedMessage({ content, toolCalls, sources }: Readonly<{
@@ -189,7 +249,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
                   {src.result?.length ?? 0} row{(src.result?.length ?? 0) !== 1 ? 's' : ''}
                 </span>
               </div>
-              {src.result && src.result.length > 0 && (
+              {(src.result?.length ?? 0) > 0 && (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
@@ -258,42 +318,21 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { suggestions, fetchSuggestions } = useSuggestionsFetcher();
 
   // Doc upload state
-  const [showDocUpload, setShowDocUpload] = useState(false);
-  const [docFile, setDocFile] = useState<File | null>(null);
-  const [docType, setDocType] = useState<'manual' | 'sop' | 'report'>('manual');
-  const [docUploading, setDocUploading] = useState(false);
-
-  const handleDocUpload = async () => {
-    if (!docFile) return;
-    setDocUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', docFile);
-      fd.append('doc_type', docType);
-      const res = await fetch(`${API}/api/v1/rag/documents`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        credentials: 'include',
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Erreur ${res.status}`);
-      }
-      toast({ title: 'Document ajouté à la base documentaire IA' });
-      setShowDocUpload(false);
-      setDocFile(null);
-    } catch (e: any) {
-      toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' });
-    } finally {
-      setDocUploading(false);
-    }
-  };
+  const {
+    showDocUpload,
+    setShowDocUpload,
+    docFile,
+    setDocFile,
+    docType,
+    setDocType,
+    docUploading,
+    handleDocUpload,
+  } = useDocUpload(toast);
 
   useEffect(() => {
     if (isOpen && suggestions.length === 0) {
@@ -304,20 +343,6 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const fetchSuggestions = async () => {
-    try {
-      const res = await fetch(`${API}/api/v1/chat/suggestions`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch suggestions', err);
-    }
-  };
 
   const handleSubmit = async (query?: string) => {
     const finalQuery = query || input;
@@ -568,46 +593,25 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const [messages, setMessages] = useState<AIMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { suggestions, fetchSuggestions } = useSuggestionsFetcher();
 
   // Multi-conversation state
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
   // Doc upload state
-  const [showDocUpload, setShowDocUpload] = useState(false);
-  const [docFile, setDocFile] = useState<File | null>(null);
-  const [docType, setDocType] = useState<'manual' | 'sop' | 'report'>('manual');
-  const [docUploading, setDocUploading] = useState(false);
-
-  const handleDocUpload = async () => {
-    if (!docFile) return;
-    setDocUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append('file', docFile);
-      fd.append('doc_type', docType);
-      const res = await fetch(`${API}/api/v1/rag/documents`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${getToken()}` },
-        credentials: 'include',
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `Erreur ${res.status}`);
-      }
-      toast({ title: 'Document ajouté à la base documentaire IA' });
-      setShowDocUpload(false);
-      setDocFile(null);
-    } catch (e: any) {
-      toast({ title: 'Erreur upload', description: e.message, variant: 'destructive' });
-    } finally {
-      setDocUploading(false);
-    }
-  };
+  const {
+    showDocUpload,
+    setShowDocUpload,
+    docFile,
+    setDocFile,
+    docType,
+    setDocType,
+    docUploading,
+    handleDocUpload,
+  } = useDocUpload(toast);
 
   useEffect(() => {
     fetchSuggestions();
@@ -617,20 +621,6 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const fetchSuggestions = async () => {
-    try {
-      const res = await fetch(`${API}/api/v1/chat/suggestions`, {
-        headers: { Authorization: `Bearer ${getToken()}` },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSuggestions(Array.isArray(data) ? data : []);
-      }
-    } catch (err) {
-      console.error('Failed to fetch suggestions', err);
-    }
-  };
 
   // ── Multi-conversation session management ──────────────────────────────────
 

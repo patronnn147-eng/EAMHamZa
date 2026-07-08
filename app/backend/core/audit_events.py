@@ -1,8 +1,6 @@
 import logging
 from typing import Dict, Any, Optional
 from sqlalchemy import event, inspect
-from sqlalchemy.orm import Mapper
-from core.database import AsyncSessionLocal
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +27,6 @@ def get_entity_name(obj: Any, model_name: str) -> Optional[str]:
     if hasattr(obj, "label"):
         return obj.label
     return f"{model_name} {obj.id}"
-
-
-async def audit_after_flush(mapper: Mapper, connection, flush_event: Any):
-    """Process pending audit entries after flush"""
-    from services.audit import AuditService
-
-    async with AsyncSessionLocal() as db:
-        AuditService(db)
-
-        for obj in flush_event.mapper.mapped_table.c:
-            pass
 
 
 def setup_audit_listeners():
@@ -121,11 +108,11 @@ def manual_audit_log(
     entity_type: str,
     entity_id: int,
     action: str,
-    user_id: Optional[int] = None,
+    _user_id: Optional[int] = None,
     user_name: Optional[str] = None,
-    changes: Optional[Dict[str, Any]] = None,
-    old_values: Optional[Dict[str, Any]] = None,
-    new_values: Optional[Dict[str, Any]] = None,
+    _changes: Optional[Dict[str, Any]] = None,
+    _old_values: Optional[Dict[str, Any]] = None,
+    _new_values: Optional[Dict[str, Any]] = None,
 ):
     """Helper for manual audit logging from route handlers
 
@@ -134,10 +121,10 @@ def manual_audit_log(
             entity_type="machine",
             entity_id=machine.id,
             action="UPDATE",
-            user_id=user.id,
+            _user_id=user.id,
             user_name=user.nom,
-            old_values=old_machine.__dict__,
-            new_values=new_machine.__dict__
+            _old_values=old_machine.__dict__,
+            _new_values=new_machine.__dict__
         )
     """
     logger.info(f"Manual audit: {action} {entity_type}:{entity_id} by {user_name}")

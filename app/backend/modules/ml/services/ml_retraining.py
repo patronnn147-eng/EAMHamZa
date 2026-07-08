@@ -3,6 +3,7 @@ import joblib
 import glob
 import logging
 from datetime import datetime, timezone
+from typing import Optional
 from sqlalchemy.future import select
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -47,6 +48,18 @@ MODEL_FILES = {
 MAX_MODEL_VERSIONS = 3
 
 
+def _priority_proxy_value(is_failure: int, tool_wear: float, high_wear_thresh: float) -> int:
+    """Derive a P5 priority-proxy label from failure flag and tool wear.
+
+    Extracted out of a nested conditional expression (sonar:S3358).
+    """
+    if is_failure == 1 and tool_wear >= high_wear_thresh:
+        return 0
+    if is_failure == 1:
+        return 1
+    return 2
+
+
 class RetrainingService:
     @staticmethod
     async def get_retraining_stats(db: AsyncSession):
@@ -60,7 +73,7 @@ class RetrainingService:
         return {"new_data_points": new_points}
 
     @staticmethod
-    def _backup_model(model_name: str) -> str:
+    def _backup_model(model_name: str) -> Optional[str]:
         """Create timestamped backup of existing model file. Returns backup path or None."""
         model_file = MODEL_FILES.get(model_name)
         if not model_file:
@@ -273,7 +286,7 @@ class RetrainingService:
                     _train_df = _train_df.copy()
                     _val_df = _val_df.copy()
                     _train_df["_rul_proxy"] = _train_df.apply(
-                        lambda row: (
+                        lambda row, _max_wear=_max_wear: (
                             0.0
                             if row[_COL_MACHINE_FAILURE] == 1
                             else max(0.0, (_max_wear - row[_COL_TOOL_WEAR]) / 60.0)
@@ -281,7 +294,7 @@ class RetrainingService:
                         axis=1,
                     )
                     _val_df["_rul_proxy"] = _val_df.apply(
-                        lambda row: (
+                        lambda row, _max_wear=_max_wear: (
                             0.0
                             if row[_COL_MACHINE_FAILURE] == 1
                             else max(0.0, (_max_wear - row[_COL_TOOL_WEAR]) / 60.0)
@@ -311,24 +324,18 @@ class RetrainingService:
                     _train_df = _train_df.copy()
                     _val_df = _val_df.copy()
                     _train_df["_priority_proxy"] = _train_df.apply(
-                        lambda row: (
-                            0
-                            if (
-                                row[_COL_MACHINE_FAILURE] == 1
-                                and row[_COL_TOOL_WEAR] >= _high_wear_thresh
-                            )
-                            else (1 if row[_COL_MACHINE_FAILURE] == 1 else 2)
+                        lambda row, _high_wear_thresh=_high_wear_thresh: _priority_proxy_value(
+                            row[_COL_MACHINE_FAILURE],
+                            row[_COL_TOOL_WEAR],
+                            _high_wear_thresh,
                         ),
                         axis=1,
                     )
                     _val_df["_priority_proxy"] = _val_df.apply(
-                        lambda row: (
-                            0
-                            if (
-                                row[_COL_MACHINE_FAILURE] == 1
-                                and row[_COL_TOOL_WEAR] >= _high_wear_thresh
-                            )
-                            else (1 if row[_COL_MACHINE_FAILURE] == 1 else 2)
+                        lambda row, _high_wear_thresh=_high_wear_thresh: _priority_proxy_value(
+                            row[_COL_MACHINE_FAILURE],
+                            row[_COL_TOOL_WEAR],
+                            _high_wear_thresh,
                         ),
                         axis=1,
                     )
@@ -434,7 +441,12 @@ class RetrainingService:
                 elif mt == "p5":
                     from sklearn.ensemble import RandomForestClassifier as _RFC
 
-                    model = _RFC(n_estimators=100, random_state=42)
+                    model = _RFC(
+                        n_estimators=100,
+                        random_state=42,
+                        min_samples_leaf=1,
+                        max_features="sqrt",
+                    )
                     model.fit(X, y_p5)
                     model_data = {
                         "model": model,

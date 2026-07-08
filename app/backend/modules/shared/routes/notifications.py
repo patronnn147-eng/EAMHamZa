@@ -11,7 +11,8 @@ from sse_starlette.sse import EventSourceResponse
 from core.database import get_db
 from core.auth import get_current_user, ALGORITHM, SECRET_KEY
 from core.notifications import broadcaster
-from jose import jwt, JWTError
+import jwt
+from jwt import PyJWTError as JWTError
 from models.utilisateurs import Utilisateurs
 from services.notifications import NotificationsService
 from schemas.pagination import PaginatedResponse
@@ -49,7 +50,7 @@ async def get_user_from_token(token: str, db: AsyncSession) -> Utilisateurs:
         raise HTTPException(status_code=401, detail="Could not validate credentials")
 
 
-@router.get("/stream")
+@router.get("/stream", responses={401: {"description": "Invalid, missing, or unresolvable token"}})
 async def notification_stream(
     request: Request, token: str, db: Annotated[AsyncSession, Depends(get_db)]
 ):

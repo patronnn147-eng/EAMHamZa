@@ -4,7 +4,8 @@ JWT Authentication Module - Simple JWT-based authentication without OIDC
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import jwt
+from jwt import PyJWTError as JWTError
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -74,8 +75,8 @@ async def get_current_user(
     token = credentials.credentials
     payload = decode_access_token(token)
 
-    id: str = payload.get("sub")
-    if id is None:
+    user_id: str = payload.get("sub")
+    if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token invalide",
@@ -83,7 +84,7 @@ async def get_current_user(
         )
 
     # Fetch user from database
-    result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(id)))
+    result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(user_id)))
     user = result.scalar_one_or_none()
 
     if user is None:
