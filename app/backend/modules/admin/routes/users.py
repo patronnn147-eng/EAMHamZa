@@ -52,6 +52,15 @@ async def _require_admin(current_user: Utilisateurs) -> None:
         )
 
 
+def _resolve_shift_type(shift_type) -> Optional[str]:
+    """Normalize a shift_type value (enum or raw) into its string form."""
+    if hasattr(shift_type, "value"):
+        return shift_type.value
+    if shift_type:
+        return str(shift_type)
+    return None
+
+
 @router.get("", response_model=PaginatedResponse[AdminUserResponse])
 async def list_users(
     *, page: Annotated[int, Query(ge=1, description="Page number")] = 1,
@@ -122,9 +131,7 @@ async def update_user_status(
         email=user.email,
         role=user.role.value if hasattr(user.role, "value") else str(user.role),
         status=user.status.value if hasattr(user.status, "value") else str(user.status),
-        shift_type=user.shift_type.value
-        if hasattr(user.shift_type, "value")
-        else (str(user.shift_type) if user.shift_type else None),
+        shift_type=_resolve_shift_type(user.shift_type),
         created_at=user.created_at,
         updated_at=user.updated_at,
     )
@@ -157,9 +164,7 @@ async def update_user_shift_type(
         email=user.email,
         role=user.role.value if hasattr(user.role, "value") else str(user.role),
         status=user.status.value if hasattr(user.status, "value") else str(user.status),
-        shift_type=user.shift_type.value
-        if hasattr(user.shift_type, "value")
-        else (str(user.shift_type) if user.shift_type else None),
+        shift_type=_resolve_shift_type(user.shift_type),
         created_at=user.created_at,
         updated_at=user.updated_at,
     )

@@ -436,10 +436,10 @@ export default function InventoryPage() {
                 {/* Keyboard hint */}
                 <p className="text-xs text-blue-500 hidden md:block">
                     Raccourcis&nbsp;:&nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">N</kbd> nouvelle &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">A</kbd> entrée &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">C</kbd> sortie &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">/</kbd> recherche
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">N</kbd>{' '}nouvelle &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">A</kbd>{' '}entrée &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">C</kbd>{' '}sortie &nbsp;
+                    <kbd className="font-mono bg-slate-700 px-1 rounded">/</kbd>{' '}recherche
                 </p>
             </div>
 

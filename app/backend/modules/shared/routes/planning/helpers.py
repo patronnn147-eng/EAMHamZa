@@ -13,6 +13,8 @@ from services.notifications import NotificationsService
 
 logger = logging.getLogger(__name__)
 
+PERMISSION_DENIED_MESSAGE = "Vous n'avez pas la permission pour cette action"
+
 
 def _serialize_planning_for_email(payload: dict) -> dict:
     def _dt(value: object) -> str:
@@ -36,7 +38,7 @@ async def verify_admin(current_user: Utilisateurs):
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action",
+            detail=PERMISSION_DENIED_MESSAGE,
         )
 
 
@@ -45,7 +47,7 @@ async def verify_cheftech(current_user: Utilisateurs):
     if current_user.role != UserRole.CHEFTECH:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action",
+            detail=PERMISSION_DENIED_MESSAGE,
         )
 
 
@@ -54,7 +56,7 @@ async def verify_chetop_or_cheftech(current_user: Utilisateurs):
     if current_user.role not in [UserRole.CHETOP, UserRole.CHEFTECH]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action",
+            detail=PERMISSION_DENIED_MESSAGE,
         )
 
 
@@ -63,7 +65,7 @@ async def verify_cheftech_or_tech(current_user: Utilisateurs):
     if current_user.role not in [UserRole.CHEFTECH, UserRole.TECHNICIEN]:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Vous n'avez pas la permission pour cette action",
+            detail=PERMISSION_DENIED_MESSAGE,
         )
 
 
@@ -252,16 +254,13 @@ async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict
                 role_val = (
                     chef.role.value if hasattr(chef.role, "value") else str(chef.role)
                 )
-                shift_val = (
-                    chef.shift_type.value
-                    if getattr(chef, "shift_type", None)
-                    and hasattr(chef.shift_type, "value")
-                    else (
-                        str(chef.shift_type)
-                        if getattr(chef, "shift_type", None)
-                        else None
-                    )
-                )
+                chef_shift_type = getattr(chef, "shift_type", None)
+                if chef_shift_type and hasattr(chef_shift_type, "value"):
+                    shift_val = chef_shift_type.value
+                elif chef_shift_type:
+                    shift_val = str(chef_shift_type)
+                else:
+                    shift_val = None
                 assigned_users.append(
                     {
                         "id": chef.id,

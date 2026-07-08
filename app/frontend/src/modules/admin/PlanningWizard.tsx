@@ -108,6 +108,19 @@ function defaultFormData(): FormData {
   };
 }
 
+function filterUsersByShift(users: User[], shiftType: ShiftType): User[] {
+  return users.filter((u) => (u.shift_type || 'MORNING') === shiftType);
+}
+
+function selectAllMachineIds(currentIds: number[], machines: Machine[]): number[] {
+  return Array.from(new Set([...currentIds, ...machines.map((m) => m.id)]));
+}
+
+function deselectVisibleMachineIds(currentIds: number[], visibleMachines: Machine[]): number[] {
+  const visibleIds = new Set(visibleMachines.map((m) => m.id));
+  return currentIds.filter((id) => !visibleIds.has(id));
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 function StepSidebar({
@@ -299,11 +312,13 @@ export default function PlanningWizard({
   const handleShiftTypeChange = (shiftType: ShiftType) => {
     setFormData((prev) => {
       const next = { ...prev, shift_type: shiftType };
-      const filterByShift = (users: User[]) =>
-        users.filter((u) => (u.shift_type || 'MORNING') === shiftType);
-      const allowedChefOps = new Set(filterByShift(chefOperations).map((u) => u.id));
-      const allowedChefTechs = new Set(filterByShift(chefTechniques).map((u) => u.id));
-      const allowedTechs = new Set(filterByShift(techniciens).map((u) => u.id));
+      const allowedChefOps = new Set(
+        filterUsersByShift(chefOperations, shiftType).map((u) => u.id)
+      );
+      const allowedChefTechs = new Set(
+        filterUsersByShift(chefTechniques, shiftType).map((u) => u.id)
+      );
+      const allowedTechs = new Set(filterUsersByShift(techniciens, shiftType).map((u) => u.id));
       if (next.chef_operation_id && !allowedChefOps.has(next.chef_operation_id))
         next.chef_operation_id = undefined;
       if (next.chef_technique_id && !allowedChefTechs.has(next.chef_technique_id))
@@ -614,9 +629,7 @@ export default function PlanningWizard({
               onClick={() =>
                 setFormData((prev) => ({
                   ...prev,
-                  machine_ids: Array.from(
-                    new Set([...prev.machine_ids, ...filteredMachines.map((m) => m.id)])
-                  ),
+                  machine_ids: selectAllMachineIds(prev.machine_ids, filteredMachines),
                 }))
               }
             >
@@ -626,10 +639,9 @@ export default function PlanningWizard({
               type="button"
               className="text-[11px] font-mono uppercase tracking-wider px-2 py-1 rounded border border-slate-500/30 bg-slate-700/30 text-slate-300 hover:bg-slate-700/50 transition-colors"
               onClick={() => {
-                const vis = new Set(filteredMachines.map((m) => m.id));
                 setFormData((prev) => ({
                   ...prev,
-                  machine_ids: prev.machine_ids.filter((id) => !vis.has(id)),
+                  machine_ids: deselectVisibleMachineIds(prev.machine_ids, filteredMachines),
                 }));
               }}
             >

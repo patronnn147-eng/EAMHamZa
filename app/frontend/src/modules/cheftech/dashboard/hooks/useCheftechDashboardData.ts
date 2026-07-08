@@ -30,8 +30,6 @@ export const useCheftechDashboardData = () => {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTechnician, setSelectedTechnician] = useState<number | null>(null);
-  const [selectedIntervention, setSelectedIntervention] = useState<number | null>(null);
 
   // Pagination states
   const [interventionsPage, setInterventionsPage] = useState(1);
@@ -431,7 +429,7 @@ export const useCheftechDashboardData = () => {
 
       if (!response.ok) throw new Error('Erreur lors du chargement des machines');
       const data = await response.json();
-      if (data && data.items) {
+      if (data?.items) {
           setMachines(data.items);
           setMachinesTotalPages(data.total_pages || 1);
           setMachinesPage(pageNum);

@@ -24,7 +24,10 @@ def population_stability_index(baseline, recent, bins: int = 10) -> float:
         counts = [0] * bins
         for x in xs:
             idx = int((x - lo) / width)
-            idx = 0 if idx < 0 else bins - 1 if idx >= bins else idx
+            if idx < 0:
+                idx = 0
+            elif idx >= bins:
+                idx = bins - 1
             counts[idx] += 1
         n = len(xs)
         return [(c / n) or 1e-6 for c in counts]
@@ -46,7 +49,12 @@ def compute_drift(baseline_rows, recent_rows, sensors=SENSORS) -> dict:
         bmean = sum(b) / len(b)
         rmean = sum(rc) / len(rc)
         shift = 0.0 if bmean == 0 else (rmean - bmean) / abs(bmean) * 100
-        status = "drifting" if psi >= 0.25 else "watch" if psi >= 0.1 else "stable"
+        if psi >= 0.25:
+            status = "drifting"
+        elif psi >= 0.1:
+            status = "watch"
+        else:
+            status = "stable"
         out[s] = {
             "psi": round(psi, 3),
             "mean_shift_pct": round(shift, 1),

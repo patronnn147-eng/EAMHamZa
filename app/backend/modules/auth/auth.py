@@ -21,6 +21,22 @@ from typing import Annotated
 router = APIRouter(tags=["authentication"])
 
 
+def _resolve_shift_type(user) -> str | None:
+    """
+    Resolve a user's shift_type to a plain string value.
+
+    Preserves the exact behavior of the previous nested conditional:
+    - if shift_type has a `.value` attribute (e.g. an Enum), return that
+    - elif shift_type is truthy, return its string representation
+    - else return None
+    """
+    if hasattr(user.shift_type, "value"):
+        return user.shift_type.value
+    if getattr(user, "shift_type", None):
+        return str(user.shift_type)
+    return None
+
+
 @router.post("/register", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserRegister, db: Annotated[AsyncSession, Depends(get_db)]):
     """
@@ -135,9 +151,7 @@ async def login(credentials: UserLogin, db: Annotated[AsyncSession, Depends(get_
             nom=user.nom,
             role=user.role,
             status=user.status,
-            shift_type=user.shift_type.value
-            if hasattr(user.shift_type, "value")
-            else (str(user.shift_type) if getattr(user, "shift_type", None) else None),
+            shift_type=_resolve_shift_type(user),
             created_at=user.created_at,
         ),
     )
@@ -154,13 +168,7 @@ async def get_me(current_user: Annotated[Utilisateurs, Depends(get_current_user)
         nom=current_user.nom,
         role=current_user.role,
         status=current_user.status,
-        shift_type=current_user.shift_type.value
-        if hasattr(current_user.shift_type, "value")
-        else (
-            str(current_user.shift_type)
-            if getattr(current_user, "shift_type", None)
-            else None
-        ),
+        shift_type=_resolve_shift_type(current_user),
         created_at=current_user.created_at,
     )
 

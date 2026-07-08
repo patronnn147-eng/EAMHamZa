@@ -245,7 +245,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # Handle /api/config endpoint
         if path == "/api/config":
-            return handle_config_request(headers, query_params)
+            return handle_config_request(headers)
 
         # Route API requests to backend
         elif path.startswith("/api/v1/"):
@@ -482,7 +482,7 @@ def serve_static_file(path: str) -> Dict[str, Any]:
         }
 
 
-def handle_config_request(headers: dict, query_params: dict) -> Dict[str, Any]:
+def handle_config_request(headers: dict) -> Dict[str, Any]:
     """Handle configuration requests with security filtering"""
     # Security: Validate request method and origin
     validation_result = validate_config_request(headers)
@@ -586,9 +586,7 @@ def sanitize_config(config: dict) -> dict:
             if key == "API_BASE_URL":
                 # Ensure it's a valid URL format
                 url = config[key]
-                if isinstance(url, str) and (
-                    url.startswith("http://") or url.startswith("https://")
-                ):
+                if isinstance(url, str) and url.startswith(("http://", "https://")):
                     sanitized[key] = url
                 else:
                     logger.debug(f"Invalid API_BASE_URL format: {url}")

@@ -10,15 +10,15 @@ Uses id() which may alias after GC — acceptable: worst case is one extra build
 
 import pandas as pd
 import numpy as np
-from typing import List, Dict
+from typing import Any, List, Dict
 import logging
 
 logger = logging.getLogger(__name__)
 
-_explainer_cache: Dict[int, object] = {}
+_explainer_cache: Dict[int, Any] = {}
 
 
-def _get_explainer(model, X: pd.DataFrame) -> object:
+def _get_explainer(model, X: pd.DataFrame) -> Any:
     """
     Return cached SHAP explainer for model, creating it on first call.
 
@@ -40,6 +40,16 @@ def _get_explainer(model, X: pd.DataFrame) -> object:
             _explainer_cache[key] = shap.Explainer(model, X)
             logger.debug(f"SHAP: created generic Explainer for {type(model).__name__}")
     return _explainer_cache[key]
+
+
+def _intensity_for(impact_val: float) -> str:
+    """Classify |impact_val| into a SHAP impact intensity bucket."""
+    abs_impact = abs(impact_val)
+    if abs_impact > 0.1:
+        return "high"
+    if abs_impact > 0.05:
+        return "medium"
+    return "low"
 
 
 # Internal feature names used by P1 model
@@ -117,13 +127,7 @@ class XAIService:
                         {
                             "factor": name,
                             "impact": round(impact_val, 6),
-                            "intensity": (
-                                "high"
-                                if abs(impact_val) > 0.1
-                                else "medium"
-                                if abs(impact_val) > 0.05
-                                else "low"
-                            ),
+                            "intensity": _intensity_for(impact_val),
                         }
                     )
 

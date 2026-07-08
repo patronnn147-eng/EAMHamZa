@@ -67,22 +67,20 @@ export default function TechnicianInterventions() {
     [interventions],
   );
 
-  const getStatusLabel = (statut?: string) => {
-    const s = statut || 'EN_ATTENTE';
-    if (s === 'PENDING_APPROVAL') return 'En attente d\'approbation';
-    if (s === 'APPROVED') return 'Approuvée';
-    if (s === 'DECLINED' || s === 'REJECTED') return 'Refusée';
-    if (s === 'EN_COURS') return 'En cours';
-    if (s === 'TERMINÉ' || s === 'TERMINE') return 'Terminée';
-    if (s === 'BLOQUÉ') return 'Bloquée';
-    if (s === 'EN_ATTENTE') return 'En attente';
-    return s;
+  const getStatusLabel = (statut: string = 'EN_ATTENTE') => {
+    if (statut === 'PENDING_APPROVAL') return 'En attente d\'approbation';
+    if (statut === 'APPROVED') return 'Approuvée';
+    if (statut === 'DECLINED' || statut === 'REJECTED') return 'Refusée';
+    if (statut === 'EN_COURS') return 'En cours';
+    if (statut === 'TERMINÉ' || statut === 'TERMINE') return 'Terminée';
+    if (statut === 'BLOQUÉ') return 'Bloquée';
+    if (statut === 'EN_ATTENTE') return 'En attente';
+    return statut;
   };
 
-  const getStatusColor = (statut?: string) => {
+  const getStatusColor = (statut: string = 'EN_ATTENTE') => {
     const base = "rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest border transition-all duration-300 ";
-    const s = statut || 'EN_ATTENTE';
-    switch (s) {
+    switch (statut) {
       case 'PENDING_APPROVAL':
         return base + 'text-orange-700 bg-orange-50/50 border-orange-200/50';
       case 'APPROVED':
@@ -132,7 +130,7 @@ export default function TechnicianInterventions() {
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
     } catch (err) {
       console.error('Download error:', err);
     } finally {

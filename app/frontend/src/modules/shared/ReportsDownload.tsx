@@ -65,7 +65,7 @@ export const ReportsDownload: React.FC = () => {
         a.download = `${selectedReport}_${new Date().toISOString().split('T')[0]}.${format}`;
         document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
+        a.remove();
         URL.revokeObjectURL(url);
 
         toast({
@@ -144,9 +144,9 @@ export const ReportsDownload: React.FC = () => {
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Report Type</label>
+              <label htmlFor="report-type-select" className="text-sm font-medium mb-2 block">Report Type</label>
               <Select value={selectedReport} onValueChange={setSelectedReport}>
-                <SelectTrigger>
+                <SelectTrigger id="report-type-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -160,9 +160,9 @@ export const ReportsDownload: React.FC = () => {
             </div>
 
             <div className="w-full sm:w-40">
-              <label className="text-sm font-medium mb-2 block">Format</label>
+              <label htmlFor="format-select" className="text-sm font-medium mb-2 block">Format</label>
               <Select value={format} onValueChange={setFormat}>
-                <SelectTrigger>
+                <SelectTrigger id="format-select">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

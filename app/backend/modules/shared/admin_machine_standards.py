@@ -1,16 +1,19 @@
 import re
 
+ZONE_CMS1_NAME = "ZONE CMS1 - COMPONENT SURFACE MOUNTING"
+ZONE_CMS2_NAME = "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)"
+
 ZONE_OPTIONS = [
-    "ZONE CMS1 - COMPONENT SURFACE MOUNTING",
-    "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)",
+    ZONE_CMS1_NAME,
+    ZONE_CMS2_NAME,
 ]
 
 SOUS_ZONE_OPTIONS_BY_ZONE = {
-    "ZONE CMS1 - COMPONENT SURFACE MOUNTING": [
+    ZONE_CMS1_NAME: [
         "CMS LINE 1 (e.g., BBS - Broadband Products)",
         "CMS LINE 2 (e.g., AVS - Audio Video Products)",
     ],
-    "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)": [
+    ZONE_CMS2_NAME: [
         "TEST IN-SITU (Test des Composants)",
         "TEST FONCTIONNEL (Test de Fonctionnement)",
         "TEST WiFi (Test Sans Fil)",
@@ -18,7 +21,7 @@ SOUS_ZONE_OPTIONS_BY_ZONE = {
 }
 
 ORDRE_TEMPLATES = {
-    "ZONE CMS1 - COMPONENT SURFACE MOUNTING": {
+    ZONE_CMS1_NAME: {
         "CMS LINE 1 (e.g., BBS - Broadband Products)": [
             {"ordre": 1, "nom": "Dépileur (Card Loader)"},
             {"ordre": 2, "nom": "Machine de Sérigraphie (DEK/MPM)"},
@@ -42,7 +45,7 @@ ORDRE_TEMPLATES = {
             {"ordre": 9, "nom": "Machine de Brassage à la Vague"},
         ],
     },
-    "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)": {
+    ZONE_CMS2_NAME: {
         "TEST IN-SITU (Test des Composants)": [
             {"ordre": 1, "nom": "Interface de Test (Bed of Nails)"},
             {"ordre": 2, "nom": "Testeur Marconi 4220"},

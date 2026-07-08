@@ -25,10 +25,10 @@ _NOT_FOUND_MSG = "Maintenances_planifiees not found"
 class Maintenances_planifieesData(BaseModel):
     """Entity data schema (for create/update)"""
 
-    utilisateur_id: int = None
-    rapport_id: int = None
+    utilisateur_id: Optional[int] = None
+    rapport_id: Optional[int] = None
     date_planifiee: datetime
-    description: str = None
+    description: Optional[str] = None
     created_at: Optional[datetime] = None
 
 

@@ -49,9 +49,8 @@ const TechnicianWorkOrders: React.FC = () => {
   const [workOrders, setWorkOrders] = useState<WorkOrderTechnicien[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [startingId, setStartingId] = useState<number | null>(null); // Kept for types if needed elsewhere, but focus is on new flow
   const [requestOpen, setRequestOpen] = useState(false);
-  const [selectedWoId, setSelectedWoId] = useState<number | null>(null);
+  const [selectedWoId] = useState<number | null>(null);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [completingWoId, setCompletingWoId] = useState<number | null>(null);
 
@@ -91,29 +90,6 @@ const TechnicianWorkOrders: React.FC = () => {
   useEffect(() => {
     fetchWorkOrders();
   }, []);
-
-  const handleStart = async (orderId: number) => {
-    setStartingId(orderId);
-    try {
-      const token = localStorage.getItem('access_token');
-      const apiBase = import.meta.env.VITE_API_BASE_URL || '';
-      const response = await fetch(`${apiBase}/api/v1/technicien/work-orders/${orderId}/start`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
-        toast({ title: 'Succès', description: "L'intervention a commencé" });
-        fetchWorkOrders();
-      } else {
-        const err = await response.json();
-        toast({ title: 'Erreur', description: err.detail || 'Impossible de démarrer', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Erreur réseau', description: 'Veuillez réessayer', variant: 'destructive' });
-    } finally {
-      setStartingId(null);
-    }
-  };
 
   const getStatusBadge = (statut: string) => {
     const base = "rounded-full px-4 py-1.5 text-[11px] font-black uppercase tracking-widest border transition-all duration-300 ";

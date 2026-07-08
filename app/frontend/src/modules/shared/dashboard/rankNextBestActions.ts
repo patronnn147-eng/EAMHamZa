@@ -38,9 +38,10 @@ export function rankNextBestActions(input: NbaInput): RankedAction[] {
   for (const a of input.alerts) {
     if ((a.severity ?? '').toUpperCase() !== 'CRITICAL') continue;
     if (isTech) continue; // techs act on their WOs, managers triage alerts
+    const machineSuffix = a.machine_id ? ` — machine ${a.machine_id}` : '';
     actions.push({
       key: `alert-${a.machine_id ?? 'x'}`,
-      label: `Alerte critique${a.machine_id ? ` — machine ${a.machine_id}` : ''}`,
+      label: `Alerte critique${machineSuffix}`,
       severity: 'critical',
       href: a.machine_id != null ? `/machines/${a.machine_id}` : '/machines',
       score: URGENCY.criticalAlert * impact(a.machine_id),

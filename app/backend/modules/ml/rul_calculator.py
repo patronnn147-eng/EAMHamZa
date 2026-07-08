@@ -170,8 +170,6 @@ class RULCalculator:
             ml_availability_pct = 0.0
             ml_health_score = 100.0
             ml_reliability_score = 100.0
-            risk_level = "LOW"
-            predicted_priority = "Normal"
         else:
             ml_mtbf_hours = rul_days * 24
             ml_mttr_hours = 2.5

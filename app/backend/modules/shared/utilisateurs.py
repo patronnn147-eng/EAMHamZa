@@ -119,7 +119,7 @@ async def query_utilisateurss(
             limit=limit,
             query_dict=query_dict,
             sort=sort,
-            id=str(current_user.id),
+            _id=str(current_user.id),
         )
         logger.debug(f"Found {result['total']} utilisateurss")
         return result
@@ -180,7 +180,7 @@ async def get_utilisateurs(
 
     service = UtilisateursService(db)
     try:
-        result = await service.get_by_id(id, id=str(current_user.id))
+        result = await service.get_by_id(id, _id=str(current_user.id))
         if not result:
             logger.warning(f"Utilisateurs with id {id} not found")
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
@@ -204,7 +204,7 @@ async def create_utilisateurs(
 
     service = UtilisateursService(db)
     try:
-        result = await service.create(data.model_dump(), id=str(current_user.id))
+        result = await service.create(data.model_dump(), _id=str(current_user.id))
         if not result:
             raise HTTPException(status_code=400, detail="Failed to create utilisateurs")
 
@@ -234,7 +234,7 @@ async def create_utilisateurss_batch(
     try:
         for item_data in request.items:
             result = await service.create(
-                item_data.model_dump(), id=str(current_user.id)
+                item_data.model_dump(), _id=str(current_user.id)
             )
             if result:
                 results.append(result)

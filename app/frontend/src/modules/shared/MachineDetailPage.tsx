@@ -80,7 +80,6 @@ export default function MachineDetailPage() {
     const [interventions, setInterventions] = useState<Intervention[]>([]);
     const [mlPrediction, setMlPrediction] = useState<MLPrediction | null>(null);
     const [loading, setLoading] = useState(true);
-    const [openWorkOrdersCount, setOpenWorkOrdersCount] = useState(0);
 
     // Status update states (Technician only)
     const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -135,18 +134,6 @@ export default function MachineDetailPage() {
                 (i: Intervention) => i.machine_id === m.id
             );
             setInterventions(machineInterventions);
-
-            // Count open work orders
-            const woRes = await client.entities.ordres_travail.queryAll({
-                query: {},
-                limit: 200,
-            });
-            const openWOs = (woRes.data.items || []).filter(
-                (wo: { machine_id: number; statut: string }) =>
-                    wo.machine_id === m.id &&
-                    !['TERMINE', 'ANNULE'].includes(wo.statut)
-            );
-            setOpenWorkOrdersCount(openWOs.length);
 
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -218,10 +205,6 @@ export default function MachineDetailPage() {
     }
 
     const statusConfig = getMachineStatusConfig(machine.statut ?? '');
-    const recentInterventionsCount = interventions.filter((i) => {
-        const d = new Date(i.date_intervention);
-        return d > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    }).length;
 
     const getMlRiskBadge = (prediction: MLPrediction | null) => {
         if (!prediction) return null;
@@ -242,7 +225,7 @@ export default function MachineDetailPage() {
 
     const getRecoveryBadge = (prediction: MLPrediction | null) => {
         const rec = prediction?.recovery;
-        if (!rec || !rec.within_recovery_window) return null;
+        if (!rec?.within_recovery_window) return null;
         // Only render meaningful states; suppress Monitoring + No baseline noise.
         if (rec.status !== 'Recovered' && rec.status !== 'Recovering' && rec.status !== 'No improvement') {
             return null;

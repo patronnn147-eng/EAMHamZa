@@ -17,7 +17,7 @@ class UtilisateursService:
         self.db = db
 
     async def create(
-        self, data: Dict[str, Any], id: Optional[str] = None
+        self, data: Dict[str, Any], _id: Optional[str] = None
     ) -> Optional[Utilisateurs]:
         """Create a new utilisateurs"""
         try:
@@ -35,7 +35,7 @@ class UtilisateursService:
     async def check_ownership(self, obj_id: int, id: str) -> bool:
         """Check if user owns this record"""
         try:
-            obj = await self.get_by_id(obj_id, id=id)
+            obj = await self.get_by_id(obj_id, _id=id)
             return obj is not None
         except Exception as e:
             logger.exception(
@@ -44,7 +44,7 @@ class UtilisateursService:
             return False
 
     async def get_by_id(
-        self, obj_id: int, id: Optional[str] = None
+        self, obj_id: int, _id: Optional[str] = None
     ) -> Optional[Utilisateurs]:
         """Get utilisateurs by ID (user can only see their own records)"""
         try:
@@ -59,7 +59,7 @@ class UtilisateursService:
         self,
         skip: int = 0,
         limit: int = 20,
-        id: Optional[str] = None,
+        _id: Optional[str] = None,
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -108,7 +108,7 @@ class UtilisateursService:
     ) -> Optional[Utilisateurs]:
         """Update utilisateurs (requires ownership)"""
         try:
-            obj = await self.get_by_id(obj_id, id=id)
+            obj = await self.get_by_id(obj_id, _id=id)
             if not obj:
                 logger.warning(f"Utilisateurs {obj_id} not found for update")
                 return None
@@ -128,7 +128,7 @@ class UtilisateursService:
     async def delete(self, obj_id: int, id: Optional[str] = None) -> bool:
         """Delete utilisateurs (requires ownership)"""
         try:
-            obj = await self.get_by_id(obj_id, id=id)
+            obj = await self.get_by_id(obj_id, _id=id)
             if not obj:
                 logger.warning(f"Utilisateurs {obj_id} not found for deletion")
                 return False

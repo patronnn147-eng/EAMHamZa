@@ -305,18 +305,18 @@ export default function PlanningDetailPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-blue-300">Start Date & Time</label>
+                  <span className="text-sm font-medium text-blue-300">Start Date & Time</span>
                   <div className="text-lg font-semibold">{formatDate(planning.date_debut)}</div>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-blue-300">End Date & Time</label>
+                  <span className="text-sm font-medium text-blue-300">End Date & Time</span>
                   <div className="text-lg font-semibold">{formatDate(planning.date_fin)}</div>
                 </div>
               </div>
 
               {(planning.zone_travail && planning.zone_travail.trim() !== '') ? (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-blue-300">Work Zone</label>
+                  <span className="text-sm font-medium text-blue-300">Work Zone</span>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-blue-400" />
                     <span className="text-lg font-semibold">{planning.zone_travail}</span>
@@ -324,7 +324,7 @@ export default function PlanningDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-blue-300">Work Zone</label>
+                  <span className="text-sm font-medium text-blue-300">Work Zone</span>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-blue-400" />
                     <span className="text-lg font-semibold text-blue-400">Not specified</span>
@@ -333,7 +333,7 @@ export default function PlanningDetailPage() {
               )}
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-blue-300">Planning Type</label>
+                <span className="text-sm font-medium text-blue-300">Planning Type</span>
                 <div className="flex items-center gap-2">
                   <Settings className="h-4 w-4 text-blue-400" />
                   <span className="font-medium capitalize">{planning.type.toLowerCase()}</span>
@@ -344,7 +344,7 @@ export default function PlanningDetailPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium text-blue-300">Created</label>
+                <span className="text-sm font-medium text-blue-300">Created</span>
                 <div className="text-sm text-blue-200">
                   {planning.created_at ? formatDate(planning.created_at) : 'N/A'}
                 </div>
