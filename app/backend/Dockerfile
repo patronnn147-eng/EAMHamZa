@@ -4,33 +4,24 @@ FROM python:3.11-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Copy only the files and directories required by the backend
+COPY requirements.txt start.sh main.py alembic.ini lambda_handler.py .
+COPY alembic core data_models dependencies middlewares mock_data models modules schemas scripts services tasks utils ./
+
+# Install system dependencies, Python dependencies, and prepare runtime permissions in one layer
 RUN apt-get update && apt-get install -y \
     bash \
     gcc \
     postgresql-client \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt \
+    && sed -i 's/\r$//' start.sh && chmod +x start.sh \
+    && mkdir -p logs \
+    && useradd -m -u 1000 appuser \
+    && chown -R appuser:appuser /app
 
-# Copy requirements first for better caching
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY . .
-
-# Make start.sh executable
-RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
-
-# Create logs directory
-RUN mkdir -p logs
-
-# Create non-root user
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
 USER appuser
 
 # Expose port

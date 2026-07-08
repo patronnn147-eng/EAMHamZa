@@ -143,9 +143,7 @@ def upgrade() -> None:
         existing_nullable=True,
         postgresql_using="shift_type::shifttype",
     )
-    # op.add_column('utilisateurs', sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='userstatus'), nullable=False))
-    # op.add_column('utilisateurs', sa.Column('shift_type', sa.Enum('MORNING', 'NIGHT', name='usershifttype', native_enum=False), nullable=False))
-    # op.add_column('utilisateurs', sa.Column('updated_at', sa.DateTime(), nullable=True))
+   
     op.alter_column(
         "utilisateurs",
         "role",
