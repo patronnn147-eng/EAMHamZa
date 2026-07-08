@@ -65,7 +65,7 @@ export function serializeDirect(rows: DirectConsumeRow[]) {
 /** Serialize pending drafts for API. */
 export function serializePendingDirect(rows: PendingDraftRow[]) {
   return rows
-    .filter((r) => r.name && r.name.trim())
+    .filter((r) => r.name?.trim())
     .map((r) => ({
       name: r.name.trim(),
       quantity: Number(r.quantity || 1),
@@ -210,7 +210,7 @@ export function DirectConsumeSelector({
             })}
             {anyExceeds && (
               <p className="text-[11px] text-red-400 font-mono mt-1 px-1 flex items-center gap-1">
-                <span className="text-red-500">▲</span>
+                <span className="text-red-500">▲</span>{' '}
                 Une ou plusieurs quantités dépassent le stock disponible.
               </p>
             )}

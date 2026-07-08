@@ -20,6 +20,8 @@ from typing import Annotated
 router = APIRouter(prefix="/api/v1/entities/machines", tags=["machines"])
 logger = logging.getLogger(__name__)
 
+RULE_COLUMN = "Règle"
+
 
 @router.get("/import/template", responses={500: {"description": "Internal Server Error"}})
 async def download_import_template():
@@ -50,29 +52,29 @@ async def download_import_template():
 
         guide_data = [
             {
-                "Règle": "Champ 'nom'",
+                RULE_COLUMN: "Champ 'nom'",
                 "Description": "Optionnel. Sera généré automatiquement (ex: ZONE_CMS1_CMS_LINE_1_DEPILEUR) si la zone, sous_zone et ordre sont valides.",
             },
             {
-                "Règle": "Champ 'zone'",
+                RULE_COLUMN: "Champ 'zone'",
                 "Description": "Obligatoire. Doit correspondre EXACTEMENT à une des valeurs autorisées.",
             },
             {
-                "Règle": "Champ 'sous_zone'",
+                RULE_COLUMN: "Champ 'sous_zone'",
                 "Description": "Obligatoire. Doit correspondre EXACTEMENT à une sous-zone liée à la zone choisie.",
             },
             {
-                "Règle": "Champ 'ordre'",
+                RULE_COLUMN: "Champ 'ordre'",
                 "Description": "Obligatoire. Un chiffre correspondant à l'ordre de la machine (ex: 1, 2, 3).",
             },
-            {"Règle": "Zones Autorisées", "Description": " | ".join(ZONE_OPTIONS)},
+            {RULE_COLUMN: "Zones Autorisées", "Description": " | ".join(ZONE_OPTIONS)},
         ]
 
         for zone, sub_zones in SOUS_ZONE_OPTIONS_BY_ZONE.items():
             if sub_zones:
                 guide_data.append(
                     {
-                        "Règle": f"Sous-zones pour: {zone}",
+                        RULE_COLUMN: f"Sous-zones pour: {zone}",
                         "Description": " | ".join(sub_zones),
                     }
                 )
@@ -81,7 +83,7 @@ async def download_import_template():
             for sub, templates in sub_zones.items():
                 items = [f"{t['ordre']}={t['nom']}" for t in templates]
                 guide_data.append(
-                    {"Règle": f"Ordres pour: {sub}", "Description": " | ".join(items)}
+                    {RULE_COLUMN: f"Ordres pour: {sub}", "Description": " | ".join(items)}
                 )
 
         df_guide = pd.DataFrame(guide_data)

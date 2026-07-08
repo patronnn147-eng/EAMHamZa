@@ -194,7 +194,9 @@ iac-scan:
   stage: build
   needs: [sonarqube-scan]
   tags: [local]
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   script:
     - |
       FAILED=0

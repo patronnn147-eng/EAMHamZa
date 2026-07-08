@@ -27,7 +27,7 @@ class RapportsData(BaseModel):
     titre: str
     date_generation: datetime
     contenu: str
-    utilisateur_id: int = None
+    utilisateur_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
 

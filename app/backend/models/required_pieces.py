@@ -46,9 +46,7 @@ class RequiredPiece(Base):
     unit = Column(String(20), nullable=False, default="pcs")
     quantity_reserved = Column(Numeric(10, 2), nullable=False, default=0)
     reservation_expires_at = Column(DateTime(timezone=True), nullable=True)
-    approved = Column(
-        Boolean, nullable=True
-    )  # NULL=pending, True=approved, False=rejected
+    approved = Column(Boolean, nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

@@ -186,11 +186,13 @@ async def retrieve_chunks(
         for c in results:
             has_v = "vector_rank" in c
             has_k = "keyword_rank" in c
-            source_mix.append(
-                "both"
-                if has_v and has_k
-                else ("vector_only" if has_v else "keyword_only")
-            )
+            if has_v and has_k:
+                source = "both"
+            elif has_v:
+                source = "vector_only"
+            else:
+                source = "keyword_only"
+            source_mix.append(source)
         record_call(
             vector_n=len(candidates),
             keyword_n=len(keyword_hits),

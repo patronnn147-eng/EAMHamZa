@@ -11,12 +11,12 @@ TECH_IDS = [101, 102]
 
 
 def test_greedy_assigns_all_wos():
-    result = _greedy_schedule(WOS, TECH_IDS, horizon_days=30)
+    result = _greedy_schedule(WOS, TECH_IDS, 30)
     assert len(result["assignments"]) == len(WOS)
 
 
 def test_greedy_each_wo_has_required_fields():
-    result = _greedy_schedule(WOS, TECH_IDS, horizon_days=30)
+    result = _greedy_schedule(WOS, TECH_IDS, 30)
     for a in result["assignments"]:
         assert "wo_id" in a
         assert "technician_id" in a
@@ -26,24 +26,24 @@ def test_greedy_each_wo_has_required_fields():
 
 
 def test_greedy_parts_not_ready_deferred():
-    result = _greedy_schedule(WOS, TECH_IDS, horizon_days=30)
+    result = _greedy_schedule(WOS, TECH_IDS, 30)
     deferred = next(a for a in result["assignments"] if a["wo_id"] == 3)
     assert deferred["start_day"] >= 3  # parts_ready=False → min 3-day defer
 
 
 def test_greedy_fallback_flag():
-    result = _greedy_schedule(WOS, TECH_IDS, horizon_days=30)
+    result = _greedy_schedule(WOS, TECH_IDS, 30)
     assert result["fallback"] is True
     assert result["solved"] is True
 
 
 def test_greedy_empty_wos():
-    result = _greedy_schedule([], TECH_IDS, horizon_days=30)
+    result = _greedy_schedule([], TECH_IDS, 30)
     assert result["assignments"] == []
 
 
 def test_greedy_empty_technicians():
-    result = _greedy_schedule(WOS, [], horizon_days=30)
+    result = _greedy_schedule(WOS, [], 30)
     assert result["assignments"] == []
 
 

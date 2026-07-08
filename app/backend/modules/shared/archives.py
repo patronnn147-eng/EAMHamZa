@@ -27,7 +27,7 @@ class ArchivesData(BaseModel):
     nom: str
     date_archivage: datetime
     type: str
-    object_key: str = None
+    object_key: Optional[str] = None
     ordre_travail_id: Optional[int] = None
     created_at: Optional[datetime] = None
 

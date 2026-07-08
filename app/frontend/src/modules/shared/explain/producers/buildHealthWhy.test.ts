@@ -18,7 +18,7 @@ describe('buildHealthWhy', () => {
     const p = buildHealthWhy(health);
     expect(p.title).toBeTruthy();
     expect(p.confidence?.level).toBe('Élevée');
-    expect(p.counterfactual && p.counterfactual.length).toBeGreaterThan(0);
+    expect(p.counterfactual?.length).toBeGreaterThan(0);
   });
   it('counterfactual targets the out-of-range sensor', () => {
     const p = buildHealthWhy(health);

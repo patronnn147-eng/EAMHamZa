@@ -39,6 +39,7 @@ router = APIRouter(prefix="/api/v1/rag", tags=["rag"])
 ALLOWED_EXTENSIONS = {".pdf", ".txt"}
 MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50MB
 BULK_PARALLELISM = 4  # concurrent ingests per bulk request
+RAG_SERVICE_UNAVAILABLE_DETAIL = "RAG service is unavailable."
 
 
 # ── Schemas ────────────────────────────────────────────────────────────────
@@ -142,7 +143,7 @@ async def _ingest_one(
         if isinstance(e, httpx.ConnectError):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="RAG service is unavailable.",
+                detail=RAG_SERVICE_UNAVAILABLE_DETAIL,
             )
         logger.exception(f"Ingest failed for {filename}: {e}")
         raise HTTPException(status_code=500, detail="Ingestion failed.")
@@ -177,7 +178,7 @@ async def _ingest_one(
 # ── Endpoints ──────────────────────────────────────────────────────────────
 
 
-@router.post("/documents", response_model=DocumentResponse, status_code=201, responses={400: {"description": "doc_type must be: manual, sop, or report"}, 409: {"description": "Conflict"}})
+@router.post("/documents", response_model=DocumentResponse, status_code=201, responses={400: {"description": "doc_type must be: manual, sop, or report"}, 409: {"description": "Conflict"}, 500: {"description": "Ingestion failed."}, 503: {"description": "S3 storage or RAG service unavailable."}})
 async def upload_document(
     *,
     file: Annotated[UploadFile, File(description="PDF or TXT file")],
@@ -394,7 +395,7 @@ async def bulk_upload_documents(
     )
 
 
-@router.get("/documents", response_model=List[DocumentResponse], responses={500: {"description": "Failed to retrieve document list."}, 503: {"description": "RAG service is unavailable."}})
+@router.get("/documents", response_model=List[DocumentResponse], responses={500: {"description": "Failed to retrieve document list."}, 503: {"description": RAG_SERVICE_UNAVAILABLE_DETAIL}})
 async def list_documents(
     *, doc_type: Optional[str] = None,
     machine_id: Optional[int] = None,
@@ -406,7 +407,7 @@ async def list_documents(
     try:
         docs = await rag_client.list_documents(doc_type=doc_type, machine_id=machine_id)
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="RAG service is unavailable.")
+        raise HTTPException(status_code=503, detail=RAG_SERVICE_UNAVAILABLE_DETAIL)
     except Exception as e:
         logger.exception(f"Failed to list documents: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve document list.")
@@ -469,7 +470,7 @@ async def download_document(
     return {"download_url": url}
 
 
-@router.put("/documents/{doc_id}", response_model=DocumentResponse, responses={404: {"description": "Document not found."}})
+@router.put("/documents/{doc_id}", response_model=DocumentResponse, responses={404: {"description": "Document not found."}, 500: {"description": "Ingestion failed."}, 503: {"description": "S3 storage or RAG service unavailable."}})
 async def replace_document(
     doc_id: str,
     file: Annotated[UploadFile, File(description="Replacement PDF/TXT")],
@@ -534,7 +535,7 @@ async def replace_document(
     return new_doc
 
 
-@router.delete("/documents/{doc_id}", status_code=204, responses={404: {"description": "Document not found."}, 500: {"description": "Failed to delete document."}, 503: {"description": "RAG service is unavailable."}})
+@router.delete("/documents/{doc_id}", status_code=204, responses={404: {"description": "Document not found."}, 500: {"description": "Failed to delete document."}, 503: {"description": RAG_SERVICE_UNAVAILABLE_DETAIL}})
 async def delete_document(
     doc_id: str,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -559,7 +560,7 @@ async def delete_document(
             raise HTTPException(status_code=404, detail="Document not found.")
         raise HTTPException(status_code=500, detail="Failed to delete document.")
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail="RAG service is unavailable.")
+        raise HTTPException(status_code=503, detail=RAG_SERVICE_UNAVAILABLE_DETAIL)
 
     # 2. Best-effort S3 cleanup
     if s3_key:

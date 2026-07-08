@@ -27,6 +27,7 @@ import sys
 import httpx
 
 API = os.environ.get("API_BASE", "http://localhost:8000").rstrip("/")
+CONTENT_TYPE_JSON = "application/json"
 
 
 def _login(client: httpx.Client, user: str, pw: str):
@@ -83,7 +84,7 @@ def main() -> int:
         )
         dry = (
             r.json()
-            if r.headers.get("content-type", "").startswith("application/json")
+            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
             else {}
         )
         if r.status_code != 200 or not dry.get("dry_run"):
@@ -100,7 +101,7 @@ def main() -> int:
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
         run1 = (
             r.json()
-            if r.headers.get("content-type", "").startswith("application/json")
+            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
             else {}
         )
         if r.status_code != 200 or not run1.get("success"):
@@ -110,7 +111,7 @@ def main() -> int:
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
         run2 = (
             r.json()
-            if r.headers.get("content-type", "").startswith("application/json")
+            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
             else {}
         )
         if r.status_code != 200 or not run2.get("idempotent"):

@@ -357,11 +357,12 @@ class PieceService:
         out: List[Dict[str, Any]] = []
         for r in rows:
             score = min(1.0, float(r.score))
-            tier = (
-                "high"
-                if score >= threshold_high
-                else ("medium" if score >= 0.60 else "low")
-            )
+            if score >= threshold_high:
+                tier = "high"
+            elif score >= 0.60:
+                tier = "medium"
+            else:
+                tier = "low"
             out.append(
                 {
                     "piece_id": r.id,

@@ -11,6 +11,8 @@ from models.ordres_intervention import Ordres_intervention
 from models.plannings import Plannings
 from models.alertes import Alert
 
+FILTER_BY_MACHINE_ID_DESC = "Filter by machine ID"
+
 
 def get_tool_definitions() -> List[Dict[str, Any]]:
     """
@@ -61,7 +63,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         },
                         "machine_id": {
                             "type": "integer",
-                            "description": "Filter by machine ID",
+                            "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                     },
                     "required": [],
@@ -78,7 +80,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "properties": {
                         "machine_id": {
                             "type": "integer",
-                            "description": "Filter by machine ID",
+                            "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                         "statut": {
                             "type": "string",
@@ -124,7 +126,7 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                         },
                         "machine_id": {
                             "type": "integer",
-                            "description": "Filter by machine ID",
+                            "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                     },
                     "required": [],

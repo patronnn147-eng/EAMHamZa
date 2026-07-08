@@ -29,6 +29,11 @@ interface Notification {
   lu: boolean;
 }
 
+function mergeNewNotification(prev: Notification[], newNotif: Notification): Notification[] {
+  if (prev.some((n) => n.id === newNotif.id)) return prev;
+  return [newNotif, ...prev].slice(0, 10);
+}
+
 export default function Header() {
   const [user, setUser] = useState<UserData | null>(null);
   const [userRole, setUserRole] = useState<string>('');
@@ -84,12 +89,8 @@ export default function Header() {
     eventSource.onmessage = (event) => {
       try {
         const newNotif = JSON.parse(event.data);
-        if (newNotif && newNotif.id) {
-          setNotifications(prev => {
-            // Avoid duplicates
-            if (prev.find(n => n.id === newNotif.id)) return prev;
-            return [newNotif, ...prev].slice(0, 10);
-          });
+        if (newNotif?.id) {
+          setNotifications((prev) => mergeNewNotification(prev, newNotif));
           setUnreadCount(prev => prev + 1);
         }
       } catch (err) {

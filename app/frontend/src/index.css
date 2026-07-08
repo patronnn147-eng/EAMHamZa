@@ -329,10 +329,6 @@ body.is-scrolling {
   border-radius: 8px;
   transition: all 0.2s ease;
 }
-.btn-cyan:hover {
-  box-shadow: 0 0 20px rgba(0, 255, 242, 0.3);
-}
-
 /* Font Families for Orchestrated Void */
 .font-heading {
   font-family: 'Manrope', sans-serif;

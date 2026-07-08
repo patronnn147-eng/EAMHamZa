@@ -117,13 +117,11 @@ def _dempster_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
             for label2 in FRAME:
                 # Intersection of singletons: A ∩ B = A if A==B (both singletons)
                 # Unknown ∩ X = X (Unknown represents full frame Θ)
-                intersection_is_target = False
-                if label1 == UNKNOWN and label2 == target:
-                    intersection_is_target = True
-                elif label2 == UNKNOWN and label1 == target:
-                    intersection_is_target = True
-                elif label1 == label2 == target:
-                    intersection_is_target = True
+                intersection_is_target = (
+                    (label1 == UNKNOWN and label2 == target)
+                    or (label2 == UNKNOWN and label1 == target)
+                    or (label1 == label2 == target)
+                )
                 if intersection_is_target:
                     mass += m1[label1] * m2[label2]
         combined[target] = mass / denom if denom > 0 else 0.0

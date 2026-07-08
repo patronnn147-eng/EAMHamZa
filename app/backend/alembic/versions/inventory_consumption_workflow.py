@@ -230,9 +230,7 @@ def upgrade() -> None:
             server_default=sa.text("0"),
         ),
         sa.Column("reservation_expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column(
-            "approved", sa.Boolean(), nullable=True
-        ),  # NULL=pending, True=approved, False=rejected
+        sa.Column("approved", sa.Boolean(), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),

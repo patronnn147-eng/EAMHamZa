@@ -71,7 +71,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
+      a.remove();
     } catch (err) {
       console.error('Download error:', err);
     } finally {
@@ -136,11 +136,6 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
     if (!start) return 0;
     const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
     return Math.max(0, end - start);
-  };
-
-  const hasChrono = (i: Intervention) => {
-    const s = i.statut || 'EN_ATTENTE';
-    return s === 'APPROVED' || s === 'VALIDE' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
   };
 
   const displayList = useMemo(

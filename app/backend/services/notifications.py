@@ -318,7 +318,6 @@ class NotificationsService:
         alert_type: str,
         severity: str,
         message: str,
-        machine_zone: Optional[str] = None,
     ) -> List[Notifications]:
         """Send notification for predictive maintenance alerts"""
         data = {

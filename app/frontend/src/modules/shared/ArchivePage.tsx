@@ -256,8 +256,9 @@ export default function ArchivePage() {
           />
         </div>
         <div className="flex flex-col gap-0.5">
-          <label className="text-[10px] font-mono uppercase tracking-wider text-blue-400/60">De</label>
+          <label htmlFor="archive-date-from" className="text-[10px] font-mono uppercase tracking-wider text-blue-400/60">De</label>
           <Input
+            id="archive-date-from"
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
@@ -265,8 +266,9 @@ export default function ArchivePage() {
           />
         </div>
         <div className="flex flex-col gap-0.5">
-          <label className="text-[10px] font-mono uppercase tracking-wider text-blue-400/60">À</label>
+          <label htmlFor="archive-date-to" className="text-[10px] font-mono uppercase tracking-wider text-blue-400/60">À</label>
           <Input
+            id="archive-date-to"
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}

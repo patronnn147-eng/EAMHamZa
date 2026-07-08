@@ -42,6 +42,10 @@ CHAT_TIMEOUT = 120.0  # Groq + tools can be slow
 PASS, SKIP, MANUAL_REVIEW, FAIL = "PASS", "SKIP", "MANUAL_REVIEW", "FAIL"
 _SEVERITY = {PASS: 0, SKIP: 0, MANUAL_REVIEW: 2, FAIL: 1}
 
+# Check names reused across multiple record() calls (SonarQube S1192).
+CHECK_RAG_MANUAL_CORPUS = "RAG manual corpus (soft)"
+CHECK_NO_MACHINE_CHAT_ISOLATED = "no-machine chat isolated"
+
 results: dict = {}  # name -> (status, detail)
 
 
@@ -92,14 +96,14 @@ def layer1_stack_health(client: httpx.Client, base: str, headers: dict):
             docs = r.json()
             manuals = [d for d in docs if d.get("doc_type") == "manual"]
             record(
-                "RAG manual corpus (soft)",
+                CHECK_RAG_MANUAL_CORPUS,
                 PASS if manuals else FAIL,
                 f"{len(manuals)} manual docs / {len(docs)} total",
             )
         else:
-            record("RAG manual corpus (soft)", FAIL, f"HTTP {r.status_code}")
+            record(CHECK_RAG_MANUAL_CORPUS, FAIL, f"HTTP {r.status_code}")
     except Exception as e:
-        record("RAG manual corpus (soft)", FAIL, str(e))
+        record(CHECK_RAG_MANUAL_CORPUS, FAIL, str(e))
 
 
 def discover_machine(client: httpx.Client, base: str, headers: dict, override):
@@ -258,14 +262,14 @@ def layer2_bridge(
                 d2.get("message", "").strip()
             )
             record(
-                "no-machine chat isolated",
+                CHECK_NO_MACHINE_CHAT_ISOLATED,
                 PASS if no_leak else FAIL,
                 f"ml_context_used={d2.get('ml_context_used')!r}",
             )
         else:
-            record("no-machine chat isolated", FAIL, f"HTTP {r2.status_code}")
+            record(CHECK_NO_MACHINE_CHAT_ISOLATED, FAIL, f"HTTP {r2.status_code}")
     except Exception as e:
-        record("no-machine chat isolated", FAIL, str(e))
+        record(CHECK_NO_MACHINE_CHAT_ISOLATED, FAIL, str(e))
 
 
 def layer3_degradation(

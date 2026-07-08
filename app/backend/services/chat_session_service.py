@@ -28,12 +28,15 @@ MAX_MESSAGES = 50
 # Max char length of an auto-derived title (from first user message).
 TITLE_MAX = 60
 
+# Default title for a session with no messages yet.
+DEFAULT_TITLE = "Nouvelle conversation"
+
 
 def _auto_title(text: str) -> str:
     """Build a short title from the first user message."""
     clean = " ".join(text.split())  # collapse whitespace
     if len(clean) <= TITLE_MAX:
-        return clean or "Nouvelle conversation"
+        return clean or DEFAULT_TITLE
     return clean[: TITLE_MAX - 1].rstrip() + "…"
 
 
@@ -57,7 +60,7 @@ class ChatSessionService:
             {
                 "id": str(s.id),
                 "title": s.title
-                or _auto_title(s.last_query or "Nouvelle conversation"),
+                or _auto_title(s.last_query or DEFAULT_TITLE),
                 "message_count": s.message_count or 0,
                 "last_query": s.last_query,
                 "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -72,7 +75,7 @@ class ChatSessionService:
         """Create a fresh empty session and return it."""
         session = ChatSession(
             utilisateur_id=utilisateur_id,
-            title=title or "Nouvelle conversation",
+            title=title or DEFAULT_TITLE,
             messages=[],
             message_count=0,
         )
@@ -157,7 +160,7 @@ class ChatSessionService:
                 session.last_query = first_user[:500]
                 # Auto-set title from first user message if still default/empty
                 if not session.title or session.title in (
-                    "Nouvelle conversation",
+                    DEFAULT_TITLE,
                     "Conversation",
                 ):
                     session.title = _auto_title(first_user)
@@ -214,7 +217,7 @@ class ChatSessionService:
         messages = session.messages or []
         return {
             "session_id": str(session.id),
-            "title": session.title or "Nouvelle conversation",
+            "title": session.title or DEFAULT_TITLE,
             "message_count": len(messages),
             "last_query": session.last_query,
             "updated_at": session.updated_at.isoformat()

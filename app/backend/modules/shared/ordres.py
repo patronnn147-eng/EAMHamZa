@@ -25,7 +25,7 @@ class OrdresData(BaseModel):
 
     identifiant: str
     titre: str
-    description: str = None
+    description: Optional[str] = None
     date_creation: datetime
     statut: str
     created_at: Optional[datetime] = None

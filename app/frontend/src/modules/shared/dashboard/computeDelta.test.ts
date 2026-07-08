@@ -12,6 +12,6 @@ describe('computeDelta', () => {
     expect(computeDelta(4, 4)).toEqual({ direction: 'flat', amount: 0, label: '–' });
   });
   it('treats a missing previous as flat', () => {
-    expect(computeDelta(4, undefined)).toEqual({ direction: 'flat', amount: 0, label: '–' });
+    expect(computeDelta(4)).toEqual({ direction: 'flat', amount: 0, label: '–' });
   });
 });

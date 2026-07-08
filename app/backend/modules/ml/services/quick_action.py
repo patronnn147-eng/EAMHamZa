@@ -180,9 +180,12 @@ def build_execution_plan(
         if delta < 0:
             delta = 0
         # quantize like the rest of the codebase (2 dp) but keep ints clean
-        qty_added = (
-            (int(delta) if not is_consumable else round(delta, 2)) if delta > 0 else 0
-        )
+        if delta <= 0:
+            qty_added = 0
+        elif is_consumable:
+            qty_added = round(delta, 2)
+        else:
+            qty_added = int(delta)
         ops.append(
             {
                 "name": name,

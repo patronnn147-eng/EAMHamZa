@@ -29,7 +29,7 @@ except ImportError:
 def _greedy_schedule(
     work_orders: List[Dict[str, Any]],
     technician_ids: List[int],
-    horizon_days: int,
+    _horizon_days: int,
 ) -> Dict[str, Any]:
     if not work_orders or not technician_ids:
         return {"assignments": [], "makespan_days": 0, "solved": True, "fallback": True}

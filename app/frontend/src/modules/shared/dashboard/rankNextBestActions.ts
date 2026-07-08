@@ -70,5 +70,6 @@ export function rankNextBestActions(input: NbaInput): RankedAction[] {
     });
   }
 
-  return actions.sort((a, b) => b.score - a.score).slice(0, 5);
+  actions.sort((a, b) => b.score - a.score);
+  return actions.slice(0, 5);
 }

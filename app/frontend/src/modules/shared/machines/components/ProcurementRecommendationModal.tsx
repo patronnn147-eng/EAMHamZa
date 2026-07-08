@@ -132,7 +132,7 @@ export function ProcurementRecommendationModal({
                     <>
                         <div style={{ padding: '0.5rem 0' }}>
                             <p style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.75rem', lineHeight: 1.6 }}>
-                                A draft work order will be created from the parts forecast below.
+                                A draft work order will be created from the parts forecast below.{' '}
                                 <strong style={{ color: '#f97316' }}> No reservation is made until you approve.</strong>
                             </p>
 

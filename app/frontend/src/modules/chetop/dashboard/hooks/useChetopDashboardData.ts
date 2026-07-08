@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
-import type { DashboardStats, Machine, Planning, InterventionRequest } from '../types';
+import type { DashboardStats, Machine, InterventionRequest } from '../types';
 
 export const useChetopDashboardData = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [interventionRequests, setInterventionRequests] = useState<InterventionRequest[]>([]);
   const [machines, setMachines] = useState<Machine[]>([]);
-  const [plannings, setPlannings] = useState<Planning[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
 
