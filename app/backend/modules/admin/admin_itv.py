@@ -61,7 +61,9 @@ async def get_all_pending_requests(
         )
 
     try:
-        skip = (page - 1) * size
+        safe_page = int(page)
+        safe_size = int(size)
+        skip = (safe_page - 1) * safe_size
 
         # Count total - get PENDING_APPROVAL status
         count_query = (
@@ -72,7 +74,7 @@ async def get_all_pending_requests(
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = (
+        result = await db.execute(
             select(
                 Ordres_intervention,
                 Machines.nom.label("machine_nom"),
@@ -85,10 +87,8 @@ async def get_all_pending_requests(
             .where(Ordres_intervention.statut == "PENDING_APPROVAL")
             .order_by(Ordres_intervention.requested_at.asc())
             .offset(skip)
-            .limit(size)
+            .limit(safe_size)
         )
-
-        result = await db.execute(query)
         rows = result.all()
 
         items = [
@@ -105,7 +105,7 @@ async def get_all_pending_requests(
             for itv, machine_nom, requester_nom in rows
         ]
 
-        return PaginatedResponse.create(items=items, total=total, page=page, size=size)
+        return PaginatedResponse.create(items=items, total=total, page=safe_page, size=safe_size)
     except Exception as e:
         logger.exception(f"Error fetching pending requests: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
