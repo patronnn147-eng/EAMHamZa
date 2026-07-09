@@ -46,7 +46,7 @@ scan-secrets:
   variables:
     GIT_DEPTH: "0"
   before_script:
-    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
+    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
   script:
     - |
       if [ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]; then
@@ -101,7 +101,7 @@ audit-frontend:
   needs: [scan-secrets]
   image: node:18-alpine
   before_script:
-    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
+    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
     - npm install -g pnpm --quiet
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
@@ -185,7 +185,7 @@ sonarqube-scan:
     SONAR_PROJECT_KEY: "eamsagemcom-$CI_COMMIT_REF_SLUG"
     GIT_DEPTH: "0"
   before_script:
-    - (apt-get update -qq && apt-get install -y -qq python3 2>/dev/null) || (apk add --no-cache python3 2>/dev/null) || echo "WARN: could not install python3, issue-detail report will be skipped"
+    - '(apt-get update -qq && apt-get install -y -qq python3 2>/dev/null) || (apk add --no-cache python3 2>/dev/null) || echo "WARN: could not install python3, issue-detail report will be skipped"'
   script:
     - |
       sonar-scanner \
@@ -235,7 +235,7 @@ iac-scan:
     name: aquasec/trivy:latest
     entrypoint: [""]
   before_script:
-    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
+    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
   script:
     - |
       for f in docker-compose.yml docker-compose.sonarqube.yml docker-compose.notebooks.yml; do
@@ -267,7 +267,7 @@ image-scan:
     name: aquasec/trivy:latest
     entrypoint: [""]
   before_script:
-    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
+    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
   script:
     - |
       for img in eam-backend:ci eam-frontend:ci eam-ml-microservice:ci eam-rag-service:ci eam-ml-research:ci; do
