@@ -1,7 +1,9 @@
 # EAMSagemCom — Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → sonarqube → build → image-scan → lint → gate
-# Blocking: secret-scan, sca-deps, sonarqube, build, image-scan, gate
-# Non-blocking: lint (allow_failure: true)
+# Stages: secret-scan → sca-deps → sast → build → image-scan → lint → gate
+# Blocking: build-images, quality-gate
+# Non-blocking (allow_failure: true, visibility over gating): scan-secrets,
+# audit-backend, audit-frontend, license-scan-backend, license-scan-frontend,
+# sonarqube-scan, iac-scan, image-scan, lint-backend, lint-frontend
 # SonarQube is the sole SAST tool (Semgrep removed). sonarqube-scan requires a
 # self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
 # SonarQube Community Edition has no branch analysis — the project key is suffixed
