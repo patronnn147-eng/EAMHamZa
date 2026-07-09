@@ -362,6 +362,10 @@ quality-gate:
     - build-images
     - iac-scan
     - image-scan
+    - job: license-scan-backend
+      optional: true
+    - job: license-scan-frontend
+      optional: true
     - job: push-vuln-metrics
       optional: true
     - job: lint-backend
@@ -370,15 +374,18 @@ quality-gate:
       optional: true
   script:
     - |
-      echo "All blocking security gates passed."
-      echo "  Secret scan   -- PASSED"
-      echo "  Backend SCA   -- PASSED"
-      echo "  Frontend SCA  -- PASSED"
-      echo "  SonarQube (SAST) -- PASSED"
-      echo "  Image build   -- PASSED"
-      echo "  IaC scan (Trivy)    -- PASSED"
-      echo "  Image scan (Trivy)  -- PASSED"
-      echo "  Lint jobs are non-blocking (warn only)"
+      echo "All required pipeline stages completed."
+      echo "  Secret scan          -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  Backend SCA          -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  Frontend SCA         -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  License compliance   -- RAN (informational)"
+      echo "  SonarQube (SAST)     -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  Image build          -- PASSED (blocking)"
+      echo "  IaC scan (Trivy)     -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  Image scan (Trivy)   -- RAN (findings, if any, shown above; non-blocking)"
+      echo ""
+      echo "Security jobs provide visibility, not gating — review terminal output"
+      echo "and job artifacts (SARIF/JSON/HTML) above for full details."
   rules: *branch-rules
   timeout: 2 minutes
   allow_failure: false
