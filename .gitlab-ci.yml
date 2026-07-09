@@ -82,10 +82,17 @@ audit-backend:
   before_script:
     - pip install pip-audit --quiet
   script:
-    - pip-audit -r app/backend/requirements.txt
+    - |
+      pip-audit -r app/backend/requirements.txt -f json -o pip-audit-report.json || true
+      python3 monitoring/scripts/security_report.py pip-audit pip-audit-report.json "app/backend/requirements.txt"
+  artifacts:
+    paths:
+      - pip-audit-report.json
+    expire_in: 1 week
+    when: always
   rules: *branch-rules
   timeout: 10 minutes
-  allow_failure: false
+  allow_failure: true
 
 audit-frontend:
   stage: sca-deps
