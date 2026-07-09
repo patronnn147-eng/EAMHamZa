@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""
+sonar_report.py — fetches SonarQube issues + security hotspots via the Web
+API and prints a formatted terminal report.
+
+Never fails: always exits 0. Display-only, same contract as
+security_report.py — pipeline gating comes from allow_failure: true on the
+GitLab CI job, not from this script.
+
+Usage:
+  python3 sonar_report.py <sonar_host_url> <project_key> <token> [output_json]
+"""
+
+import base64
+import json
+import sys
+import urllib.error
+import urllib.request
+
+SEVERITY_ORDER = ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]
+COLOR = {
+    "BLOCKER": "\033[1;31m",
+    "CRITICAL": "\033[0;31m",
+    "MAJOR": "\033[0;33m",
+    "MINOR": "\033[0;34m",
+    "INFO": "\033[0;37m",
+}
+RESET = "\033[0m"
+BOLD = "\033[1m"
+
+
+def _get(url: str, token: str) -> dict:
+    auth = base64.b64encode(f"{token}:".encode()).decode()
+    req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        return json.loads(resp.read().decode())
+
+
+def fetch_issues(host: str, project_key: str, token: str) -> list:
+    url = f"{host.rstrip('/')}/api/issues/search?componentKeys={project_key}&resolved=false&ps=100"
+    data = _get(url, token)
+    return data.get("issues", [])
+
+
+def fetch_hotspots(host: str, project_key: str, token: str) -> list:
+    url = f"{host.rstrip('/')}/api/hotspots/search?projectKey={project_key}&ps=100"
+    data = _get(url, token)
+    return data.get("hotspots", [])
+
+
+def print_report(project_key: str, issues: list, hotspots: list) -> None:
+    header = f"SONARQUBE — {project_key}"
+    width = max(64, len(header) + 4)
+
+    print("=" * width)
+    print(f"  {header}")
+    print("=" * width)
+
+    # Normalize each issue's severity ONCE and reuse that value for both
+    # counting and display — this is the single source of truth so a
+    # severity string outside SEVERITY_ORDER can never be counted in one
+    # bucket while silently missing from the printed detail list.
+    normalized = [
+        (issue, issue.get("severity", "INFO") if issue.get("severity", "INFO") in SEVERITY_ORDER else "INFO")
+        for issue in issues
+    ]
+
+    counts = {sev: 0 for sev in SEVERITY_ORDER}
+    for _issue, nsev in normalized:
+        counts[nsev] += 1
+    total = len(issues)
+
+    print(f"{BOLD}Issue Severity Breakdown:{RESET}")
+    parts = []
+    for sev in SEVERITY_ORDER:
+        c = counts[sev]
+        if c:
+            parts.append(f"{COLOR[sev]}{sev}: {c}{RESET}")
+        else:
+            parts.append(f"{sev}: {c}")
+    print("  " + "   ".join(parts))
+    print(f"  {BOLD}TOTAL ISSUES: {total}{RESET}")
+    print(f"  {BOLD}SECURITY HOTSPOTS: {len(hotspots)}{RESET}")
+    print()
+
+    if issues:
+        print(f"{BOLD}Issues:{RESET}")
+        for sev in SEVERITY_ORDER:
+            for issue, nsev in normalized:
+                if nsev != sev:
+                    continue
+                color = COLOR[sev]
+                rule = issue.get("rule", "unknown-rule")
+                component = issue.get("component", "?").split(":")[-1]
+                line = issue.get("line", "-")
+                itype = issue.get("type", "?")
+                message = issue.get("message", "")
+                print(f"  {color}{sev:<9}{RESET} [{itype}] {rule}")
+                print(f"           {component}:{line} — {message}")
+
+    if hotspots:
+        print()
+        print(f"{BOLD}Security Hotspots:{RESET}")
+        for h in hotspots:
+            component = h.get("component", "?").split(":")[-1]
+            line = h.get("line", "-")
+            prob = h.get("vulnerabilityProbability", "?")
+            message = h.get("message", "")
+            print(f"  [{prob}] {component}:{line} — {message}")
+
+    print("=" * width)
+    print()
+
+
+def main() -> None:
+    if len(sys.argv) < 4:
+        print("Usage: sonar_report.py <host_url> <project_key> <token> [output_json]", file=sys.stderr)
+        sys.exit(0)
+
+    host = sys.argv[1]
+    project_key = sys.argv[2]
+    token = sys.argv[3]
+    output_json = sys.argv[4] if len(sys.argv) > 4 else None
+
+    # Broad except is deliberate: this script's entire contract is "never
+    # fail the pipeline" (see module docstring). Covers unreachable API
+    # (URLError/TimeoutError/OSError), malformed API responses
+    # (json.JSONDecodeError), and anything print_report or the output-file
+    # write could raise (e.g. an unwritable output_json path) — all of it
+    # is a display-only failure, never a reason to give a non-zero exit.
+    try:
+        issues = fetch_issues(host, project_key, token)
+        hotspots = fetch_hotspots(host, project_key, token)
+        print_report(project_key, issues, hotspots)
+
+        if output_json:
+            with open(output_json, "w") as fh:
+                json.dump({"issues": issues, "hotspots": hotspots}, fh, indent=2)
+            print(f"[sonar_report] Raw data saved to {output_json}")
+    except Exception as exc:  # noqa: BLE001 - intentional, see comment above
+        print(f"[sonar_report] Could not produce report: {exc}", file=sys.stderr)
+        print("[sonar_report] Check quality gate status in the scanner output above.", file=sys.stderr)
+
+    sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
