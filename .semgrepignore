@@ -1,8 +1,0 @@
-# .semgrepignore
-**/__pycache__/
-**/node_modules/
-**/*.min.js
-**/migrations/
-**/.next/
-# vendored third-party library (marked v12.0.2, MIT), not our code
-app/frontend/seo-scripts/marked.esm.js

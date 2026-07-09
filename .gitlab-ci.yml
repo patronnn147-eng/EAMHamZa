@@ -1,13 +1,16 @@
 # EAMSagemCom — Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → sast → sonarqube → build → image-scan → lint → gate
-# Blocking: secret-scan, sca-deps, sast, sonarqube, build, image-scan, gate
+# Stages: secret-scan → sca-deps → sonarqube → build → image-scan → lint → gate
+# Blocking: secret-scan, sca-deps, sonarqube, build, image-scan, gate
 # Non-blocking: lint (allow_failure: true)
-# sonarqube-scan requires a self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
+# SonarQube is the sole SAST tool (Semgrep removed). sonarqube-scan requires a
+# self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
+# SonarQube Community Edition has no branch analysis — the project key is suffixed
+# with $CI_COMMIT_REF_SLUG so each branch gets its own project (poor-man's branch
+# separation, works within CE's free-tier limits).
 
 stages:
   - secret-scan
   - sca-deps
-  - sast
   - sonarqube
   - build
   - image-scan
@@ -86,70 +89,15 @@ audit-frontend:
   timeout: 10 minutes
   allow_failure: false
 
-# ─── Stage 3: SAST (Semgrep) ─────────────────────────────────────────────────
-
-sast-auto:
-  stage: sast
-  needs: [audit-backend, audit-frontend]
-  image: python:3.11-slim
-  before_script:
-    - pip install semgrep --quiet
-  script:
-    - semgrep scan --config auto --severity WARNING --severity ERROR --sarif -o sast-auto.sarif app/backend app/frontend app/ml-microservice app/rag-service
-  artifacts:
-    paths:
-      - sast-auto.sarif
-    expire_in: 1 week
-    when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  timeout: 10 minutes
-  allow_failure: false
-
-sast-explicit:
-  stage: sast
-  needs: [audit-backend, audit-frontend]
-  image: python:3.11-slim
-  before_script:
-    - pip install semgrep --quiet
-  script:
-    - semgrep scan --config p/owasp-top-ten --config p/python --config p/typescript --severity WARNING --severity ERROR --sarif -o sast-explicit.sarif app/backend app/frontend app/ml-microservice app/rag-service
-  artifacts:
-    paths:
-      - sast-explicit.sarif
-    expire_in: 1 week
-    when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  timeout: 10 minutes
-  allow_failure: false
-
-sast-custom:
-  stage: sast
-  needs: [audit-backend, audit-frontend]
-  image: python:3.11-slim
-  before_script:
-    - pip install semgrep --quiet
-  script:
-    - semgrep scan --config .semgrep/custom.yml --severity WARNING --severity ERROR --sarif -o sast-custom.sarif app/backend app/frontend app/ml-microservice app/rag-service
-  artifacts:
-    paths:
-      - sast-custom.sarif
-    expire_in: 1 week
-    when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  timeout: 10 minutes
-  allow_failure: false
-
-# ─── Stage 4: SonarQube (self-hosted, local runner only) ────────────────────
+# ─── Stage 3: SonarQube (self-hosted, local runner only) — sole SAST tool ───
+# Community Edition has no branch analysis: each branch gets its own SonarQube
+# project (projectKey suffixed with $CI_COMMIT_REF_SLUG) so results don't get
+# overwritten cross-branch. Dashboards live at
+# http://host.docker.internal:9090/dashboard?id=eamsagemcom-<branch-slug>
 
 sonarqube-scan:
   stage: sonarqube
-  needs: [sast-auto, sast-explicit, sast-custom]
+  needs: [audit-backend, audit-frontend]
   tags: [local]
   image: sonarsource/sonar-scanner-cli:latest
   variables:
@@ -157,21 +105,24 @@ sonarqube-scan:
     GIT_DEPTH: "0"
   script:
     - sonar-scanner
-      -Dsonar.projectKey=eamsagemcom
+      -Dsonar.projectKey=eamsagemcom-$CI_COMMIT_REF_SLUG
+      -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)"
       -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
-      -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**
+      -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/**
       -Dsonar.issue.ignore.multicriteria=r3f
       -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747
       -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx
       -Dsonar.host.url=$SONAR_HOST_URL
       -Dsonar.token=$sonar
+      -Dsonar.qualitygate.wait=true
+      -Dsonar.qualitygate.timeout=300
   rules:
     - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 15 minutes
   allow_failure: false
 
-# ─── Stage 5: Build images + IaC scan (parallel, self-hosted local runner) ──
+# ─── Stage 4: Build images + IaC scan (parallel, self-hosted local runner) ──
 
 build-images:
   stage: build
@@ -217,7 +168,7 @@ iac-scan:
   allow_failure: false
 
 
-# ─── Stage 6: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
+# ─── Stage 5: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
 
 image-scan:
   stage: image-scan
@@ -263,6 +214,7 @@ image-scan:
 push-vuln-metrics:
   stage: image-scan
   needs: [image-scan]
+  when: always
   tags: [local]
   image: python:3.11-slim
   variables:
@@ -289,7 +241,7 @@ push-vuln-metrics:
   allow_failure: true
 
 
-# ─── Stage 7: Lint (non-blocking) ────────────────────────────────────────────
+# ─── Stage 6: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
   stage: lint
@@ -319,7 +271,7 @@ lint-frontend:
   timeout: 5 minutes
   allow_failure: true
 
-# ─── Stage 8: Quality Gate ───────────────────────────────────────────────────
+# ─── Stage 7: Quality Gate ───────────────────────────────────────────────────
 
 quality-gate:
   stage: gate
@@ -328,9 +280,6 @@ quality-gate:
     - scan-secrets
     - audit-backend
     - audit-frontend
-    - sast-auto
-    - sast-explicit
-    - sast-custom
     - sonarqube-scan
     - build-images
     - iac-scan
@@ -347,8 +296,7 @@ quality-gate:
       echo "  Secret scan   -- PASSED"
       echo "  Backend SCA   -- PASSED"
       echo "  Frontend SCA  -- PASSED"
-      echo "  SAST (auto/explicit/custom) -- PASSED"
-      echo "  SonarQube     -- PASSED"
+      echo "  SonarQube (SAST) -- PASSED"
       echo "  Image build   -- PASSED"
       echo "  IaC scan (Trivy)    -- PASSED"
       echo "  Image scan (Trivy)  -- PASSED"
