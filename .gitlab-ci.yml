@@ -20,6 +20,13 @@ stages:
 variables:
   GIT_LFS_SKIP_SMUDGE: "1"
 
+# Shared branch/MR trigger condition. Matches "main", any "clean_Phase_N",
+# and any "Phase_N" branch — so Phase_3, Phase_4, etc. get full pipeline
+# coverage automatically, with zero edits to this file.
+.branch-rules: &branch-rules
+  - if: $CI_COMMIT_BRANCH =~ /^(main|clean_Phase_\d+|Phase_\d+)$/
+  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
 default:
   interruptible: true
   retry:
@@ -46,9 +53,7 @@ scan-secrets:
         RANGE="$CI_COMMIT_SHA"
       fi
       gitleaks detect --source . --config .gitleaks.toml --verbose --redact --log-opts="$RANGE"
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 10 minutes
   allow_failure: false
 
@@ -62,9 +67,7 @@ audit-backend:
     - pip install pip-audit --quiet
   script:
     - pip-audit -r app/backend/requirements.txt
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 10 minutes
   allow_failure: false
 
@@ -83,9 +86,7 @@ audit-frontend:
       - app/frontend/pnpm-audit.json
     expire_in: 1 week
     when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 10 minutes
   allow_failure: false
 
@@ -116,9 +117,7 @@ sonarqube-scan:
       -Dsonar.token=$sonar
       -Dsonar.qualitygate.wait=true
       -Dsonar.qualitygate.timeout=300
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 15 minutes
   allow_failure: false
 
@@ -135,9 +134,7 @@ build-images:
     - docker build -t eam-ml-microservice:ci ./app/ml-microservice
     - docker build -t eam-rag-service:ci ./app/rag-service
     - docker build -t eam-ml-research:ci -f app/ml-microservice/ml_research/Dockerfile .
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 30 minutes
   allow_failure: false
 
@@ -161,9 +158,7 @@ iac-scan:
       - trivy-iac-*.sarif
     expire_in: 1 week
     when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 10 minutes
   allow_failure: false
 
@@ -202,9 +197,7 @@ image-scan:
       - trivy-image-*.json
     expire_in: 1 week
     when: always
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 15 minutes
   allow_failure: false
 
@@ -234,9 +227,7 @@ push-vuln-metrics:
           echo "  WARN: ${JSON_FILE} not found (scan may have failed), skipping"
         fi
       done
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 5 minutes
   allow_failure: true
 
@@ -251,9 +242,7 @@ lint-backend:
   script:
     - ruff check app/backend/ --output-format=github
     - ruff format --check app/backend/
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 5 minutes
   allow_failure: true
 
@@ -265,9 +254,7 @@ lint-frontend:
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
     - pnpm run lint
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 5 minutes
   allow_failure: true
 
@@ -301,8 +288,6 @@ quality-gate:
       echo "  IaC scan (Trivy)    -- PASSED"
       echo "  Image scan (Trivy)  -- PASSED"
       echo "  Lint jobs are non-blocking (warn only)"
-  rules:
-    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  rules: *branch-rules
   timeout: 2 minutes
   allow_failure: false
