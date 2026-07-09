@@ -1,0 +1,139 @@
+# Grafana Unified Alerting rules (Grafana 10+)
+# These mirror the Prometheus rules and surface alerts inside Grafana UI
+# Contact points must be configured manually in Grafana → Alerting → Contact points
+# or provisioned via monitoring/grafana/provisioning/alerting/contact_points.yml
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: trivy-image-alerts
+    folder: Security Alerts
+    interval: 1m
+    rules:
+
+      - uid: trivy-critical-cve-001
+        title: "CRITICAL CVE Detected"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'trivy_image_vulnerabilities{severity="CRITICAL"} > 0'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "CRITICAL CVE in {{ $labels.image }}"
+          description: "{{ $value }} CRITICAL CVEs detected. Immediate action required."
+        labels:
+          severity: critical
+          type: image-vulnerability
+
+      - uid: trivy-high-threshold-001
+        title: "HIGH Vulnerability Threshold Exceeded"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'trivy_image_vulnerabilities{severity="HIGH"} > 10'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "HIGH vuln threshold exceeded in {{ $labels.image }}"
+          description: "{{ $value }} HIGH CVEs detected (threshold: 10)."
+        labels:
+          severity: warning
+          type: image-vulnerability
+
+      - uid: trivy-vuln-spike-001
+        title: "Vulnerability Count Spiked After Deployment"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: '(trivy_image_vulnerabilities_total - trivy_image_vulnerabilities_total offset 1h) > 5'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "Vulnerability spike in {{ $labels.image }}"
+          description: "{{ $value }} new vulnerabilities appeared in the last hour — possible deployment regression."
+        labels:
+          severity: warning
+          type: image-vulnerability

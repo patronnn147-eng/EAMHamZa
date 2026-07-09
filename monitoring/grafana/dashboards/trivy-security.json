@@ -1,0 +1,544 @@
+{
+  "id": null,
+  "uid": "trivy-security-eam",
+  "title": "EAM — Container Security (Trivy)",
+  "description": "Vulnerability monitoring dashboard — powered by Trivy + Prometheus",
+  "tags": ["security", "trivy", "devsecops", "vulnerabilities"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now" },
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "CRITICAL",
+      "description": "Total CRITICAL vulnerabilities across all images",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(trivy_image_vulnerabilities{severity=\"CRITICAL\"})",
+          "legendFormat": "CRITICAL",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "HIGH",
+      "description": "Total HIGH vulnerabilities across all images",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(trivy_image_vulnerabilities{severity=\"HIGH\"})",
+          "legendFormat": "HIGH",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "MEDIUM",
+      "description": "Total MEDIUM vulnerabilities across all images",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(trivy_image_vulnerabilities{severity=\"MEDIUM\"})",
+          "legendFormat": "MEDIUM",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "yellow" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "LOW",
+      "description": "Total LOW vulnerabilities across all images",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(trivy_image_vulnerabilities{severity=\"LOW\"})",
+          "legendFormat": "LOW",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Images Scanned",
+      "description": "Number of distinct Docker images tracked",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(trivy_scan_timestamp_seconds)",
+          "legendFormat": "Images",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Total CVEs",
+      "description": "Total vulnerabilities across all images and severities",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(trivy_image_vulnerabilities_total)",
+          "legendFormat": "Total",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Vulnerability Distribution by Severity",
+      "description": "Proportion of vulnerabilities by severity level across all images",
+      "gridPos": { "h": 9, "w": 10, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(severity) (trivy_image_vulnerabilities)",
+          "legendFormat": "{{severity}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "pie",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "CRITICAL" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "HIGH" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "MEDIUM" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "LOW" },      "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Vulnerabilities per Image (CRITICAL + HIGH)",
+      "description": "Stacked bar chart showing CRITICAL and HIGH vulnerability counts per image",
+      "gridPos": { "h": 9, "w": 14, "x": 10, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(image, severity) (trivy_image_vulnerabilities{severity=~\"CRITICAL|HIGH\"})",
+          "legendFormat": "{{image}} — {{severity}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns", "keepLabels": ["image", "severity"] } },
+        { "id": "groupBy", "options": {
+            "fields": {
+              "image":    { "aggregations": [], "operation": "groupby" },
+              "severity": { "aggregations": [], "operation": "groupby" },
+              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
+            }
+          }
+        }
+      ],
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "normal",
+        "orientation": "auto",
+        "xTickLabelRotation": -20,
+        "xTickLabelSpacing": 0,
+        "fillOpacity": 85,
+        "gradientMode": "none",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "CRITICAL" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "HIGH" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Vulnerability Trend Over Time",
+      "description": "Historical evolution of CRITICAL and HIGH vulnerability counts across all images",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(severity) (trivy_image_vulnerabilities{severity=\"CRITICAL\"})",
+          "legendFormat": "CRITICAL",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(severity) (trivy_image_vulnerabilities{severity=\"HIGH\"})",
+          "legendFormat": "HIGH",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by(severity) (trivy_image_vulnerabilities{severity=\"MEDIUM\"})",
+          "legendFormat": "MEDIUM",
+          "refId": "C"
+        },
+        {
+          "expr": "sum by(severity) (trivy_image_vulnerabilities{severity=\"LOW\"})",
+          "legendFormat": "LOW",
+          "refId": "D"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull", "max"] },
+        "fillOpacity": 15,
+        "gradientMode": "opacity",
+        "lineWidth": 2,
+        "pointSize": 5,
+        "showPoints": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "CRITICAL" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "HIGH" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "MEDIUM" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "LOW" },      "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 10,
+      "type": "table",
+      "title": "Top CRITICAL / HIGH CVEs",
+      "description": "Individual CVE details for CRITICAL and HIGH severity vulnerabilities",
+      "gridPos": { "h": 11, "w": 16, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sort_desc(trivy_vulnerability_info == 1)",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": {
+            "include": {
+              "names": ["image", "severity", "cve_id", "package", "installed_version", "fixed_version", "Value"]
+            }
+          }
+        },
+        { "id": "organize", "options": {
+            "excludeByName": { "Value": true, "Time": true },
+            "renameByName": {
+              "cve_id": "CVE ID",
+              "package": "Package",
+              "installed_version": "Installed",
+              "fixed_version": "Fixed In",
+              "severity": "Severity",
+              "image": "Image"
+            },
+            "indexByName": {
+              "severity": 0,
+              "image": 1,
+              "cve_id": 2,
+              "package": 3,
+              "installed_version": 4,
+              "fixed_version": 5
+            }
+          }
+        },
+        { "id": "sortBy", "options": {
+            "fields": [
+              { "desc": true, "displayName": "Severity" }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false },
+        "sortBy": [{ "displayName": "Severity", "desc": true }]
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "thresholds", "value": {
+                  "mode": "absolute",
+                  "steps": [{ "color": "green", "value": null }]
+                }
+              },
+              { "id": "mappings", "value": [
+                  { "type": "value", "options": { "CRITICAL": { "color": "red", "index": 0 } } },
+                  { "type": "value", "options": { "HIGH": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "MEDIUM": { "color": "yellow", "index": 2 } } },
+                  { "type": "value", "options": { "LOW": { "color": "blue", "index": 3 } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Fixed In" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-text" },
+              { "id": "thresholds", "value": {
+                  "mode": "absolute",
+                  "steps": [{ "color": "green", "value": null }]
+                }
+              },
+              { "id": "mappings", "value": [
+                  { "type": "value", "options": { "none": { "color": "red", "index": 0 } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 11,
+      "type": "alertlist",
+      "title": "Active Security Alerts",
+      "description": "Firing Grafana alerts from Trivy vulnerability rules",
+      "gridPos": { "h": 11, "w": 8, "x": 16, "y": 22 },
+      "options": {
+        "maxItems": 20,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertInstanceLabelFilter": "type=image-vulnerability",
+        "groupMode": "tags",
+        "groupBy": ["alertname"],
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "recovering": false,
+          "noData": false,
+          "normal": false,
+          "error": true
+        },
+        "folder": { "id": 0, "title": "" }
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Per-Image Vulnerability Breakdown",
+      "description": "Complete vulnerability count breakdown per image and severity",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "trivy_image_vulnerabilities",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "trivy_scan_timestamp_seconds",
+          "legendFormat": "",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": {
+            "include": { "names": ["image", "severity", "Value"] }
+          }
+        },
+        { "id": "groupBy", "options": {
+            "fields": {
+              "image":    { "aggregations": [], "operation": "groupby" },
+              "severity": { "aggregations": [], "operation": "groupby" },
+              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
+            }
+          }
+        },
+        { "id": "organize", "options": {
+            "renameByName": { "Value (sum)": "Count", "image": "Image", "severity": "Severity" }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": { "show": true, "reducer": ["sum"], "fields": ["Count"] }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "mappings", "value": [
+                  { "type": "value", "options": { "CRITICAL": { "color": "red", "index": 0 } } },
+                  { "type": "value", "options": { "HIGH": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "MEDIUM": { "color": "yellow", "index": 2 } } },
+                  { "type": "value", "options": { "LOW": { "color": "blue", "index": 3 } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "lcd-gauge" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 5 },
+                    { "color": "orange", "value": 20 },
+                    { "color": "red", "value": 50 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+  ]
+}

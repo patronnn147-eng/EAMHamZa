@@ -231,12 +231,24 @@ image-scan:
       FAILED=0
       for img in eam-backend:ci eam-frontend:ci eam-ml-microservice:ci eam-rag-service:ci eam-ml-research:ci; do
         TAGNAME=$(echo "$img" | cut -d: -f1)
-        trivy image --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-image-${TAGNAME}.sarif" --exit-code 1 "$img" || FAILED=1
+        # Single scan → JSON (source of truth)
+        trivy image \
+          --severity CRITICAL,HIGH,MEDIUM,LOW \
+          --format json \
+          --output "trivy-image-${TAGNAME}.json" \
+          --exit-code 1 \
+          "$img" || FAILED=1
+        # Convert JSON → SARIF for GitLab security panel (non-blocking)
+        trivy convert \
+          --format sarif \
+          --output "trivy-image-${TAGNAME}.sarif" \
+          "trivy-image-${TAGNAME}.json" || true
       done
       exit $FAILED
   artifacts:
     paths:
       - trivy-image-*.sarif
+      - trivy-image-*.json
     expire_in: 1 week
     when: always
   rules:
@@ -244,6 +256,37 @@ image-scan:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 15 minutes
   allow_failure: false
+
+# Push Trivy scan results to Prometheus Pushgateway for continuous monitoring.
+# Uses JSON artifacts from image-scan.  allow_failure=true so a down monitoring
+# stack never blocks the pipeline.
+push-vuln-metrics:
+  stage: image-scan
+  needs: [image-scan]
+  tags: [local]
+  image: python:3.11-slim
+  variables:
+    PUSHGATEWAY_URL: "${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
+  script:
+    - |
+      echo "Pushing Trivy scan metrics to Pushgateway at ${PUSHGATEWAY_URL} ..."
+      for img in eam-backend eam-frontend eam-ml-microservice eam-rag-service eam-ml-research; do
+        JSON_FILE="trivy-image-${img}.json"
+        if [ -f "$JSON_FILE" ]; then
+          echo "  → ${img}"
+          python3 monitoring/scripts/trivy_push_metrics.py \
+            "$JSON_FILE" \
+            "${img}:ci" \
+            "$PUSHGATEWAY_URL"
+        else
+          echo "  WARN: ${JSON_FILE} not found (scan may have failed), skipping"
+        fi
+      done
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  timeout: 5 minutes
+  allow_failure: true
 
 
 # ─── Stage 7: Lint (non-blocking) ────────────────────────────────────────────
@@ -292,6 +335,8 @@ quality-gate:
     - build-images
     - iac-scan
     - image-scan
+    - job: push-vuln-metrics
+      optional: true
     - job: lint-backend
       optional: true
     - job: lint-frontend

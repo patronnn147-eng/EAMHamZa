@@ -1,0 +1,63 @@
+groups:
+  - name: trivy_image_vulnerabilities
+    interval: 1m
+    rules:
+
+      # ── CRITICAL vulnerability present ─────────────────────────────────────
+      # Fires immediately when any CRITICAL CVE is detected in any image.
+      - alert: TrivyCriticalVulnerability
+        expr: trivy_image_vulnerabilities{severity="CRITICAL"} > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "CRITICAL CVE in image '{{ $labels.image }}'"
+          description: >
+            Image '{{ $labels.image }}' contains {{ $value | humanize }} CRITICAL
+            vulnerabilities. Immediate patching required.
+
+      # ── HIGH vulnerability threshold exceeded ───────────────────────────────
+      # Fires when HIGH vuln count exceeds threshold (default 10, configurable).
+      - alert: TrivyHighVulnerabilityThreshold
+        expr: trivy_image_vulnerabilities{severity="HIGH"} > 10
+        for: 10m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "HIGH vuln threshold exceeded in '{{ $labels.image }}'"
+          description: >
+            Image '{{ $labels.image }}' has {{ $value }} HIGH vulnerabilities
+            (threshold: 10). Schedule a patch cycle.
+
+      # ── Vulnerability spike after deployment ────────────────────────────────
+      # Detects regression: total vuln count increased by >5 in 1 hour.
+      - alert: TrivyVulnerabilitySpikePostDeploy
+        expr: >
+          (trivy_image_vulnerabilities_total
+           - trivy_image_vulnerabilities_total offset 1h) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Vulnerability spike in '{{ $labels.image }}' after deployment"
+          description: >
+            Image '{{ $labels.image }}' gained {{ $value }} new vulnerabilities
+            in the last hour — possible regression after a deployment.
+
+      # ── Scan staleness ──────────────────────────────────────────────────────
+      # Fires when an image has not been scanned for >24h (scanner may be down).
+      - alert: TrivyScanStale
+        expr: (time() - trivy_scan_timestamp_seconds) > 86400
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "Trivy scan stale for '{{ $labels.image }}'"
+          description: >
+            Image '{{ $labels.image }}' was last scanned
+            {{ $value | humanizeDuration }} ago. The continuous scanner
+            may be down or unreachable.

@@ -1,0 +1,130 @@
+# EAM — Security Monitoring Stack
+# Prometheus + Grafana + Pushgateway + Trivy continuous scanner
+#
+# Start:      docker compose -f docker-compose.monitoring.yml up -d
+# Stop:       docker compose -f docker-compose.monitoring.yml down
+# Grafana:    http://localhost:3001  (admin / see GRAFANA_PASSWORD in .env)
+# Prometheus: http://localhost:9095  (9090 is taken by SonarQube)
+# Pushgateway:http://localhost:9091
+#
+# The CI pipeline pushes metrics to Pushgateway via http://host.docker.internal:9091
+# The trivy-scanner service re-scans every 6h independently of CI
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: eam_prometheus
+    restart: unless-stopped
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=90d'
+      - '--storage.tsdb.retention.size=10GB'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9095:9090"
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  pushgateway:
+    image: prom/pushgateway:v1.8.0
+    container_name: eam_pushgateway
+    restart: unless-stopped
+    command:
+      - '--persistence.file=/data/pushgateway.db'
+      - '--persistence.interval=5m'
+      - '--web.enable-admin-api'
+    volumes:
+      - pushgateway_data:/data
+    ports:
+      - "9091:9091"
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9091/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: eam_grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_UNIFIED_ALERTING_ENABLED: "true"
+      GF_ALERTING_ENABLED: "false"
+      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s:%(http_port)s/"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: "/var/lib/grafana/dashboards/trivy-security.json"
+      GF_SMTP_ENABLED: "${GF_SMTP_ENABLED:-false}"
+      GF_SMTP_HOST: "${GF_SMTP_HOST:-smtp.gmail.com:587}"
+      GF_SMTP_USER: "${GF_SMTP_USER:-}"
+      GF_SMTP_PASSWORD: "${GF_SMTP_PASSWORD:-}"
+      GF_SMTP_FROM_ADDRESS: "${GF_SMTP_FROM_ADDRESS:-grafana@eam.local}"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - monitoring_network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Continuous scanner: scans local Docker images every TRIVY_SCAN_INTERVAL seconds
+  # independent of CI pipeline.  Uses docker socket to access locally built images.
+  trivy-scanner:
+    build:
+      context: ./monitoring
+      dockerfile: scanner/Dockerfile
+    container_name: eam_trivy_scanner
+    restart: unless-stopped
+    environment:
+      PUSHGATEWAY_URL: http://pushgateway:9091
+      IMAGES: "${TRIVY_SCAN_IMAGES:-eam-backend:latest eam-frontend:latest eam-ml-microservice:latest eam-rag-service:latest}"
+      SCAN_INTERVAL: "${TRIVY_SCAN_INTERVAL:-21600}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - trivy_cache:/root/.cache/trivy
+    depends_on:
+      pushgateway:
+        condition: service_healthy
+    networks:
+      - monitoring_network
+
+volumes:
+  prometheus_data:
+    driver: local
+  pushgateway_data:
+    driver: local
+  grafana_data:
+    driver: local
+  trivy_cache:
+    driver: local
+
+networks:
+  monitoring_network:
+    driver: bridge

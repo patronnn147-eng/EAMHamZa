@@ -1,0 +1,24 @@
+# Trivy global configuration — applies to all trivy invocations
+# Override per-command with CLI flags
+
+cache:
+  dir: /root/.cache/trivy
+  ttl: 24h
+
+db:
+  java-db:
+    skip: false
+
+scan:
+  scanners:
+    - vuln
+    - secret
+
+vulnerability:
+  ignore-unfixed: false
+  type:
+    - os
+    - library
+
+timeout: 10m
+quiet: false

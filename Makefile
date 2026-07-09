@@ -72,3 +72,45 @@ frontend:
 
 db:
 	docker exec -it asset_management_db psql -U postgres -d asset_management
+
+# ── Security monitoring stack ─────────────────────────────────────────────────
+
+monitoring-up:
+	docker compose -f docker-compose.monitoring.yml up -d --build
+	@echo ""
+	@echo "Security monitoring started!"
+	@echo "  Grafana:     http://localhost:3001  (admin / see GRAFANA_PASSWORD)"
+	@echo "  Prometheus:  http://localhost:9095  (9090 = SonarQube)"
+	@echo "  Pushgateway: http://localhost:9091"
+	@echo ""
+
+monitoring-down:
+	docker compose -f docker-compose.monitoring.yml down
+
+monitoring-logs:
+	docker compose -f docker-compose.monitoring.yml logs -f
+
+monitoring-status:
+	docker compose -f docker-compose.monitoring.yml ps
+
+monitoring-clean:
+	docker compose -f docker-compose.monitoring.yml down -v
+	@echo "Monitoring stack stopped and volumes removed"
+
+# Manual Trivy scan + push (runs outside CI — useful for local dev)
+scan-and-push:
+	@echo "Running local Trivy scan and pushing metrics..."
+	@for img in eam-backend eam-frontend eam-ml-microservice eam-rag-service; do \
+		echo "Scanning $$img:latest ..."; \
+		docker run --rm \
+			-v /var/run/docker.sock:/var/run/docker.sock:ro \
+			-v /tmp:/out \
+			aquasec/trivy:latest image \
+			--format json --output /out/trivy-$$img.json \
+			--severity CRITICAL,HIGH,MEDIUM,LOW \
+			$$img:latest 2>/dev/null || true; \
+		[ -f /tmp/trivy-$$img.json ] && \
+			python3 monitoring/scripts/trivy_push_metrics.py \
+				/tmp/trivy-$$img.json $$img:latest http://localhost:9091 || true; \
+	done
+	@echo "Done. Check Grafana at http://localhost:3001"
