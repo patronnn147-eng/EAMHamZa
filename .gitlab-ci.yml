@@ -223,7 +223,9 @@ image-scan:
   stage: image-scan
   needs: [build-images]
   tags: [local]
-  image: aquasec/trivy:latest
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
   script:
     - |
       FAILED=0
