@@ -6,7 +6,7 @@
 
 FROM python:3.11-alpine
 
-ARG TRIVY_VERSION=0.52.2
+ARG TRIVY_VERSION=0.72.0
 
 RUN apk add --no-cache \
         curl \
