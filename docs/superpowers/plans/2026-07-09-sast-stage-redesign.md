@@ -765,6 +765,45 @@ def test_main_writes_output_json_when_given(monkeypatch, tmp_path):
     saved = json.loads(out_file.read_text())
     assert len(saved["issues"]) == 2
     assert len(saved["hotspots"]) == 1
+
+
+def test_main_exits_zero_on_malformed_json_response(monkeypatch, capsys):
+    class BadJSONResponse:
+        def read(self):
+            return b"not valid json{{{"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(
+        sonar.urllib.request, "urlopen",
+        lambda req, timeout=30: BadJSONResponse()
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        ["sonar_report.py", "http://sonar.local", "eamsagemcom-phase_2", "faketoken"],
+    )
+    with pytest.raises(SystemExit) as exc_info:
+        sonar.main()
+    assert exc_info.value.code == 0
+
+
+def test_print_report_does_not_drop_issues_with_unrecognized_severity(capsys):
+    weird_issue = {
+        "key": "issue3",
+        "rule": "custom:R1",
+        "severity": "UNKNOWN_SEV",
+        "component": "eamsagemcom-phase_2:app/backend/weird.py",
+        "line": 1,
+        "message": "Unrecognized severity from a future SonarQube version",
+        "type": "BUG",
+    }
+    sonar.print_report("eamsagemcom-phase_2", [weird_issue], [])
+    out = capsys.readouterr().out
+    assert "custom:R1" in out, "finding with unrecognized severity must still appear in the Findings list"
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -833,10 +872,18 @@ def print_report(project_key: str, issues: list, hotspots: list) -> None:
     print(f"  {header}")
     print("=" * width)
 
+    # Normalize each issue's severity ONCE and reuse that value for both
+    # counting and display — this is the single source of truth so a
+    # severity string outside SEVERITY_ORDER can never be counted in one
+    # bucket while silently missing from the printed detail list.
+    normalized = [
+        (issue, issue.get("severity", "INFO") if issue.get("severity", "INFO") in SEVERITY_ORDER else "INFO")
+        for issue in issues
+    ]
+
     counts = {sev: 0 for sev in SEVERITY_ORDER}
-    for issue in issues:
-        sev = issue.get("severity", "INFO")
-        counts[sev if sev in counts else "INFO"] += 1
+    for _issue, nsev in normalized:
+        counts[nsev] += 1
     total = len(issues)
 
     print(f"{BOLD}Issue Severity Breakdown:{RESET}")
@@ -855,7 +902,9 @@ def print_report(project_key: str, issues: list, hotspots: list) -> None:
     if issues:
         print(f"{BOLD}Issues:{RESET}")
         for sev in SEVERITY_ORDER:
-            for issue in [i for i in issues if i.get("severity", "INFO") == sev]:
+            for issue, nsev in normalized:
+                if nsev != sev:
+                    continue
                 color = COLOR[sev]
                 rule = issue.get("rule", "unknown-rule")
                 component = issue.get("component", "?").split(":")[-1]
@@ -889,20 +938,24 @@ def main() -> None:
     token = sys.argv[3]
     output_json = sys.argv[4] if len(sys.argv) > 4 else None
 
+    # Broad except is deliberate: this script's entire contract is "never
+    # fail the pipeline" (see module docstring). Covers unreachable API
+    # (URLError/TimeoutError/OSError), malformed API responses
+    # (json.JSONDecodeError), and anything print_report or the output-file
+    # write could raise (e.g. an unwritable output_json path) — all of it
+    # is a display-only failure, never a reason to give a non-zero exit.
     try:
         issues = fetch_issues(host, project_key, token)
         hotspots = fetch_hotspots(host, project_key, token)
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        print(f"[sonar_report] Could not reach SonarQube API: {exc}", file=sys.stderr)
-        print("[sonar_report] Skipping detailed report — check quality gate status above.", file=sys.stderr)
-        sys.exit(0)
+        print_report(project_key, issues, hotspots)
 
-    print_report(project_key, issues, hotspots)
-
-    if output_json:
-        with open(output_json, "w") as fh:
-            json.dump({"issues": issues, "hotspots": hotspots}, fh, indent=2)
-        print(f"[sonar_report] Raw data saved to {output_json}")
+        if output_json:
+            with open(output_json, "w") as fh:
+                json.dump({"issues": issues, "hotspots": hotspots}, fh, indent=2)
+            print(f"[sonar_report] Raw data saved to {output_json}")
+    except Exception as exc:  # noqa: BLE001 - intentional, see comment above
+        print(f"[sonar_report] Could not produce report: {exc}", file=sys.stderr)
+        print("[sonar_report] Check quality gate status in the scanner output above.", file=sys.stderr)
 
     sys.exit(0)
 
@@ -914,7 +967,7 @@ if __name__ == "__main__":
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `python -m pytest tests/cicd/sonar_report.test.py -v`
-Expected: PASS (6 tests)
+Expected: PASS (8 tests)
 
 - [ ] **Step 5: Commit**
 
