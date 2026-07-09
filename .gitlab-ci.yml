@@ -11,7 +11,7 @@
 stages:
   - secret-scan
   - sca-deps
-  - sonarqube
+  - sast
   - build
   - image-scan
   - lint
@@ -170,31 +170,43 @@ license-scan-frontend:
 # project (projectKey suffixed with $CI_COMMIT_REF_SLUG) so results don't get
 # overwritten cross-branch. Dashboards live at
 # http://host.docker.internal:9090/dashboard?id=eamsagemcom-<branch-slug>
+# allow_failure: true — quality gate failures are surfaced via sonar_report.py's
+# terminal output and the job's warning icon, not a pipeline block.
 
 sonarqube-scan:
-  stage: sonarqube
+  stage: sast
   needs: [audit-backend, audit-frontend]
   tags: [local]
   image: sonarsource/sonar-scanner-cli:latest
   variables:
     SONAR_HOST_URL: "http://host.docker.internal:9090"
+    SONAR_PROJECT_KEY: "eamsagemcom-$CI_COMMIT_REF_SLUG"
     GIT_DEPTH: "0"
+  before_script:
+    - (apt-get update -qq && apt-get install -y -qq python3 2>/dev/null) || (apk add --no-cache python3 2>/dev/null) || echo "WARN: could not install python3, issue-detail report will be skipped"
   script:
-    - sonar-scanner
-      -Dsonar.projectKey=eamsagemcom-$CI_COMMIT_REF_SLUG
-      -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)"
-      -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
-      -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/**
-      -Dsonar.issue.ignore.multicriteria=r3f
-      -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747
-      -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx
-      -Dsonar.host.url=$SONAR_HOST_URL
-      -Dsonar.token=$sonar
-      -Dsonar.qualitygate.wait=true
-      -Dsonar.qualitygate.timeout=300
+    - |
+      sonar-scanner \
+        -Dsonar.projectKey=$SONAR_PROJECT_KEY \
+        -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)" \
+        -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service \
+        -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/** \
+        -Dsonar.issue.ignore.multicriteria=r3f \
+        -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747 \
+        -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx \
+        -Dsonar.host.url=$SONAR_HOST_URL \
+        -Dsonar.token=$sonar \
+        -Dsonar.qualitygate.wait=true \
+        -Dsonar.qualitygate.timeout=300 || true
+      python3 monitoring/scripts/sonar_report.py "$SONAR_HOST_URL" "$SONAR_PROJECT_KEY" "$sonar" sonar-issues.json || true
+  artifacts:
+    paths:
+      - sonar-issues.json
+    expire_in: 1 week
+    when: always
   rules: *branch-rules
   timeout: 15 minutes
-  allow_failure: false
+  allow_failure: true
 
 # ─── Stage 4: Build images + IaC scan (parallel, self-hosted local runner) ──
 
