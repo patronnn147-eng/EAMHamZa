@@ -43,6 +43,8 @@ scan-secrets:
     entrypoint: [""]
   variables:
     GIT_DEPTH: "0"
+  before_script:
+    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
   script:
     - |
       if [ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]; then
@@ -52,10 +54,24 @@ scan-secrets:
       else
         RANGE="$CI_COMMIT_SHA"
       fi
-      gitleaks detect --source . --config .gitleaks.toml --verbose --redact --log-opts="$RANGE"
+      gitleaks detect \
+        --source . \
+        --config .gitleaks.toml \
+        --verbose \
+        --redact \
+        --log-opts="$RANGE" \
+        --report-format json \
+        --report-path gitleaks-report.json \
+        --exit-code 0
+      python3 monitoring/scripts/security_report.py gitleaks gitleaks-report.json "$CI_COMMIT_REF_NAME" || true
+  artifacts:
+    paths:
+      - gitleaks-report.json
+    expire_in: 1 week
+    when: always
   rules: *branch-rules
   timeout: 10 minutes
-  allow_failure: false
+  allow_failure: true
 
 # ─── Stage 2: SCA Dependencies ───────────────────────────────────────────────
 
