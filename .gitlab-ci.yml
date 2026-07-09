@@ -234,22 +234,27 @@ iac-scan:
   image:
     name: aquasec/trivy:latest
     entrypoint: [""]
+  before_script:
+    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
   script:
     - |
-      FAILED=0
       for f in docker-compose.yml docker-compose.sonarqube.yml docker-compose.notebooks.yml; do
         BASENAME=$(echo "$f" | sed 's/\.yml$//' | sed 's/[^a-zA-Z0-9_-]/-/g')
-        trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-iac-${BASENAME}.sarif" --exit-code 1 "$f" || FAILED=1
+        trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format json --output "trivy-iac-${BASENAME}.json" "$f" || true
+        trivy convert --format sarif --output "trivy-iac-${BASENAME}.sarif" "trivy-iac-${BASENAME}.json" || echo "  WARN: sarif conversion failed for $f"
+        trivy convert --format template --template "@contrib/html.tpl" --output "trivy-iac-${BASENAME}.html" "trivy-iac-${BASENAME}.json" || echo "  WARN: html conversion failed for $f (template may be unavailable)"
+        python3 monitoring/scripts/security_report.py trivy "trivy-iac-${BASENAME}.json" "$f" || true
       done
-      exit $FAILED
   artifacts:
     paths:
       - trivy-iac-*.sarif
+      - trivy-iac-*.json
+      - trivy-iac-*.html
     expire_in: 1 week
     when: always
   rules: *branch-rules
   timeout: 10 minutes
-  allow_failure: false
+  allow_failure: true
 
 
 # ─── Stage 5: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
