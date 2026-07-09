@@ -301,10 +301,9 @@ push-vuln-metrics:
   when: always
   tags: [local]
   image: python:3.11-slim
-  variables:
-    PUSHGATEWAY_URL: "${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
   script:
     - |
+      export PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
       echo "Pushing Trivy scan metrics to Pushgateway at ${PUSHGATEWAY_URL} ..."
       for img in eam-backend eam-frontend eam-ml-microservice eam-rag-service eam-ml-research; do
         JSON_FILE="trivy-image-${img}.json"

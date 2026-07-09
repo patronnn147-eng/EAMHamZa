@@ -6,7 +6,19 @@ WORKDIR /app
 
 # Copy only the files and directories required by the backend
 COPY requirements.txt start.sh main.py alembic.ini lambda_handler.py .
-COPY alembic core data_models dependencies middlewares mock_data models modules schemas scripts services tasks utils ./
+COPY alembic ./alembic
+COPY core ./core
+COPY data_models ./data_models
+COPY dependencies ./dependencies
+COPY middlewares ./middlewares
+COPY mock_data ./mock_data
+COPY models ./models
+COPY modules ./modules
+COPY schemas ./schemas
+COPY scripts ./scripts
+COPY services ./services
+COPY tasks ./tasks
+COPY utils ./utils
 
 # Install system dependencies, Python dependencies, and prepare runtime permissions in one layer
 RUN apt-get update && apt-get install -y \
