@@ -111,3 +111,33 @@ def test_main_exits_zero_on_unknown_tool(monkeypatch, capsys):
     with pytest.raises(SystemExit) as exc_info:
         sr.main()
     assert exc_info.value.code == 0
+
+
+def test_main_exits_zero_on_parser_shape_mismatch(monkeypatch, tmp_path):
+    """trivy's parser expects a dict (calls data.get(...)) but a scanner could
+    emit valid JSON whose top-level shape is a list. That must not crash
+    main() with an uncaught AttributeError -- exit code must stay 0."""
+    bad_json = tmp_path / "trivy_bad_shape.json"
+    bad_json.write_text("[]", encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["security_report.py", "trivy", str(bad_json)])
+    with pytest.raises(SystemExit) as exc_info:
+        sr.main()
+    assert exc_info.value.code == 0
+
+
+def test_print_report_does_not_drop_findings_with_unknown_severity(capsys):
+    """A finding whose severity isn't one of SEVERITY_ORDER's 5 buckets must
+    still be normalized into UNKNOWN for both counting AND display -- not
+    counted in TOTAL/UNKNOWN while being silently absent from the detail
+    listing below."""
+    weird = sr.Finding(
+        id="WEIRD-0001",
+        name="mystery-pkg",
+        installed="1.0",
+        fixed="none",
+        severity="UNKNOWN_SEV",
+        location="somewhere",
+    )
+    sr.print_report("trivy", [weird], "test-image")
+    out = capsys.readouterr().out
+    assert "WEIRD-0001" in out

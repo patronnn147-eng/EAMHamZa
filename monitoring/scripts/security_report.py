@@ -154,9 +154,19 @@ def print_report(tool: str, findings: list, label: str) -> None:
     print(f"  {header}")
     print("=" * width)
 
+    # Normalize each finding's severity to one of the 5 known buckets ONCE,
+    # up front, so the counting pass and the display pass always agree.
+    # Otherwise a finding with an unrecognized severity string gets counted
+    # into UNKNOWN but never matches `x.severity == sev` in the display loop
+    # below, silently disappearing from the "Findings:" section.
+    normalized = [
+        (f, f.severity if f.severity in SEVERITY_ORDER else "UNKNOWN")
+        for f in findings
+    ]
+
     counts = {sev: 0 for sev in SEVERITY_ORDER}
-    for f in findings:
-        counts[f.severity if f.severity in counts else "UNKNOWN"] += 1
+    for _, sev in normalized:
+        counts[sev] += 1
     total = sum(counts.values())
 
     print(f"{BOLD}Severity Breakdown:{RESET}")
@@ -176,10 +186,10 @@ def print_report(tool: str, findings: list, label: str) -> None:
     else:
         print(f"{BOLD}Findings:{RESET}")
         for sev in SEVERITY_ORDER:
-            for f in [x for x in findings if x.severity == sev]:
-                color = COLOR[f.severity]
+            for f, fsev in [x for x in normalized if x[1] == sev]:
+                color = COLOR[fsev]
                 print(
-                    f"  {color}{f.severity:<8}{RESET} "
+                    f"  {color}{fsev:<8}{RESET} "
                     f"{f.id:<20} {f.name:<25} "
                     f"{f.installed} -> {f.fixed}   [{f.location}]"
                 )
@@ -208,8 +218,11 @@ def main() -> None:
         print(f"[security_report] Could not read {json_file}: {exc}", file=sys.stderr)
         sys.exit(0)
 
-    findings = parser(data)
-    print_report(tool, findings, label)
+    try:
+        findings = parser(data)
+        print_report(tool, findings, label)
+    except Exception as exc:  # noqa: BLE001 - this script must never fail the pipeline
+        print(f"[security_report] Could not render report for '{tool}': {exc}", file=sys.stderr)
     sys.exit(0)
 
 
