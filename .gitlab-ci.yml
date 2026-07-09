@@ -116,6 +116,55 @@ audit-frontend:
   timeout: 10 minutes
   allow_failure: true
 
+license-scan-backend:
+  stage: sca-deps
+  needs: [scan-secrets]
+  image: python:3.11-slim
+  before_script:
+    - pip install --quiet pip-licenses
+    - pip install --quiet -r app/backend/requirements.txt
+  script:
+    - |
+      echo "================================================================"
+      echo "  LICENSE COMPLIANCE — Backend (Python)"
+      echo "================================================================"
+      pip-licenses --format=json --with-urls --output-file=licenses-backend.json
+      pip-licenses --format=plain-vertical --with-urls
+      echo "================================================================"
+  artifacts:
+    paths:
+      - licenses-backend.json
+    expire_in: 1 week
+    when: always
+  rules: *branch-rules
+  timeout: 10 minutes
+  allow_failure: true
+
+license-scan-frontend:
+  stage: sca-deps
+  needs: [scan-secrets]
+  image: node:18-alpine
+  before_script:
+    - npm install -g pnpm license-checker --quiet
+    - cd app/frontend && pnpm install --frozen-lockfile
+  script:
+    - |
+      cd app/frontend
+      echo "================================================================"
+      echo "  LICENSE COMPLIANCE — Frontend (npm)"
+      echo "================================================================"
+      license-checker --json --out ../../licenses-frontend.json
+      license-checker --summary
+      echo "================================================================"
+  artifacts:
+    paths:
+      - licenses-frontend.json
+    expire_in: 1 week
+    when: always
+  rules: *branch-rules
+  timeout: 10 minutes
+  allow_failure: true
+
 # ─── Stage 3: SonarQube (self-hosted, local runner only) — sole SAST tool ───
 # Community Edition has no branch analysis: each branch gets its own SonarQube
 # project (projectKey suffixed with $CI_COMMIT_REF_SLUG) so results don't get
