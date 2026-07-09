@@ -1,0 +1,16 @@
+[
+  {
+    "RuleID": "generic-api-key",
+    "File": "app/backend/core/config.py",
+    "StartLine": 42,
+    "EndLine": 42,
+    "Match": "REDACTED",
+    "Secret": "REDACTED",
+    "Author": "dev",
+    "Email": "dev@example.com",
+    "Date": "2026-01-01T00:00:00Z",
+    "Commit": "abc123",
+    "Message": "wip",
+    "Fingerprint": "abc123:app/backend/core/config.py:generic-api-key:42"
+  }
+]

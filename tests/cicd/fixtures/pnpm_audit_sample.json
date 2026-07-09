@@ -1,0 +1,16 @@
+{
+  "vulnerabilities": {
+    "lodash": {
+      "severity": "high",
+      "range": "<4.17.21",
+      "fixAvailable": { "name": "lodash", "version": "4.17.21" },
+      "via": [{ "source": 1065, "title": "Prototype Pollution" }]
+    },
+    "minimist": {
+      "severity": "critical",
+      "range": "<1.2.6",
+      "fixAvailable": true,
+      "via": [{ "source": 1179, "title": "Prototype Pollution" }]
+    }
+  }
+}
