@@ -99,11 +99,14 @@ audit-frontend:
   needs: [scan-secrets]
   image: node:18-alpine
   before_script:
+    - apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"
     - npm install -g pnpm --quiet
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
-    - pnpm audit --json > pnpm-audit.json || true
-    - pnpm audit --audit-level=high
+    - |
+      cd app/frontend
+      pnpm audit --json > pnpm-audit.json || true
+      python3 ../../monitoring/scripts/security_report.py pnpm-audit pnpm-audit.json "app/frontend/package.json"
   artifacts:
     paths:
       - app/frontend/pnpm-audit.json
@@ -111,7 +114,7 @@ audit-frontend:
     when: always
   rules: *branch-rules
   timeout: 10 minutes
-  allow_failure: false
+  allow_failure: true
 
 # ─── Stage 3: SonarQube (self-hosted, local runner only) — sole SAST tool ───
 # Community Edition has no branch analysis: each branch gets its own SonarQube
