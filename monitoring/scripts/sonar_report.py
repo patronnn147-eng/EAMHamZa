@@ -14,7 +14,6 @@ Usage:
 import base64
 import json
 import sys
-import urllib.error
 import urllib.request
 
 SEVERITY_ORDER = ["BLOCKER", "CRITICAL", "MAJOR", "MINOR", "INFO"]
