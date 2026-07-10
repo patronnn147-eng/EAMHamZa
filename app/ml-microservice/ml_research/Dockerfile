@@ -15,7 +15,7 @@ RUN useradd -m -u 1000 appuser
 
 COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip && \
+    pip install "pip>=26.1.2" && \
     pip install -r requirements-notebooks.txt && \
     pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
 

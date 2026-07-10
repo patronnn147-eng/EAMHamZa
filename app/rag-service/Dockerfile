@@ -22,7 +22,7 @@ COPY requirements.txt .
 #    Without this, pip resolves torch with CUDA (~3.5 GB of nvidia-* packages).
 # 2. Install remaining requirements.
 # 3. Purge gcc — no longer needed at runtime; reduces final image ~30 MB.
-RUN pip install --no-cache-dir --upgrade pip && \
+RUN pip install --no-cache-dir "pip>=26.1.2" && \
     pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2" && \
