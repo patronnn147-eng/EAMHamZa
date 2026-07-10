@@ -217,12 +217,14 @@ build-images:
   needs: [sonarqube-scan]
   tags: [local]
   image: docker:24-cli
+  variables:
+    DOCKER_BUILDKIT: "1"
   script:
-    - docker build -t eam-backend:ci ./app/backend
-    - docker build -t eam-frontend:ci --build-arg VITE_API_BASE_URL=http://localhost:8000 ./app/frontend
-    - docker build -t eam-ml-microservice:ci ./app/ml-microservice
-    - docker build -t eam-rag-service:ci ./app/rag-service
-    - docker build -t eam-ml-research:ci -f app/ml-microservice/ml_research/Dockerfile .
+    - docker build --cache-from eam-backend:ci        -t eam-backend:ci        ./app/backend
+    - docker build --cache-from eam-frontend:ci       -t eam-frontend:ci       --build-arg VITE_API_BASE_URL=http://localhost:8000 ./app/frontend
+    - docker build --cache-from eam-ml-microservice:ci -t eam-ml-microservice:ci ./app/ml-microservice
+    - docker build --cache-from eam-rag-service:ci    -t eam-rag-service:ci    ./app/rag-service
+    - docker build --cache-from eam-ml-research:ci    -t eam-ml-research:ci    -f app/ml-microservice/ml_research/Dockerfile .
   rules: *branch-rules
   timeout: 30 minutes
   allow_failure: false
@@ -321,6 +323,21 @@ push-vuln-metrics:
   timeout: 5 minutes
   allow_failure: true
 
+
+# Restart continuous Trivy scanner so it immediately re-scans the freshly built
+# :ci images instead of waiting up to 6h for the next scheduled cycle.
+# allow_failure=true — a stopped monitoring stack must not block the pipeline.
+restart-scanner:
+  stage: image-scan
+  needs: [push-vuln-metrics]
+  when: always
+  tags: [local]
+  image: docker:24-cli
+  script:
+    - docker restart eam_trivy_scanner && echo "Scanner restarted — rescan cycle started." || echo "WARN: could not restart scanner (monitoring stack may be down)."
+  rules: *branch-rules
+  timeout: 2 minutes
+  allow_failure: true
 
 # ─── Stage 6: Lint (non-blocking) ────────────────────────────────────────────
 

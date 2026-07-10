@@ -94,8 +94,11 @@ services:
       retries: 3
       start_period: 30s
 
-  # Continuous scanner: scans local Docker images every TRIVY_SCAN_INTERVAL seconds
-  # independent of CI pipeline.  Uses docker socket to access locally built images.
+  # Continuous scanner: scans CI-built images every TRIVY_SCAN_INTERVAL seconds.
+  # Images are built and tagged :ci by the GitLab CI build-images job on every
+  # pipeline run. The CI pipeline also restarts this container (restart-scanner job)
+  # immediately after each build so Grafana reflects the latest scan without waiting
+  # for the next scheduled cycle. No local docker compose build needed.
   trivy-scanner:
     build:
       context: ./monitoring
@@ -104,7 +107,7 @@ services:
     restart: unless-stopped
     environment:
       PUSHGATEWAY_URL: http://pushgateway:9091
-      IMAGES: "${TRIVY_SCAN_IMAGES:-eam-backend:latest eam-frontend:latest eam-ml-microservice:latest eam-rag-service:latest}"
+      IMAGES: "${TRIVY_SCAN_IMAGES:-eam-backend:ci eam-frontend:ci eam-ml-microservice:ci eam-rag-service:ci eam-ml-research:ci}"
       SCAN_INTERVAL: "${TRIVY_SCAN_INTERVAL:-21600}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
