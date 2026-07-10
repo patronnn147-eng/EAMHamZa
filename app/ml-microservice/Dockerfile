@@ -15,6 +15,8 @@ RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-reco
 # this layer is invalidated.
 # HEAVY_CACHE_BUST can be passed via --build-arg to force reinstall.
 ARG HEAVY_CACHE_BUST=4
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip
 # CPU-only torch: this is an inference service with no GPU in CI/prod. Installing
 # torch from the dedicated CPU index FIRST avoids pulling PyPI's default CUDA
 # build (~2.5GB of nvidia-* wheels) which blew past the CI build-images timeout.

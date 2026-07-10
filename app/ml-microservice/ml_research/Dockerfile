@@ -13,6 +13,7 @@ RUN useradd -m -u 1000 appuser
 
 COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
     pip install -r requirements-notebooks.txt
 
 RUN chown -R appuser:appuser /workspace
