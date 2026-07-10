@@ -334,7 +334,12 @@ restart-scanner:
   tags: [local]
   image: docker:24-cli
   script:
-    - docker restart eam_trivy_scanner && echo "Scanner restarted — rescan cycle started." || echo "WARN: could not restart scanner (monitoring stack may be down)."
+    - |
+      if docker restart eam_trivy_scanner; then
+        echo "Scanner restarted - rescan cycle started."
+      else
+        echo "WARN: could not restart scanner (monitoring stack may be down)."
+      fi
   rules: *branch-rules
   timeout: 2 minutes
   allow_failure: true
