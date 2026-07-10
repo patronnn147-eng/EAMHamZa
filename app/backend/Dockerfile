@@ -1,4 +1,4 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -17,29 +17,19 @@ COPY services ./services
 COPY tasks ./tasks
 COPY utils ./utils
 
-# Runtime deps: bash (start.sh), curl (healthcheck), postgresql-client (db ops)
-# Build deps: gcc + musl-dev + python3-dev + libffi-dev + openssl-dev needed to
-# compile asyncpg, cryptography, argon2-cffi C extensions — removed after install.
-RUN apk add --no-cache \
-        bash \
+# python:3.11-slim (Debian Bookworm) — all ML packages (xgboost, scikit-learn,
+# numpy, pandas, shap) ship manylinux wheels, so zero source compilation.
+# No build toolchain needed; only runtime deps installed.
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends \
         curl \
         postgresql-client \
-    && apk add --no-cache --virtual .build-deps \
-        gcc \
-        g++ \
-        cmake \
-        make \
-        musl-dev \
-        python3-dev \
-        libffi-dev \
-        openssl-dev \
-        libpq-dev \
+    && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
-    && apk del .build-deps \
     && sed -i 's/\r$//' start.sh && chmod +x start.sh \
     && mkdir -p logs \
-    && adduser -D -u 1000 appuser \
+    && adduser --disabled-password --gecos "" --uid 1000 appuser \
     && chown -R appuser:appuser /app
 
 USER appuser
