@@ -28,3 +28,7 @@ python-dotenv>=1.0.0
 # Test (used by tests/test_hybrid_rrf.py + test_retriever_hybrid_toggle.py)
 pytest>=8.0.0
 pytest-asyncio>=0.23.0
+
+# Security: pin transitive deps with known CVEs
+jaraco.context>=6.1.0
+wheel>=0.46.2

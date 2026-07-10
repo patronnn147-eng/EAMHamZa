@@ -21,7 +21,8 @@ COPY tasks ./tasks
 COPY utils ./utils
 
 # Install system dependencies, Python dependencies, and prepare runtime permissions in one layer
-RUN apt-get update && apt-get install -y \
+# apt-get upgrade: pulls latest OS patches to reduce CVEs in base image (perl, linux-libc-dev, etc.)
+RUN apt-get update && apt-get upgrade -y && apt-get install -y \
     bash \
     gcc \
     postgresql-client \

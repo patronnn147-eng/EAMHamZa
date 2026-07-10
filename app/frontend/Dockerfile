@@ -28,6 +28,9 @@ RUN pnpm run build
 # Stage 2: Production
 FROM nginx:alpine
 
+# Upgrade Alpine packages to patch CVEs: libexpat (2.8.1-r0→2.8.2-r0), c-ares (1.34.6-r0→1.34.8-r0)
+RUN apk --no-cache upgrade
+
 # Copy custom nginx config
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
