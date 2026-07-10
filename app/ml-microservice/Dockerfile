@@ -4,9 +4,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# System dependencies — upgrade first to patch base-image OS CVEs (perl, linux-libc-dev, etc.)
+# Upgrade OS packages, install runtime deps, then remove linux-libc-dev
+# (kernel headers — never needed at runtime, but pulled in by python:3.11-slim base).
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     curl \
+    && apt-get purge -y --auto-remove linux-libc-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Layer 1: Heavy deps (torch, numpy, sklearn, scipy…) ──────────────────────
