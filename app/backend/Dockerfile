@@ -20,10 +20,15 @@ COPY utils ./utils
 # python:3.11-slim (Debian Bookworm) — all ML packages (xgboost, scikit-learn,
 # numpy, pandas, shap) ship manylinux wheels, so zero source compilation.
 # No build toolchain needed; only runtime deps installed.
+# apt-get upgrade -y: picks up OS security patches at build time.
+# purge linux-libc-dev: kernel headers pulled in by base image, never needed
+# at runtime (CVE-2026-43185).
 RUN apt-get update -qq \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends \
         curl \
         postgresql-client \
+    && apt-get purge -y --auto-remove linux-libc-dev \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
