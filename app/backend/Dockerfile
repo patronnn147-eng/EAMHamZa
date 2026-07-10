@@ -27,6 +27,8 @@ RUN apk add --no-cache \
     && apk add --no-cache --virtual .build-deps \
         gcc \
         g++ \
+        cmake \
+        make \
         musl-dev \
         python3-dev \
         libffi-dev \
