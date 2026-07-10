@@ -26,6 +26,7 @@ RUN apk add --no-cache \
         postgresql-client \
     && apk add --no-cache --virtual .build-deps \
         gcc \
+        g++ \
         musl-dev \
         python3-dev \
         libffi-dev \
