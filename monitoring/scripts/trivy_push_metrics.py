@@ -22,6 +22,7 @@ import re
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections import defaultdict
 
@@ -104,9 +105,10 @@ def build_metrics(scan_data: dict, image_name: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def push(metrics_text: str, job: str, pushgateway_url: str) -> None:
+def push(metrics_text: str, job: str, pushgateway_url: str, instance: str) -> None:
     """HTTP POST metrics to Prometheus Pushgateway."""
-    url = f"{pushgateway_url.rstrip('/')}/metrics/job/{job}"
+    encoded_instance = urllib.parse.quote(instance, safe="")
+    url = f"{pushgateway_url.rstrip('/')}/metrics/job/{job}/instance/{encoded_instance}"
     data = metrics_text.encode("utf-8")
     req = urllib.request.Request(
         url,
@@ -151,7 +153,7 @@ def main() -> None:
            line.startswith("trivy_image_vulnerabilities_total"):
             print(f"  {line}")
 
-    push(metrics, "trivy_image_scan", pushgateway_url)
+    push(metrics, "trivy_image_scan", pushgateway_url, image_name)
     print(f"[DONE] {image_name} metrics pushed.")
 
 
