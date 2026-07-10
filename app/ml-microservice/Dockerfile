@@ -35,6 +35,11 @@ COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
+# ── CVE patches: upgrade pip build-tools left in final image ──────────────────
+# jaraco.context>=6.1.0 (CVE-2026-23949), wheel>=0.46.2 (CVE-2026-24049)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
+
 # ── Source code & models (most frequently changed — no pip cost) ──────────────
 COPY src/ ./src/
 COPY models/ ./models/

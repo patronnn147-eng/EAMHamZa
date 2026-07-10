@@ -32,6 +32,7 @@ RUN apt-get update -qq \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt \
+    && pip install --no-cache-dir --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2" \
     && sed -i 's/\r$//' start.sh && chmod +x start.sh \
     && mkdir -p logs \
     && adduser --disabled-password --gecos "" --uid 1000 appuser \

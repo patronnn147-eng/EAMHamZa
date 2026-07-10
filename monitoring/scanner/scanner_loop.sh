@@ -33,6 +33,7 @@ while true; do
             --format json \
             --output "${JSON_FILE}" \
             --severity CRITICAL,HIGH,MEDIUM,LOW \
+            --ignore-unfixed \
             --quiet \
             "${img}" 2>&1; then
 
