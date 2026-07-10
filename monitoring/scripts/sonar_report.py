@@ -139,6 +139,12 @@ def main() -> None:
     except Exception as exc:  # noqa: BLE001 - intentional, see comment above
         print(f"[sonar_report] Could not produce report: {exc}", file=sys.stderr)
         print("[sonar_report] Check quality gate status in the scanner output above.", file=sys.stderr)
+        if output_json:
+            try:
+                with open(output_json, "w") as fh:
+                    json.dump({"issues": [], "hotspots": [], "error": str(exc)}, fh, indent=2)
+            except Exception:
+                pass
 
     sys.exit(0)
 
