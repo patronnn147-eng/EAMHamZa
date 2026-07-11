@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import aio_pika
 from aio_pika import ExchangeType
-
+#####
 logger = logging.getLogger(__name__)
 
 DEFAULT_RABBITMQ_URL = "amqps://guest:guest@localhost:5671//"
@@ -31,7 +31,6 @@ ROUTING_KEY_INT_STATUS_CHANGED = "intervention.status_changed"
 def _is_secure_rabbitmq_url(url: str) -> bool:
     parsed = urlparse(url)
     return parsed.scheme.lower() == "amqps"
-
 
 def _get_rabbitmq_url() -> str:
     url = os.environ.get("CELERY_BROKER_URL", DEFAULT_RABBITMQ_URL)
