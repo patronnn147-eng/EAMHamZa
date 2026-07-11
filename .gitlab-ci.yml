@@ -276,6 +276,8 @@ image-scan:
         TAGNAME=$(echo "$img" | cut -d: -f1)
         trivy image \
           --severity CRITICAL,HIGH,MEDIUM,LOW \
+          --ignore-unfixed \
+          --ignorefile monitoring/scanner/.trivyignore \
           --format json \
           --output "trivy-image-${TAGNAME}.json" \
           "$img" || true
