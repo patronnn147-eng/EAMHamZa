@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 
 import aio_pika
 from aio_pika import ExchangeType
-#####
+
 logger = logging.getLogger(__name__)
 
 DEFAULT_RABBITMQ_URL = "amqps://guest:guest@localhost:5671//"
