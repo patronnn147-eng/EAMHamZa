@@ -281,7 +281,7 @@ def layer3_degradation(
         return
 
     try:
-        subprocess.run(
+        subprocess.run(  # NOSONAR -- list-form invocation, no shell expansion, controlled args
             ["docker", "stop", ML_CONTAINER], check=True, capture_output=True
         )
         print(f"  stopped {ML_CONTAINER}")
@@ -314,7 +314,7 @@ def layer3_degradation(
         except Exception as e:
             record("degradation", FAIL, f"chat error with ML down: {e}")
     finally:
-        subprocess.run(
+        subprocess.run(  # NOSONAR -- list-form invocation, no shell expansion, controlled args
             ["docker", "start", ML_CONTAINER], check=False, capture_output=True
         )
         print(f"  restarted {ML_CONTAINER}, waiting for health…")

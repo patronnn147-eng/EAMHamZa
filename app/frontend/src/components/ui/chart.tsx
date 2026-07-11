@@ -67,7 +67,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
-      dangerouslySetInnerHTML={{
+      dangerouslySetInnerHTML={{ // NOSONAR -- content is CSS generated from our own theme config, never user input
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `

@@ -19,8 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def _column_exists(table_name: str, column_name: str) -> bool:
     bind = op.get_bind()
-    # nosemgrep: sqlalchemy-raw-sql-interpolation,python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name/column_name are hardcoded migration-author literals, never user input
-    result = bind.execute(sa.text(f"SELECT 1 FROM information_schema.columns WHERE table_name = '{table_name}' AND column_name = '{column_name}'"))  # fmt: skip
+    result = bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns"
+            " WHERE table_name = :tbl AND column_name = :col"
+        ),
+        {"tbl": table_name, "col": column_name},
+    )
     return result.first() is not None
 
 

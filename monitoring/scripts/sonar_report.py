@@ -11,7 +11,6 @@ Usage:
   python3 sonar_report.py <sonar_host_url> <project_key> <token> [output_json]
 """
 
-import base64
 import json
 import sys
 import urllib.request
@@ -29,8 +28,8 @@ BOLD = "\033[1m"
 
 
 def _get(url: str, token: str) -> dict:
-    auth = base64.b64encode(f"{token}:".encode()).decode()
-    req = urllib.request.Request(url, headers={"Authorization": f"Basic {auth}"})
+    # SonarQube 10.x+ uses Bearer token auth; Basic auth with token-as-username was deprecated
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
     with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode())
 

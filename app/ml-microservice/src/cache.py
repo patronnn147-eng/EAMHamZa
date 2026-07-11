@@ -29,7 +29,7 @@ class TTLCache:
     def _make_key(self, data: dict) -> str:
         """Generate cache key from data dictionary."""
         serialized = json.dumps(data, sort_keys=True)
-        return hashlib.md5(serialized.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5 -- non-cryptographic use (in-memory cache-key derivation from telemetry), not security-sensitive
+        return hashlib.md5(serialized.encode()).hexdigest()  # nosemgrep: insecure-hash-algorithm-md5 -- non-cryptographic use (in-memory cache-key derivation from telemetry), not security-sensitive  # NOSONAR
 
     def get(self, key: str) -> Optional[Any]:
         """Get value if not expired."""
