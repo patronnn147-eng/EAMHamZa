@@ -167,3 +167,12 @@ Advanced models fused via Dempster-Shafer Theory:
   - Smoke: `app/backend/scripts/smoke_ml_rag_bridge.py` (3 layers, BRIDGE/LLM verdicts split, --allow-destructive gates docker stop, exit 0/1/2)
   - Discovered: ML container down ≠ no context — RULCalculator rule-based fallback (score_source=fallback_additive) still injects valid block; safety property = "answers without error"
   - Login API field is `mot_de_passe` (not `password`); machines list = `/api/v1/entities/machines`
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `python3 -c "from graphify.watch import _rebuild_code; from pathlib import Path; _rebuild_code(Path('.'))"` to keep the graph current

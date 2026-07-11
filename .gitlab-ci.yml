@@ -200,7 +200,11 @@ sonarqube-scan:
         -Dsonar.token=$sonar \
         -Dsonar.qualitygate.wait=true \
         -Dsonar.qualitygate.timeout=300 || true
-      python3 monitoring/scripts/sonar_report.py "$SONAR_HOST_URL" "$SONAR_PROJECT_KEY" "$sonar" sonar-issues.json || true
+      # SONAR_REPORT_TOKEN must be a *User Token* (My Account → Security → Generate Tokens).
+      # Project Analysis Tokens ($sonar) return 403 on browse APIs — if SONAR_REPORT_TOKEN
+      # is unset the script falls back to $sonar, prints the dashboard URL, and exits 0.
+      REPORT_TOKEN="${SONAR_REPORT_TOKEN:-$sonar}"
+      python3 monitoring/scripts/sonar_report.py "$SONAR_HOST_URL" "$SONAR_PROJECT_KEY" "$REPORT_TOKEN" sonar-issues.json || true
   artifacts:
     paths:
       - sonar-issues.json
