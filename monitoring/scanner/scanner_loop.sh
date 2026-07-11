@@ -34,6 +34,7 @@ while true; do
             --output "${JSON_FILE}" \
             --severity CRITICAL,HIGH,MEDIUM,LOW \
             --ignore-unfixed \
+            --ignorefile /etc/trivy/.trivyignore \
             --quiet \
             "${img}" 2>&1; then
 

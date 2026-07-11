@@ -1,0 +1,19 @@
+# Trivy ignore file — vendored dependencies inside setuptools._vendor
+#
+# setuptools bundles its own copies of jaraco.context and wheel in its
+# internal _vendor/ namespace. These vendored copies are NOT independently
+# importable or callable by application code — setuptools uses them
+# strictly for its own package-installation internals.
+#
+# The standalone packages are patched:
+#   jaraco.context  5.3.0 → 6.1.2  (installed at site-packages/)
+#   wheel           0.45.1 → 0.47.0 (installed at site-packages/)
+#
+# setuptools 83.x still ships the old vendored versions and there is no
+# upstream release that updates them yet. Suppressing until resolved.
+
+# CVE-2026-23949 — jaraco.context: path traversal via malicious tar archives
+CVE-2026-23949
+
+# CVE-2026-24049 — wheel: privilege escalation via malicious wheel file
+CVE-2026-24049

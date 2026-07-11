@@ -17,9 +17,10 @@ RUN apk add --no-cache \
         | tar -xz -C /usr/local/bin trivy \
     && trivy --version
 
-# Copy the shared push script and the loop script
+# Copy the shared push script, loop script, and ignore list
 COPY scripts/trivy_push_metrics.py /scripts/trivy_push_metrics.py
 COPY scanner/scanner_loop.sh       /scripts/scanner_loop.sh
+COPY scanner/.trivyignore          /etc/trivy/.trivyignore
 RUN chmod +x /scripts/scanner_loop.sh
 
 ENTRYPOINT ["/scripts/scanner_loop.sh"]
