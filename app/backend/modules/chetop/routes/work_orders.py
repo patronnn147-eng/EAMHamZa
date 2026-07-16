@@ -157,6 +157,106 @@ async def start_work_order(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
+async def _try_snapshot_health_before_complete(db: AsyncSession, wo, order_id: int) -> None:
+    """Capture pre-fix health score on the WO. Non-blocking — failures logged only."""
+    try:
+        score = await PostMaintenanceRecoveryService(db).snapshot_health(wo.machine_id)
+        if score is not None:
+            wo.health_score_at_completion = score
+    except Exception as exc:
+        logger.warning("Recovery completion snapshot failed for WO %s: %s", order_id, exc)
+
+
+def _apply_intervention_completion_fields(intervention, payload, wo, now) -> None:
+    """Write all PDCA completion fields to the intervention ORM object."""
+    intervention.statut = _STATUT_TERMINE
+    intervention.rapport = payload.rapport
+    if not intervention.date_debut:
+        intervention.date_debut = wo.date_debut or now
+    intervention.date_fin = now
+    intervention.intervention_type = payload.intervention_type
+    intervention.root_cause_category = payload.root_cause_category
+    intervention.root_cause_description = payload.root_cause_description
+    intervention.actions_performed = payload.actions_performed
+    intervention.legacy_parts_text = payload.parts_replaced
+    intervention.tools_used = payload.tools_used
+    intervention.machine_status_after = payload.machine_status_after
+    intervention.plan_hypothesis = payload.plan_hypothesis
+    intervention.check_resolved = payload.check_resolved
+    intervention.check_verification_method = payload.check_verification_method
+    intervention.act_preventive_actions = payload.act_preventive_actions
+    intervention.act_recommendations = payload.act_recommendations
+
+
+def _add_telemetry_if_present(db, payload, wo, order_id: int, now, technician_id: int) -> None:
+    """Insert a MachineTelemetry row if any sensor value was submitted."""
+    has_telemetry = any(
+        v is not None
+        for v in (
+            payload.air_temperature, payload.process_temperature,
+            payload.rotational_speed, payload.torque, payload.tool_wear,
+        )
+    )
+    if has_telemetry:
+        db.add(MachineTelemetry(
+            machine_id=wo.machine_id,
+            work_order_id=order_id,
+            technician_id=technician_id,
+            air_temperature=payload.air_temperature or 0,
+            process_temperature=payload.process_temperature or 0,
+            rotational_speed=payload.rotational_speed or 0,
+            torque=payload.torque or 0,
+            tool_wear=payload.tool_wear or 0,
+            recorded_at=now,
+            notes=f"Work order #{order_id} completion",
+        ))
+
+
+async def _apply_parts_consumption(db: AsyncSession, intervention, payload, order_id: int) -> None:
+    """Fulfill parts consumption reservations for the WO completion (atomic)."""
+    if not (intervention and getattr(payload, "parts_consumed", None)):
+        return
+    try:
+        reservation_svc = InventoryReservationService(db)
+        for raw_item in payload.parts_consumed:
+            item = ConsumedPieceItem(**raw_item) if isinstance(raw_item, dict) else raw_item
+            await reservation_svc.fulfill_reservation(
+                required_piece_id=item.required_piece_id,
+                quantity_used=item.quantity_used,
+                quantity_returned=item.quantity_returned,
+                quantity_wasted=item.quantity_wasted,
+                disposition=item.disposition,
+                notes=item.notes,
+                auto_commit=False,
+            )
+        try:
+            from modules.ml.services.demand_forecast import invalidate_forecast_cache
+            invalidate_forecast_cache()
+        except Exception:
+            pass
+    except ValueError as ve:
+        await db.rollback()
+        logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
+        raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+
+
+async def _try_audit_chetop_complete(
+    db: AsyncSession, order_id: int, payload, user_id: int, user_name
+) -> None:
+    """Fire-and-forget audit log for CHETOP WO completion."""
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.WORK_ORDER,
+            entity_id=order_id,
+            old_values={"statut": "EN_COURS"},
+            new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
+            user_id=user_id,
+            user_name=user_name,
+        )
+    except Exception:
+        logger.warning("Audit log failed for complete work order %s", order_id)
+
+
 @router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'EN_COURS' orders can be completed"}, 403: {"description": "Forbidden; You can only complete work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def complete_work_order(
     order_id: int,
@@ -169,14 +269,11 @@ async def complete_work_order(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
-        # Verify ownership via intervention request - check requested_by not technician_id
-        check_query = (
+        check_result = await db.execute(
             select(OrdresIntervention)
             .where(OrdresIntervention.ordre_travail_id == order_id)
             .where(OrdresIntervention.requested_by == current_user.id)
         )
-
-        check_result = await db.execute(check_query)
         intervention = check_result.scalar_one_or_none()
         if not intervention:
             raise HTTPException(
@@ -184,10 +281,7 @@ async def complete_work_order(
                 detail="You can only complete work orders you requested",
             )
 
-        wo_result = await db.execute(
-            select(OrdresTravail).where(OrdresTravail.id == order_id)
-        )
-        wo = wo_result.scalar_one_or_none()
+        wo = (await db.execute(select(OrdresTravail).where(OrdresTravail.id == order_id))).scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
 
@@ -197,129 +291,22 @@ async def complete_work_order(
             )
 
         now = datetime.now(timezone.utc)
-
-        # Post-maintenance recovery: capture pre-fix health state right before
-        # the WO is marked complete. Non-blocking — None if ML service is down.
-        try:
-            _pre_fix_score = await PostMaintenanceRecoveryService(db).snapshot_health(
-                wo.machine_id
-            )
-            if _pre_fix_score is not None:
-                wo.health_score_at_completion = _pre_fix_score
-        except Exception as _rec_exc:
-            logger.warning(
-                "Recovery completion snapshot failed for WO %s: %s",
-                order_id,
-                _rec_exc,
-            )
+        await _try_snapshot_health_before_complete(db, wo, order_id)
 
         wo.statut = _STATUT_TERMINE
         wo.date_fin = now
         wo.rapport = payload.rapport
 
-        machine_obj = await db.scalar(
-            select(Machines).where(Machines.id == wo.machine_id)
-        )
+        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
         if machine_obj:
             machine_obj.date_derniere_maintenance = now
 
-        # Also update the associated intervention with enhanced fields
-        intervention.statut = _STATUT_TERMINE
-        intervention.rapport = payload.rapport
-        if not intervention.date_debut:
-            intervention.date_debut = wo.date_debut or now
-        intervention.date_fin = now
-
-        # New Report and PDCA fields
-        intervention.intervention_type = payload.intervention_type
-        intervention.root_cause_category = payload.root_cause_category
-        intervention.root_cause_description = payload.root_cause_description
-        intervention.actions_performed = payload.actions_performed
-        intervention.legacy_parts_text = payload.parts_replaced
-        intervention.tools_used = payload.tools_used
-        intervention.machine_status_after = payload.machine_status_after
-
-        intervention.plan_hypothesis = payload.plan_hypothesis
-        intervention.check_resolved = payload.check_resolved
-        intervention.check_verification_method = payload.check_verification_method
-        intervention.act_preventive_actions = payload.act_preventive_actions
-        intervention.act_recommendations = payload.act_recommendations
-
-        # =============================================
-        # Task 4+5: Save telemetry to logs AND update machine current state
-        # =============================================
-        has_telemetry = any(
-            [
-                payload.air_temperature is not None,
-                payload.process_temperature is not None,
-                payload.rotational_speed is not None,
-                payload.torque is not None,
-                payload.tool_wear is not None,
-            ]
-        )
-
-        if has_telemetry:
-            # Save to machine_telemetry_logs table (historical record)
-            telemetry_log = MachineTelemetry(
-                machine_id=wo.machine_id,
-                work_order_id=order_id,
-                technician_id=current_user.id,
-                air_temperature=payload.air_temperature or 0,
-                process_temperature=payload.process_temperature or 0,
-                rotational_speed=payload.rotational_speed or 0,
-                torque=payload.torque or 0,
-                tool_wear=payload.tool_wear or 0,
-                recorded_at=now,
-                notes=f"Work order #{order_id} completion",
-            )
-            db.add(telemetry_log)
-
-        # ── Atomic parts consumption ──────────────────────────────────────
-        if intervention and getattr(payload, "parts_consumed", None):
-            try:
-                reservation_svc = InventoryReservationService(db)
-                for raw_item in payload.parts_consumed:
-                    # Validate each item via Pydantic
-                    item = (
-                        ConsumedPieceItem(**raw_item)
-                        if isinstance(raw_item, dict)
-                        else raw_item
-                    )
-                    await reservation_svc.fulfill_reservation(
-                        required_piece_id=item.required_piece_id,
-                        quantity_used=item.quantity_used,
-                        quantity_returned=item.quantity_returned,
-                        quantity_wasted=item.quantity_wasted,
-                        disposition=item.disposition,
-                        notes=item.notes,
-                        auto_commit=False,
-                    )
-                try:
-                    from modules.ml.services.demand_forecast import (
-                        invalidate_forecast_cache,
-                    )
-
-                    invalidate_forecast_cache()
-                except Exception:
-                    pass
-            except ValueError as ve:
-                await db.rollback()
-                logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
-                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+        _apply_intervention_completion_fields(intervention, payload, wo, now)
+        _add_telemetry_if_present(db, payload, wo, order_id, now, current_user.id)
+        await _apply_parts_consumption(db, intervention, payload, order_id)
 
         await db.commit()
-
-        try:
-            await AuditService(db).log_update(
-                entity_type=AuditEntityType.WORK_ORDER,
-                entity_id=order_id,
-                old_values={"statut": "EN_COURS"},
-                new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
-                user_id=current_user.id,
-                user_name=current_user.nom,
-            )
-        except Exception:
-            logger.warning("Audit log failed for complete work order %s", order_id)
+        await _try_audit_chetop_complete(db, order_id, payload, current_user.id, current_user.nom)
 
         return {"message": "Work order completed", "statut": _STATUT_TERMINE}
     except HTTPException:

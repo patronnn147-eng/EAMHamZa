@@ -91,6 +91,75 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     return entries, log_dicts
 
 
+def _count_recent_interventions(interventions, cutoff) -> int:
+    """Return count of interventions whose date_intervention is after cutoff."""
+    count = 0
+    for i in interventions:
+        if not i.date_intervention:
+            continue
+        dt = (
+            i.date_intervention.replace(tzinfo=cutoff.tzinfo)
+            if i.date_intervention.tzinfo is None
+            else i.date_intervention
+        )
+        if dt > cutoff:
+            count += 1
+    return count
+
+
+def _build_uh_base_response(
+    machine_id: int, machine, prediction: dict, fusion_result, sensors: tuple
+) -> dict:
+    """Build the base unified-health response dict (no side-effect keys)."""
+    _air, _proc, _rpm, _torq, _wear = sensors
+    fr = fusion_result  # shorthand
+    return {
+        "machine_id": machine_id,
+        "machine_name": machine.nom,
+        "unified_health_score": prediction.get(
+            "health_score", prediction.get("unified_health_score", 0.0)
+        ),
+        "score_source": prediction.get("health_breakdown", {}).get(
+            "score_source", "fallback_additive"
+        ),
+        "dst_verdict": prediction.get("health_breakdown", {}).get("dst_verdict"),
+        "conflict_factor_K": prediction.get("health_breakdown", {}).get("conflict_factor_K"),
+        "kalman_hi": fr.get("kalman_hi") if fr else None,
+        "kalman_rul": fr.get("kalman_rul") if fr else None,
+        "sensor_fault_flag": fr.get("sensor_fault_flag", False) if fr else False,
+        "model_outputs": fr.get("model_outputs") if fr else None,
+        "rul_days": prediction.get("rul_days"),
+        "failure_probability": prediction.get("failure_probability"),
+        "risk_level": prediction.get("risk_level"),
+        "health_score": prediction.get("health_score"),
+        "health_breakdown": prediction.get("health_breakdown"),
+        "reliability_score": prediction.get("reliability_score"),
+        "explanations": prediction.get("explanations", []),
+        "is_anomaly": prediction.get("is_anomaly", False),
+        "p4_anomaly_score": fr.get("p4_anomaly_score", 0.0) if fr else 0.0,
+        "predicted_priority": prediction.get("predicted_priority"),
+        "air_temperature": _air,
+        "process_temperature": _proc,
+        "rotational_speed": _rpm,
+        "torque": _torq,
+        "tool_wear": int(_wear),
+        "maintenance_event": fr.get("maintenance_event", False) if fr else False,
+    }
+
+
+async def _try_update_maintenance_schedule(machine, db: AsyncSession, schedule_days) -> Optional[float]:
+    """Persist date_prochaine_maintenance and return rounded schedule days (non-fatal)."""
+    rounded = round(schedule_days, 1) if schedule_days is not None else None
+    if schedule_days and schedule_days > 0:
+        try:
+            base = machine.date_derniere_maintenance or datetime.now().astimezone()
+            machine.date_prochaine_maintenance = base + timedelta(days=round(schedule_days))
+            await db.commit()
+        except Exception:
+            pass  # never break the response
+    return rounded
+
+
 @router.get("/machines/{machine_id}/unified-health", responses={404: {"description": "Machine non trouvée"}})
 async def get_unified_health(
     machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
@@ -118,56 +187,41 @@ async def get_unified_health(
     if not machine:
         raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
-    interventions_query = select(OrdresIntervention).where(
-        OrdresIntervention.machine_id == machine_id
+    execute_result = await db.execute(
+        select(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
     )
-    execute_result = await db.execute(interventions_query)
     interventions = list(execute_result.scalars().all())
 
     from sqlalchemy import func as sa_func
 
-    wo_query = select(sa_func.count(OrdresTravail.id)).where(
-        OrdresTravail.machine_id == machine_id,
-        cast(OrdresTravail.statut, String).notin_(
-            ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
-        ),
+    wo_result = await db.execute(
+        select(sa_func.count(OrdresTravail.id)).where(
+            OrdresTravail.machine_id == machine_id,
+            cast(OrdresTravail.statut, String).notin_(
+                ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
+            ),
+        )
     )
-    wo_result = await db.execute(wo_query)
     open_wo_count = wo_result.scalar() or 0
 
-    from datetime import datetime, timedelta, timezone
-
     now_dt = datetime.now(timezone.utc)
-    thirty_days_ago = now_dt - timedelta(days=30)
-    recent_count = len(
-        [
-            i
-            for i in interventions
-            if i.date_intervention
-            and (
-                i.date_intervention.replace(tzinfo=timezone.utc)
-                if i.date_intervention.tzinfo is None
-                else i.date_intervention
-            )
-            > thirty_days_ago
-        ]
-    )
+    recent_count = _count_recent_interventions(interventions, now_dt - timedelta(days=30))
 
-    # Query telemetry history; derive scalars from latest entry or use defaults
     telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
 
     if telemetry_entries:
         latest = telemetry_entries[-1]
-        _air = float(latest.air_temperature)
-        _proc = float(latest.process_temperature)
-        _rpm = int(latest.rotational_speed)
-        _torq = float(latest.torque)
-        _wear = float(latest.tool_wear)
+        sensors = (
+            float(latest.air_temperature),
+            float(latest.process_temperature),
+            int(latest.rotational_speed),
+            float(latest.torque),
+            float(latest.tool_wear),
+        )
     else:
-        _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
+        sensors = (300.0, 310.0, 1500, 40.0, 0.0)
+    _air, _proc, _rpm, _torq, _wear = sensors
 
-    # Try ML microservice for DST fusion.
-    # include_shap=True: unified-health is the detailed view and needs explanations.
     fusion_result: Optional[Dict] = None
     try:
         if await is_ml_service_available():
@@ -193,94 +247,33 @@ async def get_unified_health(
         fusion_result=fusion_result,
     )
 
-    # Build unified-health response shape (superset of /prediction)
-    response = {
-        "machine_id": machine_id,
-        "machine_name": machine.nom,
-        "unified_health_score": prediction.get(
-            "health_score", prediction.get("unified_health_score", 0.0)
-        ),
-        "score_source": prediction.get("health_breakdown", {}).get(
-            "score_source", "fallback_additive"
-        ),
-        "dst_verdict": prediction.get("health_breakdown", {}).get("dst_verdict"),
-        "conflict_factor_K": prediction.get("health_breakdown", {}).get(
-            "conflict_factor_K"
-        ),
-        "kalman_hi": fusion_result.get("kalman_hi") if fusion_result else None,
-        "kalman_rul": fusion_result.get("kalman_rul") if fusion_result else None,
-        "sensor_fault_flag": fusion_result.get("sensor_fault_flag", False)
-        if fusion_result
-        else False,
-        "model_outputs": fusion_result.get("model_outputs") if fusion_result else None,
-        "rul_days": prediction.get("rul_days"),
-        "failure_probability": prediction.get("failure_probability"),
-        "risk_level": prediction.get("risk_level"),
-        "health_score": prediction.get("health_score"),
-        "health_breakdown": prediction.get("health_breakdown"),
-        "reliability_score": prediction.get("reliability_score"),
-        "explanations": prediction.get("explanations", []),
-        "is_anomaly": prediction.get("is_anomaly", False),
-        "p4_anomaly_score": fusion_result.get("p4_anomaly_score", 0.0)
-        if fusion_result
-        else 0.0,
-        "predicted_priority": prediction.get("predicted_priority"),
-        # Latest telemetry readings
-        "air_temperature": _air,
-        "process_temperature": _proc,
-        "rotational_speed": _rpm,
-        "torque": _torq,
-        "tool_wear": int(_wear),
-        # maintenance_event: true when tool_wear reset detected — Mahal excluded from DST that step
-        "maintenance_event": fusion_result.get("maintenance_event", False)
-        if fusion_result
-        else False,
-    }
+    response = _build_uh_base_response(machine_id, machine, prediction, fusion_result, sensors)
 
-    # Inventory: parts availability for this machine
     try:
         parts_readiness = await get_machine_parts_readiness(machine_id, db)
     except Exception:
         parts_readiness = {"status": "UNKNOWN", "error": "inventory_unavailable"}
     response["parts_readiness"] = parts_readiness
 
-    # P6: maintenance schedule (days until next recommended maintenance)
     _schedule_days = fusion_result.get("p6_schedule_days") if fusion_result else None
-    response["p6_schedule_days"] = (
-        round(_schedule_days, 1) if _schedule_days is not None else None
+    response["p6_schedule_days"] = await _try_update_maintenance_schedule(
+        machine, db, _schedule_days
     )
 
-    # Side-effect: persist date_prochaine_maintenance on every ML call
-    if _schedule_days and _schedule_days > 0:
-        try:
-            base = machine.date_derniere_maintenance or datetime.now().astimezone()
-            machine.date_prochaine_maintenance = base + timedelta(
-                days=round(_schedule_days)
-            )
-            await db.commit()
-        except Exception:
-            pass  # never break the response
-
-    # P7: condition-aware parts demand forecast (from ml-microservice predict_all)
     _parts_demand = fusion_result.get("p7_parts_demand") if fusion_result else None
     response["parts_demand"] = _parts_demand
 
-    # P7: emit PARTS_SHORTAGE alert if shortfall detected (non-fatal, deduped)
     try:
         from modules.ml.services.parts_alerts import emit_shortfall_alert
 
         await emit_shortfall_alert(machine_id, _parts_demand, db)
     except Exception:
-        pass  # alert failure never breaks the response
+        pass
 
-    # Post-maintenance recovery: compare current unified_health_score against
-    # the snapshot taken at the most recent work order's creation.
     try:
         from services.ml.recovery import PostMaintenanceRecoveryService
 
-        recovery = await PostMaintenanceRecoveryService(
-            db
-        ).get_latest_recovery_for_machine(
+        recovery = await PostMaintenanceRecoveryService(db).get_latest_recovery_for_machine(
             machine_id=machine_id,
             current_score=response.get("unified_health_score"),
         )
@@ -288,7 +281,6 @@ async def get_unified_health(
     except Exception:
         response["recovery"] = None
 
-    # Sensor status — best-effort, never raises
     try:
         response["sensor_status"] = build_sensor_status(
             machine.type or "",

@@ -147,13 +147,50 @@ app.add_middleware(
 
 
 # Auto-discover and include all routers from the local `routers` package
+def _try_include_router(app: FastAPI, attr, module_name: str, attr_name: str, logger) -> int:
+    """Include one router attribute (APIRouter or list thereof). Returns count included."""
+    if isinstance(attr, APIRouter):
+        if "auth" in module_name:
+            app.include_router(attr, prefix="/api/v1/auth")
+        else:
+            app.include_router(attr)
+        logger.info("Included router: %s.%s", module_name, attr_name)
+        return 1
+    if isinstance(attr, (list, tuple)):
+        count = 0
+        for idx, item in enumerate(attr):
+            if isinstance(item, APIRouter):
+                app.include_router(item)
+                count += 1
+                logger.info(
+                    "Included router from list: %s.%s[%d]", module_name, attr_name, idx
+                )
+        return count
+    return 0
+
+
+def _process_module(app: FastAPI, module_name: str, logger) -> int:
+    """Import one module and include all router variables found. Returns count included."""
+    try:
+        # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.walk_packages() enumerating the local routers/ package, never user input
+        module = importlib.import_module(module_name)  # fmt: skip
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Failed to import module '%s': %s", module_name, exc)
+        return 0
+    count = 0
+    for attr_name in ("router", "admin_router"):
+        if not hasattr(module, attr_name):
+            continue
+        count += _try_include_router(app, getattr(module, attr_name), module_name, attr_name, logger)
+    return count
+
+
 def include_routers_from_package(app: FastAPI, package_name: str = "routers") -> None:
     """Discover and include all APIRouter objects from a package.
 
     This scans the given package (and subpackages) for module-level variables that
     are instances of FastAPI's APIRouter. It supports "router", "admin_router" names.
     """
-
     logger = logging.getLogger(__name__)
 
     try:
@@ -167,42 +204,9 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
     for _finder, module_name, is_pkg in pkgutil.walk_packages(
         pkg.__path__, pkg.__name__ + "."
     ):
-        # Only import leaf modules; subpackages will be walked automatically
         if is_pkg:
             continue
-        try:
-            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.walk_packages() enumerating the local routers/ package, never user input
-            module = importlib.import_module(module_name)  # fmt: skip
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.warning("Failed to import module '%s': %s", module_name, exc)
-            continue
-
-        # Check for router variable names: router and admin_router
-        for attr_name in ("router", "admin_router"):
-            if not hasattr(module, attr_name):
-                continue
-
-            attr = getattr(module, attr_name)
-
-            if isinstance(attr, APIRouter):
-                # Add /api/v1/auth prefix for auth router
-                if "auth" in module_name:
-                    app.include_router(attr, prefix="/api/v1/auth")
-                else:
-                    app.include_router(attr)
-                discovered += 1
-                logger.info("Included router: %s.%s", module_name, attr_name)
-            elif isinstance(attr, (list, tuple)):
-                for idx, item in enumerate(attr):
-                    if isinstance(item, APIRouter):
-                        app.include_router(item)
-                        discovered += 1
-                        logger.info(
-                            "Included router from list: %s.%s[%d]",
-                            module_name,
-                            attr_name,
-                            idx,
-                        )
+        discovered += _process_module(app, module_name, logger)
 
     if discovered == 0:
         logger.debug("No routers discovered in package '%s'", package_name)
