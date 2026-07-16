@@ -103,6 +103,58 @@ async def _fetch_consumed_summary(db: AsyncSession, itv) -> str | None:
         return None
 
 
+def _itv_str(itv, attr, default="N/A"):
+    """Return attribute from intervention ORM, or default for falsy/absent values."""
+    return (getattr(itv, attr, None) or default) if itv else default
+
+
+def _autofit_columns(worksheet) -> None:
+    """Set each Excel column width to fit its longest value (max 60 chars)."""
+    for col_cells in worksheet.columns:
+        max_length = max(
+            (len(str(cell.value)) for cell in col_cells if cell.value),
+            default=0,
+        )
+        worksheet.column_dimensions[col_cells[0].column_letter].width = min(max_length + 4, 60)
+
+
+def _build_export_flat_row(wo, m_nom, u_nom, u_email, itv, consumed_summary, duration_min) -> dict:
+    """Build the flat dict used as a single Excel row for a work-order export."""
+    _fmt = lambda d: d.strftime("%Y-%m-%d %H:%M") if d else "N/A"  # noqa: E731
+    return {
+        "ID OT": wo.id,
+        "Titre": wo.titre or "N/A",
+        "Machine": m_nom or "N/A",
+        "Technicien": u_nom or "N/A",
+        "Email Technicien": u_email or "N/A",
+        "Date Création": _fmt(wo.created_at),
+        "Date Début": _fmt(wo.date_debut),
+        "Date Fin": _fmt(wo.date_fin),
+        "Durée (min)": duration_min,
+        "Statut OT": wo.statut,
+        "Priorité": wo.priorite,
+        "Rapport Brut": wo.rapport or "N/A",
+        "ID Intervention": itv.id if itv else "N/A",
+        "Priorité Intervention": _itv_str(itv, "priority"),
+        "Symptômes": _itv_str(itv, "symptoms"),
+        "Impact": _itv_str(itv, "impact"),
+        "Fréquence": _itv_str(itv, "frequency"),
+        "Score de Risque": _itv_str(itv, "risk_score"),
+        "Type d'intervention": _itv_str(itv, "intervention_type"),
+        "État Machine Après": _itv_str(itv, "machine_status_after"),
+        "PLAN - Hypothèse de départ": _itv_str(itv, "plan_hypothesis"),
+        "DO - Catégorie Cause Racine": _itv_str(itv, "root_cause_category"),
+        "DO - Description Cause Racine": _itv_str(itv, "root_cause_description"),
+        "DO - Rapport d'intervention": _itv_str(itv, "actions_performed"),
+        "DO - Pièces Remplacées": consumed_summary or _itv_str(itv, "legacy_parts_text"),
+        "DO - Outils Utilisés": _itv_str(itv, "tools_used"),
+        "CHECK - Problème Résolu?": "OUI" if _itv_str(itv, "check_resolved", False) else "NON",
+        "CHECK - Méthode de Vérification": _itv_str(itv, "check_verification_method"),
+        "ACT - Actions Préventives": _itv_str(itv, "act_preventive_actions"),
+        "ACT - Recommandations": _itv_str(itv, "act_recommendations"),
+    }
+
+
 @router.get(
     "",
     responses={
@@ -206,80 +258,24 @@ async def export_cheftech_work_order_report(
 
         result = await db.execute(query)
         row = result.first()
-
         if not row:
             raise HTTPException(status_code=404, detail="Work order not found")
 
         wo, m_nom, u_nom, u_email, itv = row
-
-        def itv_get(attr, default="N/A"):
-            return getattr(itv, attr, None) or default if itv else default
-
         consumed_summary = await _fetch_consumed_summary(db, itv)
+        duration_min = (
+            int((wo.date_fin - wo.date_debut).total_seconds() / 60)
+            if wo.date_fin and wo.date_debut
+            else "N/A"
+        )
 
-        duration_min = "N/A"
-        if wo.date_fin and wo.date_debut:
-            duration_min = int((wo.date_fin - wo.date_debut).total_seconds() / 60)
-
-        flat_row = {
-            # Work Order Info
-            "ID OT": wo.id,
-            "Titre": wo.titre or "N/A",
-            "Machine": m_nom or "N/A",
-            "Technicien": u_nom or "N/A",
-            "Email Technicien": u_email or "N/A",
-            "Date Création": wo.created_at.strftime("%Y-%m-%d %H:%M")
-            if wo.created_at
-            else "N/A",
-            "Date Début": wo.date_debut.strftime("%Y-%m-%d %H:%M")
-            if wo.date_debut
-            else "N/A",
-            "Date Fin": wo.date_fin.strftime("%Y-%m-%d %H:%M")
-            if wo.date_fin
-            else "N/A",
-            "Durée (min)": duration_min,
-            "Statut OT": wo.statut,
-            "Priorité": wo.priorite,
-            "Rapport Brut": wo.rapport or "N/A",
-            # Intervention
-            "ID Intervention": itv.id if itv else "N/A",
-            "Priorité Intervention": itv_get("priority"),
-            "Symptômes": itv_get("symptoms"),
-            "Impact": itv_get("impact"),
-            "Fréquence": itv_get("frequency"),
-            "Score de Risque": itv_get("risk_score"),
-            # PDCA
-            "Type d'intervention": itv_get("intervention_type"),
-            "État Machine Après": itv_get("machine_status_after"),
-            "PLAN - Hypothèse de départ": itv_get("plan_hypothesis"),
-            "DO - Catégorie Cause Racine": itv_get("root_cause_category"),
-            "DO - Description Cause Racine": itv_get("root_cause_description"),
-            "DO - Rapport d'intervention": itv_get("actions_performed"),
-            "DO - Pièces Remplacées": (
-                consumed_summary or itv_get("legacy_parts_text") or "N/A"
-            ),
-            "DO - Outils Utilisés": itv_get("tools_used"),
-            "CHECK - Problème Résolu?": "OUI"
-            if itv_get("check_resolved", False)
-            else "NON",
-            "CHECK - Méthode de Vérification": itv_get("check_verification_method"),
-            "ACT - Actions Préventives": itv_get("act_preventive_actions"),
-            "ACT - Recommandations": itv_get("act_recommendations"),
-        }
-
+        flat_row = _build_export_flat_row(wo, m_nom, u_nom, u_email, itv, consumed_summary, duration_min)
         df = pd.DataFrame([flat_row])
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Rapport Intervention", index=False)
-            worksheet = writer.sheets["Rapport Intervention"]
-            for col_cells in worksheet.columns:
-                max_length = max(
-                    (len(str(cell.value)) for cell in col_cells if cell.value),
-                    default=0,
-                )
-                col_letter = col_cells[0].column_letter
-                worksheet.column_dimensions[col_letter].width = min(max_length + 4, 60)
+            _autofit_columns(writer.sheets["Rapport Intervention"])
 
         output.seek(0)
         filename = f"Rapport_OT_{order_id}_{datetime.now().strftime('%Y%m%d')}.xlsx"

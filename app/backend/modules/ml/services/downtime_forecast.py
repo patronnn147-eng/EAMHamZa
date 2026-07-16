@@ -35,6 +35,27 @@ def estimate_downtime_hours(
     }
 
 
+def _valid_cache(cache_key: str, now: datetime) -> bool:
+    """Return True if a valid, non-expired cache entry exists for cache_key."""
+    ts = _DOWNTIME_CACHE["timestamp"].get(cache_key)
+    return (
+        ts is not None
+        and _DOWNTIME_CACHE["data"].get(cache_key) is not None
+        and (now - ts).total_seconds() < _DOWNTIME_CACHE["ttl"]
+    )
+
+
+def _avg_from_wos(wos) -> float:
+    """Compute average repair hours from a list of closed WOs; returns 8.0 as default."""
+    durations = [
+        (wo.date_fin - wo.date_debut).total_seconds() / 3600.0
+        for wo in wos
+        if wo.date_fin and wo.date_debut
+        and 0 < (wo.date_fin - wo.date_debut).total_seconds() / 3600.0 <= 168
+    ]
+    return sum(durations) / len(durations) if durations else 8.0
+
+
 async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     """
     Async wrapper. Fetches latest MlPredictionLog per machine, computes avg_repair_hours
@@ -48,12 +69,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
 
     now = datetime.now(timezone.utc)
     cache_key = str(horizon_days)
-    ts = _DOWNTIME_CACHE["timestamp"].get(cache_key)
-    if (
-        ts is not None
-        and _DOWNTIME_CACHE["data"].get(cache_key) is not None
-        and (now - ts).total_seconds() < _DOWNTIME_CACHE["ttl"]
-    ):
+    if _valid_cache(cache_key, now):
         return _DOWNTIME_CACHE["data"][cache_key]
 
     # avg_repair_hours from closed WOs
@@ -70,16 +86,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
             )
             .limit(200)
         )
-        wos = wo_result.scalars().all()
-        if wos:
-            durations = []
-            for wo in wos:
-                if wo.date_fin and wo.date_debut:
-                    h = (wo.date_fin - wo.date_debut).total_seconds() / 3600.0
-                    if 0 < h <= 168:  # cap at 1 week
-                        durations.append(h)
-            if durations:
-                avg_repair = sum(durations) / len(durations)
+        avg_repair = _avg_from_wos(wo_result.scalars().all())
     except Exception:
         pass
 
@@ -109,13 +116,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
         rul = float(log.rul_days or 90)
         prob = float(log.failure_probability or 0)
         est = estimate_downtime_hours(rul, prob, horizon_days, avg_repair)
-        results.append(
-            {
-                "machine_id": mid,
-                "machine_name": machine_names.get(mid, f"Machine {mid}"),
-                **est,
-            }
-        )
+        results.append({"machine_id": mid, "machine_name": machine_names.get(mid, f"Machine {mid}"), **est})
 
     results.sort(key=lambda x: x["p_failure"], reverse=True)
     total = round(sum(r["expected_downtime_hours"] for r in results), 2)

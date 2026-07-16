@@ -165,38 +165,15 @@ async def start_work_order(
 ):
     """TECHNICIEN: Start an assigned work order"""
     try:
-        # Check if work order exists and belongs to this technician
-        wo_result = await db.execute(
+        wo = (await db.execute(
             select(OrdresTravail).where(OrdresTravail.id == order_id)
-        )
-        wo = wo_result.scalar_one_or_none()
+        )).scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
-
-        # Allow if either utilisateur_id matches OR intervention link exists
-        has_access = False
-        if wo.utilisateur_id == current_user.id:
-            has_access = True
-        else:
-            # Check via intervention link
-            int_result = await db.execute(
-                select(OrdresIntervention).where(
-                    OrdresIntervention.ordre_travail_id == order_id,
-                    OrdresIntervention.technician_id == current_user.id,
-                )
-            )
-            if int_result.scalar_one_or_none():
-                has_access = True
-
-        if not has_access:
-            raise HTTPException(
-                status_code=403, detail="You can only start work orders assigned to you"
-            )
-
+        if not await _check_wo_access(db, wo, current_user.id, order_id):
+            raise HTTPException(status_code=403, detail="You can only start work orders assigned to you")
         if wo.statut not in ["EN_ATTENTE", "ASSIGNÉ", "ASSIGNED"]:
-            raise HTTPException(
-                status_code=400, detail="Only pending/assigned orders can be started"
-            )
+            raise HTTPException(status_code=400, detail="Only pending/assigned orders can be started")
 
         previous_statut = wo.statut
         now = datetime.now(timezone.utc)
@@ -204,35 +181,14 @@ async def start_work_order(
         if not wo.date_debut:
             wo.date_debut = now
 
-        # Update linked intervention if exists
-        int_result = await db.execute(
-            select(OrdresIntervention).where(
-                OrdresIntervention.ordre_travail_id == order_id
-            )
-        )
-        intervention = int_result.scalar_one_or_none()
+        intervention = (await db.execute(
+            select(OrdresIntervention).where(OrdresIntervention.ordre_travail_id == order_id)
+        )).scalar_one_or_none()
         if intervention:
-            intervention.statut = "EN_COURS"
-            if not intervention.date_debut:
-                intervention.date_debut = now
+            _update_intervention_on_start(intervention, now)
 
         await db.commit()
-
-        try:
-            await AuditService(db).log_update(
-                entity_type=AuditEntityType.WORK_ORDER,
-                entity_id=order_id,
-                old_values={"statut": previous_statut},
-                new_values={"statut": OrdreStatut.IN_PROGRESS},
-                user_id=current_user.id,
-                user_name=current_user.nom,
-                entity_name=wo.titre,
-            )
-        except Exception:
-            logger.warning(
-                "Audit log failed for technician start work order %s", order_id
-            )
-
+        await _try_audit_start(db, order_id, previous_statut, wo, current_user.id, current_user.nom)
         return {"message": "Work order started", "statut": OrdreStatut.IN_PROGRESS}
     except HTTPException:
         raise
@@ -240,6 +196,59 @@ async def start_work_order(
         await db.rollback()
         logger.exception(f"Error starting work order: {str(e)}")
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
+
+
+def _update_intervention_on_start(intervention: OrdresIntervention, now) -> None:
+    """Set intervention status and start date when a WO is started."""
+    intervention.statut = "EN_COURS"
+    if not intervention.date_debut:
+        intervention.date_debut = now
+
+
+async def _try_audit_start(
+    db: AsyncSession, order_id: int, previous_statut: str, wo, user_id: int, nom: str
+) -> None:
+    """Fire-and-forget audit log for WO start."""
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.WORK_ORDER,
+            entity_id=order_id,
+            old_values={"statut": previous_statut},
+            new_values={"statut": OrdreStatut.IN_PROGRESS},
+            user_id=user_id,
+            user_name=nom,
+            entity_name=wo.titre,
+        )
+    except Exception:
+        logger.warning("Audit log failed for technician start work order %s", order_id)
+
+
+async def _snapshot_pre_completion(db: AsyncSession, wo, order_id: int) -> None:
+    """Non-blocking health snapshot before marking WO complete."""
+    try:
+        score = await PostMaintenanceRecoveryService(db).snapshot_health(wo.machine_id)
+        if score is not None:
+            wo.health_score_at_completion = score
+    except Exception as exc:
+        logger.warning("Recovery completion snapshot failed for WO %s: %s", order_id, exc)
+
+
+async def _try_audit_complete(
+    db: AsyncSession, order_id: int, payload, wo, user_id: int, nom: str
+) -> None:
+    """Fire-and-forget audit log for WO completion."""
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.WORK_ORDER,
+            entity_id=order_id,
+            old_values={"statut": "EN_COURS"},
+            new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
+            user_id=user_id,
+            user_name=nom,
+            entity_name=wo.titre,
+        )
+    except Exception:
+        logger.warning("Audit log failed for technician complete work order %s", order_id)
 
 
 async def _check_wo_access(db: AsyncSession, wo: OrdresTravail, user_id: int, order_id: int) -> bool:
@@ -415,14 +424,7 @@ async def complete_work_order(
 
         now = datetime.now(timezone.utc)
 
-        # Non-blocking pre-fix health snapshot
-        try:
-            score = await PostMaintenanceRecoveryService(db).snapshot_health(wo.machine_id)
-            if score is not None:
-                wo.health_score_at_completion = score
-        except Exception as _rec_exc:
-            logger.warning("Recovery completion snapshot failed for WO %s: %s", order_id, _rec_exc)
-
+        await _snapshot_pre_completion(db, wo, order_id)
         wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
@@ -443,17 +445,7 @@ async def complete_work_order(
         await _fulfill_reserved_parts(db, intervention, payload, order_id)
 
         await db.commit()
-
-        try:
-            await AuditService(db).log_update(
-                entity_type=AuditEntityType.WORK_ORDER, entity_id=order_id,
-                old_values={"statut": "EN_COURS"},
-                new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
-                user_id=current_user.id, user_name=current_user.nom, entity_name=wo.titre,
-            )
-        except Exception:
-            logger.warning("Audit log failed for technician complete work order %s", order_id)
-
+        await _try_audit_complete(db, order_id, payload, wo, current_user.id, current_user.nom)
         return {"message": "Work order completed via PDCA form", "statut": _STATUT_TERMINE}
     except HTTPException:
         raise

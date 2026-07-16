@@ -29,78 +29,44 @@ def get_entity_name(obj: Any, model_name: str) -> Optional[str]:
     return f"{model_name} {obj.id}"
 
 
+def _audit_after_flush_listener(session, flush_context):
+    """SQLAlchemy after_flush listener — logs CREATE/UPDATE/DELETE for auditable models."""
+    for obj in session.new:
+        try:
+            mapper = inspect(type(obj))
+            entity_type = AUDITABLE_MODELS.get(mapper.mapped_table.name)
+            if entity_type:
+                logger.info(f"CREATE: {entity_type}:{obj.id}")
+        except Exception as e:
+            logger.warning(f"Error auditing create: {e}")
+
+    for obj in session.dirty:
+        try:
+            mapper = inspect(type(obj))
+            entity_type = AUDITABLE_MODELS.get(mapper.mapped_table.name)
+            if entity_type and session.is_modified(obj):
+                logger.info(f"UPDATE: {entity_type}:{obj.id}")
+        except Exception as e:
+            logger.warning(f"Error auditing update: {e}")
+
+    for obj in session.deleted:
+        try:
+            mapper = inspect(type(obj))
+            entity_type = AUDITABLE_MODELS.get(mapper.mapped_table.name)
+            if entity_type:
+                logger.info(f"DELETE: {entity_type}:{obj.id}")
+        except Exception as e:
+            logger.warning(f"Error auditing delete: {e}")
+
+
 def setup_audit_listeners():
-    """Setup SQLAlchemy event listeners for automatic audit logging
+    """Register the after_flush audit listener on the SQLAlchemy target.
 
-    This function registers before_flush listeners on all mappers
-    to automatically log CREATE, UPDATE, DELETE operations.
+    This function registers an after_flush listener to automatically log
+    CREATE, UPDATE, DELETE operations for auditable models.
     """
-
-    @event.listens_for(
-        inspect(inspect) if hasattr(inspect, "mapped_table") else object, "after_flush"
-    )
-    def audit_after_flush_listener(session, flush_context):
-        """Listen to after_flush to capture changes"""
-
-        for obj in session.new:
-            try:
-                mapper = inspect(type(obj))
-                table_name = mapper.mapped_table.name
-                entity_type = AUDITABLE_MODELS.get(table_name)
-
-                if entity_type:
-                    {
-                        col.key: getattr(obj, col.key)
-                        for col in mapper.columns
-                        if not col.key.startswith("_")
-                    }
-
-                    logger.info(f"CREATE: {entity_type}:{obj.id}")
-            except Exception as e:
-                logger.warning(f"Error auditing create: {e}")
-
-        for obj in session.dirty:
-            try:
-                mapper = inspect(type(obj))
-                table_name = mapper.mapped_table.name
-                entity_type = AUDITABLE_MODELS.get(table_name)
-
-                if entity_type and session.is_modified(obj):
-                    {
-                        col.key: inspect(obj).attrs[col.key].history.deleted[0]
-                        if col.key in inspect(obj).attrs
-                        and inspect(obj).attrs[col.key].history.deleted
-                        else None
-                        for col in mapper.columns
-                        if not col.key.startswith("_")
-                    }
-                    {
-                        col.key: getattr(obj, col.key)
-                        for col in mapper.columns
-                        if not col.key.startswith("_")
-                    }
-
-                    logger.info(f"UPDATE: {entity_type}:{obj.id}")
-            except Exception as e:
-                logger.warning(f"Error auditing update: {e}")
-
-        for obj in session.deleted:
-            try:
-                mapper = inspect(type(obj))
-                table_name = mapper.mapped_table.name
-                entity_type = AUDITABLE_MODELS.get(table_name)
-
-                if entity_type:
-                    {
-                        col.key: getattr(obj, col.key)
-                        for col in mapper.columns
-                        if not col.key.startswith("_")
-                    }
-
-                    logger.info(f"DELETE: {entity_type}:{obj.id}")
-            except Exception as e:
-                logger.warning(f"Error auditing delete: {e}")
-
+    target = inspect(inspect) if hasattr(inspect, "mapped_table") else object
+    event.listen(target, "after_flush", _audit_after_flush_listener)
     logger.info("Audit listeners registered successfully")
 
 

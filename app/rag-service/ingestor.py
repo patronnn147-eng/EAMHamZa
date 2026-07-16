@@ -122,6 +122,39 @@ def extract_image_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
     return [(1, extracted)], True
 
 
+def _has_page_break(run, qn) -> bool:
+    """Return True if a docx run contains a page or column break element."""
+    br = run._r.find(qn("w:br"))
+    return br is not None and br.get(qn("w:type")) in ("page", "column")
+
+
+def _docx_paragraphs_to_pages(doc, qn) -> tuple[list[tuple[int, str]], list[str], int]:
+    """Walk doc.paragraphs, splitting on page breaks; returns (pages, current_parts, page_num)."""
+    pages: list[tuple[int, str]] = []
+    current_parts: list[str] = []
+    page_num = 1
+    for para in doc.paragraphs:
+        for run in para.runs:
+            if _has_page_break(run, qn) and current_parts:
+                pages.append((page_num, "\n".join(current_parts)))
+                page_num += 1
+                current_parts = []
+        if para.text.strip():
+            current_parts.append(para.text.strip())
+    return pages, current_parts, page_num
+
+
+def _docx_tables_to_rows(doc) -> list[str]:
+    """Extract non-empty table cell rows as 'col1 | col2 | …' strings."""
+    rows = []
+    for table in doc.tables:
+        for row in table.rows:
+            row_text = " | ".join(c.text.strip() for c in row.cells if c.text.strip())
+            if row_text:
+                rows.append(row_text)
+    return rows
+
+
 def extract_docx_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
     """Extract text from .docx — paragraphs + table cells, one page per section break."""
     try:
@@ -131,32 +164,10 @@ def extract_docx_text(file_bytes: bytes) -> tuple[list[tuple[int, str]], bool]:
         raise ValueError("python-docx not installed — DOCX ingestion unavailable.")
 
     doc = Document(io.BytesIO(file_bytes))
-    pages: list[tuple[int, str]] = []
-    current_parts: list[str] = []
-    page_num = 1
-
-    for para in doc.paragraphs:
-        # Section/page break → flush current page
-        for run in para.runs:
-            br = run._r.find(qn("w:br"))
-            if br is not None and br.get(qn("w:type")) in ("page", "column"):
-                if current_parts:
-                    pages.append((page_num, "\n".join(current_parts)))
-                    page_num += 1
-                    current_parts = []
-        if para.text.strip():
-            current_parts.append(para.text.strip())
-
-    # Tables
-    for table in doc.tables:
-        for row in table.rows:
-            row_text = " | ".join(c.text.strip() for c in row.cells if c.text.strip())
-            if row_text:
-                current_parts.append(row_text)
-
+    pages, current_parts, page_num = _docx_paragraphs_to_pages(doc, qn)
+    current_parts.extend(_docx_tables_to_rows(doc))
     if current_parts:
         pages.append((page_num, "\n".join(current_parts)))
-
     if not pages:
         raise ValueError("DOCX contains no extractable text.")
     return pages, False

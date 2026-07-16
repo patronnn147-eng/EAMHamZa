@@ -76,6 +76,97 @@ def _new_ref(name: str, machine_id: int) -> str:
     return f"QA-{machine_id}-{_slug(norm)}-{_short_hash(norm, machine_id)}"
 
 
+def _resolve_item(
+    item: Dict[str, Any],
+    pieces_by_id: Dict[int, Dict[str, Any]],
+    pieces_by_ref: Dict[str, Dict[str, Any]],
+    pieces_by_lname: Dict[str, Dict[str, Any]],
+):
+    """Return (resolution, piece_dict) for one recommendation item."""
+    pid = item.get("piece_id")
+    if pid is not None and pid in pieces_by_id:
+        return "id", pieces_by_id[pid]
+    ref = item.get("reference")
+    if ref and ref in pieces_by_ref:
+        return "reference", pieces_by_ref[ref]
+    lname = (item.get("name") or "").strip().lower()
+    if lname and lname in pieces_by_lname:
+        return "name", pieces_by_lname[lname]
+    return "create", None
+
+
+def _process_item(
+    item: Dict[str, Any],
+    machine_id: int,
+    pieces_by_id: Dict[int, Dict[str, Any]],
+    pieces_by_ref: Dict[str, Dict[str, Any]],
+    pieces_by_lname: Dict[str, Dict[str, Any]],
+    stock_by_piece_id: Dict[int, float],
+    planned_creates: Dict[str, Dict[str, Any]],
+    ops: List[Dict[str, Any]],
+) -> None:
+    """Process one recommendation item into ops/planned_creates (mutates both)."""
+    name = item.get("name") or ""
+    expected = float(item.get("expected_qty", 0.0) or 0.0)
+    driver = item.get("driver") or ""
+    resolution, piece = _resolve_item(item, pieces_by_id, pieces_by_ref, pieces_by_lname)
+
+    if resolution == "create":
+        # Never auto-create a piece from a nameless recommendation — the
+        # generated reference would collapse to "QA-{id}-part-…" and the
+        # catalog row would have a blank name. Skip such items entirely.
+        if not name.strip():
+            return
+        new_ref = _new_ref(name, machine_id)
+        min_stock = int(math.ceil(expected))
+        target = _target_qty(expected, min_stock, is_consumable=False)
+        if new_ref in planned_creates:
+            # Merge duplicate within the same run — keep the larger target.
+            # When the larger-target item wins, its driver also wins (category).
+            prev = planned_creates[new_ref]
+            if target > prev["target_qty"]:
+                prev["target_qty"] = target
+                prev["qty_added"] = target  # on_hand for a new piece is 0
+                prev["create_spec"]["min_stock"] = max(prev["create_spec"]["min_stock"], min_stock)
+                prev["create_spec"]["category"] = _driver_to_category(driver)
+            return
+        op: Dict[str, Any] = {
+            "name": name, "driver": driver, "resolution": "create", "action": "created",
+            "piece_id": None, "reference": new_ref,
+            "create_spec": {
+                "reference": new_ref, "name": name,
+                "category": _driver_to_category(driver),
+                "min_stock": min_stock, "default_unit": "pcs", "is_consumable": False,
+            },
+            "on_hand_before": 0.0, "target_qty": target, "qty_added": target,
+            "stock_action": "added" if target > 0 else "skipped",
+        }
+        planned_creates[new_ref] = op
+        ops.append(op)
+        return
+
+    # Existing piece (id / reference / name)
+    min_stock = float(piece.get("min_stock") or 0)  # type: ignore[union-attr]
+    is_consumable = bool(piece.get("is_consumable"))  # type: ignore[union-attr]
+    target = _target_qty(expected, min_stock, is_consumable)
+    on_hand = float(stock_by_piece_id.get(piece["id"], 0.0) or 0.0)  # type: ignore[index]
+    delta = max(target - on_hand, 0)
+    # quantize like the rest of the codebase (2 dp) but keep ints clean
+    if delta <= 0:
+        qty_added: Any = 0
+    elif is_consumable:
+        qty_added = round(delta, 2)
+    else:
+        qty_added = int(delta)
+    ops.append({
+        "name": name, "driver": driver, "resolution": resolution, "action": "existing",
+        "piece_id": piece["id"], "reference": piece.get("reference"),  # type: ignore[index]
+        "on_hand_before": on_hand, "target_qty": target,
+        "qty_added": qty_added,
+        "stock_action": "added" if delta > 0 else "skipped",
+    })
+
+
 def build_execution_plan(
     items: List[Dict[str, Any]],
     machine_id: int,
@@ -106,103 +197,11 @@ def build_execution_plan(
     items with a blank name are skipped (no junk catalog rows).
     """
     ops: List[Dict[str, Any]] = []
-    planned_creates: Dict[str, Dict[str, Any]] = {}  # new_ref → op (intra-run dedup)
-
-    def _resolve(item):
-        pid = item.get("piece_id")
-        if pid is not None and pid in pieces_by_id:
-            return "id", pieces_by_id[pid]
-        ref = item.get("reference")
-        if ref and ref in pieces_by_ref:
-            return "reference", pieces_by_ref[ref]
-        lname = (item.get("name") or "").strip().lower()
-        if lname and lname in pieces_by_lname:
-            return "name", pieces_by_lname[lname]
-        return "create", None
-
+    planned_creates: Dict[str, Dict[str, Any]] = {}
     for item in items:
-        name = item.get("name") or ""
-        expected = float(item.get("expected_qty", 0.0) or 0.0)
-        driver = item.get("driver") or ""
-        resolution, piece = _resolve(item)
-
-        if resolution == "create":
-            # Never auto-create a piece from a nameless recommendation — the
-            # generated reference would collapse to "QA-{id}-part-…" and the
-            # catalog row would have a blank name. Skip such items entirely.
-            if not name.strip():
-                continue
-            new_ref = _new_ref(name, machine_id)
-            min_stock = int(math.ceil(expected))
-            target = _target_qty(expected, min_stock, is_consumable=False)
-            if new_ref in planned_creates:
-                # Merge duplicate within the same run — keep the larger target.
-                # When the larger-target item wins, its driver also wins (category).
-                prev = planned_creates[new_ref]
-                if target > prev["target_qty"]:
-                    prev["target_qty"] = target
-                    prev["qty_added"] = target  # on_hand for a new piece is 0
-                    prev["create_spec"]["min_stock"] = max(
-                        prev["create_spec"]["min_stock"], min_stock
-                    )
-                    prev["create_spec"]["category"] = _driver_to_category(driver)
-                continue
-            op = {
-                "name": name,
-                "driver": driver,
-                "resolution": "create",
-                "action": "created",
-                "piece_id": None,
-                "reference": new_ref,
-                "create_spec": {
-                    "reference": new_ref,
-                    "name": name,
-                    "category": _driver_to_category(driver),
-                    "min_stock": min_stock,
-                    "default_unit": "pcs",
-                    "is_consumable": False,
-                },
-                "on_hand_before": 0.0,
-                "target_qty": target,
-                "qty_added": target,
-                "stock_action": "added" if target > 0 else "skipped",
-            }
-            planned_creates[new_ref] = op
-            ops.append(op)
-            continue
-
-        # Existing piece (id / reference / name)
-        min_stock = float(piece.get("min_stock") or 0)
-        is_consumable = bool(piece.get("is_consumable"))
-        target = _target_qty(expected, min_stock, is_consumable)
-        on_hand = float(stock_by_piece_id.get(piece["id"], 0.0) or 0.0)
-        delta = target - on_hand
-        if delta < 0:
-            delta = 0
-        # quantize like the rest of the codebase (2 dp) but keep ints clean
-        if delta <= 0:
-            qty_added = 0
-        elif is_consumable:
-            qty_added = round(delta, 2)
-        else:
-            qty_added = int(delta)
-        ops.append(
-            {
-                "name": name,
-                "driver": driver,
-                "resolution": resolution,
-                "action": "existing",
-                "piece_id": piece["id"],
-                "reference": piece.get("reference"),
-                "on_hand_before": on_hand,
-                "target_qty": target,
-                "qty_added": qty_added,
-                "stock_action": "added" if delta > 0 else "skipped",
-            }
-        )
-
-    summary = _summarize(ops)
-    return {"ops": ops, "summary": summary}
+        _process_item(item, machine_id, pieces_by_id, pieces_by_ref, pieces_by_lname,
+                      stock_by_piece_id, planned_creates, ops)
+    return {"ops": ops, "summary": _summarize(ops)}
 
 
 def _summarize(ops: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -222,6 +221,24 @@ from sqlalchemy import select  # noqa: E402
 from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 
 logger = logging.getLogger(__name__)
+
+
+def _index_pieces(rows) -> tuple:
+    """Build (pieces_by_id, pieces_by_ref, pieces_by_lname) from Piece ORM rows."""
+    pieces_by_id: dict = {}
+    pieces_by_ref: dict = {}
+    pieces_by_lname: dict = {}
+    for p in rows:
+        pd = {
+            "id": p.id, "reference": p.reference, "name": p.name,
+            "min_stock": p.min_stock, "is_consumable": p.is_consumable,
+            "default_unit": p.default_unit,
+        }
+        pieces_by_id[p.id] = pd
+        if p.reference:
+            pieces_by_ref[p.reference] = pd
+        pieces_by_lname[(p.name or "").strip().lower()] = pd
+    return pieces_by_id, pieces_by_ref, pieces_by_lname
 
 
 async def _preload_maps(
@@ -246,19 +263,7 @@ async def _preload_maps(
         if lnames:
             conds.append(sa_func.lower(Piece.name).in_(lnames))
         rows = (await db.execute(select(Piece).where(or_(*conds)))).scalars().all()
-        for p in rows:
-            pd = {
-                "id": p.id,
-                "reference": p.reference,
-                "name": p.name,
-                "min_stock": p.min_stock,
-                "is_consumable": p.is_consumable,
-                "default_unit": p.default_unit,
-            }
-            pieces_by_id[p.id] = pd
-            if p.reference:
-                pieces_by_ref[p.reference] = pd
-            pieces_by_lname[(p.name or "").strip().lower()] = pd
+        pieces_by_id, pieces_by_ref, pieces_by_lname = _index_pieces(rows)
 
     stock_by_piece_id: Dict[int, float] = {}
     if pieces_by_id:
@@ -273,6 +278,31 @@ async def _preload_maps(
             stock_by_piece_id[piece_id] = float(qty or 0.0)
 
     return pieces_by_id, pieces_by_ref, pieces_by_lname, stock_by_piece_id
+
+
+async def _apply_plan_ops(db: AsyncSession, ops: List[Dict[str, Any]], Piece, StockService) -> None:
+    """Create new pieces and top up stock for each op in the plan."""
+    stock_svc = StockService(db)
+    for op in ops:
+        if op["resolution"] == "create":
+            spec = op["create_spec"]
+            existing = await db.scalar(select(Piece).where(Piece.reference == spec["reference"]))
+            if existing is None:
+                piece = Piece(
+                    reference=spec["reference"], name=spec["name"],
+                    category=spec["category"], min_stock=spec["min_stock"],
+                    default_unit=spec["default_unit"], is_consumable=spec["is_consumable"],
+                )
+                db.add(piece)
+                await db.flush()
+                op["piece_id"] = piece.id
+            else:
+                op["piece_id"] = existing.id
+        if op["stock_action"] == "added" and op["qty_added"] and op["piece_id"] is not None:
+            await stock_svc.add_stock(
+                piece_id=op["piece_id"], quantity=op["qty_added"],
+                reference="quick-action", auto_commit=False,
+            )
 
 
 async def quick_provision_parts(
@@ -334,39 +364,7 @@ async def quick_provision_parts(
         )
 
         # 4. Apply: create pieces, then top up stock.
-        stock_svc = StockService(db)
-        for op in plan["ops"]:
-            if op["resolution"] == "create":
-                spec = op["create_spec"]
-                # Re-check for an existing piece with the generated reference (collision-safe).
-                existing = await db.scalar(
-                    select(Piece).where(Piece.reference == spec["reference"])
-                )
-                if existing is None:
-                    piece = Piece(
-                        reference=spec["reference"],
-                        name=spec["name"],
-                        category=spec["category"],
-                        min_stock=spec["min_stock"],
-                        default_unit=spec["default_unit"],
-                        is_consumable=spec["is_consumable"],
-                    )
-                    db.add(piece)
-                    await db.flush()  # assign id, no commit
-                    op["piece_id"] = piece.id
-                else:
-                    op["piece_id"] = existing.id
-            if (
-                op["stock_action"] == "added"
-                and op["qty_added"]
-                and op["piece_id"] is not None
-            ):
-                await stock_svc.add_stock(
-                    piece_id=op["piece_id"],
-                    quantity=op["qty_added"],
-                    reference="quick-action",
-                    auto_commit=False,
-                )
+        await _apply_plan_ops(db, plan["ops"], Piece, StockService)
 
         result = {
             "success": True,

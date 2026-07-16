@@ -85,6 +85,32 @@ def _model_output_to_bpa(output: Optional[Dict]) -> Dict[str, float]:
     return bpa
 
 
+def _conflict_mass(m1: Dict[str, float], m2: Dict[str, float]) -> float:
+    """Compute Dempster conflict factor K between two singleton-BPAs."""
+    return sum(
+        m1[l1] * m2[l2]
+        for l1 in FRAME for l2 in FRAME
+        if l1 != l2 and l1 != UNKNOWN and l2 != UNKNOWN
+    )
+
+
+def _intersect_label(label1: str, label2: str):
+    """Return intersection label for two singleton/Unknown labels, or None if disjoint."""
+    if label1 == UNKNOWN:
+        return label2
+    if label2 == UNKNOWN:
+        return label1
+    return label1 if label1 == label2 else None
+
+
+def _normalise(bpa: Dict[str, float]) -> None:
+    """Normalise BPA in-place so values sum to 1."""
+    total = sum(bpa.values())
+    if total > 0:
+        for k in FRAME:
+            bpa[k] /= total
+
+
 def _dempster_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
     """
     Combine two BPAs using Dempster's orthogonal sum.
@@ -92,19 +118,7 @@ def _dempster_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
     Returns (combined_bpa, K) where K = conflict factor in [0, 1].
     If K ≥ 1.0 (total conflict), falls back to vacuous BPA.
     """
-    # Conflict K = sum of products where focal elements are disjoint
-    # Our frame is singletons, so two elements are disjoint iff they differ.
-    conflict_mass = 0.0
-    for label1 in FRAME:
-        for label2 in FRAME:
-            if label1 != label2 and label1 != UNKNOWN and label2 != UNKNOWN:
-                conflict_mass += m1[label1] * m2[label2]
-
-    # Also: Unknown × non-Unknown contributes to that non-Unknown (not conflict)
-    # Standard formulation: K = Σ_{A∩B=∅} m1(A)·m2(B) over all focal sets
-    # Since we use singletons + Unknown (= Θ = full frame = no conflict with anything)
-    K = conflict_mass  # Unknown ∩ X = X ≠ ∅ for all X ⊆ Θ, so no conflict there
-
+    K = _conflict_mass(m1, m2)
     if K >= 1.0:
         logger.warning("Total conflict (K=1) in DST combination — returning vacuous BPA")
         return {HEALTHY: 0.0, DEGRADING: 0.0, CRITICAL: 0.0, UNKNOWN: 1.0}, float(K)
@@ -112,26 +126,14 @@ def _dempster_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
     denom = 1.0 - K
     combined = {}
     for target in FRAME:
-        mass = 0.0
-        for label1 in FRAME:
-            for label2 in FRAME:
-                # Intersection of singletons: A ∩ B = A if A==B (both singletons)
-                # Unknown ∩ X = X (Unknown represents full frame Θ)
-                intersection_is_target = (
-                    (label1 == UNKNOWN and label2 == target)
-                    or (label2 == UNKNOWN and label1 == target)
-                    or (label1 == label2 == target)
-                )
-                if intersection_is_target:
-                    mass += m1[label1] * m2[label2]
+        mass = sum(
+            m1[l1] * m2[l2]
+            for l1 in FRAME for l2 in FRAME
+            if _intersect_label(l1, l2) == target
+        )
         combined[target] = mass / denom if denom > 0 else 0.0
 
-    # Normalise
-    total = sum(combined.values())
-    if total > 0:
-        for k in FRAME:
-            combined[k] /= total
-
+    _normalise(combined)
     return combined, float(K)
 
 
@@ -142,37 +144,20 @@ def _yager_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
 
     Returns (combined_bpa, K).
     """
-    # Compute pairwise products
     combined = dict.fromkeys(FRAME, 0.0)
     K = 0.0
 
     for label1 in FRAME:
         for label2 in FRAME:
-            # Determine intersection label
-            if label1 == UNKNOWN:
-                intersect = label2
-            elif label2 == UNKNOWN:
-                intersect = label1
-            elif label1 == label2:
-                intersect = label1
-            else:
-                intersect = None  # disjoint → conflict mass
-
+            intersect = _intersect_label(label1, label2)
             product = m1[label1] * m2[label2]
             if intersect is None:
-                K += product  # conflict accumulates
+                K += product
             else:
                 combined[intersect] += product
 
-    # In Yager's rule: conflict mass goes to Unknown (Θ)
     combined[UNKNOWN] += K
-
-    # Normalise
-    total = sum(combined.values())
-    if total > 0:
-        for k in FRAME:
-            combined[k] /= total
-
+    _normalise(combined)
     return combined, float(K)
 
 

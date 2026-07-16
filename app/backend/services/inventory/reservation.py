@@ -119,6 +119,45 @@ class InventoryReservationService:
 
     # ── Create / fail: try_reserve ──────────────────────────────────────────
 
+    async def _compute_deficits(
+        self, wanted: Dict[int, Decimal], avail_map: Dict
+    ) -> List[DeficitItem]:
+        """Return DeficitItem list for any piece whose available stock < need."""
+        deficits: List[DeficitItem] = []
+        for piece_id, need in wanted.items():
+            avail = avail_map.get(piece_id, {}).get("available", DECIMAL_ZERO)
+            if avail < need:
+                piece_name = await self.db.scalar(
+                    select(Piece.name).where(Piece.id == piece_id)
+                )
+                deficits.append(
+                    DeficitItem(
+                        piece_id=piece_id,
+                        piece_name=piece_name or f"piece-{piece_id}",
+                        requested=need,
+                        available=avail,
+                        deficit=need - avail,
+                    )
+                )
+        return deficits
+
+    def _mark_rows_reserved(self, rows, expires_at, intervention_id: int) -> None:
+        """Mutate each RequiredPiece row and append audit MouvementStock."""
+        for r in rows:
+            r.quantity_reserved = Decimal(str(r.quantity_planned))
+            r.reservation_expires_at = expires_at
+            r.approved = True
+            self.db.add(
+                MouvementStock(
+                    piece_id=r.piece_id,
+                    quantity=r.quantity_reserved,
+                    unit=r.unit,
+                    movement_type="RESERVED",
+                    reference=f"OT-itv-{intervention_id}",
+                    intervention_id=intervention_id,
+                )
+            )
+
     async def try_reserve(
         self,
         intervention_id: int,
@@ -142,10 +181,9 @@ class InventoryReservationService:
             raise ValueError("intervention_id must be positive")
 
         try:
-            # Load target required_pieces
             q = select(RequiredPiece).where(
                 RequiredPiece.intervention_id == intervention_id,
-                RequiredPiece.quantity_reserved == 0,  # only un-reserved rows
+                RequiredPiece.quantity_reserved == 0,
             )
             if required_piece_ids:
                 q = q.where(RequiredPiece.id.in_(required_piece_ids))
@@ -156,55 +194,19 @@ class InventoryReservationService:
                 )
                 return []
 
-            # Group desired qty per piece (in case duplicate piece rows exist)
             wanted: Dict[int, Decimal] = {}
             for r in rows:
-                wanted[r.piece_id] = wanted.get(r.piece_id, DECIMAL_ZERO) + Decimal(
-                    str(r.quantity_planned)
-                )
+                wanted[r.piece_id] = wanted.get(r.piece_id, DECIMAL_ZERO) + Decimal(str(r.quantity_planned))
 
-            # Availability map (one query for all)
             avail_map = await self.get_availability_map(wanted.keys())
-
-            # Compute deficits
-            deficits: List[DeficitItem] = []
-            for piece_id, need in wanted.items():
-                avail = avail_map.get(piece_id, {}).get("available", DECIMAL_ZERO)
-                if avail < need:
-                    piece_name = await self.db.scalar(
-                        select(Piece.name).where(Piece.id == piece_id)
-                    )
-                    deficits.append(
-                        DeficitItem(
-                            piece_id=piece_id,
-                            piece_name=piece_name or f"piece-{piece_id}",
-                            requested=need,
-                            available=avail,
-                            deficit=need - avail,
-                        )
-                    )
+            deficits = await self._compute_deficits(wanted, avail_map)
             if deficits:
                 if auto_commit:
                     await self.db.rollback()
                 raise InsufficientStockError(missing=deficits)
 
-            # Mark reservation
             expires_at = datetime.now(timezone.utc) + timedelta(days=ttl_days)
-            for r in rows:
-                r.quantity_reserved = Decimal(str(r.quantity_planned))
-                r.reservation_expires_at = expires_at
-                r.approved = True
-                # Audit row
-                self.db.add(
-                    MouvementStock(
-                        piece_id=r.piece_id,
-                        quantity=r.quantity_reserved,
-                        unit=r.unit,
-                        movement_type="RESERVED",
-                        reference=f"OT-itv-{intervention_id}",
-                        intervention_id=intervention_id,
-                    )
-                )
+            self._mark_rows_reserved(rows, expires_at, intervention_id)
 
             await self.db.flush()
             if auto_commit:

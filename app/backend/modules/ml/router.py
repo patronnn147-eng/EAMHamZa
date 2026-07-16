@@ -540,6 +540,28 @@ async def get_fleet_critical_predictions(db: Annotated[AsyncSession, Depends(get
     return {"machines": sorted(predictions, key=lambda x: x["rul_days"])}
 
 
+def _fusion_from_log(log) -> Optional[Dict]:
+    """Build a synthetic fusion_result dict from a cached MlPredictionLog row."""
+    if log is None:
+        return None
+    return {
+        "p1_failure_probability": float(log.failure_probability or 0.0),
+        "p3_rul_days": float(log.rul_days) if log.rul_days is not None else None,
+        "p4_is_anomaly": bool(log.is_anomaly or False),
+        "p4_anomaly_score": float(log.anomaly_score or 0.0),
+        "p5_predicted_priority": log.predicted_priority,
+        "p2_failure_types": {},
+    }
+
+
+async def _fetch_interventions(machine_id: int, db: AsyncSession):
+    """Fetch interventions for a single machine directly from DB."""
+    result = await db.execute(
+        select(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
+    )
+    return result.scalars().all()
+
+
 async def _process_single_machine(
     machine: Machines,
     db: AsyncSession,
@@ -559,42 +581,18 @@ async def _process_single_machine(
     if interventions_by_machine is not None:
         interventions = interventions_by_machine.get(machine.id, [])
     else:
-        execute_result = await db.execute(
-            select(OrdresIntervention).where(
-                OrdresIntervention.machine_id == machine.id
-            )
-        )
-        interventions = execute_result.scalars().all()
+        interventions = await _fetch_interventions(machine.id, db)
 
-    # Build synthetic fusion_result from latest MlPredictionLog row.
-    # Avoids per-machine ML microservice calls while giving realistic health scores.
-    # RULCalculator uses failure_probability — health = 100 - failure_prob.
-    fusion_result = None
-    if latest_logs_by_machine is not None:
-        log = latest_logs_by_machine.get(machine.id)
-        if log is not None:
-            fusion_result = {
-                "p1_failure_probability": float(log.failure_probability or 0.0),
-                "p3_rul_days": float(log.rul_days)
-                if log.rul_days is not None
-                else None,
-                "p4_is_anomaly": bool(log.is_anomaly or False),
-                "p4_anomaly_score": float(log.anomaly_score or 0.0),
-                "p5_predicted_priority": log.predicted_priority,
-                "p2_failure_types": {},
-            }
+    log = (latest_logs_by_machine or {}).get(machine.id) if latest_logs_by_machine is not None else None
+    fusion_result = _fusion_from_log(log)
 
-    # Build telemetry_entries list from latest snapshot (for degradation rate).
-    telemetry_entries = []
-    if latest_telemetry_by_machine is not None:
-        entry = latest_telemetry_by_machine.get(machine.id)
-        if entry is not None:
-            telemetry_entries = [entry]
+    entry = (latest_telemetry_by_machine or {}).get(machine.id) if latest_telemetry_by_machine is not None else None
+    telemetry_entries = [entry] if entry is not None else []
 
     pred = RULCalculator.calculate_rul(
         machine,
         list(interventions),
-        telemetry_entries=telemetry_entries if telemetry_entries else None,
+        telemetry_entries=telemetry_entries or None,
         fusion_result=fusion_result,
     )
     pred["zone"] = machine.zone

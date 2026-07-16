@@ -60,6 +60,163 @@ async def get_users_by_role(
         )
 
 
+def _build_update_dict(data: PlanningUpdateData) -> dict:
+    """Map non-None request fields to their DB column values."""
+    d: dict = {}
+    if data.identifiant_planning is not None:
+        d["identifiant_planning"] = data.identifiant_planning
+    if data.date_debut is not None:
+        d["date_debut"] = data.date_debut
+    if data.date_fin is not None:
+        d["date_fin"] = data.date_fin
+    if data.type is not None:
+        d["type"] = data.type
+    if data.shift_type is not None:
+        d["shift_type"] = data.shift_type
+    if data.chef_operation_id is not None:
+        d["chef_operation_id"] = data.chef_operation_id
+    if data.chef_technique_id is not None:
+        d["chef_technique_id"] = data.chef_technique_id
+    if data.zone_travail is not None:
+        d["zone_travail"] = data.zone_travail
+    return d
+
+
+def _compute_user_id_set(data, original_chef_op, original_chef_tech, existing_tech_ids: set) -> set:
+    """Return full set of user IDs that should be assigned after the update."""
+    effective_chef_op = (
+        data.chef_operation_id if data.chef_operation_id is not None else original_chef_op
+    )
+    effective_chef_tech = (
+        data.chef_technique_id if data.chef_technique_id is not None else original_chef_tech
+    )
+    user_ids: set = set()
+    if effective_chef_op:
+        user_ids.add(effective_chef_op)
+    if effective_chef_tech:
+        user_ids.add(effective_chef_tech)
+    if data.technicien_ids:
+        user_ids.update(data.technicien_ids)
+    else:
+        user_ids.update(existing_tech_ids)
+    return user_ids
+
+
+async def _rebuild_user_assignments(
+    db: AsyncSession,
+    planning_id: int,
+    data: PlanningUpdateData,
+    original_chef_op,
+    original_chef_tech,
+) -> List[int]:
+    """Delete and re-insert PlanningUtilisateurs, preserving existing techs when not overridden."""
+    existing_result = await db.execute(
+        select(PlanningUtilisateurs.utilisateur_id).where(
+            PlanningUtilisateurs.planning_id == planning_id
+        )
+    )
+    existing_assigned_ids = {row[0] for row in existing_result.fetchall()}
+    old_chef_ids = set(filter(None, [original_chef_op, original_chef_tech]))
+    existing_tech_ids = existing_assigned_ids - old_chef_ids
+
+    user_ids = _compute_user_id_set(data, original_chef_op, original_chef_tech, existing_tech_ids)
+
+    await db.execute(
+        delete(PlanningUtilisateurs).where(PlanningUtilisateurs.planning_id == planning_id)
+    )
+    now = datetime.now()
+    for user_id in user_ids:
+        db.add(
+            PlanningUtilisateurs(planning_id=planning_id, utilisateur_id=user_id, created_at=now)
+        )
+    await db.commit()
+    return list(user_ids)
+
+
+async def _update_machine_assignments(
+    db: AsyncSession,
+    planning_id: int,
+    data: PlanningUpdateData,
+    existing_machine_ids: List[int],
+) -> List[int]:
+    """Replace machine assignments if data.machine_ids is non-empty; otherwise keep existing."""
+    if data.machine_ids is not None and len(data.machine_ids) > 0:
+        await db.execute(
+            delete(PlanningMachines).where(PlanningMachines.planning_id == planning_id)
+        )
+        now = datetime.now()
+        for machine_id in sorted(set(data.machine_ids)):
+            db.add(
+                PlanningMachines(planning_id=planning_id, machine_id=machine_id, created_at=now)
+            )
+        await db.commit()
+        return sorted(set(data.machine_ids))
+    return existing_machine_ids
+
+
+async def _send_planning_update_notifications(
+    db: AsyncSession,
+    planning_id: int,
+    identifiant_planning,
+    all_assigned_users: List[int],
+    planning_response_data: dict,
+) -> None:
+    """Send planning assignment notifications and emails to all assigned users."""
+    if not all_assigned_users:
+        return
+    await send_planning_notifications(db, planning_id, identifiant_planning, all_assigned_users)
+    users_result = await db.execute(
+        select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users))
+    )
+    users = users_result.scalars().all()
+    recipients = [
+        {"id": u.id, "nom": u.nom, "email": u.email}
+        for u in users
+        if getattr(u, "email", None)
+    ]
+    if recipients:
+        send_planning_assignment_emails.delay(
+            recipients, _serialize_planning_for_email(planning_response_data)
+        )
+
+
+async def _try_audit_update_planning(
+    db: AsyncSession,
+    planning_id: int,
+    original_identifiant,
+    original_date_debut,
+    original_date_fin,
+    original_type,
+    original_shift_type,
+    update_dict: dict,
+    user_id: int,
+    user_name,
+    identifiant_planning,
+) -> None:
+    """Fire-and-forget audit log for planning update."""
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.PLANNING,
+            entity_id=planning_id,
+            old_values={
+                "identifiant_planning": original_identifiant,
+                "date_debut": str(original_date_debut),
+                "date_fin": str(original_date_fin),
+                "type": original_type,
+                "shift_type": original_shift_type,
+            },
+            new_values={
+                k: str(v) if hasattr(v, "isoformat") else v
+                for k, v in update_dict.items()
+            },
+            user_id=user_id,
+            user_name=user_name,
+            entity_name=identifiant_planning,
+        )
+    except Exception:
+        logger.warning("Audit log failed for update planning %s", planning_id)
+
+
 @router.put("/{planning_id}", response_model=PlanningResponse)
 async def update_planning(
     planning_id: int,
@@ -93,32 +250,12 @@ async def update_planning(
         original_zone_travail = getattr(planning, "zone_travail", None)
         original_created_at = planning.created_at
 
-        # Build update dict
-        update_dict = {}
-        if data.identifiant_planning is not None:
-            update_dict["identifiant_planning"] = data.identifiant_planning
-        if data.date_debut is not None:
-            update_dict["date_debut"] = data.date_debut
-        if data.date_fin is not None:
-            update_dict["date_fin"] = data.date_fin
-        if data.type is not None:
-            update_dict["type"] = data.type
-        if data.shift_type is not None:
-            update_dict["shift_type"] = data.shift_type
-        if data.chef_operation_id is not None:
-            update_dict["chef_operation_id"] = data.chef_operation_id
-        if data.chef_technique_id is not None:
-            update_dict["chef_technique_id"] = data.chef_technique_id
-        if data.zone_travail is not None:
-            update_dict["zone_travail"] = data.zone_travail
-
-        # Update planning
+        update_dict = _build_update_dict(data)
         await service.update(planning_id, update_dict)
 
         identifiant_planning = update_dict.get(
             "identifiant_planning", original_identifiant_planning
         )
-
         planning_response_data = {
             "id": planning_id,
             "identifiant_planning": identifiant_planning,
@@ -138,139 +275,33 @@ async def update_planning(
             "machine_ids": [],
         }
 
-        # Fetch existing machine assignments before any modification
         existing_machines_result = await db.execute(
             select(PlanningMachines.machine_id).where(
                 PlanningMachines.planning_id == planning_id
             )
         )
         existing_machine_ids = [row[0] for row in existing_machines_result.fetchall()]
-
-        if data.machine_ids is not None and len(data.machine_ids) > 0:
-            # Explicit non-empty list — replace with new set
-            await db.execute(
-                delete(PlanningMachines).where(
-                    PlanningMachines.planning_id == planning_id
-                )
-            )
-            now = datetime.now()
-            for machine_id in sorted(set(data.machine_ids)):
-                db.add(
-                    PlanningMachines(
-                        planning_id=planning_id,
-                        machine_id=machine_id,
-                        created_at=now,
-                    )
-                )
-            await db.commit()
-            planning_response_data["machine_ids"] = sorted(set(data.machine_ids))
-        else:
-            # Empty or None — preserve existing machines
-            planning_response_data["machine_ids"] = existing_machine_ids
-
-        all_assigned_users: List[int] = []
-
-        # Always rebuild PlanningUtilisateurs to repair any missing rows
-        # Fetch existing assignments so we can preserve technicians when not explicitly changed
-        existing_result = await db.execute(
-            select(PlanningUtilisateurs.utilisateur_id).where(
-                PlanningUtilisateurs.planning_id == planning_id
-            )
-        )
-        existing_assigned_ids = {row[0] for row in existing_result.fetchall()}
-        old_chef_ids = set(
-            filter(None, [original_chef_operation_id, original_chef_technique_id])
-        )
-        existing_tech_ids = existing_assigned_ids - old_chef_ids
-
-        user_ids_set = set()
-
-        # Use new chef IDs if provided, otherwise keep originals
-        effective_chef_op = (
-            data.chef_operation_id
-            if data.chef_operation_id is not None
-            else original_chef_operation_id
-        )
-        effective_chef_tech = (
-            data.chef_technique_id
-            if data.chef_technique_id is not None
-            else original_chef_technique_id
-        )
-        if effective_chef_op:
-            user_ids_set.add(effective_chef_op)
-        if effective_chef_tech:
-            user_ids_set.add(effective_chef_tech)
-
-        # Use new technician list if non-empty, otherwise preserve existing technicians
-        if data.technicien_ids:
-            user_ids_set.update(data.technicien_ids)
-        else:
-            user_ids_set.update(existing_tech_ids)
-
-        all_assigned_users = list(user_ids_set)
-
-        await db.execute(
-            delete(PlanningUtilisateurs).where(
-                PlanningUtilisateurs.planning_id == planning_id
-            )
+        planning_response_data["machine_ids"] = await _update_machine_assignments(
+            db, planning_id, data, existing_machine_ids
         )
 
-        now = datetime.now()
-        for user_id in all_assigned_users:
-            db.add(
-                PlanningUtilisateurs(
-                    planning_id=planning_id,
-                    utilisateur_id=user_id,
-                    created_at=now,
-                )
-            )
+        all_assigned_users = await _rebuild_user_assignments(
+            db, planning_id, data, original_chef_operation_id, original_chef_technique_id
+        )
 
-        await db.commit()
+        await _send_planning_update_notifications(
+            db, planning_id, identifiant_planning, all_assigned_users, planning_response_data
+        )
 
-        if all_assigned_users:
-            await send_planning_notifications(
-                db, planning_id, identifiant_planning, all_assigned_users
-            )
-
-            users_result = await db.execute(
-                select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users))
-            )
-            users = users_result.scalars().all()
-            recipients = [
-                {"id": u.id, "nom": u.nom, "email": u.email}
-                for u in users
-                if getattr(u, "email", None)
-            ]
-            if recipients:
-                send_planning_assignment_emails.delay(
-                    recipients, _serialize_planning_for_email(planning_response_data)
-                )
-
-        # Fetch updated planning with assigned users and machines using helper function
         fresh_planning = await PlanningsService(db).get_by_id(planning_id)
         updated_planning_data = await get_planning_with_users(db, fresh_planning)
 
-        try:
-            await AuditService(db).log_update(
-                entity_type=AuditEntityType.PLANNING,
-                entity_id=planning_id,
-                old_values={
-                    "identifiant_planning": original_identifiant_planning,
-                    "date_debut": str(original_date_debut),
-                    "date_fin": str(original_date_fin),
-                    "type": original_type,
-                    "shift_type": original_shift_type,
-                },
-                new_values={
-                    k: str(v) if hasattr(v, "isoformat") else v
-                    for k, v in update_dict.items()
-                },
-                user_id=current_user.id,
-                user_name=current_user.nom,
-                entity_name=identifiant_planning,
-            )
-        except Exception:
-            logger.warning("Audit log failed for update planning %s", planning_id)
+        await _try_audit_update_planning(
+            db, planning_id,
+            original_identifiant_planning, original_date_debut, original_date_fin,
+            original_type, original_shift_type,
+            update_dict, current_user.id, current_user.nom, identifiant_planning,
+        )
 
         return PlanningResponse(**updated_planning_data)
 

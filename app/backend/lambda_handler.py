@@ -56,6 +56,22 @@ def format_traceback() -> str:
     return traceback.format_exc().replace(chr(10), "\\n")
 
 
+def _scan_seo_routes(dist_path: str) -> set:
+    """Walk dist_path and return the set of /blog* URL paths that contain index.html."""
+    found = set()
+    for root, _dirs, files in os.walk(dist_path):
+        if INDEX_HTML_FILENAME not in files:
+            continue
+        rel_path = os.path.relpath(root, dist_path)
+        if rel_path == ".":
+            continue
+        url_path = "/" + rel_path.replace(os.sep, "/")
+        if url_path == "/blog" or url_path.startswith("/blog/"):
+            found.add(url_path)
+            logger.info(f"Registered SEO route: {url_path}")
+    return found
+
+
 def initialize_dynamic_routes():
     """Initialize dynamic routes by scanning frontend dist directory"""
     global dynamic_routes_initialized, seo_paths
@@ -63,32 +79,13 @@ def initialize_dynamic_routes():
     if dynamic_routes_initialized:
         return
 
-    dist_path = FRONTEND_DIST_DIR
-
     try:
-        if os.path.exists(dist_path):
-            for root, dirs, files in os.walk(dist_path):
-                if INDEX_HTML_FILENAME in files:
-                    rel_path = os.path.relpath(root, dist_path)
-
-                    # Skip root index.html (for SPA)
-                    if rel_path == ".":
-                        continue
-
-                    url_path = "/" + rel_path.replace(os.sep, "/")
-
-                    # Only register SEO paths
-                    if url_path == "/blog" or url_path.startswith("/blog/"):
-                        seo_paths.add(url_path)
-                        logger.info(f"Registered SEO route: {url_path}")
-
+        if os.path.exists(FRONTEND_DIST_DIR):
+            seo_paths = _scan_seo_routes(FRONTEND_DIST_DIR)
         dynamic_routes_initialized = True
         logger.info(f"Dynamic routes initialized: seo_paths={len(seo_paths)}")
-
     except Exception as e:
-        logger.exception(
-            f"Failed to initialize dynamic routes: {e}\n{format_traceback()}"
-        )
+        logger.exception(f"Failed to initialize dynamic routes: {e}\n{format_traceback()}")
         dynamic_routes_initialized = True
 
 

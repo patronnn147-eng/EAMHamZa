@@ -334,6 +334,64 @@ def _run_wave2(telemetry: Dict, features_5: list, failure_prob: float, risk_leve
     }
 
 
+def _p4_norm(name: str, raw: float, thresholds: dict) -> float:
+    """Normalise a P4 component score to [0, 1] using training min/max thresholds."""
+    lo = thresholds.get(f'{name}_min', 0.0)
+    hi = thresholds.get(f'{name}_max', 1.0)
+    if hi == lo:
+        return 0.5
+    return float(np.clip((raw - lo) / (hi - lo), 0.0, 1.0))
+
+
+def _p4_collect_components(p4: dict, x5, scores: dict, weights: dict) -> None:
+    """Populate component_scores/weights dicts in-place for each available P4 detector."""
+    model = p4["model"]
+    p4w = p4["weights"]
+    # 1. Isolation Forest (always available)
+    scores['if'] = float(-model.decision_function(x5)[0])
+    weights['if'] = p4w.get('if', 0.30)
+    # 2. Autoencoder (optional)
+    ae, scaler = p4.get("autoencoder"), p4.get("ae_scaler")
+    if ae is not None and scaler is not None:
+        try:
+            x_s = scaler.transform(x5)
+            ae_raw = float(np.mean((x_s - ae.predict(x_s, verbose=0)) ** 2))
+            scores['ae'] = ae_raw
+            weights['ae'] = p4w.get('ae', 0.40)
+        except Exception:
+            pass
+    # 3. Z-Score
+    t_mean, t_std = p4["training_stats"].get('mean'), p4["training_stats"].get('std')
+    if t_mean and t_std:
+        std_arr = np.array(t_std)
+        std_arr[std_arr == 0] = 1.0
+        scores['zscore'] = float(np.max(np.abs((x5[0] - np.array(t_mean)) / std_arr)))
+        weights['zscore'] = p4w.get('zscore', 0.20)
+    # 4. Cluster Deviation (optional)
+    fp = p4.get("feature_pipeline")
+    if fp is not None:
+        try:
+            import pandas as pd
+            SENSOR_COLS = ['Air temperature [K]', 'Process temperature [K]', 'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]']
+            x_v3 = fp.transform(pd.DataFrame(x5, columns=SENSOR_COLS))
+            if hasattr(x_v3, 'columns') and 'cluster_distance' in x_v3.columns:
+                scores['cluster'] = float(x_v3['cluster_distance'].values[0])
+                weights['cluster'] = p4w.get('cluster', 0.10)
+        except Exception:
+            pass
+
+
+def _p4_if_fallback(model, features: list) -> tuple:
+    """Bare IF fallback when full P4 ensemble fails."""
+    try:
+        x_fb = np.array(features[:5]).reshape(1, -1)
+        pred = model.predict(x_fb)[0]
+        score = float(-model.decision_function(x_fb)[0])
+        return bool(pred == -1), round(score, 4)
+    except Exception:
+        return False, 0.0
+
+
 class MachineLearningService:
     """Unified ML prediction service for all P1-P6 models."""
 
@@ -410,98 +468,25 @@ class MachineLearningService:
         if p4 is None or p4.get("model") is None:
             return False, 0.0
 
-        _ml_model_p4        = p4["model"]
-        _p4_weights         = p4["weights"]
-        _p4_thresholds      = p4["thresholds"]
-        _p4_training_stats  = p4["training_stats"]
-        _p4_ae_scaler       = p4["ae_scaler"]
-        _p4_autoencoder     = p4["autoencoder"]
-        _p4_feature_pipeline = p4.get("feature_pipeline")  # optional — None disables cluster deviation
-
+        _ml_model_p4 = p4["model"]
         try:
-            # Always work with 5 raw sensor features
             x5 = np.array(features[:5], dtype=float).reshape(1, -1)
-
-            component_scores:  dict = {}
+            component_scores: dict = {}
             component_weights: dict = {}
-
-            # -- 1. Isolation Forest (always available) ----------------
-            # decision_function: lower = more anomalous; negate so higher = more anomalous
-            if_raw = float(-_ml_model_p4.decision_function(x5)[0])
-            component_scores['if']  = if_raw
-            component_weights['if'] = _p4_weights.get('if', 0.30)
-
-            # -- 2. Autoencoder (optional - needs TensorFlow) ----------
-            if _p4_autoencoder is not None and _p4_ae_scaler is not None:
-                try:
-                    x_scaled = _p4_ae_scaler.transform(x5)
-                    x_recon  = _p4_autoencoder.predict(x_scaled, verbose=0)
-                    ae_raw   = float(np.mean((x_scaled - x_recon) ** 2))
-                    component_scores['ae']  = ae_raw
-                    component_weights['ae'] = _p4_weights.get('ae', 0.40)
-                except Exception:
-                    pass  # TF inference failed - skip silently
-
-            # -- 3. Z-Score (needs training_stats in pkl) --------------
-            t_mean = _p4_training_stats.get('mean')
-            t_std  = _p4_training_stats.get('std')
-            if t_mean and t_std:
-                mean_arr = np.array(t_mean)
-                std_arr  = np.array(t_std)
-                std_arr[std_arr == 0] = 1.0  # avoid div-by-zero
-                z_scores = np.abs((x5[0] - mean_arr) / std_arr)
-                z_raw    = float(np.max(z_scores))
-                component_scores['zscore']  = z_raw
-                component_weights['zscore'] = _p4_weights.get('zscore', 0.20)
-
-            # -- 4. Cluster Deviation (needs feature pipeline) ---------
-            if _p4_feature_pipeline is not None:
-                try:
-                    import pandas as pd
-                    SENSOR_COLS = [
-                        'Air temperature [K]', 'Process temperature [K]',
-                        'Rotational speed [rpm]', 'Torque [Nm]', 'Tool wear [min]'
-                    ]
-                    df_snap  = pd.DataFrame(x5, columns=SENSOR_COLS)
-                    x_v3     = _p4_feature_pipeline.transform(df_snap)
-                    if hasattr(x_v3, 'columns') and 'cluster_distance' in x_v3.columns:
-                        cluster_raw = float(x_v3['cluster_distance'].values[0])
-                        component_scores['cluster']  = cluster_raw
-                        component_weights['cluster'] = _p4_weights.get('cluster', 0.10)
-                except Exception:
-                    pass  # pipeline inference failed - skip silently
-
-            # -- Normalize each component to [0, 1] using training thresholds
-            def _norm(name: str, raw: float) -> float:
-                lo = _p4_thresholds.get(f'{name}_min', 0.0)
-                hi = _p4_thresholds.get(f'{name}_max', 1.0)
-                if hi == lo:
-                    return 0.5
-                return float(np.clip((raw - lo) / (hi - lo), 0.0, 1.0))
-
-            # -- Weighted ensemble score (renormalized across available components)
+            _p4_collect_components(p4, x5, component_scores, component_weights)
             total_weight = sum(component_weights.values())
             if total_weight == 0:
                 return False, 0.0
-
+            thresholds = p4["thresholds"]
             ensemble_score = sum(
-                _norm(name, score) * component_weights[name]
+                _p4_norm(name, score, thresholds) * component_weights[name]
                 for name, score in component_scores.items()
             ) / total_weight
-
             is_anomaly = ensemble_score > config.p4_anomaly_threshold
             return is_anomaly, round(ensemble_score, 4)
-
         except Exception:
             logger.warning("P4 anomaly detection failed", exc_info=True)
-            # Fallback: bare IF prediction
-            try:
-                x_fb  = np.array(features[:5]).reshape(1, -1)
-                pred  = _ml_model_p4.predict(x_fb)[0]
-                score = float(-_ml_model_p4.decision_function(x_fb)[0])
-                return bool(pred == -1), round(score, 4)
-            except Exception:
-                return False, 0.0
+            return _p4_if_fallback(_ml_model_p4, features)
 
     # ==================== P5: Work Order Priority ====================
     @staticmethod

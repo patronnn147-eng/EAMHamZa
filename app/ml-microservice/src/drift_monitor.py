@@ -106,6 +106,110 @@ class DriftMonitor:
         """Set expected anomaly rate from training (e.g. 0.034 = 3.4% failures)."""
         self.reference_anomaly_rate = rate
 
+    def _ks_severity(self, p_value: float) -> str:
+        """Map KS p-value to drift severity label."""
+        if p_value < self.p_critical:
+            return 'critical'
+        if p_value < self.p_warning:
+            return 'warning'
+        return 'none'
+
+    def _check_feature(self, col: str, current_data: pd.DataFrame) -> Optional[FeatureDriftResult]:
+        """Run KS drift check for one feature; returns None if skipped."""
+        if col not in current_data.columns:
+            logger.warning(f"Feature '{col}' missing from current_data — skipping.")
+            return None
+        ref = self.reference_data[col].dropna().values
+        cur = current_data[col].dropna().values
+        if len(cur) < 30:
+            logger.warning(f"Feature '{col}': only {len(cur)} samples — KS test unreliable.")
+            return None
+        ks_stat, p_value = ks_2samp(ref, cur)
+        ref_mean = float(np.mean(ref))
+        cur_mean = float(np.mean(cur))
+        mean_shift_pct = abs(cur_mean - ref_mean) / (abs(ref_mean) + 1e-8) * 100
+        severity = self._ks_severity(p_value)
+        drift_detected = severity != 'none'
+        result = FeatureDriftResult(
+            feature=col,
+            ks_statistic=round(float(ks_stat), 4),
+            p_value=round(float(p_value), 6),
+            drift_detected=drift_detected,
+            severity=severity,
+            ref_mean=round(ref_mean, 4),
+            cur_mean=round(cur_mean, 4),
+            mean_shift_pct=round(mean_shift_pct, 2),
+        )
+        if drift_detected:
+            logger.warning(
+                f"DRIFT [{severity.upper()}] Feature='{col}' "
+                f"KS={ks_stat:.4f} p={p_value:.6f} "
+                f"mean_shift={mean_shift_pct:.1f}%"
+            )
+        return result
+
+    def _check_prediction_drift(
+        self, current_predictions: Optional[np.ndarray]
+    ) -> Optional[FeatureDriftResult]:
+        """Run KS drift on prediction distribution if reference predictions are stored."""
+        if current_predictions is None or not hasattr(self, '_reference_predictions'):
+            return None
+        ks_stat, p_value = ks_2samp(self._reference_predictions, current_predictions)
+        severity = self._ks_severity(p_value)
+        result = FeatureDriftResult(
+            feature='predictions',
+            ks_statistic=round(float(ks_stat), 4),
+            p_value=round(float(p_value), 6),
+            drift_detected=severity != 'none',
+            severity=severity,
+            ref_mean=round(float(np.mean(self._reference_predictions)), 4),
+            cur_mean=round(float(np.mean(current_predictions)), 4),
+            mean_shift_pct=0.0,
+        )
+        if result.drift_detected:
+            logger.warning(f"PREDICTION DRIFT [{severity.upper()}] p={p_value:.6f}")
+        return result
+
+    def _check_anomaly_rate(
+        self, current_anomaly_flags: Optional[np.ndarray]
+    ):
+        """Check if anomaly rate spiked vs reference. Returns (alert: bool, cur_rate: float|None)."""
+        if current_anomaly_flags is None or self.reference_anomaly_rate is None:
+            return False, None
+        anomaly_rate_cur = float(np.mean(current_anomaly_flags))
+        if anomaly_rate_cur > self.reference_anomaly_rate * ANOMALY_RATE_SPIKE_FACTOR:
+            logger.warning(
+                f"ANOMALY RATE SPIKE: ref={self.reference_anomaly_rate:.3f} "
+                f"cur={anomaly_rate_cur:.3f} "
+                f"(>{ANOMALY_RATE_SPIKE_FACTOR}x threshold)"
+            )
+            return True, anomaly_rate_cur
+        return False, anomaly_rate_cur
+
+    @staticmethod
+    def _build_drift_summary(
+        feature_results: List[FeatureDriftResult],
+        prediction_drift: Optional[FeatureDriftResult],
+        anomaly_rate_cur: Optional[float],
+        anomaly_rate_alert: bool,
+        ref_rate: Optional[float],
+    ) -> str:
+        """Build human-readable drift summary string."""
+        critical = [r.feature for r in feature_results if r.severity == 'critical']
+        warning  = [r.feature for r in feature_results if r.severity == 'warning']
+        summary_parts: List[str] = []
+        if critical:
+            summary_parts.append(f"CRITICAL drift: {', '.join(critical)}")
+        if warning:
+            summary_parts.append(f"WARNING drift: {', '.join(warning)}")
+        if anomaly_rate_alert:
+            summary_parts.append(
+                f"Anomaly rate spike: {anomaly_rate_cur:.3f} (ref={ref_rate:.3f})"
+            )
+        if not summary_parts:
+            summary_parts.append("No drift detected.")
+        return ' | '.join(summary_parts)
+
     def check(
         self,
         current_data: pd.DataFrame,
@@ -126,108 +230,21 @@ class DriftMonitor:
         from datetime import datetime, timezone
         timestamp = datetime.now(timezone.utc).isoformat()
 
-        feature_results = []
-
-        # ── Per-feature KS drift ─────────────────────────────────────────────
+        feature_results: List[FeatureDriftResult] = []
         for col in self.feature_cols:
-            if col not in current_data.columns:
-                logger.warning(f"Feature '{col}' missing from current_data — skipping.")
-                continue
+            r = self._check_feature(col, current_data)
+            if r is not None:
+                feature_results.append(r)
 
-            ref = self.reference_data[col].dropna().values
-            cur = current_data[col].dropna().values
+        prediction_drift = self._check_prediction_drift(current_predictions)
+        anomaly_rate_alert, anomaly_rate_cur = self._check_anomaly_rate(current_anomaly_flags)
 
-            if len(cur) < 30:
-                logger.warning(f"Feature '{col}': only {len(cur)} samples — KS test unreliable.")
-                continue
-
-            ks_stat, p_value = ks_2samp(ref, cur)
-
-            ref_mean = float(np.mean(ref))
-            cur_mean = float(np.mean(cur))
-            mean_shift_pct = abs(cur_mean - ref_mean) / (abs(ref_mean) + 1e-8) * 100
-
-            if p_value < self.p_critical:
-                severity = 'critical'
-                drift_detected = True
-            elif p_value < self.p_warning:
-                severity = 'warning'
-                drift_detected = True
-            else:
-                severity = 'none'
-                drift_detected = False
-
-            result = FeatureDriftResult(
-                feature=col,
-                ks_statistic=round(float(ks_stat), 4),
-                p_value=round(float(p_value), 6),
-                drift_detected=drift_detected,
-                severity=severity,
-                ref_mean=round(ref_mean, 4),
-                cur_mean=round(cur_mean, 4),
-                mean_shift_pct=round(mean_shift_pct, 2),
-            )
-            feature_results.append(result)
-
-            if drift_detected:
-                logger.warning(
-                    f"DRIFT [{severity.upper()}] Feature='{col}' "
-                    f"KS={ks_stat:.4f} p={p_value:.6f} "
-                    f"mean_shift={mean_shift_pct:.1f}%"
-                )
-
-        # ── Prediction drift ─────────────────────────────────────────────────
-        prediction_drift = None
-        if current_predictions is not None and hasattr(self, '_reference_predictions'):
-            ks_stat, p_value = ks_2samp(self._reference_predictions, current_predictions)
-            if p_value < self.p_critical:
-                severity = 'critical'
-            elif p_value < self.p_warning:
-                severity = 'warning'
-            else:
-                severity = 'none'
-            prediction_drift = FeatureDriftResult(
-                feature='predictions',
-                ks_statistic=round(float(ks_stat), 4),
-                p_value=round(float(p_value), 6),
-                drift_detected=severity != 'none',
-                severity=severity,
-                ref_mean=round(float(np.mean(self._reference_predictions)), 4),
-                cur_mean=round(float(np.mean(current_predictions)), 4),
-                mean_shift_pct=0.0,
-            )
-            if prediction_drift.drift_detected:
-                logger.warning(f"PREDICTION DRIFT [{severity.upper()}] p={p_value:.6f}")
-
-        # ── Anomaly rate spike ────────────────────────────────────────────────
-        anomaly_rate_alert = False
-        anomaly_rate_cur   = None
-        if current_anomaly_flags is not None and self.reference_anomaly_rate is not None:
-            anomaly_rate_cur = float(np.mean(current_anomaly_flags))
-            if anomaly_rate_cur > self.reference_anomaly_rate * ANOMALY_RATE_SPIKE_FACTOR:
-                anomaly_rate_alert = True
-                logger.warning(
-                    f"ANOMALY RATE SPIKE: ref={self.reference_anomaly_rate:.3f} "
-                    f"cur={anomaly_rate_cur:.3f} "
-                    f"(>{ANOMALY_RATE_SPIKE_FACTOR}x threshold)"
-                )
-
-        # ── Build report ─────────────────────────────────────────────────────
         n_drifted = sum(r.drift_detected for r in feature_results)
-        any_drift = n_drifted > 0 or (prediction_drift and prediction_drift.drift_detected) or anomaly_rate_alert
-
-        critical = [r.feature for r in feature_results if r.severity == 'critical']
-        warning  = [r.feature for r in feature_results if r.severity == 'warning']
-
-        summary_parts = []
-        if critical:
-            summary_parts.append(f"CRITICAL drift: {', '.join(critical)}")
-        if warning:
-            summary_parts.append(f"WARNING drift: {', '.join(warning)}")
-        if anomaly_rate_alert:
-            summary_parts.append(f"Anomaly rate spike: {anomaly_rate_cur:.3f} (ref={self.reference_anomaly_rate:.3f})")
-        if not summary_parts:
-            summary_parts.append("No drift detected.")
+        any_drift = (
+            n_drifted > 0
+            or (prediction_drift and prediction_drift.drift_detected)
+            or anomaly_rate_alert
+        )
 
         report = DriftReport(
             timestamp=timestamp,
@@ -238,7 +255,10 @@ class DriftMonitor:
             anomaly_rate_alert=anomaly_rate_alert,
             anomaly_rate_ref=self.reference_anomaly_rate,
             anomaly_rate_cur=anomaly_rate_cur,
-            summary=' | '.join(summary_parts),
+            summary=self._build_drift_summary(
+                feature_results, prediction_drift, anomaly_rate_cur,
+                anomaly_rate_alert, self.reference_anomaly_rate,
+            ),
         )
 
         if any_drift:
