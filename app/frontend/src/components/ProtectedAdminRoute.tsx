@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,7 +13,6 @@ const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
   children,
 }) => {
   const { user, loading, isAdmin, login } = useAuth();
-  const location = useLocation();
 
   // Loading state
   if (loading) {
@@ -73,7 +72,7 @@ const ProtectedAdminRoute: React.FC<ProtectedAdminRouteProps> = ({
               </Button>
 
               <Button
-                onClick={() => window.history.back()}
+                onClick={() => globalThis.history.back()}
                 className="w-full"
                 variant="ghost"
               >

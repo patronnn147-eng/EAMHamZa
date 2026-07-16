@@ -67,27 +67,6 @@ export default function CheftechPlanning() {
     }
   };
 
-  const handleSubmitForApproval = async (planningId: number) => {
-    setSubmittingId(planningId);
-    try {
-      await client.apiCall.invoke({
-        url: `/api/v1/plannings/${planningId}/submit`,
-        method: 'POST',
-      });
-      toast({ title: 'Success', description: 'Planning submitted for approval' });
-      fetchPlannings();
-    } catch (error: any) {
-      const detail = error?.data?.detail || error?.response?.data?.detail || error?.message;
-      toast({
-        title: 'Error',
-        description: detail || 'Failed to submit planning',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmittingId(null);
-    }
-  };
-
   const getStatusBadge = (status?: string) => {
     if (!status) return null;
     const config = STATUS_CONFIG[status] || { label: status, className: 'bg-blue-100 text-blue-800' };
@@ -97,7 +76,7 @@ export default function CheftechPlanning() {
   const getDuration = (dateDebut: string, dateFin: string) => {
     const diff = Math.abs(new Date(dateFin).getTime() - new Date(dateDebut).getTime());
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return `${days} day${days !== 1 ? 's' : ''}`;
+    return `${days} day${days === 1 ? '' : 's'}`;
   };
 
   if (loading) {

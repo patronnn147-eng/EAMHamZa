@@ -253,7 +253,7 @@ function PartsReadinessCard({ readiness }: Readonly<{ readiness: MLPredictionFul
                 )}
             </div>
             <p style={{ fontSize: '0.55rem', color: '#475569', marginTop: '0.75rem', fontFamily: 'Space Grotesk, monospace', lineHeight: 1.6 }}>
-                {readiness.parts_checked} part{readiness.parts_checked !== 1 ? 's' : ''} checked for this machine.
+                {readiness.parts_checked} part{readiness.parts_checked === 1 ? '' : 's'} checked for this machine.
             </p>
         </div>
     );
@@ -310,7 +310,7 @@ function PartsDemandCard({
     }
 
     if (!demand || demand.items.length === 0) {
-        if (demand && demand.source === 'p7_model') {
+        if (demand?.source === 'p7_model') {
             return (
                 <div style={{ ...glass, padding: '1.25rem', marginTop: '0.75rem' }}>
                     <h4 style={{ fontSize: '0.65rem', fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.1em', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.5rem' }}>
@@ -483,6 +483,25 @@ function PartsDemandCard({
     );
 }
 
+function formatDeltaLabel(delta: number | null | undefined): string {
+    if (delta == null) return '—';
+    const sign = delta > 0 ? '+' : '';
+    return `${sign}${delta.toFixed(1)} pts`;
+}
+
+function formatDaysLabel(days: number | null | undefined): string | null {
+    if (days == null) return null;
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+}
+
+function formatWindowLabel(withinWindow: boolean, days: number | null | undefined): string {
+    if (withinWindow && days != null) {
+        const remaining = Math.max(0, 7 - days);
+        return `${remaining} day${remaining === 1 ? '' : 's'} remaining`;
+    }
+    return 'Window closed';
+}
+
 function PostMaintenanceRecoveryCard({ recovery }: Readonly<{ recovery: RecoveryInfo }>) {
     const { status, delta, score_before, current_score, days_since_completion, within_recovery_window, work_order_id } = recovery;
 
@@ -509,31 +528,9 @@ function PostMaintenanceRecoveryCard({ recovery }: Readonly<{ recovery: Recovery
         marginTop: '0.75rem',
     };
 
-    let deltaLabel: string;
-    if (delta == null) {
-        deltaLabel = '—';
-    } else {
-        const deltaSign = delta > 0 ? '+' : '';
-        deltaLabel = `${deltaSign}${delta.toFixed(1)} pts`;
-    }
-
-    let daysLabel: string | null;
-    if (days_since_completion == null) {
-        daysLabel = null;
-    } else {
-        const daySuffix = days_since_completion === 1 ? '' : 's';
-        daysLabel = `${days_since_completion} day${daySuffix} ago`;
-    }
-
-    let windowLabel: string;
-    if (within_recovery_window && days_since_completion != null) {
-        const daysRemainingRaw = 7 - days_since_completion;
-        const daysRemaining = Math.max(0, daysRemainingRaw);
-        const remSuffix = daysRemainingRaw === 1 ? '' : 's';
-        windowLabel = `${daysRemaining} day${remSuffix} remaining`;
-    } else {
-        windowLabel = 'Window closed';
-    }
+    const deltaLabel = formatDeltaLabel(delta);
+    const daysLabel = formatDaysLabel(days_since_completion);
+    const windowLabel = formatWindowLabel(within_recovery_window, days_since_completion);
 
     return (
         <div style={cardStyle}>
@@ -563,7 +560,7 @@ function PostMaintenanceRecoveryCard({ recovery }: Readonly<{ recovery: Recovery
                 <div style={{ textAlign: 'left' }}>
                     <p style={{ fontSize: '0.55rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Before</p>
                     <p style={{ fontSize: '1.6rem', fontWeight: 800, color: '#94a3b8', fontFamily: 'Manrope, sans-serif' }}>
-                        {score_before != null ? score_before.toFixed(0) : '—'}
+                        {score_before == null ? '—' : score_before.toFixed(0)}
                     </p>
                 </div>
                 <div style={{ flex: 1, height: 1, background: `linear-gradient(90deg, transparent, ${tone.accent}, transparent)`, position: 'relative' }}>
@@ -578,7 +575,7 @@ function PostMaintenanceRecoveryCard({ recovery }: Readonly<{ recovery: Recovery
                 <div style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: '0.55rem', color: '#64748b', fontFamily: 'Space Grotesk, monospace', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Now</p>
                     <p style={{ fontSize: '1.6rem', fontWeight: 800, color: tone.accent, fontFamily: 'Manrope, sans-serif' }}>
-                        {current_score != null ? current_score.toFixed(0) : '—'}
+                        {current_score == null ? '—' : current_score.toFixed(0)}
                     </p>
                 </div>
             </div>
@@ -628,9 +625,9 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
     }
 
     // Survival probability for chart
-    const survivalPct = mo?.survival?.survival_probability != null
-        ? Math.round(mo.survival.survival_probability * 100)
-        : Math.max(0, Math.round(healthScore));
+    const survivalPct = mo?.survival?.survival_probability == null
+        ? Math.max(0, Math.round(healthScore))
+        : Math.round(mo.survival.survival_probability * 100);
 
     // Behavioral Anomaly (ensemble detector — 4 methods combined)
     const behaviorScore = p?.p4_anomaly_score ?? 0;
@@ -645,11 +642,11 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
     const toolWear = machine.tool_wear ?? p?.tool_wear ?? null;
 
     const sensors = [
-        { label: 'Air Temp',     value: airTemp  != null ? airTemp.toFixed(1)        : '—', unit: 'K',   pct: airTemp  != null ? ((airTemp  - 250) / 100)  * 100 : 0, accent: 'cyan'   as const },
-        { label: 'Process Temp', value: procTemp != null ? procTemp.toFixed(1)       : '—', unit: 'K',   pct: procTemp != null ? ((procTemp - 250) / 150)  * 100 : 0, accent: 'cyan'   as const },
-        { label: 'Rotation',     value: rpm      != null ? rpm.toLocaleString()      : '—', unit: 'RPM', pct: rpm      != null ? (rpm / 10000) * 100               : 0, accent: 'purple' as const },
-        { label: 'Torque',       value: torque   != null ? torque.toFixed(1)         : '—', unit: 'Nm',  pct: torque   != null ? (torque / 1000) * 100             : 0, accent: 'cyan'   as const },
-        { label: 'Tool Wear',    value: toolWear != null ? toolWear.toString()       : '—', unit: 'min', pct: toolWear != null ? (toolWear / 300) * 100            : 0, accent: 'purple' as const },
+        { label: 'Air Temp',     value: airTemp  == null ? '—' : airTemp.toFixed(1),        unit: 'K',   pct: airTemp  == null ? 0 : ((airTemp  - 250) / 100)  * 100, accent: 'cyan'   as const },
+        { label: 'Process Temp', value: procTemp == null ? '—' : procTemp.toFixed(1),       unit: 'K',   pct: procTemp == null ? 0 : ((procTemp - 250) / 150)  * 100, accent: 'cyan'   as const },
+        { label: 'Rotation',     value: rpm      == null ? '—' : rpm.toLocaleString(),      unit: 'RPM', pct: rpm      == null ? 0 : (rpm / 10000) * 100,               accent: 'purple' as const },
+        { label: 'Torque',       value: torque   == null ? '—' : torque.toFixed(1),         unit: 'Nm',  pct: torque   == null ? 0 : (torque / 1000) * 100,             accent: 'cyan'   as const },
+        { label: 'Tool Wear',    value: toolWear == null ? '—' : toolWear.toString(),       unit: 'min', pct: toolWear == null ? 0 : (toolWear / 300) * 100,            accent: 'purple' as const },
     ];
 
     // Survival bar chart data (7 bars: today → day 30)
@@ -786,7 +783,7 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
                 <div style={{ ...glass, padding: '1.25rem' }}>
                     <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.4rem' }}>RUL Estimate</p>
                     <p style={{ fontSize: '1.8rem', fontWeight: 900, color: '#bc00ff', fontFamily: 'Manrope, sans-serif' }}>
-                        {rulDays != null ? `${Math.round(rulDays)}` : '—'}
+                        {rulDays == null ? '—' : `${Math.round(rulDays)}`}
                         {rulDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
                     </p>
                     <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>Precision: ±0.8d</p>
@@ -796,7 +793,7 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
                 <div style={{ ...glass, padding: '1.25rem', borderColor: scheduleOverdue ? 'rgba(249,115,22,0.4)' : 'rgba(34,197,94,0.25)' }}>
                     <p style={{ fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.14em', color: '#64748b', fontFamily: 'Space Grotesk, monospace', marginBottom: '0.4rem' }}>Schedule</p>
                     <p style={{ fontSize: '1.8rem', fontWeight: 900, color: scheduleOverdue ? '#f97316' : '#22c55e', fontFamily: 'Manrope, sans-serif' }}>
-                        {scheduleDays != null ? `${Math.round(scheduleDays)}` : '—'}
+                        {scheduleDays == null ? '—' : `${Math.round(scheduleDays)}`}
                         {scheduleDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
                     </p>
                     <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>

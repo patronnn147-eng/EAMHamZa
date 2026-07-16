@@ -1,4 +1,4 @@
-"""add_timer_started_at_to_ot
+﻿"""add_timer_started_at_to_ot
 
 Revision ID: b7c8d9e0f1a3
 Revises: a1b2c3d4e5f6
@@ -30,14 +30,14 @@ def _column_exists(table_name: str, column_name: str) -> bool:
 
 
 def upgrade() -> None:
-    # --- Ordres_travail ---
-    if not _column_exists("ordres_travail", "timer_started_at"):
+    # --- OrdresTravail ---
+    if not _column_exists("OrdresTravail", "timer_started_at"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("timer_started_at", sa.DateTime(timezone=True), nullable=True),
         )
 
 
 def downgrade() -> None:
-    # --- Ordres_travail ---
-    op.drop_column("ordres_travail", "timer_started_at")
+    # --- OrdresTravail ---
+    op.drop_column("OrdresTravail", "timer_started_at")

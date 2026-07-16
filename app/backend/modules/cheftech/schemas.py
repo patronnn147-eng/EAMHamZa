@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -103,7 +103,7 @@ class TechnicianResponse(BaseModel):
 
 
 class DashboardStats(BaseModel):
-    total_ordres_travail: int
+    total_OrdresTravail: int
     ordres_en_attente: int
     ordres_en_cours: int
     total_interventions: int

@@ -1,4 +1,4 @@
-from typing import List, Annotated
+﻿from typing import List, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, func
@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail, OrdreStatut
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail, OrdreStatut
 from models.machines import Machines
 from ..schemas import DashboardStats, DistributionSlice, InterventionDistributions
 from ..dependencies import verify_cheftech
@@ -27,7 +27,7 @@ async def _count_by_column(db: AsyncSession, column) -> List[DistributionSlice]:
     UNSPECIFIED rather than dropped.
     """
     result = await db.execute(
-        select(column, func.count(Ordres_intervention.id)).group_by(column)
+        select(column, func.count(OrdresIntervention.id)).group_by(column)
     )
     slices: dict[str, int] = {}
     for raw_value, count in result.all():
@@ -48,24 +48,24 @@ async def get_dashboard_stats(
     try:
         # Intervention statistics
         total_interventions = await db.scalar(
-            select(func.count(Ordres_intervention.id))
+            select(func.count(OrdresIntervention.id))
         )
         interventions_en_cours = await db.scalar(
-            select(func.count(Ordres_intervention.id)).where(
-                Ordres_intervention.statut == "EN_COURS"
+            select(func.count(OrdresIntervention.id)).where(
+                OrdresIntervention.statut == "EN_COURS"
             )
         )
 
         # Work order statistics
-        total_ordres_travail = await db.scalar(select(func.count(Ordres_travail.id)))
+        total_OrdresTravail = await db.scalar(select(func.count(OrdresTravail.id)))
         ordres_en_attente = await db.scalar(
-            select(func.count(Ordres_travail.id)).where(
-                Ordres_travail.statut == OrdreStatut.SUBMITTED
+            select(func.count(OrdresTravail.id)).where(
+                OrdresTravail.statut == OrdreStatut.SUBMITTED
             )
         )
         ordres_en_cours = await db.scalar(
-            select(func.count(Ordres_travail.id)).where(
-                Ordres_travail.statut.in_(
+            select(func.count(OrdresTravail.id)).where(
+                OrdresTravail.statut.in_(
                     [OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
                 )
             )
@@ -88,7 +88,7 @@ async def get_dashboard_stats(
         return DashboardStats(
             total_interventions=total_interventions or 0,
             interventions_en_cours=interventions_en_cours or 0,
-            total_ordres_travail=total_ordres_travail or 0,
+            total_OrdresTravail=total_OrdresTravail or 0,
             ordres_en_attente=ordres_en_attente or 0,
             ordres_en_cours=ordres_en_cours or 0,
             total_techniciens=total_techniciens or 0,
@@ -112,13 +112,13 @@ async def get_intervention_distributions(
     """
     try:
         return InterventionDistributions(
-            by_status=await _count_by_column(db, Ordres_intervention.statut),
-            by_type=await _count_by_column(db, Ordres_intervention.intervention_type),
+            by_status=await _count_by_column(db, OrdresIntervention.statut),
+            by_type=await _count_by_column(db, OrdresIntervention.intervention_type),
             by_root_cause=await _count_by_column(
-                db, Ordres_intervention.root_cause_category
+                db, OrdresIntervention.root_cause_category
             ),
             by_machine_category=await _count_by_column(
-                db, Ordres_intervention.machine_category
+                db, OrdresIntervention.machine_category
             ),
         )
     except Exception as e:

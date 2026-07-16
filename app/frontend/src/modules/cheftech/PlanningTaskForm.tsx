@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -333,7 +333,7 @@ export default function PlanningTaskForm() {
                 
                 <div className="space-y-2">
                   <Label className="text-slate-300">Technician *</Label>
-                  <Select value={task.technician_id?.toString() || ''} onValueChange={(v) => updateTask(index, 'technician_id', parseInt(v))}>
+                  <Select value={task.technician_id?.toString() || ''} onValueChange={(v) => updateTask(index, 'technician_id', Number.parseInt(v))}>
                     <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
                       <SelectValue placeholder="Select technician" />
                     </SelectTrigger>
@@ -360,7 +360,7 @@ export default function PlanningTaskForm() {
                       Demandez à l'admin de pré-assigner les machines au planning pour filtrer cette liste.
                     </p>
                   )}
-                  <Select value={task.machine_id?.toString() || ''} onValueChange={(v) => updateTask(index, 'machine_id', parseInt(v))}>
+                  <Select value={task.machine_id?.toString() || ''} onValueChange={(v) => updateTask(index, 'machine_id', Number.parseInt(v))}>
                     <SelectTrigger className="bg-slate-800 border-slate-600 text-white">
                       <SelectValue placeholder={(planning.machines || []).length === 0 ? "Aucune machine disponible" : "Sélectionner une machine"} />
                     </SelectTrigger>
@@ -427,3 +427,5 @@ export default function PlanningTaskForm() {
     </div>
   );
 }
+
+

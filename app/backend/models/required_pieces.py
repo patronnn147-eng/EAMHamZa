@@ -1,4 +1,4 @@
-"""RequiredPiece model — pieces planned for a specific intervention.
+﻿"""RequiredPiece model — pieces planned for a specific intervention.
 
 A required_piece row carries:
 - the planned quantity (set at intervention request time)
@@ -32,7 +32,7 @@ class RequiredPiece(Base):
     )
     intervention_id = Column(
         Integer,
-        ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
+        ForeignKey("OrdresIntervention.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

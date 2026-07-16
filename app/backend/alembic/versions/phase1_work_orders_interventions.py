@@ -1,7 +1,7 @@
-"""Phase 1: Work Orders & Interventions workflow
+﻿"""Phase 1: Work Orders & Interventions workflow
 
 Revision ID: phase1_work_orders_interventions
-Revises: update_ordres_travail_chetop
+Revises: update_OrdresTravail_chetop
 Create Date: 2026-02-09
 
 """
@@ -50,45 +50,45 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    # --- ordres_travail (work orders) ---
-    if not _column_exists("ordres_travail", "created_by_id"):
+    # --- OrdresTravail (work orders) ---
+    if not _column_exists("OrdresTravail", "created_by_id"):
         op.add_column(
-            "ordres_travail", sa.Column("created_by_id", sa.Integer(), nullable=True)
+            "OrdresTravail", sa.Column("created_by_id", sa.Integer(), nullable=True)
         )
-    if not _column_exists("ordres_travail", "validated_by_id"):
+    if not _column_exists("OrdresTravail", "validated_by_id"):
         op.add_column(
-            "ordres_travail", sa.Column("validated_by_id", sa.Integer(), nullable=True)
+            "OrdresTravail", sa.Column("validated_by_id", sa.Integer(), nullable=True)
         )
-    if not _column_exists("ordres_travail", "validated_at"):
+    if not _column_exists("OrdresTravail", "validated_at"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("validated_at", sa.DateTime(timezone=True), nullable=True),
         )
-    if not _column_exists("ordres_travail", "assigned_at"):
+    if not _column_exists("OrdresTravail", "assigned_at"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("assigned_at", sa.DateTime(timezone=True), nullable=True),
         )
-    if not _column_exists("ordres_travail", "completed_at"):
+    if not _column_exists("OrdresTravail", "completed_at"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         )
-    if not _column_exists("ordres_travail", "estimated_duration_minutes"):
+    if not _column_exists("OrdresTravail", "estimated_duration_minutes"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("estimated_duration_minutes", sa.Integer(), nullable=True),
         )
 
-    # --- ordres_intervention (interventions) ---
-    if not _column_exists("ordres_intervention", "technicien_id"):
+    # --- OrdresIntervention (interventions) ---
+    if not _column_exists("OrdresIntervention", "technicien_id"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("technicien_id", sa.Integer(), nullable=True),
         )
-    if not _column_exists("ordres_intervention", "statut"):
+    if not _column_exists("OrdresIntervention", "statut"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column(
                 "statut",
                 sa.String(length=20),
@@ -96,27 +96,27 @@ def upgrade() -> None:
                 server_default="EN_ATTENTE",
             ),
         )
-    if not _column_exists("ordres_intervention", "date_debut"):
+    if not _column_exists("OrdresIntervention", "date_debut"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("date_debut", sa.DateTime(timezone=True), nullable=True),
         )
-    if not _column_exists("ordres_intervention", "date_fin"):
+    if not _column_exists("OrdresIntervention", "date_fin"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("date_fin", sa.DateTime(timezone=True), nullable=True),
         )
-    if not _column_exists("ordres_intervention", "updated_at"):
+    if not _column_exists("OrdresIntervention", "updated_at"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    idx_name = op.f("ix_ordres_intervention_technicien_id")
+    idx_name = op.f("ix_OrdresIntervention_technicien_id")
     if not _index_exists(idx_name):
         op.create_index(
             idx_name,
-            "ordres_intervention",
+            "OrdresIntervention",
             ["technicien_id"],
             unique=False,
         )
@@ -124,18 +124,18 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index(
-        op.f("ix_ordres_intervention_technicien_id"), table_name="ordres_intervention"
+        op.f("ix_OrdresIntervention_technicien_id"), table_name="OrdresIntervention"
     )
 
-    op.drop_column("ordres_intervention", "updated_at")
-    op.drop_column("ordres_intervention", "date_fin")
-    op.drop_column("ordres_intervention", "date_debut")
-    op.drop_column("ordres_intervention", "statut")
-    op.drop_column("ordres_intervention", "technicien_id")
+    op.drop_column("OrdresIntervention", "updated_at")
+    op.drop_column("OrdresIntervention", "date_fin")
+    op.drop_column("OrdresIntervention", "date_debut")
+    op.drop_column("OrdresIntervention", "statut")
+    op.drop_column("OrdresIntervention", "technicien_id")
 
-    op.drop_column("ordres_travail", "estimated_duration_minutes")
-    op.drop_column("ordres_travail", "completed_at")
-    op.drop_column("ordres_travail", "assigned_at")
-    op.drop_column("ordres_travail", "validated_at")
-    op.drop_column("ordres_travail", "validated_by_id")
-    op.drop_column("ordres_travail", "created_by_id")
+    op.drop_column("OrdresTravail", "estimated_duration_minutes")
+    op.drop_column("OrdresTravail", "completed_at")
+    op.drop_column("OrdresTravail", "assigned_at")
+    op.drop_column("OrdresTravail", "validated_at")
+    op.drop_column("OrdresTravail", "validated_by_id")
+    op.drop_column("OrdresTravail", "created_by_id")

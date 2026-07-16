@@ -72,15 +72,15 @@ export const SystemAnalytics: React.FC = () => {
       });
       if (res.ok) {
         const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
+        const url = globalThis.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         const dateStr = new Date().toISOString().replace(/[:.]/g, '-');
         a.download = `system_export_${dateStr}.csv`;
         document.body.appendChild(a);
         a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
+        globalThis.URL.revokeObjectURL(url);
+        a.remove();
       } else {
         alert("Erreur lors de l'exportation des données.");
       }
@@ -222,7 +222,7 @@ export const SystemAnalytics: React.FC = () => {
                       label={({name, percent}) => `${name} (${(percent * 100).toFixed(0)}%)`}
                     >
                       {failureData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <RechartsTooltip />

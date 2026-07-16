@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import logging
@@ -8,7 +8,7 @@ from core.celery_app import celery_app
 from core.database import db_manager
 from models.alertes import Alert  # noqa: F401 — registers Alert mapper for string relationships
 from models.machines import Machines
-from models.ordres_travail import Ordres_travail
+from models.OrdresTravail import OrdresTravail
 from sqlalchemy import select, and_
 
 logger = logging.getLogger(__name__)
@@ -45,11 +45,11 @@ async def run_maintenance_check():
         for machine in machines:
             # 2. Check if a preventive order already exists
             # We look for [PRÉVENTIF] in the title for this machine that isn't finished or cancelled
-            order_query = select(Ordres_travail).where(
+            order_query = select(OrdresTravail).where(
                 and_(
-                    Ordres_travail.machine_id == machine.id,
-                    Ordres_travail.titre.like("[PRÉVENTIF]%"),
-                    Ordres_travail.statut.in_(["EN_ATTENTE", "EN_COURS"]),
+                    OrdresTravail.machine_id == machine.id,
+                    OrdresTravail.titre.like("[PRÉVENTIF]%"),
+                    OrdresTravail.statut.in_(["EN_ATTENTE", "EN_COURS"]),
                 )
             )
             order_result = await session.execute(order_query)
@@ -57,7 +57,7 @@ async def run_maintenance_check():
 
             if not existing_order:
                 # 3. Create the preventive work order
-                new_order = Ordres_travail(
+                new_order = OrdresTravail(
                     titre=f"[PRÉVENTIF] Maintenance - {machine.nom}",
                     description=f"Maintenance préventive planifiée automatiquement pour la machine {machine.nom}.",
                     priorite="MOYENNE",

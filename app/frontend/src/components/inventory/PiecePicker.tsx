@@ -205,7 +205,7 @@ export function PiecePicker({
             })}
             {anyExceeds && (
               <p className="text-[11px] text-red-400 font-mono mt-1 px-1 flex items-center gap-1">
-                <span className="text-red-500">▲</span>
+                <span className="text-red-500">▲</span>{' '}
                 Une ou plusieurs quantités dépassent le stock disponible — corriger avant de soumettre.
               </p>
             )}

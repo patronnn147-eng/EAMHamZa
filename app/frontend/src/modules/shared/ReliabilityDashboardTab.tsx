@@ -131,7 +131,7 @@ export const ReliabilityDashboardTab: React.FC = () => {
                     index={1}
                     label="MTTR moyen"
                     icon={Zap}
-                    valueFormatted={avgMttr !== null ? formatDuration(avgMttr) : 'N/A'}
+                    valueFormatted={avgMttr === null ? 'N/A' : formatDuration(avgMttr)}
                     trend={kpiTrends.mttr}
                     targetLabel="Cible 24h"
                     captionSuffix="Temps moyen de réparation"
@@ -140,7 +140,7 @@ export const ReliabilityDashboardTab: React.FC = () => {
                     index={2}
                     label="MTBF moyen"
                     icon={Clock}
-                    valueFormatted={avgMtbf !== null ? formatHours(avgMtbf) : 'N/A'}
+                    valueFormatted={avgMtbf === null ? 'N/A' : formatHours(avgMtbf)}
                     trend={kpiTrends.mtbf}
                     targetLabel="Cible 30j"
                     captionSuffix="Temps entre pannes"
@@ -199,7 +199,7 @@ export const ReliabilityDashboardTab: React.FC = () => {
                                     title={`${goodCount} fiables`}
                                 />
                             )}
-                            {entries.filter((e) => e.metrics.classification === 'Moyen').length > 0 && (
+                            {entries.some((e) => e.metrics.classification === 'Moyen') && (
                                 <div
                                     className="bg-amber-400 rounded-full"
                                     style={{ flex: entries.filter((e) => e.metrics.classification === 'Moyen').length }}

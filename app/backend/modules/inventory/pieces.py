@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 from typing import List, Optional, Annotated
 
@@ -141,8 +141,8 @@ async def list_in_scope_machines(
     """Return machines that are operationally relevant for piece linking.
 
     A machine is "in scope" when at least one of:
-      - it appears in `planning_machines` (active planning), OR
-      - it has any `ordres_travail` row created within the last `days`.
+      - it appears in `PlanningMachines` (active planning), OR
+      - it has any `OrdresTravail` row created within the last `days`.
 
     Used by the admin link-piece-to-machine UI as the default filter — admins
     can toggle to "all machines" if they need to link to one outside scope.
@@ -150,17 +150,17 @@ async def list_in_scope_machines(
     from sqlalchemy import distinct, select
     from datetime import datetime, timedelta, timezone
     from models.machines import Machines
-    from models.planning_machines import Planning_machines
-    from models.ordres_travail import Ordres_travail
+    from models.PlanningMachines import PlanningMachines
+    from models.OrdresTravail import OrdresTravail
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 
     # Subquery 1: machines with active planning entries
-    planned = select(distinct(Planning_machines.machine_id))
+    planned = select(distinct(PlanningMachines.machine_id))
 
     # Subquery 2: machines with recent WO activity
-    recent_wo = select(distinct(Ordres_travail.machine_id)).where(
-        Ordres_travail.created_at >= cutoff
+    recent_wo = select(distinct(OrdresTravail.machine_id)).where(
+        OrdresTravail.created_at >= cutoff
     )
 
     in_scope_ids = planned.union(recent_wo).subquery()

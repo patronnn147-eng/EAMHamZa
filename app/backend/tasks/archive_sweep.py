@@ -1,7 +1,7 @@
-"""Celery tasks for the universal archive lifecycle.
+﻿"""Celery tasks for the universal archive lifecycle.
 
 - `tasks.archive_past_due` — hourly: sweep past-due / terminal-status rows
-  across planning_taches, ordres_travail, ordres_intervention, plannings.
+  across PlanningTaches, OrdresTravail, OrdresIntervention, plannings.
 - `tasks.purge_archive_old` — weekly: hard-delete rows whose `archived_at`
   is older than the retention window (default 30 days).
 """

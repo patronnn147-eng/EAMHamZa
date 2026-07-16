@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+﻿import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
@@ -51,7 +51,7 @@ export function MachineModel({
       );
       shader.vertexShader = shader.vertexShader.replace(
         '#include <begin_vertex>',
-        '#include <begin_vertex>\nvWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;'
+        '#include <begin_vertex>\nvWorldPos = (modelMatrix * vec4(position, 1)).xyz;'
       );
 
       // Fragment: declare uniforms + varying, inject rim after output
@@ -64,10 +64,10 @@ export function MachineModel({
         `#include <dithering_fragment>
         {
           vec3 viewDir = normalize(cameraPosition - vWorldPos);
-          float fresnel = pow(1.0 - clamp(dot(viewDir, normal), 0.0, 1.0), 3.0);
+          float fresnel = pow(1 - clamp(dot(viewDir, normal), 0, 1), 3);
           vec3 rimColor = mix(vec3(0.94, 0.27, 0.27), vec3(0.13, 0.77, 0.37), uHealthScore);
-          float pulse = sin(uTime * 2.0) * 0.5 + 0.5;
-          float rimStrength = 0.25 + pulse * (1.0 - uHealthScore) * 0.35;
+          float pulse = sin(uTime * 2) * 0.5 + 0.5;
+          float rimStrength = 0.25 + pulse * (1 - uHealthScore) * 0.35;
           gl_FragColor.rgb += rimColor * fresnel * rimStrength;
         }`
       );
@@ -119,13 +119,13 @@ export function MachineModel({
 
       {/* Left side panel */}
       <mesh position={[-1.075, 0, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.15, 1.0, 1.05]} />
+        <boxGeometry args={[0.15, 1, 1.05]} />
         <primitive object={bodyMat} attach="material" />
       </mesh>
 
       {/* Right side panel */}
       <mesh position={[1.075, 0, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.15, 1.0, 1.05]} />
+        <boxGeometry args={[0.15, 1, 1.05]} />
         <primitive object={bodyMat} attach="material" />
       </mesh>
 
@@ -157,3 +157,4 @@ export function MachineModel({
     </group>
   );
 }
+

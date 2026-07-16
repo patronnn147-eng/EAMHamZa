@@ -1,6 +1,6 @@
-"""Add planning_taches table for CHEFTECH execution tasks
+﻿"""Add PlanningTaches table for CHEFTECH execution tasks
 
-Revision ID: add_planning_taches
+Revision ID: add_PlanningTaches
 Revises: 3d8edf736d26
 Create Date: 2026-04-29
 """
@@ -9,7 +9,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision = "add_planning_taches"
+revision = "add_PlanningTaches"
 down_revision = "3d8edf736d26"
 branch_labels = None
 depends_on = None
@@ -34,9 +34,9 @@ def _index_exists(index_name: str) -> bool:
 
 
 def upgrade() -> None:
-    if not _table_exists("planning_taches"):
+    if not _table_exists("PlanningTaches"):
         op.create_table(
-            "planning_taches",
+            "PlanningTaches",
             sa.Column(
                 "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
             ),
@@ -61,19 +61,19 @@ def upgrade() -> None:
             ),
         )
 
-    if not _index_exists("ix_planning_taches_planning_id"):
+    if not _index_exists("ix_PlanningTaches_planning_id"):
         op.create_index(
-            "ix_planning_taches_planning_id",
-            "planning_taches",
+            "ix_PlanningTaches_planning_id",
+            "PlanningTaches",
             ["planning_id"],
             unique=False,
         )
 
 
 def downgrade() -> None:
-    if _index_exists("ix_planning_taches_planning_id"):
-        op.drop_index("ix_planning_taches_planning_id", table_name="planning_taches")
-    if _table_exists("planning_taches"):
-        op.drop_table("planning_taches")
+    if _index_exists("ix_PlanningTaches_planning_id"):
+        op.drop_index("ix_PlanningTaches_planning_id", table_name="PlanningTaches")
+    if _table_exists("PlanningTaches"):
+        op.drop_table("PlanningTaches")
     bind = op.get_bind()
     bind.execute(sa.text("DROP TYPE IF EXISTS tasktype"))

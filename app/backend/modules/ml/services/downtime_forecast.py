@@ -1,4 +1,4 @@
-"""
+﻿"""
 Downtime forecast — pure functions.
 Blends RUL proximity and failure probability into p_failure per horizon.
 """
@@ -44,7 +44,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select, func
     from models.ml_prediction_log import MlPredictionLog
     from models.machines import Machines
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
 
     now = datetime.now(timezone.utc)
     cache_key = str(horizon_days)
@@ -60,11 +60,11 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     avg_repair = 8.0
     try:
         wo_result = await db.execute(
-            select(Ordres_travail)
+            select(OrdresTravail)
             .where(
-                Ordres_travail.date_debut.isnot(None),
-                Ordres_travail.date_fin.isnot(None),
-                Ordres_travail.statut.in_(
+                OrdresTravail.date_debut.isnot(None),
+                OrdresTravail.date_fin.isnot(None),
+                OrdresTravail.statut.in_(
                     [OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED]
                 ),
             )

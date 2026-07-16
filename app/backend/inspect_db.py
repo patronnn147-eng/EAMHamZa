@@ -1,4 +1,4 @@
-import os
+﻿import os
 from sqlalchemy import create_engine, inspect
 
 
@@ -13,13 +13,13 @@ def main():
     engine = create_engine(sync_url)
     inspector = inspect(engine)
 
-    columns = inspector.get_columns("ordres_intervention")
-    print("Columns in ordres_intervention:")
+    columns = inspector.get_columns("OrdresIntervention")
+    print("Columns in OrdresIntervention:")
     for col in columns:
         print(f"- {col['name']}")
 
-    columns_ot = inspector.get_columns("ordres_travail")
-    print("\nColumns in ordres_travail:")
+    columns_ot = inspector.get_columns("OrdresTravail")
+    print("\nColumns in OrdresTravail:")
     for col in columns_ot:
         print(f"- {col['name']}")
 

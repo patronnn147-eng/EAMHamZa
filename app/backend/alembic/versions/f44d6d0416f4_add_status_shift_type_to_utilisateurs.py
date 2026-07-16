@@ -1,4 +1,4 @@
-"""add_status_shift_type_to_utilisateurs
+﻿"""add_status_shift_type_to_utilisateurs
 
 Revision ID: f44d6d0416f4
 Revises: b7c8d9e0f1a3
@@ -46,79 +46,79 @@ def upgrade() -> None:
         op.f("ix_ml_prediction_logs_id"), "ml_prediction_logs", ["id"], unique=False
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "statut",
         existing_type=sa.VARCHAR(length=20),
         server_default=None,
         existing_nullable=False,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "created_at",
         existing_type=postgresql.TIMESTAMP(timezone=True),
         server_default=sa.text("now()"),
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "retrained",
         existing_type=sa.BOOLEAN(),
         server_default=None,
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "problem_start_time",
         existing_type=postgresql.TIMESTAMP(),
         type_=sa.DateTime(timezone=True),
         existing_nullable=True,
     )
     op.drop_index(
-        op.f("ix_ordres_intervention_statut"), table_name="ordres_intervention"
+        op.f("ix_OrdresIntervention_statut"), table_name="OrdresIntervention"
     )
     op.drop_index(
-        op.f("ix_ordres_intervention_technicien_id"), table_name="ordres_intervention"
+        op.f("ix_OrdresIntervention_technicien_id"), table_name="OrdresIntervention"
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "priorite",
         existing_type=sa.VARCHAR(),
         server_default=None,
         existing_nullable=False,
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "statut",
         existing_type=sa.VARCHAR(),
         server_default=None,
         existing_nullable=False,
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "date_validation",
         existing_type=postgresql.TIMESTAMP(),
         type_=sa.DateTime(timezone=True),
         existing_nullable=True,
     )
-    op.drop_column("ordres_travail", "created_by_id")
-    op.drop_column("ordres_travail", "validated_at")
-    op.drop_column("ordres_travail", "completed_at")
-    op.drop_column("ordres_travail", "estimated_duration_minutes")
-    op.drop_column("ordres_travail", "validated_by_id")
-    op.drop_column("ordres_travail", "assigned_at")
+    op.drop_column("OrdresTravail", "created_by_id")
+    op.drop_column("OrdresTravail", "validated_at")
+    op.drop_column("OrdresTravail", "completed_at")
+    op.drop_column("OrdresTravail", "estimated_duration_minutes")
+    op.drop_column("OrdresTravail", "validated_by_id")
+    op.drop_column("OrdresTravail", "assigned_at")
     op.drop_index(
-        op.f("ix_planning_machines_machine_id"), table_name="planning_machines"
+        op.f("ix_PlanningMachines_machine_id"), table_name="PlanningMachines"
     )
     op.drop_index(
-        op.f("ix_planning_machines_planning_id"), table_name="planning_machines"
+        op.f("ix_PlanningMachines_planning_id"), table_name="PlanningMachines"
     )
     op.drop_constraint(
-        op.f("uq_planning_machines_planning_machine"),
-        "planning_machines",
+        op.f("uq_PlanningMachines_planning_machine"),
+        "PlanningMachines",
         type_="unique",
     )
     op.create_index(
-        op.f("ix_planning_machines_id"), "planning_machines", ["id"], unique=False
+        op.f("ix_PlanningMachines_id"), "PlanningMachines", ["id"], unique=False
     )
     op.alter_column(
         "plannings",
@@ -225,27 +225,27 @@ def downgrade() -> None:
         type_=sa.VARCHAR(),
         existing_nullable=False,
     )
-    op.drop_index(op.f("ix_planning_machines_id"), table_name="planning_machines")
+    op.drop_index(op.f("ix_PlanningMachines_id"), table_name="PlanningMachines")
     op.create_unique_constraint(
-        op.f("uq_planning_machines_planning_machine"),
-        "planning_machines",
+        op.f("uq_PlanningMachines_planning_machine"),
+        "PlanningMachines",
         ["planning_id", "machine_id"],
         postgresql_nulls_not_distinct=False,
     )
     op.create_index(
-        op.f("ix_planning_machines_planning_id"),
-        "planning_machines",
+        op.f("ix_PlanningMachines_planning_id"),
+        "PlanningMachines",
         ["planning_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_planning_machines_machine_id"),
-        "planning_machines",
+        op.f("ix_PlanningMachines_machine_id"),
+        "PlanningMachines",
         ["machine_id"],
         unique=False,
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column(
             "assigned_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -254,11 +254,11 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("validated_by_id", sa.INTEGER(), autoincrement=False, nullable=True),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column(
             "estimated_duration_minutes",
             sa.INTEGER(),
@@ -267,7 +267,7 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column(
             "completed_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -276,7 +276,7 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column(
             "validated_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -285,65 +285,65 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("created_by_id", sa.INTEGER(), autoincrement=False, nullable=True),
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "date_validation",
         existing_type=sa.DateTime(timezone=True),
         type_=postgresql.TIMESTAMP(),
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "statut",
         existing_type=sa.VARCHAR(),
         server_default=sa.text("'EN_ATTENTE'::character varying"),
         existing_nullable=False,
     )
     op.alter_column(
-        "ordres_travail",
+        "OrdresTravail",
         "priorite",
         existing_type=sa.VARCHAR(),
         server_default=sa.text("'MOYENNE'::character varying"),
         existing_nullable=False,
     )
     op.create_index(
-        op.f("ix_ordres_intervention_technicien_id"),
-        "ordres_intervention",
+        op.f("ix_OrdresIntervention_technicien_id"),
+        "OrdresIntervention",
         ["technicien_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_ordres_intervention_statut"),
-        "ordres_intervention",
+        op.f("ix_OrdresIntervention_statut"),
+        "OrdresIntervention",
         ["statut"],
         unique=False,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "problem_start_time",
         existing_type=sa.DateTime(timezone=True),
         type_=postgresql.TIMESTAMP(),
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "retrained",
         existing_type=sa.BOOLEAN(),
         server_default=sa.text("false"),
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "created_at",
         existing_type=postgresql.TIMESTAMP(timezone=True),
         server_default=None,
         existing_nullable=True,
     )
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "statut",
         existing_type=sa.VARCHAR(length=20),
         server_default=sa.text("'EN_ATTENTE'::character varying"),

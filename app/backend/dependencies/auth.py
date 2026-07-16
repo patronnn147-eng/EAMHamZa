@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-async def get_bearer_token(
+def get_bearer_token(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
 ) -> str:
@@ -48,14 +48,14 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide ou expiré"
         )
 
-    id = payload.get("sub")
-    if not id:
+    user_id = payload.get("sub")
+    if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Token invalide"
         )
 
     # Fetch user from database
-    result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(id)))
+    result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == int(user_id)))
     user = result.scalar_one_or_none()
 
     if not user:
@@ -66,7 +66,7 @@ async def get_current_user(
     return user
 
 
-async def get_admin_user(
+def get_admin_user(
     current_user: Utilisateurs = Depends(get_current_user),
 ) -> Utilisateurs:
     """Dependency to ensure current user has admin role."""
@@ -83,7 +83,7 @@ def require_role(allowed_roles: list):
     Usage: current_user = Depends(require_role([UserRole.ADMIN]))
     """
 
-    async def role_checker(
+    def role_checker(
         current_user: Utilisateurs = Depends(get_current_user),
     ) -> Utilisateurs:
         if current_user.role not in allowed_roles:

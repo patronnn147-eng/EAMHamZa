@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime, timezone
 from typing import List, Annotated
 
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresIntervention import OrdresIntervention
 from models.machines import Machines
 from services.audit import AuditService, AuditEntityType
 from ..schemas import InterventionRequestCreate, InterventionRequestResponse
@@ -37,7 +37,7 @@ async def create_intervention_request(
         if not machine:
             raise HTTPException(status_code=404, detail="Machine not found")
 
-        new_request = Ordres_intervention(
+        new_request = OrdresIntervention(
             machine_id=data.machine_id,
             priority=data.priorite,
             problem_description=data.description,
@@ -108,11 +108,11 @@ async def get_my_intervention_requests(
     """List ChefOp's own intervention requests"""
     try:
         query = (
-            select(Ordres_intervention, Machines.nom.label("machine_nom"))
-            .outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)
-            .where(Ordres_intervention.requested_by == current_user.id)
-            .where(Ordres_intervention.archived_at.is_(None))
-            .order_by(Ordres_intervention.requested_at.desc())
+            select(OrdresIntervention, Machines.nom.label("machine_nom"))
+            .outerjoin(Machines, OrdresIntervention.machine_id == Machines.id)
+            .where(OrdresIntervention.requested_by == current_user.id)
+            .where(OrdresIntervention.archived_at.is_(None))
+            .order_by(OrdresIntervention.requested_at.desc())
         )
 
         result = await db.execute(query)

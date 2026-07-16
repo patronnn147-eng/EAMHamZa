@@ -54,7 +54,7 @@ export default function Login() {
     if (!/[a-z]/.test(password)) {
       return 'Le mot de passe doit contenir au moins une lettre minuscule';
     }
-    if (!/[0-9]/.test(password)) {
+    if (!/\d/.test(password)) {
       return 'Le mot de passe doit contenir au moins un chiffre';
     }
     return null;

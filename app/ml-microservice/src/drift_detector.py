@@ -186,14 +186,18 @@ class DriftDetector:
 
             # PSI — catches distributional shifts beyond mean
             psi = _compute_psi(ref_col, cur_col)
-            psi_drift = psi > PSI_WARNING
-
             # KS test is statistically calibrated (p-value accounts for sample size).
             # PSI is informational only: unreliable at n<500 due to sampling variance.
             feature_drift = ks_drift
             if feature_drift:
                 any_drift = True
 
+            if psi > PSI_CRITICAL:
+                psi_level = "critical"
+            elif psi > PSI_WARNING:
+                psi_level = "warning"
+            else:
+                psi_level = "stable"
             feature_scores.append({
                 "feature":       name,
                 "feature_index": i,
@@ -201,11 +205,7 @@ class DriftDetector:
                 "p_value":       round(float(p_value),  6),
                 "ks_drift":      ks_drift,
                 "psi":           psi,
-                "psi_level":     (
-                    "critical" if psi > PSI_CRITICAL
-                    else "warning" if psi > PSI_WARNING
-                    else "stable"
-                ),
+                "psi_level":     psi_level,
                 "drift":         feature_drift,
             })
 

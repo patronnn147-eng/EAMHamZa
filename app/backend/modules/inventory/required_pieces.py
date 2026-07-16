@@ -1,4 +1,4 @@
-"""Required-pieces router — attach planned pieces to an intervention.
+﻿"""Required-pieces router — attach planned pieces to an intervention.
 
 Called by the intervention-request flow (frontend `PiecePicker`). Each row
 becomes a reservation candidate when the CHEFTECH approves the intervention.
@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from dependencies.auth import require_role
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresIntervention import OrdresIntervention
 from models.pieces import Piece
 from models.required_pieces import RequiredPiece
 from models.utilisateurs import Utilisateurs
@@ -58,7 +58,7 @@ async def attach_required_pieces(
     try:
         # Validate intervention
         intervention = await db.scalar(
-            select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+            select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
         )
         if intervention is None:
             raise HTTPException(status_code=404, detail="Intervention not found")

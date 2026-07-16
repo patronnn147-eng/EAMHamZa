@@ -99,10 +99,10 @@ export const PDCACanbanBoard = () => {
             const kanbanItems: KanbanItem[] = [];
 
             // ── PLAN: ML predictions without active WO ──
-            const ACTIVE_STATUSES = ['DRAFT', 'SUBMITTED', 'APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED'];
+            const ACTIVE_STATUSES = new Set(['DRAFT', 'SUBMITTED', 'APPROVED', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED']);
             predictions.forEach((p: any) => {
                 const hasActiveWO = allWOs.some((wo: any) =>
-                    wo.machine_id === p.machine_id && ACTIVE_STATUSES.includes(wo.statut)
+                    wo.machine_id === p.machine_id && ACTIVE_STATUSES.has(wo.statut)
                 );
                 if (!hasActiveWO && (p.risk_level === 'CRITICAL' || p.risk_level === 'HIGH')) {
                     kanbanItems.push({
@@ -265,73 +265,69 @@ export const PDCACanbanBoard = () => {
         return map[current] || null;
     };
 
-    // ── PLAN actions ──
-    const handlePlanAction = async (item: KanbanItem) => {
-        // Predictions: open WO creation form (re-use multi-section technician form)
-        if (item.type === 'PREDICTION') {
-            console.log('[PDCA DEBUG] user:', user, 'role:', user?.role, 'isCheftech:', isCheftech, 'isAdmin:', isAdmin);
-            if (!isCheftech && !isAdmin) {
-                toast({
-                    title: 'Action restricted',
-                    description: `Only CHEFTECH or ADMIN can create a work order from an AI prediction. (Your role: ${user?.role || 'unknown'})`,
-                    variant: 'destructive',
-                });
-                return;
-            }
-            let aiPriorite: string;
-            if (item.priority === 'CRITICAL') {
-                aiPriorite = 'URGENTE';
-            } else if (item.priority === 'HIGH') {
-                aiPriorite = 'ÉLEVÉE';
-            } else {
-                aiPriorite = 'MOYENNE';
-            }
-            setFormData({
-                ...formData,
-                machine_id: item.machineId,
-                titre: `[AI] ${item.title}`,
-                description: `Preventive maintenance suggested by AI (Risk score: ${item.riskScore}%).`,
-                priorite: aiPriorite,
-                date_echeance: toDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+    // ── PLAN action helpers ──
+    const mapAiPriority = (priority: string): string => {
+        if (priority === 'CRITICAL') return 'URGENTE';
+        if (priority === 'HIGH') return 'ÉLEVÉE';
+        return 'MOYENNE';
+    };
+
+    const handlePredictionAction = (item: KanbanItem) => {
+        console.log('[PDCA DEBUG] user:', user, 'role:', user?.role, 'isCheftech:', isCheftech, 'isAdmin:', isAdmin);
+        if (!isCheftech && !isAdmin) {
+            toast({
+                title: 'Action restricted',
+                description: `Only CHEFTECH or ADMIN can create a work order from an AI prediction. (Your role: ${user?.role || 'unknown'})`,
+                variant: 'destructive',
             });
-            setDialogOpen(true);
             return;
         }
+        setFormData({
+            ...formData,
+            machine_id: item.machineId,
+            titre: `[AI] ${item.title}`,
+            description: `Preventive maintenance suggested by AI (Risk score: ${item.riskScore}%).`,
+            priorite: mapAiPriority(item.priority),
+            date_echeance: toDateInputValue(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()),
+        });
+        setDialogOpen(true);
+    };
 
-        // Work orders: advance through lifecycle
+    const handleWorkOrderPlanAction = async (item: KanbanItem) => {
+        const id = item.id.toString().replace('wo-', '');
+        const next = nextWOStatus(item.statut || 'DRAFT');
+        if (!next) {
+            toast({ title: 'No transition available', variant: 'destructive' });
+            return;
+        }
+        if (item.statut === 'DRAFT' && !isCheftech && !isAdmin) {
+            toast({ title: 'Only CHEFTECH/ADMIN can submit drafts', variant: 'destructive' });
+            return;
+        }
+        if (item.statut === 'SUBMITTED' && !isCheftech) {
+            toast({ title: 'Only CHEFTECH can approve work orders', variant: 'destructive' });
+            return;
+        }
+        setActionLoading(item.id.toString());
+        try {
+            await client.entities.ordres_travail.update({ id, data: { statut: next } });
+            toast({ title: 'Work order advanced', description: `Status: ${item.statut} → ${next}` });
+            fetchData();
+        } catch (error: any) {
+            toast({ title: 'Action failed', description: error?.message || 'Could not advance work order.', variant: 'destructive' });
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
+    // ── PLAN actions ──
+    const handlePlanAction = async (item: KanbanItem) => {
+        if (item.type === 'PREDICTION') {
+            handlePredictionAction(item);
+            return;
+        }
         if (item.type === 'WORK_ORDER') {
-            const id = item.id.toString().replace('wo-', '');
-            const next = nextWOStatus(item.statut || 'DRAFT');
-            if (!next) {
-                toast({ title: 'No transition available', variant: 'destructive' });
-                return;
-            }
-            // Role checks for each transition
-            if (item.statut === 'DRAFT' && !isCheftech && !isAdmin) {
-                toast({ title: 'Only CHEFTECH/ADMIN can submit drafts', variant: 'destructive' });
-                return;
-            }
-            if (item.statut === 'SUBMITTED' && !isCheftech) {
-                toast({ title: 'Only CHEFTECH can approve work orders', variant: 'destructive' });
-                return;
-            }
-            setActionLoading(item.id.toString());
-            try {
-                await client.entities.ordres_travail.update({ id, data: { statut: next } });
-                toast({
-                    title: 'Work order advanced',
-                    description: `Status: ${item.statut} → ${next}`,
-                });
-                fetchData();
-            } catch (error: any) {
-                toast({
-                    title: 'Action failed',
-                    description: error?.message || 'Could not advance work order.',
-                    variant: 'destructive',
-                });
-            } finally {
-                setActionLoading(null);
-            }
+            await handleWorkOrderPlanAction(item);
         }
     };
 

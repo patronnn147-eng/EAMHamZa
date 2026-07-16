@@ -1,4 +1,4 @@
-"""
+﻿"""
 Schedule optimizer.
 Primary: OR-Tools CP-SAT (minimize priority-weighted completion day).
 Fallback: greedy round-robin when ortools unavailable.
@@ -35,7 +35,7 @@ def _greedy_schedule(
         return {"assignments": [], "makespan_days": 0, "solved": True, "fallback": True}
 
     sorted_wos = sorted(work_orders, key=lambda w: w.get("priority", 1), reverse=True)
-    tech_next_day = {t: 0 for t in technician_ids}
+    tech_next_day = dict.fromkeys(technician_ids, 0)
     assignments = []
 
     for i, wo in enumerate(sorted_wos):
@@ -157,7 +157,7 @@ def optimize_schedule(
 
 async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
     from models.utilisateurs import Utilisateurs
 
     now = datetime.now(timezone.utc)
@@ -170,8 +170,8 @@ async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
         return _SCHEDULE_CACHE["data"]
 
     wo_res = await db.execute(
-        select(Ordres_travail)
-        .where(Ordres_travail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS]))
+        select(OrdresTravail)
+        .where(OrdresTravail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS]))
         .limit(100)
     )
     wos_db = wo_res.scalars().all()

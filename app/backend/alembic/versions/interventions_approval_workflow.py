@@ -1,7 +1,7 @@
-"""Add intervention approval workflow fields
+﻿"""Add intervention approval workflow fields
 
 Revision ID: interventions_approval_workflow
-Revises: planning_machines_multi_select
+Revises: PlanningMachines_multi_select
 Create Date: 2026-02-13
 
 """
@@ -43,80 +43,80 @@ def _index_exists(index_name: str) -> bool:
 
 
 revision: str = "interventions_approval_workflow"
-down_revision: Union[str, Sequence[str], None] = "planning_machines_multi_select"
+down_revision: Union[str, Sequence[str], None] = "PlanningMachines_multi_select"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    if not _column_exists("ordres_intervention", "problem_description"):
+    if not _column_exists("OrdresIntervention", "problem_description"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("problem_description", sa.Text(), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "priority"):
+    if not _column_exists("OrdresIntervention", "priority"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("priority", sa.String(length=20), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "estimated_duration_minutes"):
+    if not _column_exists("OrdresIntervention", "estimated_duration_minutes"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("estimated_duration_minutes", sa.Integer(), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "required_materials"):
+    if not _column_exists("OrdresIntervention", "required_materials"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("required_materials", sa.Text(), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "machine_id"):
+    if not _column_exists("OrdresIntervention", "machine_id"):
         op.add_column(
-            "ordres_intervention", sa.Column("machine_id", sa.Integer(), nullable=True)
+            "OrdresIntervention", sa.Column("machine_id", sa.Integer(), nullable=True)
         )
 
-    if not _column_exists("ordres_intervention", "requested_at"):
+    if not _column_exists("OrdresIntervention", "requested_at"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("requested_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "approved_by"):
+    if not _column_exists("OrdresIntervention", "approved_by"):
         op.add_column(
-            "ordres_intervention", sa.Column("approved_by", sa.Integer(), nullable=True)
+            "OrdresIntervention", sa.Column("approved_by", sa.Integer(), nullable=True)
         )
 
-    if not _column_exists("ordres_intervention", "approved_at"):
+    if not _column_exists("OrdresIntervention", "approved_at"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("approved_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "rejection_reason"):
+    if not _column_exists("OrdresIntervention", "rejection_reason"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("rejection_reason", sa.Text(), nullable=True),
         )
 
-    idx_name = op.f("ix_ordres_intervention_statut")
+    idx_name = op.f("ix_OrdresIntervention_statut")
     if not _index_exists(idx_name):
-        op.create_index(idx_name, "ordres_intervention", ["statut"], unique=False)
+        op.create_index(idx_name, "OrdresIntervention", ["statut"], unique=False)
 
 
 def downgrade() -> None:
     op.drop_index(
-        op.f("ix_ordres_intervention_statut"), table_name="ordres_intervention"
+        op.f("ix_OrdresIntervention_statut"), table_name="OrdresIntervention"
     )
 
-    op.drop_column("ordres_intervention", "rejection_reason")
-    op.drop_column("ordres_intervention", "approved_at")
-    op.drop_column("ordres_intervention", "approved_by")
-    op.drop_column("ordres_intervention", "requested_at")
-    op.drop_column("ordres_intervention", "machine_id")
-    op.drop_column("ordres_intervention", "required_materials")
-    op.drop_column("ordres_intervention", "estimated_duration_minutes")
-    op.drop_column("ordres_intervention", "priority")
-    op.drop_column("ordres_intervention", "problem_description")
+    op.drop_column("OrdresIntervention", "rejection_reason")
+    op.drop_column("OrdresIntervention", "approved_at")
+    op.drop_column("OrdresIntervention", "approved_by")
+    op.drop_column("OrdresIntervention", "requested_at")
+    op.drop_column("OrdresIntervention", "machine_id")
+    op.drop_column("OrdresIntervention", "required_materials")
+    op.drop_column("OrdresIntervention", "estimated_duration_minutes")
+    op.drop_column("OrdresIntervention", "priority")
+    op.drop_column("OrdresIntervention", "problem_description")

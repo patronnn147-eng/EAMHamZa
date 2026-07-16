@@ -105,7 +105,7 @@ export function computeHealthScoreFromML(
 
     // DST fusion metadata
     const scoreSource: "dst_fusion" | "fallback_additive" =
-        breakdown.score_source ?? (mlHealthData.unified_health_score != null ? "dst_fusion" : "fallback_additive");
+        breakdown.score_source ?? (mlHealthData.unified_health_score == null ? "fallback_additive" : "dst_fusion");
     const dstVerdict = breakdown.dst_verdict ?? mlHealthData.dst_verdict;
     const conflictK = breakdown.conflict_factor_K ?? mlHealthData.conflict_factor_K;
 

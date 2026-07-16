@@ -1,4 +1,4 @@
-"""Admin User Management Routes"""
+﻿"""Admin User Management Routes"""
 
 import logging
 from datetime import datetime
@@ -44,7 +44,7 @@ class UpdateUserShiftRequest(BaseModel):
     shift_type: UserShiftType
 
 
-async def _require_admin(current_user: Utilisateurs) -> None:
+def _require_admin(current_user: Utilisateurs) -> None:
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -68,7 +68,7 @@ async def list_users(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _require_admin(current_user)
+    _require_admin(current_user)
 
     # Get total count
     total_result = await db.execute(select(func.count()).select_from(Utilisateurs))
@@ -111,7 +111,7 @@ async def update_user_status(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _require_admin(current_user)
+    _require_admin(current_user)
 
     result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id))
     user = result.scalar_one_or_none()
@@ -144,7 +144,7 @@ async def update_user_shift_type(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _require_admin(current_user)
+    _require_admin(current_user)
 
     result = await db.execute(select(Utilisateurs).where(Utilisateurs.id == user_id))
     user = result.scalar_one_or_none()
@@ -176,7 +176,7 @@ async def delete_user(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    await _require_admin(current_user)
+    _require_admin(current_user)
 
     if current_user.id == user_id:
         raise HTTPException(
@@ -195,3 +195,4 @@ async def delete_user(
     await db.commit()
 
     return {"message": "User deleted successfully", "id": user_id}
+

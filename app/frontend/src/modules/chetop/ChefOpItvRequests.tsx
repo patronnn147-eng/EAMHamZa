@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
   Plus, 
@@ -36,7 +35,6 @@ interface ItvRequest {
 }
 
 const ChefOpItvRequests: React.FC = () => {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [requests, setRequests] = useState<ItvRequest[]>([]);

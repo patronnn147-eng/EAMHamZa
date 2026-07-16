@@ -1,12 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+﻿from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, cast, String, and_
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail, OrdreStatut
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail, OrdreStatut
 from models.ml_prediction_log import MlPredictionLog
 from models.machine_telemetry import MachineTelemetry
 from .logging import ShadowLogger
@@ -118,17 +118,17 @@ async def get_unified_health(
     if not machine:
         raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
-    interventions_query = select(Ordres_intervention).where(
-        Ordres_intervention.machine_id == machine_id
+    interventions_query = select(OrdresIntervention).where(
+        OrdresIntervention.machine_id == machine_id
     )
     execute_result = await db.execute(interventions_query)
     interventions = list(execute_result.scalars().all())
 
     from sqlalchemy import func as sa_func
 
-    wo_query = select(sa_func.count(Ordres_travail.id)).where(
-        Ordres_travail.machine_id == machine_id,
-        cast(Ordres_travail.statut, String).notin_(
+    wo_query = select(sa_func.count(OrdresTravail.id)).where(
+        OrdresTravail.machine_id == machine_id,
+        cast(OrdresTravail.statut, String).notin_(
             ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
         ),
     )
@@ -328,8 +328,8 @@ async def get_machine_prediction(
         raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
 
     # 2. Fetch intervention history for this machine
-    interventions_query = select(Ordres_intervention).where(
-        Ordres_intervention.machine_id == machine_id
+    interventions_query = select(OrdresIntervention).where(
+        OrdresIntervention.machine_id == machine_id
     )
     execute_result = await db.execute(interventions_query)
     interventions = list(execute_result.scalars().all())
@@ -341,9 +341,9 @@ async def get_machine_prediction(
     now_dt = datetime.now(timezone.utc)
 
     # Open = not TERMINÉ or ANNULÉ
-    wo_query = select(func.count(Ordres_travail.id)).where(
-        Ordres_travail.machine_id == machine_id,
-        cast(Ordres_travail.statut, String).notin_(
+    wo_query = select(func.count(OrdresTravail.id)).where(
+        OrdresTravail.machine_id == machine_id,
+        cast(OrdresTravail.statut, String).notin_(
             ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
         ),
     )
@@ -526,7 +526,7 @@ async def get_fleet_critical_predictions(db: Annotated[AsyncSession, Depends(get
     predictions = []
 
     # Single query for all interventions — avoids N per-machine round-trips.
-    all_oi_result = await db.execute(select(Ordres_intervention))
+    all_oi_result = await db.execute(select(OrdresIntervention))
     _oi_by_machine: dict = {}
     for _oi in all_oi_result.scalars().all():
         _oi_by_machine.setdefault(_oi.machine_id, []).append(_oi)
@@ -551,7 +551,7 @@ async def _process_single_machine(
     """Helper to process single machine prediction.
 
     Args:
-        interventions_by_machine: pre-fetched dict {machine_id: [Ordres_intervention]}
+        interventions_by_machine: pre-fetched dict {machine_id: [OrdresIntervention]}
         latest_logs_by_machine: pre-fetched dict {machine_id: MlPredictionLog} — latest log row per machine
         latest_telemetry_by_machine: pre-fetched dict {machine_id: MachineTelemetry} -- latest telemetry row per machine
         parts_readiness_map: pre-fetched dict {machine_id: status} -- inventory readiness per machine
@@ -560,8 +560,8 @@ async def _process_single_machine(
         interventions = interventions_by_machine.get(machine.id, [])
     else:
         execute_result = await db.execute(
-            select(Ordres_intervention).where(
-                Ordres_intervention.machine_id == machine.id
+            select(OrdresIntervention).where(
+                OrdresIntervention.machine_id == machine.id
             )
         )
         interventions = execute_result.scalars().all()
@@ -627,7 +627,7 @@ async def get_fleet_dashboard(db: Annotated[AsyncSession, Depends(get_db)]):
 
     # Fetch ALL interventions in a single query and group by machine_id.
     # Avoids N per-machine queries (was O(N) DB round-trips, now O(1)).
-    all_interventions_result = await db.execute(select(Ordres_intervention))
+    all_interventions_result = await db.execute(select(OrdresIntervention))
     _interventions_by_machine: dict = {}
     for _oi in all_interventions_result.scalars().all():
         _interventions_by_machine.setdefault(_oi.machine_id, []).append(_oi)
@@ -972,7 +972,7 @@ async def get_p7_kpis(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
     """
     from models.alertes import Alert, AlertType
     from models.ml_prediction_log import MlPredictionLog
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
     from sqlalchemy import func, distinct
 
     # Total machine count
@@ -993,8 +993,8 @@ async def get_p7_kpis(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
 
     # Draft WOs pending approval
     draft_q = await db.execute(
-        select(func.count(Ordres_travail.id)).where(
-            Ordres_travail.statut == OrdreStatut.DRAFT
+        select(func.count(OrdresTravail.id)).where(
+            OrdresTravail.statut == OrdreStatut.DRAFT
         )
     )
     draft_count = draft_q.scalar() or 0
@@ -1315,9 +1315,9 @@ async def get_forecast_summary(
 
     open_wo_res = await db.execute(
         select(func.count())
-        .select_from(Ordres_travail)
+        .select_from(OrdresTravail)
         .where(
-            Ordres_travail.statut.in_(
+            OrdresTravail.statut.in_(
                 [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
             )
         )
@@ -1386,9 +1386,9 @@ async def get_forecast_labor(
     tech_count = tech_res.scalar_one()
     open_wo_res = await db.execute(
         select(func.count())
-        .select_from(Ordres_travail)
+        .select_from(OrdresTravail)
         .where(
-            Ordres_travail.statut.in_(
+            OrdresTravail.statut.in_(
                 [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
             )
         )
@@ -1418,9 +1418,9 @@ async def get_forecast_budget(
     tech_count = tech_res.scalar_one()
     open_wo_res = await db.execute(
         select(func.count())
-        .select_from(Ordres_travail)
+        .select_from(OrdresTravail)
         .where(
-            Ordres_travail.statut.in_(
+            OrdresTravail.statut.in_(
                 [OrdreStatut.APPROVED, OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]
             )
         )

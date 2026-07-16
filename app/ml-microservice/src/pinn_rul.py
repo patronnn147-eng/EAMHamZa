@@ -108,7 +108,7 @@ class _PINNModel(nn.Module if TORCH_AVAILABLE else object):
 # -----------------------------------------------------------------------
 
 def _physics_loss(rul_sequence: "torch.Tensor",
-                  C: float = 1e-4, m: float = 3.0) -> "torch.Tensor":
+                  c_param: float = 1e-4, m: float = 3.0) -> "torch.Tensor":
     """
     Paris-Erdogan soft constraint:
       da/dN = C * (ΔK)^m
@@ -117,7 +117,7 @@ def _physics_loss(rul_sequence: "torch.Tensor",
 
     Args:
         rul_sequence: (batch, seq_len) tensor of predicted RUL values
-        C, m: Paris-Erdogan parameters (material constants)
+        c_param, m: Paris-Erdogan parameters (material constants)
 
     Returns:
         Scalar physics loss
@@ -128,9 +128,9 @@ def _physics_loss(rul_sequence: "torch.Tensor",
     # Physics: RUL should decrease or stay flat → penalize increases
     # L_monotone = mean(ReLU(delta_rul))
     l_mono = F.relu(delta_rul).mean()
-    # Paris-Erdogan residual: penalize deviations from C*(|delta|)^m pattern
+    # Paris-Erdogan residual: penalize deviations from c_param*(|delta|)^m pattern
     delta_abs = delta_rul.abs().clamp(min=1e-6)
-    expected_rate = C * (delta_abs ** m)
+    expected_rate = c_param * (delta_abs ** m)
     # Soft constraint: ||actual_decrease - expected_rate||^2
     actual_decrease = F.relu(-delta_rul)  # only decreases
     l_phys = ((actual_decrease - expected_rate) ** 2).mean()
@@ -197,7 +197,7 @@ class PINNRULEstimator:
 
         # Pad/truncate all sequences to same length
         max_len = min(30, max(s.shape[0] for s in sequences))
-        X_list, y_list = [], []
+        x_list, y_list = [], []
         for seq, label in zip(sequences, rul_labels):
             seq = np.asarray(seq, dtype=np.float32)
             if seq.shape[0] > max_len:
@@ -205,18 +205,18 @@ class PINNRULEstimator:
             elif seq.shape[0] < max_len:
                 pad = np.zeros((max_len - seq.shape[0], seq.shape[1]), dtype=np.float32)
                 seq = np.vstack([pad, seq])
-            X_list.append(seq)
+            x_list.append(seq)
             y_list.append(float(label))
 
-        X_tensor = torch.tensor(np.stack(X_list), dtype=torch.float32)
+        x_tensor = torch.tensor(np.stack(x_list), dtype=torch.float32)
         y_tensor = torch.tensor(y_list, dtype=torch.float32)
 
-        optimizer = torch.optim.Adam(self._model.parameters(), lr=lr)
+        optimizer = torch.optim.Adam(self._model.parameters(), lr=lr, weight_decay=0.0)
         self._model.train()
 
-        for epoch in range(epochs):
+        for _ in range(epochs):
             optimizer.zero_grad()
-            rul_pred = self._model(X_tensor)
+            rul_pred = self._model(x_tensor)
             l_data = F.mse_loss(rul_pred, y_tensor)
             # Physics loss on predicted sequence (simplified: use predicted batch)
             rul_seq = rul_pred.unsqueeze(1).expand(-1, 2)
@@ -228,7 +228,7 @@ class PINNRULEstimator:
         # Isotonic calibration on training set
         self._model.eval()
         with torch.no_grad():
-            train_preds = self._model(X_tensor).numpy()
+            train_preds = self._model(x_tensor).numpy()
         from sklearn.isotonic import IsotonicRegression
         iso = IsotonicRegression(increasing=True, out_of_bounds="clip")
         iso.fit(train_preds, y_list)

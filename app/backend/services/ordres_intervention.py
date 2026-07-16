@@ -1,44 +1,69 @@
-import logging
+﻿import logging
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresIntervention import OrdresIntervention
 
 logger = logging.getLogger(__name__)
 
 
 # ------------------ Service Layer ------------------
-class Ordres_interventionService:
-    """Service layer for Ordres_intervention operations"""
+class OrdresInterventionService:
+    """Service layer for OrdresIntervention operations"""
 
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create(self, data: Dict[str, Any]) -> Optional[Ordres_intervention]:
-        """Create a new ordres_intervention"""
+    async def create(self, data: Dict[str, Any]) -> Optional[OrdresIntervention]:
+        """Create a new OrdresIntervention"""
         try:
-            obj = Ordres_intervention(**data)
+            obj = OrdresIntervention(**data)
             self.db.add(obj)
             await self.db.commit()
             await self.db.refresh(obj)
-            logger.info(f"Created ordres_intervention with id: {obj.id}")
+            logger.info(f"Created OrdresIntervention with id: {obj.id}")
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.exception(f"Error creating ordres_intervention: {str(e)}")
+            logger.exception(f"Error creating OrdresIntervention: {str(e)}")
             raise
 
-    async def get_by_id(self, obj_id: int) -> Optional[Ordres_intervention]:
-        """Get ordres_intervention by ID"""
+    async def get_by_id(self, obj_id: int) -> Optional[OrdresIntervention]:
+        """Get OrdresIntervention by ID"""
         try:
-            query = select(Ordres_intervention).where(Ordres_intervention.id == obj_id)
+            query = select(OrdresIntervention).where(OrdresIntervention.id == obj_id)
             result = await self.db.execute(query)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.exception(f"Error fetching ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error fetching OrdresIntervention {obj_id}: {str(e)}")
             raise
+
+    @staticmethod
+    def _apply_filters(query, count_query, model, query_dict):
+        """Apply equality filters from query_dict to both queries."""
+        if not query_dict:
+            return query, count_query
+        for field, value in query_dict.items():
+            if hasattr(model, field):
+                condition = getattr(model, field) == value
+                query = query.where(condition)
+                count_query = count_query.where(condition)
+        return query, count_query
+
+    @staticmethod
+    def _apply_sort(query, sort, model):
+        """Apply ordering to query; defaults to id.desc()."""
+        if not sort:
+            return query.order_by(model.id.desc())
+        if sort.startswith("-"):
+            field_name = sort[1:]
+            if hasattr(model, field_name):
+                return query.order_by(getattr(model, field_name).desc())
+        elif hasattr(model, sort):
+            return query.order_by(getattr(model, sort))
+        return query.order_by(model.id.desc())
 
     async def get_list(
         self,
@@ -47,58 +72,31 @@ class Ordres_interventionService:
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get paginated list of ordres_interventions"""
+        """Get paginated list of OrdresInterventions"""
         try:
-            query = select(Ordres_intervention)
-            count_query = select(func.count(Ordres_intervention.id))
-
-            if query_dict:
-                for field, value in query_dict.items():
-                    if hasattr(Ordres_intervention, field):
-                        query = query.where(
-                            getattr(Ordres_intervention, field) == value
-                        )
-                        count_query = count_query.where(
-                            getattr(Ordres_intervention, field) == value
-                        )
-
-            count_result = await self.db.execute(count_query)
-            total = count_result.scalar()
-
-            if sort:
-                if sort.startswith("-"):
-                    field_name = sort[1:]
-                    if hasattr(Ordres_intervention, field_name):
-                        query = query.order_by(
-                            getattr(Ordres_intervention, field_name).desc()
-                        )
-                else:
-                    if hasattr(Ordres_intervention, sort):
-                        query = query.order_by(getattr(Ordres_intervention, sort))
-            else:
-                query = query.order_by(Ordres_intervention.id.desc())
-
+            query, count_query = self._apply_filters(
+                select(OrdresIntervention),
+                select(func.count(OrdresIntervention.id)),
+                OrdresIntervention,
+                query_dict,
+            )
+            total = (await self.db.execute(count_query)).scalar()
+            query = self._apply_sort(query, sort, OrdresIntervention)
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-
-            return {
-                "items": items,
-                "total": total,
-                "skip": skip,
-                "limit": limit,
-            }
+            return {"items": items, "total": total, "skip": skip, "limit": limit}
         except Exception as e:
-            logger.exception(f"Error fetching ordres_intervention list: {str(e)}")
+            logger.exception(f"Error fetching OrdresIntervention list: {str(e)}")
             raise
 
     async def update(
         self, obj_id: int, update_data: Dict[str, Any]
-    ) -> Optional[Ordres_intervention]:
-        """Update ordres_intervention"""
+    ) -> Optional[OrdresIntervention]:
+        """Update OrdresIntervention"""
         try:
             obj = await self.get_by_id(obj_id)
             if not obj:
-                logger.warning(f"Ordres_intervention {obj_id} not found for update")
+                logger.warning(f"OrdresIntervention {obj_id} not found for update")
                 return None
             for key, value in update_data.items():
                 if hasattr(obj, key):
@@ -106,69 +104,69 @@ class Ordres_interventionService:
 
             await self.db.commit()
             await self.db.refresh(obj)
-            logger.info(f"Updated ordres_intervention {obj_id}")
+            logger.info(f"Updated OrdresIntervention {obj_id}")
             return obj
         except Exception as e:
             await self.db.rollback()
-            logger.exception(f"Error updating ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error updating OrdresIntervention {obj_id}: {str(e)}")
             raise
 
     async def delete(self, obj_id: int) -> bool:
-        """Delete ordres_intervention"""
+        """Delete OrdresIntervention"""
         try:
             obj = await self.get_by_id(obj_id)
             if not obj:
-                logger.warning(f"Ordres_intervention {obj_id} not found for deletion")
+                logger.warning(f"OrdresIntervention {obj_id} not found for deletion")
                 return False
             await self.db.delete(obj)
             await self.db.commit()
-            logger.info(f"Deleted ordres_intervention {obj_id}")
+            logger.info(f"Deleted OrdresIntervention {obj_id}")
             return True
         except Exception as e:
             await self.db.rollback()
-            logger.exception(f"Error deleting ordres_intervention {obj_id}: {str(e)}")
+            logger.exception(f"Error deleting OrdresIntervention {obj_id}: {str(e)}")
             raise
 
     async def get_by_field(
         self, field_name: str, field_value: Any
-    ) -> Optional[Ordres_intervention]:
-        """Get ordres_intervention by any field"""
+    ) -> Optional[OrdresIntervention]:
+        """Get OrdresIntervention by any field"""
         try:
-            if not hasattr(Ordres_intervention, field_name):
+            if not hasattr(OrdresIntervention, field_name):
                 raise ValueError(
-                    f"Field {field_name} does not exist on Ordres_intervention"
+                    f"Field {field_name} does not exist on OrdresIntervention"
                 )
             result = await self.db.execute(
-                select(Ordres_intervention).where(
-                    getattr(Ordres_intervention, field_name) == field_value
+                select(OrdresIntervention).where(
+                    getattr(OrdresIntervention, field_name) == field_value
                 )
             )
             return result.scalar_one_or_none()
         except Exception as e:
             logger.exception(
-                f"Error fetching ordres_intervention by {field_name}: {str(e)}"
+                f"Error fetching OrdresIntervention by {field_name}: {str(e)}"
             )
             raise
 
     async def list_by_field(
         self, field_name: str, field_value: Any, skip: int = 0, limit: int = 20
-    ) -> List[Ordres_intervention]:
-        """Get list of ordres_interventions filtered by field"""
+    ) -> List[OrdresIntervention]:
+        """Get list of OrdresInterventions filtered by field"""
         try:
-            if not hasattr(Ordres_intervention, field_name):
+            if not hasattr(OrdresIntervention, field_name):
                 raise ValueError(
-                    f"Field {field_name} does not exist on Ordres_intervention"
+                    f"Field {field_name} does not exist on OrdresIntervention"
                 )
             result = await self.db.execute(
-                select(Ordres_intervention)
-                .where(getattr(Ordres_intervention, field_name) == field_value)
+                select(OrdresIntervention)
+                .where(getattr(OrdresIntervention, field_name) == field_value)
                 .offset(skip)
                 .limit(limit)
-                .order_by(Ordres_intervention.id.desc())
+                .order_by(OrdresIntervention.id.desc())
             )
             return result.scalars().all()
         except Exception as e:
             logger.exception(
-                f"Error fetching ordres_interventions by {field_name}: {str(e)}"
+                f"Error fetching OrdresInterventions by {field_name}: {str(e)}"
             )
             raise

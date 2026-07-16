@@ -252,7 +252,7 @@ export const AnalyticsTab: React.FC = () => {
                     dataKey="value"
                   >
                     {failureData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip 

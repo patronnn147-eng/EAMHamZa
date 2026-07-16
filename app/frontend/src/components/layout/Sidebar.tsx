@@ -153,8 +153,8 @@ export default function Sidebar() {
     };
 
     tick();
-    const handle = window.setInterval(tick, 60_000);
-    return () => { cancelled = true; window.clearInterval(handle); };
+    const handle = globalThis.setInterval(tick, 60_000);
+    return () => { cancelled = true; globalThis.clearInterval(handle); };
   }, []);
 
   const { user } = useAuth();

@@ -199,7 +199,6 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # API Gateway v2 format
             path = event.get("rawPath", "/")
             headers = event.get("headers", {})
-            query_params = event.get("queryStringParameters", {})
             # API Gateway v2 uses different header format
             if headers:
                 # Convert v2 headers to v1 format for Mangum
@@ -208,12 +207,10 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             # API Gateway v1 format
             path = event.get("path", "/")
             headers = event.get("headers", {})
-            query_params = event.get("queryStringParameters", {})
         else:
             # Fallback for empty or malformed events
             path = "/"
             headers = {}
-            query_params = {}
 
         # Decode URL-encoded path to handle non-ASCII characters (UTF-8 decode)
         # This ensures non-English characters in URLs are properly decoded

@@ -54,7 +54,7 @@ export function TierBadge({ tier, similarity, machineMatch }: Readonly<TierBadge
       <span className="flex flex-col leading-none -space-y-[3px]" aria-hidden="true">
         {Array.from({ length: 3 }).map((_, i) => (
           <span
-            key={i}
+            key={`chevron-${i}`}
             className={i < config.count ? 'opacity-100' : 'opacity-20'}
             style={{ fontSize: '8px' }}
           >▲</span>
@@ -85,8 +85,8 @@ interface QtyBadgeProps {
 
 export function QtyBadge({ value, min, unit = 'pcs', reserved, className = '' }: Readonly<QtyBadgeProps>) {
   const v = Number(value);
-  const m = min != null ? Number(min) : null;
-  const r = reserved != null ? Number(reserved) : 0;
+  const m = min == null ? null : Number(min);
+  const r = reserved == null ? 0 : Number(reserved);
   const available = v - r;
 
   let tone: 'ok' | 'low' | 'rupture';

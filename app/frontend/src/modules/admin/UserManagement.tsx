@@ -37,8 +37,8 @@ interface AdminUser {
   nom: string;
   email: string;
   role: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | string;
-  shift_type?: 'MORNING' | 'NIGHT' | string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  shift_type?: 'MORNING' | 'NIGHT' | null;
   created_at?: string | null;
   updated_at?: string | null;
 }

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+﻿from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import func
@@ -12,9 +12,9 @@ from core.database import get_db
 from core.security import verify_technicien
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.ordres_travail import Ordres_travail, OrdreStatut
-from models.ordres_intervention import Ordres_intervention
-from models.planning_taches import Planning_taches
+from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.OrdresIntervention import OrdresIntervention
+from models.PlanningTaches import PlanningTaches
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
 from services.inventory import InventoryReservationService
@@ -94,35 +94,35 @@ async def get_my_work_orders(
     try:
         skip = (page - 1) * size
 
-        # Count total - also check Ordres_travail.utilisateur_id directly
+        # Count total - also check OrdresTravail.utilisateur_id directly
         count_query = (
-            select(func.count(Ordres_travail.id))
-            .where(Ordres_travail.archived_at.is_(None))
+            select(func.count(OrdresTravail.id))
+            .where(OrdresTravail.archived_at.is_(None))
             .outerjoin(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
             .where(
-                (Ordres_intervention.technician_id == current_user.id)
-                | (Ordres_travail.utilisateur_id == current_user.id)
+                (OrdresIntervention.technician_id == current_user.id)
+                | (OrdresTravail.utilisateur_id == current_user.id)
             )
         )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
-            select(Ordres_travail, Machines.nom.label("machine_nom"))
-            .where(Ordres_travail.archived_at.is_(None))
+            select(OrdresTravail, Machines.nom.label("machine_nom"))
+            .where(OrdresTravail.archived_at.is_(None))
             .outerjoin(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
-            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
             .where(
-                (Ordres_intervention.technician_id == current_user.id)
-                | (Ordres_travail.utilisateur_id == current_user.id)
+                (OrdresIntervention.technician_id == current_user.id)
+                | (OrdresTravail.utilisateur_id == current_user.id)
             )
-            .order_by(Ordres_travail.created_at.desc())
+            .order_by(OrdresTravail.created_at.desc())
             .offset(skip)
             .limit(size)
         )
@@ -167,7 +167,7 @@ async def start_work_order(
     try:
         # Check if work order exists and belongs to this technician
         wo_result = await db.execute(
-            select(Ordres_travail).where(Ordres_travail.id == order_id)
+            select(OrdresTravail).where(OrdresTravail.id == order_id)
         )
         wo = wo_result.scalar_one_or_none()
         if not wo:
@@ -180,9 +180,9 @@ async def start_work_order(
         else:
             # Check via intervention link
             int_result = await db.execute(
-                select(Ordres_intervention).where(
-                    Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technician_id == current_user.id,
+                select(OrdresIntervention).where(
+                    OrdresIntervention.ordre_travail_id == order_id,
+                    OrdresIntervention.technician_id == current_user.id,
                 )
             )
             if int_result.scalar_one_or_none():
@@ -206,8 +206,8 @@ async def start_work_order(
 
         # Update linked intervention if exists
         int_result = await db.execute(
-            select(Ordres_intervention).where(
-                Ordres_intervention.ordre_travail_id == order_id
+            select(OrdresIntervention).where(
+                OrdresIntervention.ordre_travail_id == order_id
             )
         )
         intervention = int_result.scalar_one_or_none()
@@ -242,6 +242,160 @@ async def start_work_order(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
+async def _check_wo_access(db: AsyncSession, wo: OrdresTravail, user_id: int, order_id: int) -> bool:
+    """Return True if user owns WO or is linked via intervention."""
+    if wo.utilisateur_id == user_id:
+        return True
+    result = await db.execute(
+        select(OrdresIntervention).where(
+            OrdresIntervention.ordre_travail_id == order_id,
+            OrdresIntervention.technician_id == user_id,
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
+async def _update_intervention_fields(db: AsyncSession, intervention: OrdresIntervention,
+                                      payload: "WorkOrderCompletePayload", wo_date_debut, now) -> None:
+    """Apply PDCA + extended fields to linked intervention."""
+    intervention.statut = _STATUT_TERMINE
+    intervention.rapport = payload.rapport
+    if not intervention.date_debut:
+        intervention.date_debut = wo_date_debut or now
+    intervention.date_fin = now
+    intervention.intervention_type = payload.intervention_type
+    intervention.root_cause_category = payload.root_cause_category
+    intervention.root_cause_description = payload.root_cause_description
+    intervention.actions_performed = payload.actions_performed
+    intervention.legacy_parts_text = payload.parts_replaced
+    intervention.tools_used = payload.tools_used
+    intervention.machine_status_after = payload.machine_status_after
+    intervention.plan_hypothesis = payload.plan_hypothesis
+    intervention.check_resolved = payload.check_resolved
+    intervention.check_verification_method = payload.check_verification_method
+    intervention.act_preventive_actions = payload.act_preventive_actions
+    intervention.act_recommendations = payload.act_recommendations
+    if payload.ml_prediction_matched is not None:
+        intervention.ml_prediction_matched = payload.ml_prediction_matched
+    if intervention.planning_tache_id:
+        tache = await db.scalar(
+            select(PlanningTaches).where(PlanningTaches.id == intervention.planning_tache_id)
+        )
+        if tache:
+            tache.statut = "COMPLETED"
+
+
+def _add_telemetry_if_present(db: AsyncSession, wo: OrdresTravail,
+                               technician_id: int, payload: "WorkOrderCompletePayload", now) -> None:
+    """Add MachineTelemetry row if any sensor field is provided."""
+    if not any([payload.air_temperature, payload.process_temperature,
+                payload.rotational_speed, payload.torque, payload.tool_wear]):
+        return
+    db.add(MachineTelemetry(
+        machine_id=wo.machine_id,
+        work_order_id=wo.id,
+        technician_id=technician_id,
+        air_temperature=payload.air_temperature or 0,
+        process_temperature=payload.process_temperature or 0,
+        rotational_speed=payload.rotational_speed or 0,
+        torque=payload.torque or 0,
+        tool_wear=payload.tool_wear or 0,
+        recorded_at=now,
+        notes=payload.telemetry_notes,
+    ))
+
+
+async def _consume_direct_parts(db: AsyncSession, intervention: OrdresIntervention,
+                                payload: "WorkOrderCompletePayload", order_id: int) -> None:
+    """Ad-hoc parts consumption (no prior reservation). Raises HTTPException on failure."""
+    if not (intervention and payload.parts_consumed_direct):
+        return
+    try:
+        from models.required_pieces import RequiredPiece
+        from models.consumed_pieces import ConsumedPiece
+        from services.inventory import InventoryReservationService as _IRS
+        from services.inventory.stock import StockService as _Stock
+        from models.pieces import Piece as _Piece
+        from decimal import Decimal as _D
+
+        stock_svc = _Stock(db)
+        for di in payload.parts_consumed_direct:
+            piece = await db.scalar(select(_Piece).where(_Piece.id == di.piece_id))
+            if piece is None:
+                raise ValueError(f"Pièce {di.piece_id} introuvable")
+            unit = di.unit or piece.default_unit or "pcs"
+            qty = _D(str(di.quantity)).quantize(_D("0.01"))
+            rp = RequiredPiece(
+                intervention_id=intervention.id, piece_id=di.piece_id,
+                quantity_planned=qty, unit=unit, quantity_reserved=_D("0"), approved=True,
+            )
+            db.add(rp)
+            await db.flush()
+            await stock_svc.consume_stock(
+                piece_id=di.piece_id, quantity=qty, intervention_id=intervention.id,
+                reference=f"OT-itv-{intervention.id}-direct", unit=unit, auto_commit=False,
+            )
+            db.add(ConsumedPiece(
+                intervention_id=intervention.id, required_piece_id=rp.id,
+                piece_id=di.piece_id, quantity_used=qty, quantity_returned=_D("0"),
+                quantity_wasted=_D("0"), unit=unit, disposition="used", notes=di.notes,
+            ))
+            await _IRS(db)._auto_link_piece_to_machine(piece_id=di.piece_id, intervention_id=intervention.id)
+        await db.flush()
+    except ValueError as ve:
+        await db.rollback()
+        logger.warning("Direct parts consumption failed for OT %s: %s", order_id, ve)
+        raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+    except Exception as exc:
+        await db.rollback()
+        logger.exception("Direct parts consumption error for OT %s: %s", order_id, exc, exc_info=True)
+        raise HTTPException(status_code=500, detail="Échec consommation directe")
+
+
+async def _submit_pending_pieces(db: AsyncSession, intervention: OrdresIntervention,
+                                  payload: "WorkOrderCompletePayload", user_id: int, order_id: int) -> None:
+    """Submit uncatalogued pieces. Non-fatal on failure."""
+    if not (intervention and payload.pending_pieces_direct):
+        return
+    try:
+        from services.inventory import PendingPieceService as _PPS
+        pending_svc = _PPS(db)
+        for pp_item in payload.pending_pieces_direct:
+            if not pp_item.name or not pp_item.name.strip():
+                continue
+            await pending_svc.create_with_placeholder(
+                name=pp_item.name, quantity=pp_item.quantity, unit=pp_item.unit,
+                category=pp_item.category, notes=pp_item.notes,
+                intervention_id=intervention.id, submitted_by=user_id, auto_commit=False,
+            )
+    except Exception as exc:
+        logger.warning(f"Pending direct submit failed for OT {order_id}: {exc}", exc_info=True)
+
+
+async def _fulfill_reserved_parts(db: AsyncSession, intervention: OrdresIntervention,
+                                   payload: "WorkOrderCompletePayload", order_id: int) -> None:
+    """Fulfill pre-reserved parts. Raises HTTPException on stock insufficiency."""
+    if not (intervention and payload.parts_consumed):
+        return
+    try:
+        reservation_svc = InventoryReservationService(db)
+        for item in payload.parts_consumed:
+            await reservation_svc.fulfill_reservation(
+                required_piece_id=item.required_piece_id, quantity_used=item.quantity_used,
+                quantity_returned=item.quantity_returned, quantity_wasted=item.quantity_wasted,
+                disposition=item.disposition, notes=item.notes, auto_commit=False,
+            )
+        try:
+            from modules.ml.services.demand_forecast import invalidate_forecast_cache
+            invalidate_forecast_cache()
+        except Exception:
+            pass
+    except ValueError as ve:
+        await db.rollback()
+        logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
+        raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+
+
 @router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'IN_PROGRESS' orders can be completed"}, 403: {"description": "You can only complete work orders assigned to you"}, 404: {"description": "Work order not found"}, 500: {"description": "Échec consommation directe; Internal server error"}})
 async def complete_work_order(
     order_id: int,
@@ -251,275 +405,54 @@ async def complete_work_order(
 ):
     """TECHNICIEN: Complete a work order with full PDCA data"""
     try:
-        # Check if work order exists
-        wo_result = await db.execute(
-            select(Ordres_travail).where(Ordres_travail.id == order_id)
-        )
-        wo = wo_result.scalar_one_or_none()
+        wo = (await db.execute(select(OrdresTravail).where(OrdresTravail.id == order_id))).scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
-
-        # Allow if either utilisateur_id matches OR intervention link exists
-        has_access = False
-        if wo.utilisateur_id == current_user.id:
-            has_access = True
-        else:
-            int_result = await db.execute(
-                select(Ordres_intervention).where(
-                    Ordres_intervention.ordre_travail_id == order_id,
-                    Ordres_intervention.technician_id == current_user.id,
-                )
-            )
-            if int_result.scalar_one_or_none():
-                has_access = True
-
-        if not has_access:
-            raise HTTPException(
-                status_code=403,
-                detail="You can only complete work orders assigned to you",
-            )
-
+        if not await _check_wo_access(db, wo, current_user.id, order_id):
+            raise HTTPException(status_code=403, detail="You can only complete work orders assigned to you")
         if wo.statut != OrdreStatut.IN_PROGRESS:
-            raise HTTPException(
-                status_code=400, detail="Only 'IN_PROGRESS' orders can be completed"
-            )
+            raise HTTPException(status_code=400, detail="Only 'IN_PROGRESS' orders can be completed")
 
         now = datetime.now(timezone.utc)
 
-        # Post-maintenance recovery: snapshot pre-fix health before completing.
-        # Non-blocking — None silently if ML service is unavailable.
+        # Non-blocking pre-fix health snapshot
         try:
-            _pre_fix_score = await PostMaintenanceRecoveryService(db).snapshot_health(
-                wo.machine_id
-            )
-            if _pre_fix_score is not None:
-                wo.health_score_at_completion = _pre_fix_score
+            score = await PostMaintenanceRecoveryService(db).snapshot_health(wo.machine_id)
+            if score is not None:
+                wo.health_score_at_completion = score
         except Exception as _rec_exc:
-            logger.warning(
-                "Recovery completion snapshot failed for WO %s: %s",
-                order_id,
-                _rec_exc,
-            )
+            logger.warning("Recovery completion snapshot failed for WO %s: %s", order_id, _rec_exc)
 
         wo.statut = OrdreStatut.COMPLETED
         wo.date_fin = now
         wo.rapport = payload.rapport
 
-        machine_obj = await db.scalar(
-            select(Machines).where(Machines.id == wo.machine_id)
-        )
+        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
         if machine_obj:
             machine_obj.date_derniere_maintenance = now
 
-        # Update linked intervention if exists
-        int_result = await db.execute(
-            select(Ordres_intervention).where(
-                Ordres_intervention.ordre_travail_id == order_id
-            )
-        )
-        intervention = int_result.scalar_one_or_none()
+        intervention = (await db.execute(
+            select(OrdresIntervention).where(OrdresIntervention.ordre_travail_id == order_id)
+        )).scalar_one_or_none()
         if intervention:
-            intervention.statut = _STATUT_TERMINE
-            intervention.rapport = payload.rapport
-            if not intervention.date_debut:
-                intervention.date_debut = wo.date_debut or now
-            intervention.date_fin = now
+            await _update_intervention_fields(db, intervention, payload, wo.date_debut, now)
 
-            intervention.intervention_type = payload.intervention_type
-            intervention.root_cause_category = payload.root_cause_category
-            intervention.root_cause_description = payload.root_cause_description
-            intervention.actions_performed = payload.actions_performed
-            intervention.legacy_parts_text = (
-                payload.parts_replaced
-            )  # legacy free-text fallback
-            intervention.tools_used = payload.tools_used
-            intervention.machine_status_after = payload.machine_status_after
-
-            intervention.plan_hypothesis = payload.plan_hypothesis
-            intervention.check_resolved = payload.check_resolved
-            intervention.check_verification_method = payload.check_verification_method
-            intervention.act_preventive_actions = payload.act_preventive_actions
-            intervention.act_recommendations = payload.act_recommendations
-            if payload.ml_prediction_matched is not None:
-                intervention.ml_prediction_matched = payload.ml_prediction_matched
-
-            if intervention.planning_tache_id:
-                tache = await db.scalar(
-                    select(Planning_taches).where(
-                        Planning_taches.id == intervention.planning_tache_id
-                    )
-                )
-                if tache:
-                    tache.statut = "COMPLETED"
-
-        # Save telemetry if any telemetry field is provided
-        if any(
-            [
-                payload.air_temperature,
-                payload.process_temperature,
-                payload.rotational_speed,
-                payload.torque,
-                payload.tool_wear,
-            ]
-        ):
-            telemetry = MachineTelemetry(
-                machine_id=wo.machine_id,
-                work_order_id=wo.id,
-                technician_id=current_user.id,
-                air_temperature=payload.air_temperature or 0,
-                process_temperature=payload.process_temperature or 0,
-                rotational_speed=payload.rotational_speed or 0,
-                torque=payload.torque or 0,
-                tool_wear=payload.tool_wear or 0,
-                recorded_at=now,
-                notes=payload.telemetry_notes,
-            )
-            db.add(telemetry)
-
-        # ── Ad-hoc consumption (no prior reservation) ─────────────────────
-        if intervention and payload.parts_consumed_direct:
-            try:
-                from models.required_pieces import RequiredPiece
-                from models.consumed_pieces import ConsumedPiece
-                from services.inventory import InventoryReservationService as _IRS
-                from services.inventory.stock import StockService as _Stock
-                from sqlalchemy import select as _select
-                from models.pieces import Piece as _Piece
-                from decimal import Decimal as _D
-
-                stock_svc = _Stock(db)
-                for di in payload.parts_consumed_direct:
-                    piece = await db.scalar(
-                        _select(_Piece).where(_Piece.id == di.piece_id)
-                    )
-                    if piece is None:
-                        raise ValueError(f"Pièce {di.piece_id} introuvable")
-                    unit = di.unit or piece.default_unit or "pcs"
-                    qty = _D(str(di.quantity)).quantize(_D("0.01"))
-                    rp = RequiredPiece(
-                        intervention_id=intervention.id,
-                        piece_id=di.piece_id,
-                        quantity_planned=qty,
-                        unit=unit,
-                        quantity_reserved=_D("0"),
-                        approved=True,
-                    )
-                    db.add(rp)
-                    await db.flush()
-                    await stock_svc.consume_stock(
-                        piece_id=di.piece_id,
-                        quantity=qty,
-                        intervention_id=intervention.id,
-                        reference=f"OT-itv-{intervention.id}-direct",
-                        unit=unit,
-                        auto_commit=False,
-                    )
-                    cp = ConsumedPiece(
-                        intervention_id=intervention.id,
-                        required_piece_id=rp.id,
-                        piece_id=di.piece_id,
-                        quantity_used=qty,
-                        quantity_returned=_D("0"),
-                        quantity_wasted=_D("0"),
-                        unit=unit,
-                        disposition="used",
-                        notes=di.notes,
-                    )
-                    db.add(cp)
-                    await _IRS(db)._auto_link_piece_to_machine(
-                        piece_id=di.piece_id, intervention_id=intervention.id
-                    )
-                await db.flush()
-            except ValueError as ve:
-                await db.rollback()
-                logger.warning(
-                    "Direct parts consumption failed for OT %s: %s", order_id, ve
-                )
-                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
-            except Exception as exc:
-                await db.rollback()
-                logger.exception(
-                    "Direct parts consumption error for OT %s: %s",
-                    order_id,
-                    exc,
-                    exc_info=True,
-                )
-                raise HTTPException(
-                    status_code=500, detail="Échec consommation directe"
-                )
-
-        # ── Pending pieces submitted at completion (uncatalogued) ─────────
-        if intervention and payload.pending_pieces_direct:
-            try:
-                from services.inventory import PendingPieceService as _PPS
-
-                pending_svc = _PPS(db)
-                for pp_item in payload.pending_pieces_direct:
-                    if not pp_item.name or not pp_item.name.strip():
-                        continue
-                    await pending_svc.create_with_placeholder(
-                        name=pp_item.name,
-                        quantity=pp_item.quantity,
-                        unit=pp_item.unit,
-                        category=pp_item.category,
-                        notes=pp_item.notes,
-                        intervention_id=intervention.id,
-                        submitted_by=current_user.id,
-                        auto_commit=False,
-                    )
-            except Exception as exc:
-                logger.warning(
-                    f"Pending direct submit failed for OT {order_id}: {exc}",
-                    exc_info=True,
-                )
-
-        # ── Atomic parts consumption (pre-reserved) ───────────────────────
-        # If the technician submitted parts_consumed, fulfill each reservation
-        # within the same transaction. Any insufficiency rolls back the entire
-        # work-order completion (no half-state).
-        if intervention and payload.parts_consumed:
-            try:
-                reservation_svc = InventoryReservationService(db)
-                for item in payload.parts_consumed:
-                    await reservation_svc.fulfill_reservation(
-                        required_piece_id=item.required_piece_id,
-                        quantity_used=item.quantity_used,
-                        quantity_returned=item.quantity_returned,
-                        quantity_wasted=item.quantity_wasted,
-                        disposition=item.disposition,
-                        notes=item.notes,
-                        auto_commit=False,
-                    )
-                # invalidate forecast cache after real consumption recorded
-                try:
-                    from modules.ml.services.demand_forecast import (
-                        invalidate_forecast_cache,
-                    )
-
-                    invalidate_forecast_cache()
-                except Exception:
-                    pass
-            except ValueError as ve:
-                await db.rollback()
-                logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
-                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
+        _add_telemetry_if_present(db, wo, current_user.id, payload, now)
+        await _consume_direct_parts(db, intervention, payload, order_id)
+        await _submit_pending_pieces(db, intervention, payload, current_user.id, order_id)
+        await _fulfill_reserved_parts(db, intervention, payload, order_id)
 
         await db.commit()
 
         try:
             await AuditService(db).log_update(
-                entity_type=AuditEntityType.WORK_ORDER,
-                entity_id=order_id,
+                entity_type=AuditEntityType.WORK_ORDER, entity_id=order_id,
                 old_values={"statut": "EN_COURS"},
                 new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
-                user_id=current_user.id,
-                user_name=current_user.nom,
-                entity_name=wo.titre,
+                user_id=current_user.id, user_name=current_user.nom, entity_name=wo.titre,
             )
         except Exception:
-            logger.warning(
-                "Audit log failed for technician complete work order %s", order_id
-            )
+            logger.warning("Audit log failed for technician complete work order %s", order_id)
 
         return {"message": "Work order completed via PDCA form", "statut": _STATUT_TERMINE}
     except HTTPException:

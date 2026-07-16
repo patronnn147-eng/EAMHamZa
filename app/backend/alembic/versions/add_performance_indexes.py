@@ -1,4 +1,4 @@
-"""add performance indexes
+﻿"""add performance indexes
 
 Revision ID: new_perf_indexes
 Revises: 55c181562e1e
@@ -23,11 +23,11 @@ def upgrade() -> None:
     conn = op.get_bind()
 
     indexes_to_create = [
-        ("idx_ordres_travail_utilisateur_id", "ordres_travail", ["utilisateur_id"]),
-        ("idx_ordres_travail_machine_id", "ordres_travail", ["machine_id"]),
-        ("idx_ordres_travail_statut", "ordres_travail", ["statut"]),
-        ("idx_interventions_machine_id", "ordres_intervention", ["machine_id"]),
-        ("idx_interventions_created_at", "ordres_intervention", ["created_at"]),
+        ("idx_OrdresTravail_utilisateur_id", "OrdresTravail", ["utilisateur_id"]),
+        ("idx_OrdresTravail_machine_id", "OrdresTravail", ["machine_id"]),
+        ("idx_OrdresTravail_statut", "OrdresTravail", ["statut"]),
+        ("idx_interventions_machine_id", "OrdresIntervention", ["machine_id"]),
+        ("idx_interventions_created_at", "OrdresIntervention", ["created_at"]),
         ("idx_notifications_utilisateur_id", "notifications", ["utilisateur_id"]),
         ("idx_notifications_lu", "notifications", ["lu"]),
     ]
@@ -46,8 +46,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("idx_notifications_lu", table_name="notifications")
     op.drop_index("idx_notifications_utilisateur_id", table_name="notifications")
-    op.drop_index("idx_interventions_created_at", table_name="ordres_intervention")
-    op.drop_index("idx_interventions_machine_id", table_name="ordres_intervention")
-    op.drop_index("idx_ordres_travail_statut", table_name="ordres_travail")
-    op.drop_index("idx_ordres_travail_machine_id", table_name="ordres_travail")
-    op.drop_index("idx_ordres_travail_utilisateur_id", table_name="ordres_travail")
+    op.drop_index("idx_interventions_created_at", table_name="OrdresIntervention")
+    op.drop_index("idx_interventions_machine_id", table_name="OrdresIntervention")
+    op.drop_index("idx_OrdresTravail_statut", table_name="OrdresTravail")
+    op.drop_index("idx_OrdresTravail_machine_id", table_name="OrdresTravail")
+    op.drop_index("idx_OrdresTravail_utilisateur_id", table_name="OrdresTravail")

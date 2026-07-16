@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,11 +8,11 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.plannings import Plannings, PlanningType, PlanningStatut
-from models.planning_machines import Planning_machines
-from models.planning_utilisateurs import Planning_utilisateurs
+from models.PlanningMachines import PlanningMachines
+from models.PlanningUtilisateurs import PlanningUtilisateurs
 from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
-from services.planning_utilisateurs import Planning_utilisateursService
+from services.PlanningUtilisateurs import PlanningUtilisateursService
 from tasks.planning_emails import send_planning_assignment_emails
 from .schemas import PlanningResponse, PlanningCreateData
 from .helpers import (
@@ -37,7 +37,7 @@ async def create_planning(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Create a new planning (admin only)"""
-    await verify_admin(current_user)
+    verify_admin(current_user)
     safe_technicien_ids = repr(data.technicien_ids)
     logger.info(f"CREATE planning — technicien_ids received: {safe_technicien_ids}")
 
@@ -101,7 +101,7 @@ async def create_planning(
             now = datetime.now()
             for machine_id in sorted(set(data.machine_ids)):
                 db.add(
-                    Planning_machines(
+                    PlanningMachines(
                         planning_id=planning_id,
                         machine_id=machine_id,
                         created_at=now,
@@ -142,7 +142,7 @@ async def create_planning(
         now = datetime.now()
         for user_id in all_assigned_users:
             db.add(
-                Planning_utilisateurs(
+                PlanningUtilisateurs(
                     planning_id=planning_id,
                     utilisateur_id=user_id,
                     created_at=now,
@@ -210,7 +210,7 @@ async def resend_planning_emails(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Manually re-send planning assignment emails to currently assigned users (admin only)."""
-    await verify_admin(current_user)
+    verify_admin(current_user)
 
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
@@ -220,8 +220,8 @@ async def resend_planning_emails(
         )
 
     assigned_ids_result = await db.execute(
-        select(Planning_utilisateurs.utilisateur_id).where(
-            Planning_utilisateurs.planning_id == planning_id
+        select(PlanningUtilisateurs.utilisateur_id).where(
+            PlanningUtilisateurs.planning_id == planning_id
         )
     )
     user_ids = [row[0] for row in assigned_ids_result.fetchall()]
@@ -266,14 +266,14 @@ async def delete_planning(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Delete a planning (admin only)"""
-    await verify_admin(current_user)
+    verify_admin(current_user)
 
     try:
-        # Delete associated planning_utilisateurs records first
-        pu_service = Planning_utilisateursService(db)
+        # Delete associated PlanningUtilisateurs records first
+        pu_service = PlanningUtilisateursService(db)
         result = await db.execute(
-            select(Planning_utilisateurs).where(
-                Planning_utilisateurs.planning_id == planning_id
+            select(PlanningUtilisateurs).where(
+                PlanningUtilisateurs.planning_id == planning_id
             )
         )
         assignments = result.scalars().all()
@@ -325,7 +325,7 @@ async def submit_planning(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Submit a planning for approval (CHEFTECH only)"""
-    await verify_cheftech(current_user)
+    verify_cheftech(current_user)
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
@@ -365,7 +365,7 @@ async def approve_planning(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Approve a planning (ADMIN only)"""
-    await verify_admin(current_user)
+    verify_admin(current_user)
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
@@ -405,7 +405,7 @@ async def reject_planning(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Reject a planning (ADMIN only)"""
-    await verify_admin(current_user)
+    verify_admin(current_user)
     service = PlanningsService(db)
     planning = await service.get_by_id(planning_id)
     if not planning:
@@ -436,3 +436,4 @@ async def reject_planning(
         "id": planning_id,
         "planning_statut": "REJECTED",
     }
+

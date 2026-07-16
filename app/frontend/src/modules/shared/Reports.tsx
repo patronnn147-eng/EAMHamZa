@@ -193,7 +193,7 @@ export default function Reports() {
     a.download = `${report.identifiant_rapport}.txt`;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(url);
     
     toast({

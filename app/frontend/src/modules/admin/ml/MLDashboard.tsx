@@ -42,13 +42,11 @@ interface RetrainResult {
 export default function MLDashboard() {
     const [stats, setStats] = useState<MLStats | null>(null);
     const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
-    const [loading, setLoading] = useState(true);
     const [retraining, setRetraining] = useState(false);
     const { toast } = useToast();
 
     const fetchStats = async () => {
         try {
-            setLoading(true);
             const response = await fetch('/api/v1/ml/retrain/stats');
             if (response.ok) {
                 const data = await response.json();
@@ -56,8 +54,6 @@ export default function MLDashboard() {
             }
         } catch (error) {
             console.error('Failed to fetch ML stats:', error);
-        } finally {
-            setLoading(false);
         }
     };
 

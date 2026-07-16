@@ -77,8 +77,8 @@ export const AuditLogViewer: React.FC = () => {
   // Error boundary: catch unexpected errors
   useEffect(() => {
     const handleError = () => setHasError(true);
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
+    globalThis.addEventListener('error', handleError);
+    return () => globalThis.removeEventListener('error', handleError);
   }, []);
   
   // Filter states

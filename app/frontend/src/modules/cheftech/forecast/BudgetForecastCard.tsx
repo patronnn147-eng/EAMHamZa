@@ -24,7 +24,7 @@ export function BudgetForecastCard({ data }: Readonly<Props>) {
           <ResponsiveContainer width={120} height={120}>
             <PieChart>
               <Pie data={pieData} dataKey="value" nameKey="label" cx="50%" cy="50%" outerRadius={50} innerRadius={30}>
-                {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                {pieData.map((entry, i) => <Cell key={entry.label} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip
                 contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8 }}

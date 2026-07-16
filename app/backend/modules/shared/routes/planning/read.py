@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from typing import List, Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,9 +10,9 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings
-from models.planning_machines import Planning_machines
-from models.planning_utilisateurs import Planning_utilisateurs
-from models.planning_taches import Planning_taches
+from models.PlanningMachines import PlanningMachines
+from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.PlanningTaches import PlanningTaches
 from models.machines import Machines
 from services.plannings import PlanningsService
 from .schemas import PlanningResponse, PlanningMachineResponse, UserOption
@@ -52,9 +52,9 @@ async def list_plannings(
                     Plannings.chef_technique_id == current_user.id
                 )
             else:
-                # Technicians see plannings where they are explicitly assigned in planning_utilisateurs
-                query = select(Planning_utilisateurs.planning_id).where(
-                    Planning_utilisateurs.utilisateur_id == current_user.id
+                # Technicians see plannings where they are explicitly assigned in PlanningUtilisateurs
+                query = select(PlanningUtilisateurs.planning_id).where(
+                    PlanningUtilisateurs.utilisateur_id == current_user.id
                 )
 
             planning_ids_result = await db.execute(query.distinct())
@@ -73,10 +73,10 @@ async def list_plannings(
 
             # Eager load relationships to avoid N+1 in get_planning_with_users
             data_query = data_query.options(
-                selectinload(Plannings.planning_utilisateurs).selectinload(
-                    Planning_utilisateurs.utilisateur
+                selectinload(Plannings.PlanningUtilisateurs).selectinload(
+                    PlanningUtilisateurs.utilisateur
                 ),
-                selectinload(Plannings.planning_machines),
+                selectinload(Plannings.PlanningMachines),
             )
 
             # Apply sorting
@@ -135,11 +135,11 @@ async def list_plannings_with_tasks(
     try:
         tasks_subquery = (
             select(
-                Planning_taches.planning_id,
-                func.count(Planning_taches.id).label("task_count"),
+                PlanningTaches.planning_id,
+                func.count(PlanningTaches.id).label("task_count"),
             )
-            .where(Planning_taches.archived_at.is_(None))
-            .group_by(Planning_taches.planning_id)
+            .where(PlanningTaches.archived_at.is_(None))
+            .group_by(PlanningTaches.planning_id)
             .subquery()
         )
 
@@ -204,9 +204,9 @@ async def get_planning(
             # If not already found as chef, check the bridge table (especially for technicians)
             if not has_access:
                 pu_result = await db.execute(
-                    select(Planning_utilisateurs).where(
-                        Planning_utilisateurs.planning_id == planning_id,
-                        Planning_utilisateurs.utilisateur_id == current_user.id,
+                    select(PlanningUtilisateurs).where(
+                        PlanningUtilisateurs.planning_id == planning_id,
+                        PlanningUtilisateurs.utilisateur_id == current_user.id,
                     )
                 )
                 has_access = pu_result.scalar_one_or_none() is not None
@@ -230,7 +230,7 @@ async def get_planning(
 
 
 @router.get("/{planning_id}/machines", response_model=List[PlanningMachineResponse])
-async def get_planning_machines(
+async def get_PlanningMachines(
     planning_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -256,9 +256,9 @@ async def get_planning_machines(
 
             # If not responsible, check if explicitly assigned (bridge table)
             if not has_access:
-                assignment_query = select(Planning_utilisateurs).where(
-                    Planning_utilisateurs.planning_id == planning_id,
-                    Planning_utilisateurs.utilisateur_id == current_user.id,
+                assignment_query = select(PlanningUtilisateurs).where(
+                    PlanningUtilisateurs.planning_id == planning_id,
+                    PlanningUtilisateurs.utilisateur_id == current_user.id,
                 )
                 assignment_result = await db.execute(assignment_query)
                 assignment = assignment_result.scalar_one_or_none()
@@ -272,8 +272,8 @@ async def get_planning_machines(
 
         result = await db.execute(
             select(Machines)
-            .join(Planning_machines, Planning_machines.machine_id == Machines.id)
-            .where(Planning_machines.planning_id == planning_id)
+            .join(PlanningMachines, PlanningMachines.machine_id == Machines.id)
+            .where(PlanningMachines.planning_id == planning_id)
             .order_by(Machines.nom.asc())
         )
         machines = result.scalars().all()
@@ -301,10 +301,10 @@ async def get_planning_users(
         result = await db.execute(
             select(Utilisateurs)
             .join(
-                Planning_utilisateurs,
-                Planning_utilisateurs.utilisateur_id == Utilisateurs.id,
+                PlanningUtilisateurs,
+                PlanningUtilisateurs.utilisateur_id == Utilisateurs.id,
             )
-            .where(Planning_utilisateurs.planning_id == planning_id)
+            .where(PlanningUtilisateurs.planning_id == planning_id)
         )
         users = result.scalars().all()
 

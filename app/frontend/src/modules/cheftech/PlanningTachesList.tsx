@@ -58,7 +58,7 @@ export default function PlanningTachesList() {
   const getDuration = (dateDebut: string, dateFin: string) => {
     const diff = Math.abs(new Date(dateFin).getTime() - new Date(dateDebut).getTime());
     const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
-    return `${days} day${days !== 1 ? 's' : ''}`;
+    return `${days} day${days === 1 ? '' : 's'}`;
   };
 
   if (loading) {

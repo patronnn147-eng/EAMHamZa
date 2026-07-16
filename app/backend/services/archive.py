@@ -1,9 +1,9 @@
-"""ArchiveService — soft-archive lifecycle for date-based modules.
+﻿"""ArchiveService — soft-archive lifecycle for date-based modules.
 
 Modules covered:
-- planning_taches      (due column: date_fin)
-- ordres_travail       (due column: date_echeance)
-- ordres_intervention  (due column: date_intervention)
+- PlanningTaches      (due column: date_fin)
+- OrdresTravail       (due column: date_echeance)
+- OrdresIntervention  (due column: date_intervention)
 - plannings            (due column: date_fin)
 
 Lifecycle:
@@ -23,9 +23,9 @@ from typing import Dict, List, Optional, Sequence
 from sqlalchemy import String, and_, cast, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
-from models.planning_taches import Planning_taches
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail
+from models.PlanningTaches import PlanningTaches
 from models.plannings import Plannings
 
 logger = logging.getLogger(__name__)
@@ -45,20 +45,20 @@ class ArchiveRule:
 
 ARCHIVE_RULES: List[ArchiveRule] = [
     ArchiveRule(
-        module="planning_taches",
-        model=Planning_taches,
+        module="PlanningTaches",
+        model=PlanningTaches,
         due_column="date_fin",
         terminal_statuses=("COMPLETED",),
     ),
     ArchiveRule(
-        module="ordres_travail",
-        model=Ordres_travail,
+        module="OrdresTravail",
+        model=OrdresTravail,
         due_column="date_echeance",
         terminal_statuses=("COMPLETED", "VALIDATED", "CLOSED", "REJECTED", "ANNULÉ"),
     ),
     ArchiveRule(
-        module="ordres_intervention",
-        model=Ordres_intervention,
+        module="OrdresIntervention",
+        model=OrdresIntervention,
         due_column="date_intervention",
         terminal_statuses=("TERMINÉ", "TERMINE", "DECLINED"),
     ),

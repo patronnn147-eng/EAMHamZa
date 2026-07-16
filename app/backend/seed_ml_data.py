@@ -1,4 +1,4 @@
-"""
+﻿"""
 seed_ml_data.py — ML Seed Data Script
 
 Simulates 50 full EAM maintenance cycles for machine_id=20, generating
@@ -31,12 +31,12 @@ from core.database import db_manager
 from models.machine_telemetry import MachineTelemetry
 from models.machines import Machines
 from models.ml_prediction_log import MlPredictionLog
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail, OrdreStatut
-from models.planning_machines import Planning_machines
-from models.planning_ordres_travail import Planning_ordres_travail
-from models.planning_taches import Planning_taches, TaskType
-from models.planning_utilisateurs import Planning_utilisateurs
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.PlanningMachines import PlanningMachines
+from models.planning_OrdresTravail import PlanningOrdresTravail
+from models.PlanningTaches import PlanningTaches, TaskType
+from models.PlanningUtilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings, PlanningStatut, PlanningType
 from models.utilisateurs import UserRole, UserStatus, Utilisateurs
 
@@ -146,11 +146,11 @@ async def _clean_seed_data(db) -> None:
     """Delete all seed data for TARGET_MACHINE_ID. Safe to call multiple times."""
     logger.info(f"Cleaning seed data for machine_id={TARGET_MACHINE_ID}...")
 
-    # Collect seed OT ids first (used as FK in ITV + planning_ordres_travail)
+    # Collect seed OT ids first (used as FK in ITV + planning_OrdresTravail)
     seed_ot_rows = await db.execute(
-        select(Ordres_travail.id).where(
-            Ordres_travail.machine_id == TARGET_MACHINE_ID,
-            Ordres_travail.titre.like("OT-SEED-%"),
+        select(OrdresTravail.id).where(
+            OrdresTravail.machine_id == TARGET_MACHINE_ID,
+            OrdresTravail.titre.like("OT-SEED-%"),
         )
     )
     seed_ot_ids = [r[0] for r in seed_ot_rows.all()]
@@ -174,35 +174,35 @@ async def _clean_seed_data(db) -> None:
     # Delete ALL interventions for this machine first — covers both
     # ordre_travail_id FK and planning_id FK constraints
     await db.execute(
-        delete(Ordres_intervention).where(
-            Ordres_intervention.machine_id == TARGET_MACHINE_ID
+        delete(OrdresIntervention).where(
+            OrdresIntervention.machine_id == TARGET_MACHINE_ID
         )
     )
 
     if seed_ot_ids:
         await db.execute(
-            delete(Planning_ordres_travail).where(
-                Planning_ordres_travail.ordre_travail_id.in_(seed_ot_ids)
+            delete(PlanningOrdresTravail).where(
+                PlanningOrdresTravail.ordre_travail_id.in_(seed_ot_ids)
             )
         )
         await db.execute(
-            delete(Ordres_travail).where(Ordres_travail.id.in_(seed_ot_ids))
+            delete(OrdresTravail).where(OrdresTravail.id.in_(seed_ot_ids))
         )
 
     if seed_plan_ids:
         await db.execute(
-            delete(Planning_taches).where(
-                Planning_taches.planning_id.in_(seed_plan_ids)
+            delete(PlanningTaches).where(
+                PlanningTaches.planning_id.in_(seed_plan_ids)
             )
         )
         await db.execute(
-            delete(Planning_machines).where(
-                Planning_machines.planning_id.in_(seed_plan_ids)
+            delete(PlanningMachines).where(
+                PlanningMachines.planning_id.in_(seed_plan_ids)
             )
         )
         await db.execute(
-            delete(Planning_utilisateurs).where(
-                Planning_utilisateurs.planning_id.in_(seed_plan_ids)
+            delete(PlanningUtilisateurs).where(
+                PlanningUtilisateurs.planning_id.in_(seed_plan_ids)
             )
         )
         await db.execute(delete(Plannings).where(Plannings.id.in_(seed_plan_ids)))
@@ -323,21 +323,21 @@ async def seed():
 
             # ── Step 2: Bridge records ─────────────────────────────────────────
             db.add(
-                Planning_machines(
+                PlanningMachines(
                     planning_id=planning.id,
                     machine_id=TARGET_MACHINE_ID,
                     created_at=c_start,
                 )
             )
             db.add(
-                Planning_utilisateurs(
+                PlanningUtilisateurs(
                     planning_id=planning.id,
                     utilisateur_id=technicien.id,
                     created_at=c_start,
                 )
             )
             db.add(
-                Planning_utilisateurs(
+                PlanningUtilisateurs(
                     planning_id=planning.id,
                     utilisateur_id=cheftech.id,
                     created_at=c_start,
@@ -345,7 +345,7 @@ async def seed():
             )
 
             # ── Step 3: Planning taches ────────────────────────────────────────
-            tache_diag = Planning_taches(
+            tache_diag = PlanningTaches(
                 planning_id=planning.id,
                 titre=f"Diagnostic C{cycle_num:02d}",
                 description=f"Diagnostic — cycle {cycle_num} ({cfg['failure_type']})",
@@ -357,7 +357,7 @@ async def seed():
                 statut="APPROVED",
                 created_by=cheftech.id,
             )
-            tache_corr = Planning_taches(
+            tache_corr = PlanningTaches(
                 planning_id=planning.id,
                 titre=f"Correction C{cycle_num:02d}",
                 description=f"Correction — cycle {cycle_num} ({cfg['failure_type']})",
@@ -374,7 +374,7 @@ async def seed():
             await db.flush()
 
             # ── Step 4: ITV (ordre_travail_id=None — created BEFORE OT) ────────
-            itv = Ordres_intervention(
+            itv = OrdresIntervention(
                 machine_id=TARGET_MACHINE_ID,
                 planning_id=planning.id,
                 planning_tache_id=tache_diag.id,
@@ -400,7 +400,7 @@ async def seed():
             await db.flush()
 
             # ── Step 5: OT ────────────────────────────────────────────────────
-            ot = Ordres_travail(
+            ot = OrdresTravail(
                 titre=f"OT-SEED-C{cycle_num:02d}-M{TARGET_MACHINE_ID}",
                 description=f"OT seed cycle {cycle_num} — {cfg['failure_type']}",
                 priorite=cfg["priority"],
@@ -419,7 +419,7 @@ async def seed():
 
             # ── Step 7: Link Planning → OT ─────────────────────────────────────
             db.add(
-                Planning_ordres_travail(
+                PlanningOrdresTravail(
                     planning_id=planning.id,
                     ordre_travail_id=ot.id,
                     created_at=c_start,
@@ -500,7 +500,7 @@ async def seed():
         )
         logger.info(f"  {NUM_CYCLES} Plannings (APPROVED, MAINTENANCE)")
         logger.info(
-            f"  {NUM_CYCLES * 2} Planning_taches (DIAGNOSTIC + CORRECTION × {NUM_CYCLES})"
+            f"  {NUM_CYCLES * 2} PlanningTaches (DIAGNOSTIC + CORRECTION × {NUM_CYCLES})"
         )
         logger.info(f"  {NUM_CYCLES} ITVs  | {NUM_CYCLES} OTs (CLOSED)")
         logger.info(f"  {NUM_CYCLES * TELEMETRY_PER_CYCLE} MachineTelemetry rows")

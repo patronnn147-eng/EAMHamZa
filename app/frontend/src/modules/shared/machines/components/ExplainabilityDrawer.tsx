@@ -84,7 +84,7 @@ function whoActsContent(role: UserRole | null, machine: Machine, shortfallCount:
         case 'ADMIN':
             return {
                 title: 'Your action — Procurement approval',
-                body: `${shortfallCount} part${shortfallCount !== 1 ? 's are' : ' is'} below required stock. Create a draft work order for procurement review — you can approve or reject it before anything is ordered.`,
+                body: `${shortfallCount} part${shortfallCount === 1 ? ' is' : 's are'} below required stock. Create a draft work order for procurement review — you can approve or reject it before anything is ordered.`,
                 actionLabel: 'Create Procurement Draft',
                 actionPath: null,  // handled by modal below
             };
@@ -98,7 +98,7 @@ function whoActsContent(role: UserRole | null, machine: Machine, shortfallCount:
         case 'CHETOP': {
             let shortfallSummary = 'Stock levels are adequate.';
             if (shortfallCount > 0) {
-                const partSuffix = shortfallCount !== 1 ? 's are' : ' is';
+                const partSuffix = shortfallCount === 1 ? ' is' : 's are';
                 shortfallSummary = `${shortfallCount} part${partSuffix} missing.`;
             }
             return {
@@ -192,7 +192,7 @@ export function ExplainabilityDrawer({ open, onOpenChange, machine, parts_demand
                 <Section icon="⚠️" title="What if nothing is ordered?">
                     <BodyText>
                         {shortage.length > 0
-                            ? <>{shortage.length} part{shortage.length !== 1 ? 's are' : ' is'} below the required stock level. Without ordering, a breakdown could cause <strong style={{ color: '#f97316' }}>unplanned production downtime</strong>, emergency procurement at higher cost, and longer machine-off time while parts are sourced.</>
+                            ? <>{shortage.length} part{shortage.length === 1 ? ' is' : 's are'} below the required stock level. Without ordering, a breakdown could cause <strong style={{ color: '#f97316' }}>unplanned production downtime</strong>, emergency procurement at higher cost, and longer machine-off time while parts are sourced.</>
                             : <>Current stock levels are sufficient. No immediate action is required, but monitoring is advised as the machine approaches its maintenance window.</>
                         }
                     </BodyText>

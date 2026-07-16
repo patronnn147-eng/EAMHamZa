@@ -1,4 +1,4 @@
-"""
+﻿"""
 One-shot DB → RAG sync.
 
 Reads selected tables from Postgres, formats each row as a human-readable text
@@ -6,7 +6,7 @@ document, and POSTs to the RAG service `/ingest` endpoint.
 
 Usage (inside backend container, or with appropriate env vars):
     python scripts/sync_db_to_rag.py                  # ingest all tables
-    python scripts/sync_db_to_rag.py --tables machines,ordres_travail
+    python scripts/sync_db_to_rag.py --tables machines,OrdresTravail
     python scripts/sync_db_to_rag.py --dry-run        # print docs, no upload
     python scripts/sync_db_to_rag.py --delete-stale   # remove old auto-synced docs first
 
@@ -158,10 +158,10 @@ TABLES: dict[str, tuple[str, Callable, str | None]] = {
         _fmt_machine,
         "id",  # the row IS the machine
     ),
-    "ordres_travail": (
+    "OrdresTravail": (
         "SELECT id, titre, description, priorite, machine_id, statut, "
         "failure_type, date_echeance, date_debut, date_fin, date_validation, "
-        "rapport, cheftech_feedback FROM ordres_travail "
+        "rapport, cheftech_feedback FROM OrdresTravail "
         "WHERE statut IN ('COMPLETED','VALIDATED','CLOSED') "
         "ORDER BY id DESC LIMIT 5000",
         _fmt_ordre_travail,
@@ -175,8 +175,8 @@ TABLES: dict[str, tuple[str, Callable, str | None]] = {
         _fmt_alerte,
         "machine_id",
     ),
-    "maintenances_planifiees": (
-        "SELECT * FROM maintenances_planifiees ORDER BY id DESC LIMIT 2000",
+    "MaintenancesPlanifiees": (
+        "SELECT * FROM MaintenancesPlanifiees ORDER BY id DESC LIMIT 2000",
         _fmt_maintenance_planifiee,
         "machine_id",
     ),
@@ -188,7 +188,7 @@ TABLES: dict[str, tuple[str, Callable, str | None]] = {
 }
 
 # Single-row fetch SQL per table — used by event-driven sync.
-# Note: ordres_travail filter (only completed/validated/closed) still applies —
+# Note: OrdresTravail filter (only completed/validated/closed) still applies —
 # in-progress edits are not synced until status reaches a terminal state.
 ROW_FETCH: dict[str, str] = {
     "machines": (
@@ -196,10 +196,10 @@ ROW_FETCH: dict[str, str] = {
         "date_derniere_maintenance, date_prochaine_maintenance, created_at "
         "FROM machines WHERE id = :id"
     ),
-    "ordres_travail": (
+    "OrdresTravail": (
         "SELECT id, titre, description, priorite, machine_id, statut, "
         "failure_type, date_echeance, date_debut, date_fin, date_validation, "
-        "rapport, cheftech_feedback FROM ordres_travail "
+        "rapport, cheftech_feedback FROM OrdresTravail "
         "WHERE id = :id AND statut IN ('COMPLETED','VALIDATED','CLOSED')"
     ),
     "alertes": (
@@ -207,7 +207,7 @@ ROW_FETCH: dict[str, str] = {
         "failure_probability, is_active, work_order_id, priority, "
         "created_at, dismissed_at FROM alertes WHERE id = :id"
     ),
-    "maintenances_planifiees": "SELECT * FROM maintenances_planifiees WHERE id = :id",
+    "MaintenancesPlanifiees": "SELECT * FROM MaintenancesPlanifiees WHERE id = :id",
     "pieces": "SELECT * FROM pieces WHERE id = :id",
 }
 

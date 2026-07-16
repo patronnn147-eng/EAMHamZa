@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from typing import Dict, Any, Optional
 from sqlalchemy import event, inspect
 
@@ -7,8 +7,8 @@ logger = logging.getLogger(__name__)
 
 AUDITABLE_MODELS = {
     "machines": "machine",
-    "ordres_travail": "work_order",
-    "ordres_intervention": "intervention",
+    "OrdresTravail": "work_order",
+    "OrdresIntervention": "intervention",
     "plannings": "planning",
     "utilisateurs": "user",
     "alertes": "alert",

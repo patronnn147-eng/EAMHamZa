@@ -169,14 +169,14 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
       if (!response.ok) throw new Error('Failed to download template');
       
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'machines_import_template.xlsx';
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
     } catch {
       toast({
         title: 'Erreur',
@@ -280,7 +280,7 @@ export const MachineImportDialog: React.FC<MachineImportDialogProps> = ({
                         <td className="px-3 py-2 text-blue-200">{item.data?.type || '-'}</td>
                         <td className="px-3 py-2 text-blue-200">{item.data?.zone || '-'}</td>
                         <td className="px-3 py-2 text-red-600 font-medium text-xs flex flex-col gap-1">
-                          {item.errors.map((err, j) => <span key={j}>• {err}</span>)}
+                          {item.errors.map((err, j) => <span key={`${err}-${j}`}>• {err}</span>)}
                         </td>
                       </tr>
                     ))}

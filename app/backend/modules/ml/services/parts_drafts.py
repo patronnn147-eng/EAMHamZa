@@ -1,6 +1,6 @@
-"""
+﻿"""
 P7.4 — Guarded draft creation for parts procurement.
-Shortfall → DRAFT Ordres_travail (human must approve before anything commits).
+Shortfall → DRAFT OrdresTravail (human must approve before anything commits).
 Dedup: if PARTS_SHORTAGE alert already has a work_order_id, skip creation.
 """
 
@@ -83,7 +83,7 @@ async def create_procurement_draft(
     db: AsyncSession,
 ) -> Optional[int]:
     """
-    Create a DRAFT Ordres_travail from parts_demand shortfall data.
+    Create a DRAFT OrdresTravail from parts_demand shortfall data.
 
     Returns the new work order id, or None if:
     - parts_demand is None / has no items
@@ -93,7 +93,7 @@ async def create_procurement_draft(
     The draft is NOT committed to DB here; caller commits.
     """
     from models.alertes import Alert, AlertType
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
 
     if not parts_demand or not parts_demand.get("items"):
         return None
@@ -123,7 +123,7 @@ async def create_procurement_draft(
         days=parts_demand.get("horizon_days", 30)
     )
 
-    wo = Ordres_travail(
+    wo = OrdresTravail(
         titre=title,
         description=description,
         priorite=priority,
@@ -163,9 +163,9 @@ async def approve_procurement_draft(
     Approve draft: DRAFT → SUBMITTED, enters normal CHEFTECH/ADMIN workflow.
     No inventory reservation here — happens when WO is validated downstream.
     """
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
 
-    result = await db.execute(select(Ordres_travail).where(Ordres_travail.id == wo_id))
+    result = await db.execute(select(OrdresTravail).where(OrdresTravail.id == wo_id))
     wo = result.scalar_one_or_none()
     if not wo:
         return {"success": False, "error": "Work order not found"}
@@ -191,10 +191,10 @@ async def reject_procurement_draft(
     Reject draft: DRAFT → ANNULÉ. Unlinks from PARTS_SHORTAGE alert.
     No reservation was ever made, so nothing to release.
     """
-    from models.ordres_travail import Ordres_travail, OrdreStatut
+    from models.OrdresTravail import OrdresTravail, OrdreStatut
     from models.alertes import Alert
 
-    result = await db.execute(select(Ordres_travail).where(Ordres_travail.id == wo_id))
+    result = await db.execute(select(OrdresTravail).where(OrdresTravail.id == wo_id))
     wo = result.scalar_one_or_none()
     if not wo:
         return {"success": False, "error": "Work order not found"}

@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from core.database import get_db
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail
 from models.utilisateurs import Utilisateurs, UserRole
 from core.auth import get_current_user
 from typing import Annotated
@@ -33,16 +33,16 @@ async def get_admin_analytics_dashboard(
     Returns system-wide analytics, technician performance, and request trends for Admin.
     """
     w_result = await db.execute(
-        select(Ordres_travail)
-        .options(selectinload(Ordres_travail.machine))
-        .options(selectinload(Ordres_travail.utilisateur))
+        select(OrdresTravail)
+        .options(selectinload(OrdresTravail.machine))
+        .options(selectinload(OrdresTravail.utilisateur))
     )
     all_wos = list(w_result.scalars().all())
 
     i_result = await db.execute(
-        select(Ordres_intervention)
-        .options(selectinload(Ordres_intervention.machine))
-        .options(selectinload(Ordres_intervention.technicien))
+        select(OrdresIntervention)
+        .options(selectinload(OrdresIntervention.machine))
+        .options(selectinload(OrdresIntervention.technicien))
     )
     all_ints = list(i_result.scalars().all())
 
@@ -147,9 +147,9 @@ async def export_admin_analytics(
     Exports aggregate analytics data as a CSV file.
     """
     w_result = await db.execute(
-        select(Ordres_travail)
-        .options(selectinload(Ordres_travail.machine))
-        .options(selectinload(Ordres_travail.utilisateur))
+        select(OrdresTravail)
+        .options(selectinload(OrdresTravail.machine))
+        .options(selectinload(OrdresTravail.utilisateur))
     )
     all_wos = list(w_result.scalars().all())
 

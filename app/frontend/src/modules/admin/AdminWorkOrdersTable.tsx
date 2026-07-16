@@ -87,13 +87,13 @@ export default function AdminWorkOrdersTable() {
             if (!response.ok) throw new Error('Export failed');
             
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
+            const url = globalThis.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `Rapport_OT_${woId}.xlsx`;
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
+            globalThis.URL.revokeObjectURL(url);
             toast.success("Rapport téléchargé avec succès");
         } catch (error) {
             console.error('Export error:', error);

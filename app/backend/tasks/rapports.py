@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict
+from typing import Any, Dict, List
 from datetime import datetime
 
 from core.celery_app import celery_app
@@ -10,6 +10,27 @@ from core.database import AsyncSessionLocal
 from services.rapports import RapportsService
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_ADMIN = [{"email": "admin@example.com", "nom": "Admin"}]
+
+
+def _collect_recipients(scheduled, frequency: str) -> List:
+    """Extract recipient list from scheduled reports matching a frequency."""
+    recipients = []
+    for report in scheduled:
+        if report.schedule_config and report.schedule_config.get("frequency") == frequency:
+            recipients.extend(report.schedule_config.get("recipients", []))
+    return recipients or list(_DEFAULT_ADMIN)
+
+
+def _send_batch(email_service: EmailService, recipients: List, subject: str, html: str) -> int:
+    """Send email to every recipient; return count of successful sends."""
+    sent = 0
+    for recipient in recipients:
+        to_email = recipient.get("email") if isinstance(recipient, dict) else recipient
+        if to_email and email_service.send_email(to_email, subject, html, None):
+            sent += 1
+    return sent
 
 
 @celery_app.task(name="tasks.send_weekly_report")
@@ -21,26 +42,11 @@ def send_weekly_report() -> Dict[str, Any]:
         async with AsyncSessionLocal() as db:
             service = RapportsService(db)
             scheduled = await service.get_scheduled_reports(active_only=True)
-
-            weekly_recipients = []
-            for report in scheduled:
-                if (
-                    report.schedule_config
-                    and report.schedule_config.get("frequency") == "weekly"
-                ):
-                    recipients = report.schedule_config.get("recipients", [])
-                    weekly_recipients.extend(recipients)
-
-            # If no scheduled reports, send to all admins (default)
-            if not weekly_recipients:
-                weekly_recipients = [{"email": "admin@example.com", "nom": "Admin"}]
-
-            # Generate weekly digest
+            recipients = _collect_recipients(scheduled, "weekly")
             report_data = await service.generate_weekly_digest()
 
             email_service = EmailService()
             subject = f"Rapport Hebdomadaire - {datetime.now().strftime('%d/%m/%Y')}"
-
             html_content = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -58,17 +64,7 @@ def send_weekly_report() -> Dict[str, Any]:
                 </body>
             </html>
             """
-
-            sent = 0
-            for recipient in weekly_recipients:
-                to_email = (
-                    recipient.get("email") if isinstance(recipient, dict) else recipient
-                )
-                if to_email and email_service.send_email(
-                    to_email, subject, html_content, None
-                ):
-                    sent += 1
-
+            sent = _send_batch(email_service, recipients, subject, html_content)
             return {"sent": sent, "report_type": "WEEKLY_DIGEST"}
 
     return asyncio.run(_send())
@@ -83,25 +79,11 @@ def send_daily_digest() -> Dict[str, Any]:
         async with AsyncSessionLocal() as db:
             service = RapportsService(db)
             scheduled = await service.get_scheduled_reports(active_only=True)
-
-            daily_recipients = []
-            for report in scheduled:
-                if (
-                    report.schedule_config
-                    and report.schedule_config.get("frequency") == "daily"
-                ):
-                    recipients = report.schedule_config.get("recipients", [])
-                    daily_recipients.extend(recipients)
-
-            if not daily_recipients:
-                daily_recipients = [{"email": "admin@example.com", "nom": "Admin"}]
-
-            # Generate asset health report
+            recipients = _collect_recipients(scheduled, "daily")
             report_data = await service.generate_asset_health_report()
 
             email_service = EmailService()
             subject = f"Résumé Quotidien - {datetime.now().strftime('%d/%m/%Y')}"
-
             html_content = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -119,17 +101,7 @@ def send_daily_digest() -> Dict[str, Any]:
                 </body>
             </html>
             """
-
-            sent = 0
-            for recipient in daily_recipients:
-                to_email = (
-                    recipient.get("email") if isinstance(recipient, dict) else recipient
-                )
-                if to_email and email_service.send_email(
-                    to_email, subject, html_content, None
-                ):
-                    sent += 1
-
+            sent = _send_batch(email_service, recipients, subject, html_content)
             return {"sent": sent, "report_type": "DAILY_DIGEST"}
 
     return asyncio.run(_send())

@@ -20,7 +20,7 @@ export async function loadRuntimeConfig(): Promise<void> {
     if (response.ok) {
       const contentType = response.headers.get('content-type');
       // Only parse as JSON if the response is actually JSON
-      if (contentType && contentType.includes('application/json')) {
+      if (contentType?.includes('application/json')) {
         runtimeConfig = await response.json();
         console.log('Runtime config loaded successfully');
       } else {

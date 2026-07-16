@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+﻿import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,20 +22,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Activity, Users, Calendar, Eye } from 'lucide-react';
 import { getPriorityColor, getStatusColor } from '../utils/badges';
-import type { Machine, Technician, WorkOrder } from '../types';
+import type { Technician, WorkOrder } from '../types';
 
 const getAuthToken = () => localStorage.getItem('access_token');
 
 interface WorkOrdersTabProps {
   workOrders: WorkOrder[];
   technicians: Technician[];
-  machines: Machine[];
-  assignWorkOrder?: (
-    ordreId: number,
-    technicienIds: number[],
-    machineIds: number[],
-    estimatedCompletionDate?: string,
-  ) => Promise<void>;
   validateWorkOrder?: (ordreId: number, technicianId: number) => Promise<void>;
   rejectWorkOrder?: (ordreId: number, reason?: string) => Promise<void>;
 }
@@ -70,7 +63,7 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({
     const techIdStr = selectedTechs[order.id];
     if (!techIdStr || !validateWorkOrder) return;
     
-    await validateWorkOrder(order.id, parseInt(techIdStr, 10));
+    await validateWorkOrder(order.id, Number.parseInt(techIdStr, 10));
     
     // Clear selection on success
     setSelectedTechs((prev) => {
@@ -213,3 +206,6 @@ export const WorkOrdersTab: React.FC<WorkOrdersTabProps> = ({
     </Card>
   );
 };
+
+
+

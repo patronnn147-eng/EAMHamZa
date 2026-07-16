@@ -1,11 +1,11 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
-class Ordres_intervention(Base):
-    __tablename__ = "ordres_intervention"
+class OrdresIntervention(Base):
+    __tablename__ = "OrdresIntervention"
     __table_args__ = {"extend_existing": True}
 
     id = Column(
@@ -106,19 +106,19 @@ class Ordres_intervention(Base):
     # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
     machine = relationship(
         "Machines",
-        primaryjoin="foreign(Ordres_intervention.machine_id) == Machines.id",
+        primaryjoin="foreign(OrdresIntervention.machine_id) == Machines.id",
         lazy="noload",
         viewonly=True,
     )
     technician = relationship(
         "Utilisateurs",
-        primaryjoin="foreign(Ordres_intervention.technician_id) == Utilisateurs.id",
+        primaryjoin="foreign(OrdresIntervention.technician_id) == Utilisateurs.id",
         lazy="noload",
         viewonly=True,
     )
     ordre_travail = relationship(
-        "Ordres_travail",
-        primaryjoin="foreign(Ordres_intervention.ordre_travail_id) == Ordres_travail.id",
+        "OrdresTravail",
+        primaryjoin="foreign(OrdresIntervention.ordre_travail_id) == OrdresTravail.id",
         lazy="noload",
         viewonly=True,
     )
@@ -130,7 +130,7 @@ class Ordres_intervention(Base):
     # `consumed_pieces` and are reachable via `consumed_items` relationship.
     consumed_items = relationship(
         "ConsumedPiece",
-        primaryjoin="foreign(ConsumedPiece.intervention_id) == Ordres_intervention.id",
+        primaryjoin="foreign(ConsumedPiece.intervention_id) == OrdresIntervention.id",
         lazy="noload",
         viewonly=True,
     )

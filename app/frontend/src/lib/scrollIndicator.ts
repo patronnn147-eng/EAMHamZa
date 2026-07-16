@@ -35,7 +35,7 @@ function markScrolling(target: EventTarget | null) {
   let el: Element | null = null;
   if (target instanceof Element) {
     el = target;
-  } else if (target === document || target === window) {
+  } else if (target === document || target === globalThis) {
     el = document.documentElement;
   }
   if (!el) return;
@@ -44,9 +44,9 @@ function markScrolling(target: EventTarget | null) {
 
   const holder = el as unknown as TimerHolder;
   if (holder[TIMER_KEY] !== undefined) {
-    window.clearTimeout(holder[TIMER_KEY]);
+    globalThis.clearTimeout(holder[TIMER_KEY]);
   }
-  holder[TIMER_KEY] = window.setTimeout(() => {
+  holder[TIMER_KEY] = globalThis.setTimeout(() => {
     el.classList.remove('is-scrolling');
     holder[TIMER_KEY] = undefined;
   }, HIDE_DELAY_MS);

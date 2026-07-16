@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -33,7 +33,6 @@ interface WorkOrderCompleteDialogProps {
     machineName?: string;
     machineId?: number | null;
     suggestedCause?: string;
-    interventionId?: number | null;
 }
 
 export interface WorkOrderCompletePayload {
@@ -225,16 +224,24 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                 parts_replaced: partsReplaced.trim() || undefined,
                 tools_used: toolsUsed.trim() || undefined,
                 machine_status_after: machineStatusAfter || undefined,
-                air_temperature: airTemperature ? parseFloat(airTemperature) : undefined,
-                process_temperature: processTemperature ? parseFloat(processTemperature) : undefined,
-                rotational_speed: rotationalSpeed ? parseInt(rotationalSpeed) : undefined,
-                torque: torqueVal ? parseFloat(torqueVal) : undefined,
-                tool_wear: toolWear ? parseInt(toolWear) : undefined,
+                air_temperature: airTemperature ? Number.parseFloat(airTemperature) : undefined,
+                process_temperature: processTemperature ? Number.parseFloat(processTemperature) : undefined,
+                rotational_speed: rotationalSpeed ? Number.parseInt(rotationalSpeed) : undefined,
+                torque: torqueVal ? Number.parseFloat(torqueVal) : undefined,
+                tool_wear: toolWear ? Number.parseInt(toolWear) : undefined,
                 telemetry_notes: telemetryNotes.trim() || undefined,
             };
             onConfirm(payload);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const toggleSymptom = (symptom: string, checked: boolean) => {
+        if (checked) {
+            setSymptoms(prev => [...prev, symptom]);
+        } else {
+            setSymptoms(prev => prev.filter(x => x !== symptom));
         }
     };
 
@@ -335,10 +342,7 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
                                             <Checkbox
                                                 id={`sym-${s}`}
                                                 checked={symptoms.includes(s)}
-                                                onCheckedChange={(checked) => {
-                                                    if (checked) setSymptoms(prev => [...prev, s]);
-                                                    else setSymptoms(prev => prev.filter(x => x !== s));
-                                                }}
+                                                onCheckedChange={(checked) => toggleSymptom(s, !!checked)}
                                             />
                                             <label htmlFor={`sym-${s}`} className="text-xs font-medium cursor-pointer">{s}</label>
                                         </div>
@@ -540,3 +544,6 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
         </Dialog>
     );
 };
+
+
+

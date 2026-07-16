@@ -463,7 +463,7 @@ async def batch_get_parts_readiness(db: AsyncSession) -> Dict[int, str]:
 
         readiness: Dict[int, str] = {}
         for row in rows:
-            machine_id, zero_count, low_count, total_pieces = row
+            machine_id, zero_count, low_count, _total_pieces = row
             if zero_count > 0:
                 readiness[machine_id] = "CRITICAL"
             elif low_count > 0:

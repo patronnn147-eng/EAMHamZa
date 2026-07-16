@@ -1,4 +1,4 @@
-"""Intervention parts detail endpoint.
+﻿"""Intervention parts detail endpoint.
 
 Single GET that surfaces everything the frontend needs to render an
 intervention's parts panel:
@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.consumed_pieces import ConsumedPiece
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresIntervention import OrdresIntervention
 from models.pending_pieces import PendingPiece
 from models.pieces import Piece
 from models.required_pieces import RequiredPiece
@@ -42,7 +42,7 @@ async def get_intervention_parts(
     """Return all pieces-related data for an intervention in one payload."""
     # Verify intervention exists
     itv = await db.scalar(
-        select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+        select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
     )
     if itv is None:
         raise HTTPException(status_code=404, detail="Intervention not found")
@@ -164,8 +164,8 @@ async def get_parts_by_work_order(
 ):
     """Same payload as `/intervention/{id}/parts` but keyed by work_order_id."""
     itv_id = await db.scalar(
-        select(Ordres_intervention.id).where(
-            Ordres_intervention.ordre_travail_id == work_order_id
+        select(OrdresIntervention.id).where(
+            OrdresIntervention.ordre_travail_id == work_order_id
         )
     )
     if itv_id is None:

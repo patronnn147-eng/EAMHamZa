@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +8,7 @@ import type { Machine } from '@/lib/types';
 
 interface MachineQRCodeProps {
     machine: Machine;
-    /** Base URL (defaults to window.location.origin) */
+    /** Base URL (defaults to globalThis.location.origin) */
     baseUrl?: string;
     /** Compact card mode for use inside grids */
     compact?: boolean;
@@ -19,10 +19,9 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
     baseUrl,
     compact = false,
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
     const [copied, setCopied] = useState(false);
 
-    const origin = baseUrl ?? window.location.origin;
+    const origin = baseUrl ?? globalThis.location.origin;
     const machineUrl = `${origin}/machines/${machine.id}`;
 
     // Download the QR code as PNG
@@ -51,7 +50,7 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
         );
         if (!canvas) return;
         const dataUrl = canvas.toDataURL('image/png');
-        const win = window.open('', '_blank', 'width=400,height=500');
+        const win = globalThis.open('', '_blank', 'width=400,height=500');
         if (!win) return;
         win.document.write(`
       <!DOCTYPE html>
@@ -66,7 +65,7 @@ export const MachineQRCode: React.FC<MachineQRCodeProps> = ({
             .url { font-size: 10px; color: #9ca3af; word-break: break-all; }
           </style>
         </head>
-        <body onload="window.print();window.close()">
+        <body onload="globalThis.print();globalThis.close()">
           <img src="${dataUrl}" alt="QR Code" />
           <h2>${machine.nom}</h2>
           <p>${[machine.zone, machine.sous_zone, machine.ordre].filter(Boolean).join(' · ')}</p>

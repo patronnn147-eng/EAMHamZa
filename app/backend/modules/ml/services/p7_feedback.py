@@ -1,4 +1,4 @@
-"""
+﻿"""
 P7.6 — Feedback closure.
 Compares P7 predicted parts vs actual consumed parts from completed
 interventions, records match/error, queues P7 for retraining.
@@ -43,7 +43,7 @@ def extract_predicted_names(parts_demand: Optional[Dict[str, Any]]) -> set:
 
 def extract_actual_names(parts_replaced_text: Optional[str]) -> set:
     """
-    Parse ordres_intervention.parts_replaced free text into a name set.
+    Parse OrdresIntervention.parts_replaced free text into a name set.
     Format: comma-separated items, may have (réf. XXX-NNN) suffix.
     """
     if not parts_replaced_text:
@@ -113,18 +113,18 @@ async def record_p7_feedback(
 ) -> Optional[Dict[str, Any]]:
     """
     For a completed intervention:
-    1. Load parts_replaced text from ordres_intervention.
+    1. Load parts_replaced text from OrdresIntervention.
     2. Find latest p7_parts_demand from ml_prediction_logs for that machine.
     3. Compare predicted vs actual, compute metrics.
     4. Mark intervention for P7 retrain queue via `retrained` flag logic.
     Returns feedback metrics dict or None if data insufficient.
     """
-    from models.ordres_intervention import Ordres_intervention
+    from models.OrdresIntervention import OrdresIntervention
     from models.ml_prediction_log import MlPredictionLog
 
     # 1. Load intervention
     itv_q = await db.execute(
-        select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+        select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
     )
     itv = itv_q.scalar_one_or_none()
     # Use legacy_parts_text (direct text column) — parts_replaced is a computed

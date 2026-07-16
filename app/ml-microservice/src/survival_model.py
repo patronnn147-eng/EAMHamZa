@@ -157,10 +157,10 @@ class SurvivalModel:
         try:
             import xgboost as xgb
 
-            X_arr = df[self._feature_cols].values
+            x_arr = df[self._feature_cols].values
             y_lower = df["duration"].values
             y_upper = np.where(df["event"] == 1, y_lower, np.inf)
-            dtrain = xgb.DMatrix(X_arr)
+            dtrain = xgb.DMatrix(x_arr)
             dtrain.set_float_info("label_lower_bound", y_lower)
             dtrain.set_float_info("label_upper_bound", y_upper)
             params = {

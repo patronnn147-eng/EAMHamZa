@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func
@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models.plannings import Plannings
-from models.planning_utilisateurs import Planning_utilisateurs
+from models.PlanningUtilisateurs import PlanningUtilisateurs
 
 logger = logging.getLogger(__name__)
 
@@ -38,10 +38,10 @@ class PlanningsService:
             query = (
                 select(Plannings)
                 .options(
-                    selectinload(Plannings.planning_utilisateurs).selectinload(
-                        Planning_utilisateurs.utilisateur
+                    selectinload(Plannings.PlanningUtilisateurs).selectinload(
+                        PlanningUtilisateurs.utilisateur
                     ),
-                    selectinload(Plannings.planning_machines),
+                    selectinload(Plannings.PlanningMachines),
                 )
                 .where(Plannings.id == obj_id)
             )
@@ -89,10 +89,10 @@ class PlanningsService:
 
             result = await self.db.execute(
                 query.options(
-                    selectinload(Plannings.planning_utilisateurs).selectinload(
-                        Planning_utilisateurs.utilisateur
+                    selectinload(Plannings.PlanningUtilisateurs).selectinload(
+                        PlanningUtilisateurs.utilisateur
                     ),
-                    selectinload(Plannings.planning_machines),
+                    selectinload(Plannings.PlanningMachines),
                 )
                 .offset(skip)
                 .limit(limit)

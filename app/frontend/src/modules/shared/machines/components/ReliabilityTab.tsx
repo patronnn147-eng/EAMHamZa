@@ -197,7 +197,7 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <MetricCard
                     label="MTTR"
-                    value={mttr !== null ? formatDuration(mttr) : 'N/A'}
+                    value={mttr === null ? 'N/A' : formatDuration(mttr)}
                     sublabel="Temps moyen de réparation"
                     icon={Zap}
                     colorClass={mttr !== null && mttr > 240 ? 'text-red-600' : 'text-blue-50'}
@@ -205,7 +205,7 @@ export const ReliabilityTab: React.FC<ReliabilityTabProps> = ({ metrics, machine
                 />
                 <MetricCard
                     label="MTBF"
-                    value={mtbf !== null ? formatHours(mtbf) : 'N/A'}
+                    value={mtbf === null ? 'N/A' : formatHours(mtbf)}
                     sublabel="Temps entre pannes"
                     icon={Clock}
                     colorClass={mtbf !== null && mtbf < 48 ? 'text-red-600' : 'text-emerald-600'}

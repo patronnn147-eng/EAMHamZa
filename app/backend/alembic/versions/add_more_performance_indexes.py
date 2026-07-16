@@ -1,4 +1,4 @@
-"""add more performance indexes for machines and related tables
+﻿"""add more performance indexes for machines and related tables
 
 Revision ID: more_perf_indexes_v2
 Revises: be6721db2847
@@ -33,14 +33,14 @@ def upgrade() -> None:
         ("idx_plannings_date_debut", "plannings", ["date_debut"]),
         ("idx_plannings_date_fin", "plannings", ["date_fin"]),
         ("idx_plannings_statut", "plannings", ["statut"]),
-        ("idx_interventions_statut", "ordres_intervention", ["statut"]),
-        ("idx_interventions_utilisateur_id", "ordres_intervention", ["utilisateur_id"]),
-        ("idx_planning_ot_planning_id", "planning_ordres_travail", ["planning_id"]),
-        ("idx_planning_ot_ordre_id", "planning_ordres_travail", ["ordre_travail_id"]),
-        ("idx_planning_users_planning_id", "planning_utilisateurs", ["planning_id"]),
+        ("idx_interventions_statut", "OrdresIntervention", ["statut"]),
+        ("idx_interventions_utilisateur_id", "OrdresIntervention", ["utilisateur_id"]),
+        ("idx_planning_ot_planning_id", "planning_OrdresTravail", ["planning_id"]),
+        ("idx_planning_ot_ordre_id", "planning_OrdresTravail", ["ordre_travail_id"]),
+        ("idx_planning_users_planning_id", "PlanningUtilisateurs", ["planning_id"]),
         (
             "idx_planning_users_utilisateur_id",
-            "planning_utilisateurs",
+            "PlanningUtilisateurs",
             ["utilisateur_id"],
         ),
     ]
@@ -73,13 +73,13 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_index(
-        "idx_planning_users_utilisateur_id", table_name="planning_utilisateurs"
+        "idx_planning_users_utilisateur_id", table_name="PlanningUtilisateurs"
     )
-    op.drop_index("idx_planning_users_planning_id", table_name="planning_utilisateurs")
-    op.drop_index("idx_planning_ot_ordre_id", table_name="planning_ordres_travail")
-    op.drop_index("idx_planning_ot_planning_id", table_name="planning_ordres_travail")
-    op.drop_index("idx_interventions_utilisateur_id", table_name="ordres_intervention")
-    op.drop_index("idx_interventions_statut", table_name="ordres_intervention")
+    op.drop_index("idx_planning_users_planning_id", table_name="PlanningUtilisateurs")
+    op.drop_index("idx_planning_ot_ordre_id", table_name="planning_OrdresTravail")
+    op.drop_index("idx_planning_ot_planning_id", table_name="planning_OrdresTravail")
+    op.drop_index("idx_interventions_utilisateur_id", table_name="OrdresIntervention")
+    op.drop_index("idx_interventions_statut", table_name="OrdresIntervention")
     op.drop_index("idx_plannings_statut", table_name="plannings")
     op.drop_index("idx_plannings_date_fin", table_name="plannings")
     op.drop_index("idx_plannings_date_debut", table_name="plannings")

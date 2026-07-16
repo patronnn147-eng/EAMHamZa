@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+﻿from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from datetime import datetime
@@ -6,7 +6,7 @@ from core.database import get_db
 from core.security import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.plannings import Plannings, PlanningStatut
-from models.planning_taches import Planning_taches
+from models.PlanningTaches import PlanningTaches
 from models.machines import Machines
 from services.notifications import NotificationsService
 from tasks.planning_tache_emails import send_task_assignment_email
@@ -53,15 +53,15 @@ async def list_tasks(
 ):
     """List all tasks for a planning."""
     result = await db.execute(
-        select(Planning_taches)
-        .where(Planning_taches.archived_at.is_(None))
-        .where(Planning_taches.planning_id == planning_id)
+        select(PlanningTaches)
+        .where(PlanningTaches.archived_at.is_(None))
+        .where(PlanningTaches.planning_id == planning_id)
     )
     tasks = result.scalars().all()
     return {"items": tasks, "total": len(tasks)}
 
 
-@router.post("", response_model=list[PlanningTacheResponse], responses={400: {"description": "Only DRAFT plannings can have tasks"}})
+@router.post("", response_model=list[PlanningTacheResponse], responses={400: {"description": "Only DRAFT plannings can have tasks"}, 404: {"description": "Planning not found"}})
 async def create_tasks(
     planning_id: int,
     request: PlanningTachesSubmitRequest,
@@ -80,7 +80,7 @@ async def create_tasks(
     for task_data in request.tasks:
         validate_task_dates(planning, task_data.date_debut, task_data.date_fin)
 
-        task = Planning_taches(
+        task = PlanningTaches(
             planning_id=planning_id,
             titre=task_data.titre,
             description=task_data.description,
@@ -164,8 +164,8 @@ async def update_task(
         )
 
     result = await db.execute(
-        select(Planning_taches).where(
-            Planning_taches.id == task_id, Planning_taches.planning_id == planning_id
+        select(PlanningTaches).where(
+            PlanningTaches.id == task_id, PlanningTaches.planning_id == planning_id
         )
     )
     task = result.scalar_one_or_none()
@@ -208,8 +208,8 @@ async def delete_task(
         )
 
     result = await db.execute(
-        select(Planning_taches).where(
-            Planning_taches.id == task_id, Planning_taches.planning_id == planning_id
+        select(PlanningTaches).where(
+            PlanningTaches.id == task_id, PlanningTaches.planning_id == planning_id
         )
     )
     task = result.scalar_one_or_none()
@@ -229,11 +229,11 @@ async def list_plannings_with_tasks(
     """List all plannings with their task counts."""
     tasks_subquery = (
         select(
-            Planning_taches.planning_id,
-            func.count(Planning_taches.id).label("task_count"),
+            PlanningTaches.planning_id,
+            func.count(PlanningTaches.id).label("task_count"),
         )
-        .where(Planning_taches.archived_at.is_(None))
-        .group_by(Planning_taches.planning_id)
+        .where(PlanningTaches.archived_at.is_(None))
+        .group_by(PlanningTaches.planning_id)
         .subquery()
     )
 

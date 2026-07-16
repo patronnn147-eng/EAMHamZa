@@ -26,12 +26,8 @@ except ImportError:
     _PINN_AVAILABLE = False
     get_pinn_estimator = None
 
-# TODO: MOMENT Foundation Model (model_m_anomaly, model_m_rul) is disabled.
+# MOMENT Foundation Model (model_m_anomaly, model_m_rul) is disabled.
 # momentfm is not installed — outputs are excluded from the response entirely.
-# To enable:
-#   1. Add `momentfm` to requirements-heavy.txt
-#   2. Rebuild the image: docker compose build ml-service
-# Warning: image will be ~2 GB heavier and startup will be slower.
 # Only worth enabling if MOMENT predictions are specifically needed.
 #
 # try:
@@ -94,6 +90,249 @@ def failure_prob_to_risk(prob: float) -> str:
     if prob >= config.p1_risk_medium:
         return "MEDIUM"
     return "LOW"
+
+
+# ---------------------------------------------------------------------------
+# Wave-2 private helpers — extracted to keep predict_all CC < 15
+# ---------------------------------------------------------------------------
+
+def _safe_hi(out: Optional[Dict], default: float = 75.0) -> float:
+    """Return health_index from a model output dict, or default if missing/NaN."""
+    if out is None:
+        return default
+    hi = out.get("health_index", np.nan)
+    return hi if not np.isnan(hi) else default
+
+
+def _parse_iso_ts(s: str):
+    """Parse ISO timestamp string; return datetime or None on failure."""
+    from datetime import datetime as _dt_cls
+    if not s:
+        return None
+    try:
+        return _dt_cls.fromisoformat(s.replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _run_model_c(hi_model, logs: list, features_5: list) -> Optional[Dict]:
+    """Run Mahalanobis Health Index model; returns output dict or None."""
+    if hi_model is None and len(logs) >= 2:
+        hi_model = MahalanobisHealthIndex()
+    if hi_model is None:
+        return None
+    if len(logs) >= 2:
+        history_matrix = np.array([
+            [
+                float(lg.get("air_temperature", 298)),
+                float(lg.get("process_temperature", 308)),
+                float(lg.get("rotational_speed", 1500)),
+                float(lg.get("torque", 40)),
+                float(lg.get("tool_wear", 0)),
+            ]
+            for lg in logs
+        ])
+        return hi_model.fit_and_score_history(history_matrix)
+    if hi_model._fitted:
+        return hi_model.score(np.array(features_5))
+    return None
+
+
+def _run_model_e(anomaly_model, logs: list, features_5: list) -> Optional[Dict]:
+    """Run anomaly ensemble model; returns output dict or None."""
+    if anomaly_model is None or not anomaly_model._fitted:
+        return None
+    feature_names = [
+        "air_temperature", "process_temperature",
+        "rotational_speed", "torque", "tool_wear",
+    ]
+    history_arrays = [
+        np.array([
+            float(lg.get("air_temperature", 298)),
+            float(lg.get("process_temperature", 308)),
+            float(lg.get("rotational_speed", 1500)),
+            float(lg.get("torque", 40)),
+            float(lg.get("tool_wear", 0)),
+        ])
+        for lg in logs[:-1]
+    ] if len(logs) > 1 else []
+    return anomaly_model.predict_with_history(
+        np.array(features_5), feature_names, history=history_arrays,
+    )
+
+
+def _run_model_b(logs: list, snapshot) -> Optional[Dict]:
+    """Run survival model; returns output dict or None."""
+    if len(logs) >= 10:
+        local_surv = SurvivalModel()
+        try:
+            local_surv.fit_from_logs(logs)
+            if local_surv._fitted:
+                return local_surv.predict(snapshot)
+        except Exception as _e:
+            logger.warning(f"Survival fit_from_logs failed: {_e}")
+        return None
+    global_surv = get_survival_model()
+    if global_surv is not None and global_surv._fitted:
+        return global_surv.predict(snapshot)
+    return None
+
+
+def _run_model_a(time_series: list) -> Optional[Dict]:
+    """Run PINN RUL estimator; returns output dict or None."""
+    if not _PINN_AVAILABLE or len(time_series) < 3:
+        return None
+    pinn = get_pinn_estimator()
+    if pinn is not None and pinn._fitted:
+        return pinn.predict(time_series)
+    return None
+
+
+def _build_kalman_state(
+    logs: list, model_b_out: Optional[Dict], model_c_out: Optional[Dict], rule_score: float
+) -> Dict:
+    """Build and update a per-request Kalman filter; returns kalman_state dict."""
+    kalman = KalmanStateEstimator()
+    if len(logs) < 2:
+        obs = {
+            "rule_score": rule_score,
+            "ml_score": rule_score,
+            "survival_hi": _safe_hi(model_b_out),
+            "mahal_hi": _safe_hi(model_c_out),
+        }
+        return kalman.update(obs)
+
+    kalman_history = []
+    prev_ts = None
+    for lg in logs[:-1]:
+        air_h = float(lg.get("air_temperature", 298))
+        hi_est = max(0.0, min(100.0, 100.0 - (air_h - 298) * 2.0))
+        ts = _parse_iso_ts(lg.get("created_at", ""))
+        if prev_ts is not None and ts is not None:
+            elapsed_sec = (ts - prev_ts).total_seconds()
+            dt_days = max(10 / 1440.0, min(30.0, elapsed_sec / 86400.0))
+        else:
+            dt_days = 1.0
+        kalman_history.append({"rule_score": hi_est, "dt": dt_days})
+        prev_ts = ts
+
+    last_ts = _parse_iso_ts(logs[-1].get("created_at", "")) if logs else None
+    if prev_ts is not None and last_ts is not None:
+        elapsed_last = (last_ts - prev_ts).total_seconds()
+        final_dt = max(10 / 1440.0, min(30.0, elapsed_last / 86400.0))
+    else:
+        final_dt = 1.0
+    kalman_history.append({
+        "rule_score": rule_score,
+        "ml_score": rule_score,
+        "survival_hi": _safe_hi(model_b_out),
+        "mahal_hi": _safe_hi(model_c_out),
+        "dt": final_dt,
+    })
+    return kalman.smooth_from_scores(kalman_history)
+
+
+def _filter_dst_inputs(model_outputs: list, maintenance_event: bool) -> list:
+    """Remove None, placeholder, and maintenance-event-tainted outputs."""
+    excluded_on_maint = {"model_c_mahal_hi", "model_e_anomaly"}
+    valid = []
+    for out in model_outputs:
+        if out is None:
+            continue
+        if out.get("score_source") in ("no_model", "fallback"):
+            continue
+        if maintenance_event and out.get("model_id") in excluded_on_maint:
+            continue
+        hi = out.get("health_index")
+        if hi is not None and not np.isnan(hi):
+            valid.append(out)
+    return valid
+
+
+def _run_shap_explanations(include_shap: bool, features_5: list) -> list:
+    """Return SHAP explanation list; empty list if disabled or on error."""
+    if not include_shap:
+        return []
+    try:
+        from .xai_service import XAIService
+        model_p1_raw = load_p1()
+        if model_p1_raw is None:
+            return []
+        feature_names = [
+            "Air temperature [K]",
+            "Process temperature [K]",
+            "Rotational speed [rpm]",
+            "Torque [Nm]",
+            "Tool wear [min]",
+        ]
+        return XAIService.explain_prediction(model_p1_raw, features_5, feature_names)
+    except Exception as _xai_exc:
+        logger.warning(f"SHAP explanations failed: {_xai_exc}", exc_info=True)
+        return []
+
+
+def _run_wave2(telemetry: Dict, features_5: list, failure_prob: float, risk_level: str) -> Dict:
+    """Run Wave 2 DST fusion pipeline; returns dict to merge into base_result."""
+    machine_id = int(telemetry.get("machine_id", -1))
+    logs = telemetry.get("telemetry_logs", [])
+
+    snapshot = FeatureStore.extract_full_snapshot(
+        telemetry,
+        context={
+            "machine_id": machine_id,
+            "days_since_maint": int(telemetry.get("days_since_maint", -1)),
+            "open_work_orders": int(telemetry.get("open_work_orders", 0)),
+            "recent_interventions": int(telemetry.get("recent_interventions", 0)),
+            "machine_status": str(telemetry.get("machine_status", "OPERATIONNELLE")),
+        },
+    )
+    time_series = FeatureStore.build_time_series_from_logs(machine_id, logs) if logs else []
+
+    model_c_out = _run_model_c(get_health_index_model(), logs, features_5)
+    model_e_out = _run_model_e(get_anomaly_ensemble(), logs, features_5)
+    model_b_out = _run_model_b(logs, snapshot)
+    model_a_out = _run_model_a(time_series)
+
+    wear = float(telemetry.get("tool_wear", 0))
+    maintenance_event = _detect_maintenance_event(logs, wear)
+    if maintenance_event:
+        logger.info(
+            f"Maintenance event detected for machine {machine_id} "
+            f"(tool_wear={wear:.1f}, recent history had high wear). "
+            f"Excluding Mahalanobis HI + Anomaly CUSUM from DST fusion."
+        )
+
+    rule_score = max(0.0, 100.0 - failure_prob)
+    kalman_state = _build_kalman_state(logs, model_b_out, model_c_out, rule_score)
+    model_outputs = _filter_dst_inputs(
+        [model_a_out, model_b_out, model_c_out, model_e_out], maintenance_event
+    )
+    fusion_result = get_dst_fusion().fuse(model_outputs, kalman_state)
+
+    return {
+        "unified_health_score": fusion_result["unified_health_score"],
+        "dst_verdict": fusion_result["dst_verdict"],
+        "conflict_factor_K": fusion_result["conflict_factor_K"],
+        "dst_score": fusion_result["dst_score"],
+        "kalman_hi": fusion_result["kalman_hi"],
+        "kalman_rul": fusion_result["kalman_rul"],
+        "sensor_fault_flag": fusion_result["sensor_fault_flag"],
+        "model_disagreement_alert": fusion_result["model_disagreement_alert"],
+        "maintenance_event": maintenance_event,
+        "bpa": {
+            "healthy": fusion_result["bpa_healthy"],
+            "degrading": fusion_result["bpa_degrading"],
+            "critical": fusion_result["bpa_critical"],
+            "unknown": fusion_result["bpa_unknown"],
+        },
+        "model_outputs": {
+            "pinn_rul": model_a_out,
+            "survival": model_b_out,
+            "mahal_hi": model_c_out,
+            "anomaly": model_e_out,
+        },
+    }
+
 
 class MachineLearningService:
     """Unified ML prediction service for all P1-P6 models."""
@@ -367,7 +606,6 @@ class MachineLearningService:
             "tool_wear": int
         }
         """
-        # Extract features
         air     = float(telemetry.get("air_temperature",    config.default_air_temp))
         process = float(telemetry.get("process_temperature", config.default_process_temp))
         rpm     = float(telemetry.get("rotational_speed",   config.default_rpm))
@@ -379,7 +617,7 @@ class MachineLearningService:
         features_5 = FeaturePipeline.build_5(reading)
         features_7 = FeaturePipeline.build_7(reading)
 
-        # Run all predictions
+        # Wave 1: P1-P7 predictions
         failure_prob  = MachineLearningService.predict_failure_probability(features_7)
         failure_types = MachineLearningService.predict_failure_type(features_7)
         rul_days      = MachineLearningService.predict_rul(features_7)
@@ -387,7 +625,6 @@ class MachineLearningService:
         priority      = MachineLearningService.predict_priority(features_7)
         schedule_days = MachineLearningService.predict_maintenance_schedule(features_7)
 
-        # P7: convert P2 probabilities (0-100) → 0-1 scale for survival math
         ft_probs: Dict[str, float] = {
             ft: v.get("probability", 0.0) / 100.0
             for ft, v in failure_types.items()
@@ -400,7 +637,6 @@ class MachineLearningService:
         )
 
         risk_level = failure_prob_to_risk(failure_prob)
-
         base_result = {
             "p1_failure_probability": failure_prob,
             "p1_risk_level": risk_level,
@@ -413,292 +649,17 @@ class MachineLearningService:
             "p7_parts_demand": parts_demand,
         }
 
-        # ==================== Wave 2: DST Fusion Pipeline ====================
+        # Wave 2: DST fusion pipeline
         try:
-            machine_id = int(telemetry.get("machine_id", -1))
-            logs       = telemetry.get("telemetry_logs", [])  # injected by caller when available
-
-            # Snapshot for context-aware models
-            snapshot = FeatureStore.extract_full_snapshot(
-                telemetry,
-                context={
-                    "machine_id":           machine_id,
-                    "days_since_maint":     int(telemetry.get("days_since_maint", -1)),
-                    "open_work_orders":     int(telemetry.get("open_work_orders", 0)),
-                    "recent_interventions": int(telemetry.get("recent_interventions", 0)),
-                    "machine_status":       str(telemetry.get("machine_status", "OPERATIONNELLE")),
-                }
-            )
-
-            # Time series from logs (for PINN)
-            time_series = FeatureStore.build_time_series_from_logs(machine_id, logs) if logs else []
-
-            # --- Model C: Mahalanobis Health Index ---
-            model_c_out: Optional[Dict] = None
-            hi_model = get_health_index_model()
-            # Global singleton is None until explicitly fitted externally.
-            # When it's absent, spin up a fresh local instance so that
-            # fit_and_score_history() can train on history[:-1] and score
-            # history[-1] on-the-fly.  Requires 11+ logs for a real result
-            # (10 training points -> fit succeeds; < 11 returns dm2=0.0).
-            if hi_model is None and len(logs) >= 2:
-                hi_model = MahalanobisHealthIndex()
-            if hi_model is not None:
-                if len(logs) >= 2:
-                    history_matrix = np.array([
-                        [
-                            float(lg.get("air_temperature", 298)),
-                            float(lg.get("process_temperature", 308)),
-                            float(lg.get("rotational_speed", 1500)),
-                            float(lg.get("torque", 40)),
-                            float(lg.get("tool_wear", 0)),
-                        ]
-                        for lg in logs
-                    ])
-                    model_c_out = hi_model.fit_and_score_history(history_matrix)
-                elif hi_model._fitted:
-                    model_c_out = hi_model.score(np.array(features_5))
-
-            # --- Model E: Anomaly Ensemble (stateless -- safe under concurrent requests) ---
-            model_e_out: Optional[Dict] = None
-            anomaly_model = get_anomaly_ensemble()
-            feature_names = ["air_temperature", "process_temperature",
-                             "rotational_speed", "torque", "tool_wear"]
-            if anomaly_model is not None and anomaly_model._fitted:
-                # Build history arrays (all entries except the latest)
-                history_arrays = [
-                    np.array([
-                        float(lg.get("air_temperature", 298)),
-                        float(lg.get("process_temperature", 308)),
-                        float(lg.get("rotational_speed", 1500)),
-                        float(lg.get("torque", 40)),
-                        float(lg.get("tool_wear", 0)),
-                    ])
-                    for lg in logs[:-1]  # exclude latest -- that's what we score
-                ] if len(logs) > 1 else []
-                # predict_with_history creates fresh CUSUM detectors per call --
-                # no shared mutable state, safe for concurrent requests.
-                model_e_out = anomaly_model.predict_with_history(
-                    np.array(features_5),
-                    feature_names,
-                    history=history_arrays,
-                )
-
-            # --- Model B: Survival Analysis ---
-            # Create a fresh local instance when fitting from logs to avoid
-            # mutating the global singleton under concurrent requests.
-            # The global singleton is only used read-only as a pre-trained fallback.
-            model_b_out: Optional[Dict] = None
-            if len(logs) >= 10:
-                local_surv = SurvivalModel()
-                try:
-                    local_surv.fit_from_logs(logs)
-                    if local_surv._fitted:
-                        model_b_out = local_surv.predict(snapshot)
-                except Exception as _e:
-                    logger.warning(f"Survival fit_from_logs failed: {_e}")
-            else:
-                # Not enough logs to fit machine-specific model -- use global pre-trained
-                global_surv = get_survival_model()
-                if global_surv is not None and global_surv._fitted:
-                    model_b_out = global_surv.predict(snapshot)
-
-            # --- Model A: PINN RUL ---
-            model_a_out: Optional[Dict] = None
-            if _PINN_AVAILABLE and len(time_series) >= 3:
-                pinn = get_pinn_estimator()
-                if pinn is not None and pinn._fitted:
-                    model_a_out = pinn.predict(time_series)
-
-            # --- Model M: MOMENT Foundation Model (DISABLED) ---
-            # momentfm not installed → outputs excluded from response.
-            # TODO: To enable MOMENT predictions:
-            #   1. Add `momentfm` to requirements-heavy.txt
-            #   2. Rebuild: docker compose build ml-service
-            #   3. Uncomment the import block at the top of this file
-            #   4. Remove the _MOMENT_AVAILABLE = False override
-            # Warning: ~2 GB heavier image, slower startup.
-            # Only worth it if MOMENT predictions are specifically needed.
-            #
-            # if _MOMENT_AVAILABLE and len(logs) >= 3:
-            #     try:
-            #         detector = get_moment_anomaly_detector()
-            #         if detector is not None:
-            #             model_m_anomaly_out = detector.predict(logs)
-            #     except Exception as _me:
-            #         logger.warning(f"MOMENT anomaly failed: {_me}")
-            #     try:
-            #         rul_est = get_moment_rul_estimator()
-            #         if rul_est is not None:
-            #             model_m_rul_out = rul_est.predict(logs)
-            #     except Exception as _me:
-            #         logger.warning(f"MOMENT RUL failed: {_me}")
-
-            # --- Maintenance event detection ---
-            # If tool_wear is near-zero AND recent history had high wear, this is a
-            # post-maintenance state (tool replaced). Mahalanobis distance will be
-            # extreme because the baseline was fitted on high-wear data.
-            # Exclude model_c_out from DST fusion until the baseline adapts.
-            maintenance_event = _detect_maintenance_event(logs, wear)
-            if maintenance_event:
-                logger.info(
-                    f"Maintenance event detected for machine {machine_id} "
-                    f"(tool_wear={wear:.1f}, recent history had high wear). "
-                    f"Excluding Mahalanobis HI + Anomaly CUSUM from DST fusion."
-                )
-
-            # --- Kalman state update (fresh instance per request -- no shared state) ---
-            # Default health scores when advanced models aren't fitted
-            DEFAULT_HI = 75.0  # Assume healthy baseline
-            rule_score = max(0.0, 100.0 - failure_prob)  # invert P1 as rule signal
-
-            # A new KalmanStateEstimator is created per request. It is cheap to
-            # construct and avoids the race condition where concurrent requests
-            # would overwrite the same filter's x/P matrices.
-            kalman = KalmanStateEstimator()
-
-            if len(logs) >= 2:
-                # Build simplified observation sequence from history.
-                # Each entry embeds "dt" (days since previous reading) so Kalman
-                # uses real elapsed time rather than a hardcoded 1-day assumption.
-                from datetime import datetime as _dt_cls
-
-                def _parse_ts(s: str):
-                    """Parse ISO timestamp; return None on failure."""
-                    if not s:
-                        return None
-                    try:
-                        return _dt_cls.fromisoformat(s.replace("Z", "+00:00"))
-                    except Exception:
-                        return None
-
-                kalman_history = []
-                prev_ts = None
-                for lg in logs[:-1]:
-                    air_h  = float(lg.get("air_temperature", 298))
-                    hi_est = max(0.0, min(100.0, 100.0 - (air_h - 298) * 2.0))
-                    ts     = _parse_ts(lg.get("created_at", ""))
-                    if prev_ts is not None and ts is not None:
-                        # Clamp to [10 min, 30 days] to handle outlier gaps
-                        elapsed_sec = (ts - prev_ts).total_seconds()
-                        dt_days = max(10 / 1440.0, min(30.0, elapsed_sec / 86400.0))
-                    else:
-                        dt_days = 1.0  # default: assume daily cadence
-                    kalman_history.append({"rule_score": hi_est, "dt": dt_days})
-                    prev_ts = ts
-
-                # Final observation uses all available model scores.
-                # dt for the last step: gap between penultimate and last log entry.
-                last_ts = _parse_ts(logs[-1].get("created_at", "")) if logs else None
-                if prev_ts is not None and last_ts is not None:
-                    elapsed_last = (last_ts - prev_ts).total_seconds()
-                    final_dt = max(10 / 1440.0, min(30.0, elapsed_last / 86400.0))
-                else:
-                    final_dt = 1.0
-                kalman_history.append({
-                    "rule_score":  rule_score,
-                    "ml_score":    rule_score,
-                    "survival_hi": model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
-                    "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
-                    "dt":          final_dt,
-                })
-                kalman_state = kalman.smooth_from_scores(kalman_history)
-            else:
-                kalman_obs = {
-                    "rule_score":  rule_score,
-                    "ml_score":    rule_score,
-                    "survival_hi": model_b_out["health_index"] if model_b_out and not np.isnan(model_b_out.get("health_index", np.nan)) else DEFAULT_HI,
-                    "mahal_hi":    model_c_out["health_index"] if model_c_out and not np.isnan(model_c_out.get("health_index", np.nan)) else DEFAULT_HI,
-                }
-                kalman_state = kalman.update(kalman_obs)
-
-            # --- DST Fusion ---
-            # Filter out None, NaN health_index, and Mahal placeholder outputs.
-            # (score_source "no_model"/"fallback" means <11 logs -- the returned
-            # health_index=100 is a stub, not a real measurement; including it
-            # would bias the fused score toward perfect health).
-            # On a maintenance event (tool replaced), both Mahal AND anomaly
-            # CUSUM are excluded from DST fusion:
-            #   - Mahal: dm2 spikes because baseline was fit on high-wear data
-            #   - Anomaly CUSUM: all channels alarm on wear-reset; this is an
-            #     artifact of the state change, not genuine degradation
-            valid_outputs = []
-            for out in [model_a_out, model_b_out, model_c_out, model_e_out]:
-                if out is None:
-                    continue
-                # Skip placeholder Mahal results
-                if out.get("score_source") in ("no_model", "fallback"):
-                    continue
-                # Skip Mahal + CUSUM anomaly on maintenance event (post tool-wear reset)
-                if maintenance_event and out.get("model_id") in (
-                    "model_c_mahal_hi", "model_e_anomaly"
-                ):
-                    continue
-                # Check for valid health_index (not NaN)
-                hi = out.get("health_index")
-                if hi is not None and not np.isnan(hi):
-                    valid_outputs.append(out)
-            model_outputs = valid_outputs
-            fusion_result = get_dst_fusion().fuse(model_outputs, kalman_state)
-
-            base_result.update({
-                "unified_health_score":      fusion_result["unified_health_score"],
-                "dst_verdict":               fusion_result["dst_verdict"],
-                "conflict_factor_K":         fusion_result["conflict_factor_K"],
-                "dst_score":                 fusion_result["dst_score"],
-                "kalman_hi":                 fusion_result["kalman_hi"],
-                "kalman_rul":                fusion_result["kalman_rul"],
-                "sensor_fault_flag":         fusion_result["sensor_fault_flag"],
-                "model_disagreement_alert":  fusion_result["model_disagreement_alert"],
-                "maintenance_event":         maintenance_event,
-                "bpa": {
-                    "healthy":   fusion_result["bpa_healthy"],
-                    "degrading": fusion_result["bpa_degrading"],
-                    "critical":  fusion_result["bpa_critical"],
-                    "unknown":   fusion_result["bpa_unknown"],
-                },
-                "model_outputs": {
-                    "pinn_rul":  model_a_out,
-                    "survival":  model_b_out,
-                    "mahal_hi":  model_c_out,
-                    "anomaly":   model_e_out,
-                    # moment_anomaly and moment_rul omitted — momentfm not installed.
-                    # See TODO above to re-enable.
-                },
-            })
+            base_result.update(_run_wave2(telemetry, features_5, failure_prob, risk_level))
         except Exception as _fusion_exc:
             logger.warning(f"DST fusion failed: {_fusion_exc}", exc_info=True)
-            # Graceful fallback: unified_health_score mirrors P1 inversion
             base_result["unified_health_score"] = max(0.0, round(100.0 - failure_prob, 1))
             base_result["dst_verdict"] = risk_level.title()
             base_result["conflict_factor_K"] = 0.0
             base_result["score_source"] = "fallback_additive"
 
-        # ==================== SHAP Explanations (P1) ====================
-        # Skipped unless caller passes include_shap=True -- saves 50-200 ms per request.
-        if not include_shap:
-            base_result["shap_explanations"] = []
-        else:
-            try:
-                from .xai_service import XAIService
-                model_p1_raw = load_p1()
-                if model_p1_raw is not None:
-                    # P1 expects 5 base features for SHAP (not 7 with derived features)
-                    _p1_shap_features = [air, process, rpm, torque, wear]
-                    _p1_feature_names = [
-                        "Air temperature [K]",
-                        "Process temperature [K]",
-                        "Rotational speed [rpm]",
-                        "Torque [Nm]",
-                        "Tool wear [min]",
-                    ]
-                    base_result["shap_explanations"] = XAIService.explain_prediction(
-                        model_p1_raw, _p1_shap_features, _p1_feature_names
-                    )
-                else:
-                    base_result["shap_explanations"] = []
-            except Exception as _xai_exc:
-                logger.warning(f"SHAP explanations failed: {_xai_exc}", exc_info=True)
-                base_result["shap_explanations"] = []
-
+        base_result["shap_explanations"] = _run_shap_explanations(
+            include_shap, [air, process, rpm, torque, wear]
+        )
         return base_result

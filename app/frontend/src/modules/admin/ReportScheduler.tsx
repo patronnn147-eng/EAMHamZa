@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+﻿import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -399,7 +399,7 @@ export const ReportScheduler: React.FC = () => {
                 <Label>Day of Week</Label>
                 <Select
                   value={formData.day_of_week.toString()}
-                  onValueChange={(v) => setFormData({ ...formData, day_of_week: parseInt(v) })}
+                  onValueChange={(v) => setFormData({ ...formData, day_of_week: Number.parseInt(v) })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -488,3 +488,6 @@ export const ReportScheduler: React.FC = () => {
 };
 
 export default ReportScheduler;
+
+
+

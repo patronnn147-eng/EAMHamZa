@@ -100,7 +100,7 @@ function MonthCalendar({
     const paddingBefore = firstDow === 0 ? 6 : firstDow - 1; // shift so Mon=0
 
     const cells: (Date | null)[] = [
-        ...Array(paddingBefore).fill(null),
+        ...new Array(paddingBefore).fill(null),
         ...days,
     ];
     // Pad to full rows
@@ -633,8 +633,6 @@ export default function PlanningCalendarView() {
                                             background: `${COLORS.surfaceHigh}55`,
                                             border: `1px solid ${COLORS.outlineVariant}20`,
                                         }}
-                                        onMouseEnter={e => (e.currentTarget.style.background = `${COLORS.surfaceHigh}90`)}
-                                        onMouseLeave={e => (e.currentTarget.style.background = `${COLORS.surfaceHigh}55`)}
                                     >
                                         <div className="flex items-center gap-3">
                                             <div
@@ -767,7 +765,7 @@ export default function PlanningCalendarView() {
                                 className="text-xs mb-4"
                                 style={{ color: COLORS.onSurfaceVariant }}
                             >
-                                This planning spans {durationDays} day{durationDays !== 1 ? 's' : ''}.
+                                This planning spans {durationDays} day{durationDays === 1 ? '' : 's'}.
                             </p>
                             <div className="flex flex-col gap-2">
                                 <div

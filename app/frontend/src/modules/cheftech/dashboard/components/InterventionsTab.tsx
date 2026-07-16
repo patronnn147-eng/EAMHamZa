@@ -12,8 +12,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import {
-} from '@/components/ui/select';
 import { Wrench, Download, FileText, Loader2, Zap, Activity, History, AlertCircle } from 'lucide-react';
 import { Separator as UISeparator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -24,7 +22,6 @@ const getAuthToken = () => localStorage.getItem('access_token');
 
 interface InterventionsTabProps {
   interventions: Intervention[];
-  fetchInterventions: (filters?: { statut?: string; page?: number; size?: number }) => Promise<void>;
   approveIntervention?: (interventionId: number) => Promise<void>;
   rejectIntervention?: (interventionId: number, reason?: string) => Promise<void>;
   noGrouping?: boolean;
@@ -86,11 +83,11 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
     return (
       <div className="space-y-1">
         {parts.map((part, idx) => {
-          const match = part.match(/\[FILE:([^|]+)\|([^\]]+)\]/);
+          const match = /\[FILE:([^|]+)\|([^\]]+)\]/.exec(part);
           if (match) {
             const [, key, name] = match;
             return (
-              <div key={idx} className="flex items-center gap-2 mt-1">
+              <div key={`file-${key}`} className="flex items-center gap-2 mt-1">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -108,7 +105,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
               </div>
             );
           }
-          return <p key={idx} className="whitespace-pre-wrap">{part}</p>;
+          return <p key={`text-${idx}`} className="whitespace-pre-wrap">{part}</p>;
         })}
       </div>
     );

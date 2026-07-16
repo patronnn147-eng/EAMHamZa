@@ -1,9 +1,9 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String
 
 
-class Alertes_urgentes(Base):
-    __tablename__ = "alertes_urgentes"
+class AlertesUrgentes(Base):
+    __tablename__ = "AlertesUrgentes"
     __table_args__ = {"extend_existing": True}
 
     id = Column(

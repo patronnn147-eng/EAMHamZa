@@ -1,4 +1,4 @@
-"""
+﻿"""
 Model F: Linear Kalman Filter State Estimator
 Smooths health state [HI, RUL, degradation_rate] from noisy multi-model observations.
 Treats each model output as a noisy measurement, automatically weighted by noise covariance.
@@ -49,7 +49,7 @@ H = np.array([
 
 # Process noise (Q per unit time): how much state drifts per day.
 # Scaled by dt in update() so longer gaps accumulate more uncertainty.
-Q_per_day = 0.5 * np.eye(STATE_DIM, dtype=float)
+q_per_day = 0.5 * np.eye(STATE_DIM, dtype=float)
 
 # Observation noise (R): trust per sensor (variances in HI-score units)
 # rule_score: σ=5 pts → var=25; ml_score: σ=5 → 25; survival: σ=6 → 36; mahal: σ=4 → 16
@@ -74,10 +74,10 @@ class KalmanStateEstimator:
     Each entry in history should optionally carry a "dt" key (days, default=1.0).
     """
 
-    def __init__(self, H=H, Q_per_day=Q_per_day, R=R):
-        self.H         = np.array(H,         dtype=float)
-        self.Q_per_day = np.array(Q_per_day, dtype=float)
-        self.R         = np.array(R,         dtype=float)
+    def __init__(self, h_matrix=H, q_per_day=q_per_day, r_noise=R):
+        self.H         = np.array(h_matrix,  dtype=float)
+        self.q_per_day = np.array(q_per_day, dtype=float)
+        self.R         = np.array(r_noise,   dtype=float)
         # State and covariance — initialized by reset()
         self.x: np.ndarray = np.zeros(STATE_DIM)
         self.P: np.ndarray = np.eye(STATE_DIM) * 100.0  # high initial uncertainty
@@ -86,7 +86,7 @@ class KalmanStateEstimator:
 
     # ── Internal helpers ────────────────────────────────────────────────────────
 
-    def _build_F(self, dt: float) -> np.ndarray:
+    def _build_f(self, dt: float) -> np.ndarray:
         """
         Build time-varying transition matrix for elapsed dt (days).
 
@@ -145,10 +145,10 @@ class KalmanStateEstimator:
         dt = max(dt, 1e-6)  # guard against zero/negative dt
 
         # --- Predict step ---
-        F_dt   = self._build_F(dt)
-        x_pred = F_dt @ self.x
+        f_dt   = self._build_f(dt)
+        x_pred = f_dt @ self.x
         x_pred[1] = max(0.0, x_pred[1] - dt)  # RUL decreases by elapsed time (deterministic)
-        P_pred = F_dt @ self.P @ F_dt.T + self.Q_per_day * dt  # noise scales with dt
+        p_pred = f_dt @ self.P @ f_dt.T + self.q_per_day * dt  # noise scales with dt
 
         # --- Build observation vector, handle missing ---
         z_full     = self._obs_to_vector(obs)
@@ -157,27 +157,27 @@ class KalmanStateEstimator:
         if not valid_mask.any():
             # No observations — just propagate prediction
             self.x = x_pred
-            self.P = P_pred
+            self.P = p_pred
             return {
                 "hi_kalman":              float(np.clip(x_pred[0], 0, 100)),
                 "rul_kalman":             float(max(0.0, x_pred[1])),
                 "degradation_rate":       float(x_pred[2]),
                 "sensor_fault_flag":      False,
                 "innovation_norm":        0.0,
-                "state_covariance_trace": float(np.trace(P_pred)),
+                "state_covariance_trace": float(np.trace(p_pred)),
             }
 
         # Mask to valid observations only
-        H_valid = self.H[valid_mask]
-        R_valid = self.R[np.ix_(valid_mask, valid_mask)]
+        h_valid = self.H[valid_mask]
+        r_valid = self.R[np.ix_(valid_mask, valid_mask)]
         z_valid = z_full[valid_mask]
 
         # --- Update step ---
-        S         = H_valid @ P_pred @ H_valid.T + R_valid  # innovation covariance
-        K         = P_pred @ H_valid.T @ np.linalg.inv(S)   # Kalman gain
-        innovation = z_valid - H_valid @ x_pred              # innovation vector
+        S         = h_valid @ p_pred @ h_valid.T + r_valid  # innovation covariance
+        K         = p_pred @ h_valid.T @ np.linalg.inv(S)   # Kalman gain
+        innovation = z_valid - h_valid @ x_pred              # innovation vector
         self.x    = x_pred + K @ innovation
-        self.P    = (np.eye(STATE_DIM) - K @ H_valid) @ P_pred
+        self.P    = (np.eye(STATE_DIM) - K @ h_valid) @ p_pred
 
         # Clamp state to physical bounds
         self.x[0] = float(np.clip(self.x[0], 0.0, 100.0))
@@ -274,3 +274,4 @@ def get_kalman_estimator() -> KalmanStateEstimator:
 def reset_kalman_estimator(initial_hi: float = 80.0, initial_rul: float = 30.0) -> None:
     """Reset the module-level singleton to fresh initial state."""
     get_kalman_estimator().reset(initial_hi=initial_hi, initial_rul=initial_rul)
+

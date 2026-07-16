@@ -43,8 +43,8 @@ export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
       tone: 'normal',
     }));
 
-  const confidence = health.conflict_factor_K != null
-    ? confidenceWords(health.conflict_factor_K) : undefined;
+  const confidence = health.conflict_factor_K == null
+    ? undefined : confidenceWords(health.conflict_factor_K);
 
   const summary = abnormal.length
     ? `Principale raison : ${abnormal[0].label.toLowerCase()} hors de la plage sûre.`

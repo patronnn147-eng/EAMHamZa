@@ -1,4 +1,4 @@
-"""Add WorkOrder execution validation fields
+﻿"""Add WorkOrder execution validation fields
 
 Revision ID: e0fddb28a2cf
 Revises: add_machine_telemetry_columns
@@ -22,23 +22,23 @@ def upgrade() -> None:
     """Upgrade schema."""
     # Only add the columns required for the technician work order execution lifecycle
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("date_debut", sa.DateTime(timezone=True), nullable=True),
     )
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("date_fin", sa.DateTime(timezone=True), nullable=True),
     )
-    op.add_column("ordres_travail", sa.Column("rapport", sa.Text(), nullable=True))
+    op.add_column("OrdresTravail", sa.Column("rapport", sa.Text(), nullable=True))
     op.add_column(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("failure_type", sa.String(length=100), nullable=True),
     )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column("ordres_travail", "failure_type")
-    op.drop_column("ordres_travail", "rapport")
-    op.drop_column("ordres_travail", "date_fin")
-    op.drop_column("ordres_travail", "date_debut")
+    op.drop_column("OrdresTravail", "failure_type")
+    op.drop_column("OrdresTravail", "rapport")
+    op.drop_column("OrdresTravail", "date_fin")
+    op.drop_column("OrdresTravail", "date_debut")

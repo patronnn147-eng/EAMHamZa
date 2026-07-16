@@ -1,10 +1,10 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Integer
 from sqlalchemy.orm import relationship
 
 
-class Planning_utilisateurs(Base):
-    __tablename__ = "planning_utilisateurs"
+class PlanningUtilisateurs(Base):
+    __tablename__ = "PlanningUtilisateurs"
     __table_args__ = {"extend_existing": True}
 
     id = Column(
@@ -17,7 +17,7 @@ class Planning_utilisateurs(Base):
     # Relationship for eager loading the user
     utilisateur = relationship(
         "Utilisateurs",
-        primaryjoin="foreign(Planning_utilisateurs.utilisateur_id) == Utilisateurs.id",
+        primaryjoin="foreign(PlanningUtilisateurs.utilisateur_id) == Utilisateurs.id",
         lazy="noload",
         viewonly=True,
     )

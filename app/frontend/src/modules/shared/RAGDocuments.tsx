@@ -297,7 +297,7 @@ export default function RAGDocuments() {
         url = (await res.json()).download_url;
       }
       if (!url) throw new Error('No download URL available.');
-      window.open(url, '_blank');
+      globalThis.open(url, '_blank');
     } catch (e: any) {
       toast({ title: 'Download failed', description: e.message, variant: 'destructive' });
     }
@@ -336,7 +336,7 @@ export default function RAGDocuments() {
 
   // ── Delete ──
   const handleDelete = async (doc: RagDocument) => {
-    if (!window.confirm(`Delete "${doc.filename}" and all its vector chunks? File will also be removed from S3.`)) return;
+    if (!globalThis.confirm(`Delete "${doc.filename}" and all its vector chunks? File will also be removed from S3.`)) return;
     try {
       const res = await fetch(`${BASE()}/documents/${doc.id}`, {
         method: 'DELETE',
@@ -431,7 +431,7 @@ export default function RAGDocuments() {
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-muted-foreground">
-            {filtered.length} document{filtered.length !== 1 ? 's' : ''}
+            {filtered.length} document{filtered.length === 1 ? '' : 's'}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -748,7 +748,7 @@ export default function RAGDocuments() {
             {bulkFiles.length > 0 && (
               <div className="border rounded-lg max-h-40 overflow-y-auto">
                 <div className="p-2 border-b bg-muted/50 text-xs font-medium">
-                  {bulkFiles.length} file{bulkFiles.length !== 1 ? 's' : ''} ready
+                  {bulkFiles.length} file{bulkFiles.length === 1 ? '' : 's'} ready
                 </div>
                 <ul className="text-xs divide-y">
                   {bulkFiles.map((f, idx) => (
@@ -825,7 +825,7 @@ export default function RAGDocuments() {
               {bulkUploading ? (
                 <><Loader2 className="h-4 w-4 animate-spin" />Importing {bulkFiles.length} files…</>
               ) : (
-                <><FolderUp className="h-4 w-4" />Import {bulkFiles.length} file{bulkFiles.length !== 1 ? 's' : ''}</>
+                <><FolderUp className="h-4 w-4" />Import {bulkFiles.length} file{bulkFiles.length === 1 ? '' : 's'}</>
               )}
             </Button>
           </DialogFooter>

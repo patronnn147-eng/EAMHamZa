@@ -392,7 +392,7 @@ def format_tool_result(tool_name: str, result: ToolResult, max_items: int = 100)
         return f"[{tool_name}] {str(result)}"
 
 
-def format_response_for_user(data: List[dict], format_type: str = "auto") -> str:
+def format_response_for_user(data: List[dict]) -> str:
     """
     Format data for user-friendly display.
 

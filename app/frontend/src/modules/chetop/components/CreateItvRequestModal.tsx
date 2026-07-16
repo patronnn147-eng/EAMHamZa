@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -199,7 +199,7 @@ export const CreateItvRequestModal: React.FC<Props> = ({
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
       const payload = {
-        machine_id: parseInt(formData.machine_id),
+        machine_id: Number.parseInt(formData.machine_id),
         description: formData.description,
         priorite: formData.priority,
         machine_category: formData.machine_category,
@@ -479,3 +479,6 @@ export const CreateItvRequestModal: React.FC<Props> = ({
     </Dialog>
   );
 };
+
+
+

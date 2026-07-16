@@ -1,4 +1,4 @@
-"""Merge all dangling heads into a single clean tip
+﻿"""Merge all dangling heads into a single clean tip
 
 Revision ID: merge_all_heads_final
 Revises: fix_enhance_work_orders, add_granular_planning_fields, add_ml_alert_details
@@ -7,7 +7,7 @@ Create Date: 2026-04-24
 This merge migration unifies the three divergent heads that existed in the
 migration chain into a single, canonical head:
 
-  - fix_enhance_work_orders       (no-op stub, branch off update_ordres_travail_chetop)
+  - fix_enhance_work_orders       (no-op stub, branch off update_OrdresTravail_chetop)
   - add_granular_planning_fields  (adds sous_zone / ordre to plannings)
   - add_ml_alert_details          (no-op stub, restored from lost file)
 

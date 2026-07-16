@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+﻿import { useEffect, useState, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -225,10 +225,10 @@ export default function InventoryPage() {
 
     // Derived: current stock for selected piece
     const selectedPieceStock = stockForm.piece_id
-        ? stockLevels.find((s) => s.piece_id === parseInt(stockForm.piece_id))
+        ? stockLevels.find((s) => s.piece_id === Number.parseInt(stockForm.piece_id))
         : null;
     const selectedPieceInfo = stockForm.piece_id
-        ? pieces.find((p) => p.id === parseInt(stockForm.piece_id))
+        ? pieces.find((p) => p.id === Number.parseInt(stockForm.piece_id))
         : null;
 
     // ── Data Fetching ──────────────────────────────────────────────────────────
@@ -282,8 +282,8 @@ export default function InventoryPage() {
             if (e.key === 'c' || e.key === 'C') { e.preventDefault(); if (canConsume) openStockDialog('consume'); }
             if (e.key === '/') { e.preventDefault(); searchRef.current?.focus(); }
         };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
+        globalThis.addEventListener('keydown', handler);
+        return () => globalThis.removeEventListener('keydown', handler);
     }, [canManage, canConsume]);  
 
     // ── Piece CRUD ─────────────────────────────────────────────────────────────
@@ -312,9 +312,9 @@ export default function InventoryPage() {
                 reference: pieceForm.reference,
                 name: pieceForm.name,
                 description: pieceForm.description || null,
-                unit_price: pieceForm.unit_price ? parseFloat(pieceForm.unit_price) : null,
+                unit_price: pieceForm.unit_price ? Number.parseFloat(pieceForm.unit_price) : null,
                 category: pieceForm.category || null,
-                min_stock: parseInt(pieceForm.min_stock) || 5,
+                min_stock: Number.parseInt(pieceForm.min_stock) || 5,
             };
             const url = editingPiece
                 ? `${apiBase}/api/v1/inventory/pieces/${editingPiece.id}`
@@ -354,7 +354,7 @@ export default function InventoryPage() {
     };
 
     const handleStockSubmit = async () => {
-        const qty = parseInt(stockForm.quantity);
+        const qty = Number.parseInt(stockForm.quantity);
         if (stockAction === 'consume' && selectedPieceStock && qty > selectedPieceStock.quantity) {
             toast({ title: 'Stock insuffisant', description: `Disponible : ${selectedPieceStock.quantity}`, variant: 'destructive' });
             return;
@@ -366,7 +366,7 @@ export default function InventoryPage() {
             const r = await fetch(url, {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ piece_id: parseInt(stockForm.piece_id), quantity: qty, reference: stockForm.reference || null }),
+                body: JSON.stringify({ piece_id: Number.parseInt(stockForm.piece_id), quantity: qty, reference: stockForm.reference || null }),
             });
             if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error((e as { detail?: string }).detail || 'Erreur'); }
             toast({
@@ -435,11 +435,7 @@ export default function InventoryPage() {
                 </div>
                 {/* Keyboard hint */}
                 <p className="text-xs text-blue-500 hidden md:block">
-                    Raccourcis&nbsp;:&nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">N</kbd>{' '}nouvelle &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">A</kbd>{' '}entrée &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">C</kbd>{' '}sortie &nbsp;
-                    <kbd className="font-mono bg-slate-700 px-1 rounded">/</kbd>{' '}recherche
+                    {'Raccourcis : '}<kbd className="font-mono bg-slate-700 px-1 rounded">N</kbd>{' nouvelle '}<kbd className="font-mono bg-slate-700 px-1 rounded">A</kbd>{' entrée '}<kbd className="font-mono bg-slate-700 px-1 rounded">C</kbd>{' sortie '}<kbd className="font-mono bg-slate-700 px-1 rounded">/</kbd>{' recherche'}
                 </p>
             </div>
 
@@ -936,13 +932,13 @@ export default function InventoryPage() {
                                 className={
                                     stockAction === 'consume' &&
                                     selectedPieceStock &&
-                                    parseInt(stockForm.quantity) > selectedPieceStock.quantity
+                                    Number.parseInt(stockForm.quantity) > selectedPieceStock.quantity
                                         ? 'border-red-500 focus:ring-red-500'
                                         : ''
                                 }
                             />
                             {stockAction === 'consume' && selectedPieceStock &&
-                                parseInt(stockForm.quantity) > selectedPieceStock.quantity && (
+                                Number.parseInt(stockForm.quantity) > selectedPieceStock.quantity && (
                                 <p className="text-xs text-red-400 flex items-center gap-1">
                                     <AlertTriangle className="h-3 w-3" />
                                     Dépasse le stock disponible ({selectedPieceStock.quantity})
@@ -968,8 +964,8 @@ export default function InventoryPage() {
                             disabled={
                                 !stockForm.piece_id ||
                                 !stockForm.quantity ||
-                                parseInt(stockForm.quantity) < 1 ||
-                                (stockAction === 'consume' && !!selectedPieceStock && parseInt(stockForm.quantity) > selectedPieceStock.quantity)
+                                Number.parseInt(stockForm.quantity) < 1 ||
+                                (stockAction === 'consume' && !!selectedPieceStock && Number.parseInt(stockForm.quantity) > selectedPieceStock.quantity)
                             }
                             className={stockAction === 'add' ? 'bg-green-700 hover:bg-green-600' : 'bg-orange-700 hover:bg-orange-600'}
                         >
@@ -994,3 +990,6 @@ export default function InventoryPage() {
         </div>
     );
 }
+
+
+

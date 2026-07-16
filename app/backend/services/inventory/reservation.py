@@ -1,4 +1,4 @@
-"""InventoryReservationService — atomic reservation + fulfillment.
+﻿"""InventoryReservationService — atomic reservation + fulfillment.
 
 This is the **only** service that should mutate stock for the inventory ↔
 work-order workflow. Approval/cancellation/completion handlers call methods
@@ -469,13 +469,13 @@ class InventoryReservationService:
         compatible — the link is grown organically from real consumption.
         """
         try:
-            from models.ordres_intervention import Ordres_intervention
+            from models.OrdresIntervention import OrdresIntervention
             from models.piece_machine import piece_machine
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 
             machine_id = await self.db.scalar(
-                select(Ordres_intervention.machine_id).where(
-                    Ordres_intervention.id == intervention_id
+                select(OrdresIntervention.machine_id).where(
+                    OrdresIntervention.id == intervention_id
                 )
             )
             if not machine_id:
@@ -494,7 +494,7 @@ class InventoryReservationService:
 
     # ── Deficit alert (hook for demand forecast / procurement) ──────────────
 
-    async def create_deficit_alert(self, missing: List[DeficitItem]) -> None:
+    def create_deficit_alert(self, missing: List[DeficitItem]) -> None:
         """Invalidate the demand-forecast cache so the next read picks up
         the new deficit. Hook here for future enrichment (Celery email task,
         notification, procurement webhook, etc.).

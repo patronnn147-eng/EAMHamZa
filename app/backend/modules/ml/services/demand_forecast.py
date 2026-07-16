@@ -38,7 +38,6 @@ def _urgency_score(
     failure_probability: float,
     current_qty: int,
     consumption_rate: float,
-    min_stock: int,
 ) -> float:
     """
     Composite urgency score [0, 1].
@@ -245,7 +244,7 @@ async def compute_demand_forecast(
                     else _RUL_HORIZON_DAYS
                 )
                 fail_prob = float(log.failure_probability or 0.0)
-                score = _urgency_score(rul, fail_prob, current_qty, rate, min_stock)
+                score = _urgency_score(rul, fail_prob, current_qty, rate)
                 if score > max_urgency:
                     max_urgency = score
                 if fail_prob > max_fail_prob:

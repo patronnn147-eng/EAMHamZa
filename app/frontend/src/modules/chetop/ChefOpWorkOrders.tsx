@@ -294,7 +294,7 @@ const ChefOpWorkOrders: React.FC = () => {
               disabled={!rapport.trim() || completingId !== null}
               className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black px-8"
             >
-              {completingId !== null ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+              {completingId === null ? null : <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Confirmer la clôture
             </Button>
           </DialogFooter>

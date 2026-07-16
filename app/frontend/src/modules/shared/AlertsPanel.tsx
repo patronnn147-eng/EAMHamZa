@@ -91,7 +91,7 @@ export const AlertsPanel: React.FC = () => {
   const fetchAlerts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = severityFilter !== 'all' ? `?severity=${severityFilter}` : '';
+      const params = severityFilter === 'all' ? '' : `?severity=${severityFilter}`;
       const res = await fetch(`${API}/api/v1/alerts${params}`, {
         headers: { Authorization: `Bearer ${getToken()}` },
       });
@@ -281,9 +281,9 @@ export const AlertsPanel: React.FC = () => {
         <div className="space-y-3">
           {alerts.map((alert) => {
             const config = severityConfig[alert.severity] || severityConfig.LOW;
-            const failurePct = alert.failure_probability != null
-              ? Math.round(alert.failure_probability * 100)
-              : null;
+            const failurePct = alert.failure_probability == null
+              ? null
+              : Math.round(alert.failure_probability * 100);
             let failurePctClass = 'text-yellow-400';
             if (failurePct != null && failurePct >= 80) {
               failurePctClass = 'text-red-400';

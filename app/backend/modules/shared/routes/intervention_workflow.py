@@ -1,4 +1,4 @@
-"""
+﻿"""
 Phase 2: Intervention → Work Order Workflow
 
 API endpoints for creating interventions from plannings,
@@ -18,17 +18,17 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail, OrdreStatut
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail, OrdreStatut
 from models.plannings import Plannings
 from models.machines import Machines
 from services.audit import AuditService, AuditEntityType
 from services.ml.recovery import PostMaintenanceRecoveryService
-from .ordres_intervention.schemas import (
-    Ordres_interventionResponse,
-    Ordres_interventionValidationData,
+from .OrdresIntervention.schemas import (
+    OrdresInterventionResponse,
+    OrdresInterventionValidationData,
 )
-from .ordres_travail.schemas import Ordres_travailResponse
+from .OrdresTravail.schemas import OrdresTravailResponse
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ _INTERVENTION_NOT_FOUND_MSG = "Intervention not found"
 
 @router.post(
     "/create",
-    response_model=Ordres_interventionResponse,
+    response_model=OrdresInterventionResponse,
     status_code=status.HTTP_201_CREATED,
 )
 async def create_intervention_from_planning(
@@ -101,13 +101,13 @@ async def create_intervention_from_planning(
         has_permission = planning.chef_operation_id == current_user.id
     else:
         # Check if technician is assigned to planning
-        from models.planning_utilisateurs import Planning_utilisateurs
+        from models.PlanningUtilisateurs import PlanningUtilisateurs
 
         assignment = await db.scalar(
-            select(Planning_utilisateurs).where(
+            select(PlanningUtilisateurs).where(
                 and_(
-                    Planning_utilisateurs.planning_id == planning_id,
-                    Planning_utilisateurs.utilisateur_id == current_user.id,
+                    PlanningUtilisateurs.planning_id == planning_id,
+                    PlanningUtilisateurs.utilisateur_id == current_user.id,
                 )
             )
         )
@@ -122,7 +122,7 @@ async def create_intervention_from_planning(
     now = datetime.now(timezone.utc)
 
     # Create the intervention
-    intervention = Ordres_intervention(
+    intervention = OrdresIntervention(
         date_intervention=now,
         planning_id=planning_id,
         machine_id=machine_id,
@@ -169,7 +169,7 @@ async def create_intervention_from_planning(
     return intervention
 
 
-@router.get("", response_model=PaginatedResponse[Ordres_interventionResponse])
+@router.get("", response_model=PaginatedResponse[OrdresInterventionResponse])
 async def list_interventions(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
@@ -184,38 +184,38 @@ async def list_interventions(
     # Build query based on user role
     if current_user.role == UserRole.ADMIN:
         # Admin sees all
-        query = select(Ordres_intervention)
+        query = select(OrdresIntervention)
     elif current_user.role == UserRole.CHEFTECH:
         # ChefTech sees their own and pending
-        query = select(Ordres_intervention).where(
+        query = select(OrdresIntervention).where(
             or_(
-                Ordres_intervention.requested_by == current_user.id,
-                Ordres_intervention.statut == "PENDING",
+                OrdresIntervention.requested_by == current_user.id,
+                OrdresIntervention.statut == "PENDING",
             )
         )
     else:
         # Other users see only their own
-        query = select(Ordres_intervention).where(
-            Ordres_intervention.requested_by == current_user.id
+        query = select(OrdresIntervention).where(
+            OrdresIntervention.requested_by == current_user.id
         )
 
     # Apply filters
     if planning_id:
-        query = query.where(Ordres_intervention.planning_id == planning_id)
+        query = query.where(OrdresIntervention.planning_id == planning_id)
     if statut:
-        query = query.where(Ordres_intervention.statut == statut)
+        query = query.where(OrdresIntervention.statut == statut)
 
     # Count total
-    count_query = query.with_only_columns(func.count(Ordres_intervention.id))
+    count_query = query.with_only_columns(func.count(OrdresIntervention.id))
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
     # Apply ordering and pagination
     query = query.options(
-        selectinload(Ordres_intervention.machine),
+        selectinload(OrdresIntervention.machine),
     )
     query = (
-        query.order_by(Ordres_intervention.date_intervention.desc())
+        query.order_by(OrdresIntervention.date_intervention.desc())
         .offset(skip)
         .limit(size)
     )
@@ -229,7 +229,7 @@ async def list_interventions(
     return PaginatedResponse.create(items=items, total=total, page=page, size=size)
 
 
-@router.get("/{intervention_id}", response_model=Ordres_interventionResponse)
+@router.get("/{intervention_id}", response_model=OrdresInterventionResponse)
 async def get_intervention(
     intervention_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -237,7 +237,7 @@ async def get_intervention(
 ):
     """Get intervention by ID."""
     intervention = await db.scalar(
-        select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+        select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
     )
     if not intervention:
         raise HTTPException(
@@ -246,10 +246,10 @@ async def get_intervention(
     return intervention
 
 
-@router.post("/{intervention_id}/validate", response_model=Ordres_interventionResponse)
+@router.post("/{intervention_id}/validate", response_model=OrdresInterventionResponse)
 async def validate_intervention(
     intervention_id: int,
-    data: Ordres_interventionValidationData,
+    data: OrdresInterventionValidationData,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -267,7 +267,7 @@ async def validate_intervention(
         )
 
     intervention = await db.scalar(
-        select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+        select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
     )
     if not intervention:
         raise HTTPException(
@@ -328,7 +328,7 @@ async def validate_intervention(
 
 
 @router.post(
-    "/{intervention_id}/create-work-order", response_model=Ordres_travailResponse
+    "/{intervention_id}/create-work-order", response_model=OrdresTravailResponse
 )
 async def create_work_order_from_intervention(
     *, intervention_id: int,
@@ -352,7 +352,7 @@ async def create_work_order_from_intervention(
         )
 
     intervention = await db.scalar(
-        select(Ordres_intervention).where(Ordres_intervention.id == intervention_id)
+        select(OrdresIntervention).where(OrdresIntervention.id == intervention_id)
     )
     if not intervention:
         raise HTTPException(
@@ -382,7 +382,7 @@ async def create_work_order_from_intervention(
     # Map Phase 2 status to work order status
     wo_statut = OrdreStatut.ASSIGNED
 
-    work_order = Ordres_travail(
+    work_order = OrdresTravail(
         titre=f"[Intervention #{intervention_id}] {intervention.problem_description[:50] if intervention.problem_description else 'Work Order'}",
         description=intervention.problem_description
         or f"Generated from intervention #{intervention_id}",
@@ -450,7 +450,7 @@ async def create_work_order_from_intervention(
     return work_order
 
 
-@router.get("/pending", response_model=List[Ordres_interventionResponse])
+@router.get("/pending", response_model=List[OrdresInterventionResponse])
 async def get_pending_interventions(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -467,9 +467,9 @@ async def get_pending_interventions(
         )
 
     result = await db.execute(
-        select(Ordres_intervention)
-        .where(Ordres_intervention.statut == "PENDING")
-        .order_by(Ordres_intervention.date_intervention.desc())
+        select(OrdresIntervention)
+        .where(OrdresIntervention.statut == "PENDING")
+        .order_by(OrdresIntervention.date_intervention.desc())
     )
     items = list(result.scalars().all())
     return items

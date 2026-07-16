@@ -1,4 +1,4 @@
-"""Add health score snapshot columns to ordres_travail
+﻿"""Add health score snapshot columns to OrdresTravail
 
 Adds two nullable Float columns to support post-maintenance recovery tracking:
   - health_score_at_creation: unified_health_score at WO creation time
@@ -42,18 +42,18 @@ def _column_exists(table_name: str, column_name: str) -> bool:
 
 
 def upgrade() -> None:
-    if not _column_exists("ordres_travail", "health_score_at_creation"):
+    if not _column_exists("OrdresTravail", "health_score_at_creation"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("health_score_at_creation", sa.Float(), nullable=True),
         )
-    if not _column_exists("ordres_travail", "health_score_at_completion"):
+    if not _column_exists("OrdresTravail", "health_score_at_completion"):
         op.add_column(
-            "ordres_travail",
+            "OrdresTravail",
             sa.Column("health_score_at_completion", sa.Float(), nullable=True),
         )
 
 
 def downgrade() -> None:
-    op.drop_column("ordres_travail", "health_score_at_completion")
-    op.drop_column("ordres_travail", "health_score_at_creation")
+    op.drop_column("OrdresTravail", "health_score_at_completion")
+    op.drop_column("OrdresTravail", "health_score_at_creation")

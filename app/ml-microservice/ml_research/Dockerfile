@@ -9,9 +9,8 @@ WORKDIR /workspace
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
     curl git build-essential \
     && apt-get purge -y --auto-remove linux-libc-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN useradd -m -u 1000 appuser
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd -m -u 1000 appuser
 
 COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \

@@ -40,6 +40,31 @@ class ArchivesService:
             logger.exception(f"Error fetching archives {obj_id}: {str(e)}")
             raise
 
+    @staticmethod
+    def _apply_filters(query, count_query, model, query_dict):
+        """Apply equality filters from query_dict to both queries."""
+        if not query_dict:
+            return query, count_query
+        for field, value in query_dict.items():
+            if hasattr(model, field):
+                condition = getattr(model, field) == value
+                query = query.where(condition)
+                count_query = count_query.where(condition)
+        return query, count_query
+
+    @staticmethod
+    def _apply_sort(query, sort, model):
+        """Apply ordering to query; defaults to id.desc()."""
+        if not sort:
+            return query.order_by(model.id.desc())
+        if sort.startswith("-"):
+            field_name = sort[1:]
+            if hasattr(model, field_name):
+                return query.order_by(getattr(model, field_name).desc())
+        elif hasattr(model, sort):
+            return query.order_by(getattr(model, sort))
+        return query.order_by(model.id.desc())
+
     async def get_list(
         self,
         skip: int = 0,
@@ -49,40 +74,14 @@ class ArchivesService:
     ) -> Dict[str, Any]:
         """Get paginated list of archivess"""
         try:
-            query = select(Archives)
-            count_query = select(func.count(Archives.id))
-
-            if query_dict:
-                for field, value in query_dict.items():
-                    if hasattr(Archives, field):
-                        query = query.where(getattr(Archives, field) == value)
-                        count_query = count_query.where(
-                            getattr(Archives, field) == value
-                        )
-
-            count_result = await self.db.execute(count_query)
-            total = count_result.scalar()
-
-            if sort:
-                if sort.startswith("-"):
-                    field_name = sort[1:]
-                    if hasattr(Archives, field_name):
-                        query = query.order_by(getattr(Archives, field_name).desc())
-                else:
-                    if hasattr(Archives, sort):
-                        query = query.order_by(getattr(Archives, sort))
-            else:
-                query = query.order_by(Archives.id.desc())
-
+            query, count_query = self._apply_filters(
+                select(Archives), select(func.count(Archives.id)), Archives, query_dict
+            )
+            total = (await self.db.execute(count_query)).scalar()
+            query = self._apply_sort(query, sort, Archives)
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-
-            return {
-                "items": items,
-                "total": total,
-                "skip": skip,
-                "limit": limit,
-            }
+            return {"items": items, "total": total, "skip": skip, "limit": limit}
         except Exception as e:
             logger.exception(f"Error fetching archives list: {str(e)}")
             raise

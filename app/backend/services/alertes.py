@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 import sys
 import os
 from typing import Optional, Dict, Any, List
@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity  # noqa: E402
 from models.machines import Machines  # noqa: E402
 from models.machine_telemetry import MachineTelemetry  # noqa: E402
-from models.ordres_intervention import Ordres_intervention  # noqa: E402
-from models.ordres_travail import Ordres_travail  # noqa: E402
+from models.OrdresIntervention import OrdresIntervention  # noqa: E402
+from models.OrdresTravail import OrdresTravail  # noqa: E402
 from core.notifications import broadcaster  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -267,11 +267,11 @@ class AlertService:
             for machine in machines:
                 try:
                     # Get intervention history
-                    interventions_query = select(Ordres_intervention).where(
-                        Ordres_intervention.machine_id == machine.id
+                    interventions_query = select(OrdresIntervention).where(
+                        OrdresIntervention.machine_id == machine.id
                     )
                     itv_result = await self.db.execute(interventions_query)
-                    interventions = list(itv_result.scalars().all())
+                    interventions = itv_result.scalars().all()
 
                     # Get latest telemetry reading for this machine
                     telemetry_query = (
@@ -378,7 +378,7 @@ class AlertService:
         self,
         alert_id: int,
         wo_data: Dict[str, Any],
-    ) -> Optional[Ordres_travail]:
+    ) -> Optional[OrdresTravail]:
         """Create a work order linked to an alert"""
         try:
             alert_result = await self.db.execute(
@@ -395,8 +395,8 @@ class AlertService:
                     f"Alert {alert_id} already linked to work order {alert.work_order_id}"
                 )
                 existing_wo = await self.db.execute(
-                    select(Ordres_travail).where(
-                        Ordres_travail.id == alert.work_order_id
+                    select(OrdresTravail).where(
+                        OrdresTravail.id == alert.work_order_id
                     )
                 )
                 return existing_wo.scalar_one_or_none()
@@ -408,7 +408,7 @@ class AlertService:
                 "CRITICAL": "URGENTE",
             }
 
-            wo = Ordres_travail(
+            wo = OrdresTravail(
                 titre=wo_data.get(
                     "title",
                     f"Maintenance - {alert.machine.name if alert.machine else 'Machine #' + str(alert.machine_id)}",
@@ -462,7 +462,7 @@ class AlertService:
                 return None
 
             wo_result = await self.db.execute(
-                select(Ordres_travail).where(Ordres_travail.id == work_order_id)
+                select(OrdresTravail).where(OrdresTravail.id == work_order_id)
             )
             wo = wo_result.scalar_one_or_none()
 

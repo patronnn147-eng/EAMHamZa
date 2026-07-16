@@ -1,4 +1,4 @@
-from typing import Optional, Annotated
+﻿from typing import Optional, Annotated
 from datetime import datetime, timezone
 import logging
 
@@ -15,8 +15,8 @@ from core.rabbitmq import (
     ROUTING_KEY_WO_CREATED,
 )
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail
 from models.machines import Machines
 from services.inventory import InventoryReservationService, InsufficientStockError
 from services.ml.recovery import PostMaintenanceRecoveryService
@@ -65,25 +65,25 @@ async def get_all_pending_requests(
 
         # Count total - get PENDING_APPROVAL status
         count_query = (
-            select(func.count(Ordres_intervention.id))
-            .where(Ordres_intervention.archived_at.is_(None))
-            .where(Ordres_intervention.statut == "PENDING_APPROVAL")
+            select(func.count(OrdresIntervention.id))
+            .where(OrdresIntervention.archived_at.is_(None))
+            .where(OrdresIntervention.statut == "PENDING_APPROVAL")
         )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
             select(
-                Ordres_intervention,
+                OrdresIntervention,
                 Machines.nom.label("machine_nom"),
                 Utilisateurs.nom.label("requester_nom"),
             )
-            .outerjoin(Machines, Ordres_intervention.machine_id == Machines.id)
+            .outerjoin(Machines, OrdresIntervention.machine_id == Machines.id)
             .outerjoin(
-                Utilisateurs, Ordres_intervention.requested_by == Utilisateurs.id
+                Utilisateurs, OrdresIntervention.requested_by == Utilisateurs.id
             )
-            .where(Ordres_intervention.statut == "PENDING_APPROVAL")
-            .order_by(Ordres_intervention.requested_at.asc())
+            .where(OrdresIntervention.statut == "PENDING_APPROVAL")
+            .order_by(OrdresIntervention.requested_at.asc())
             .offset(skip)
             .limit(size)
         )
@@ -125,7 +125,7 @@ async def validate_itv_request(
     try:
         # Get request - check for PENDING_APPROVAL status
         request_result = await db.execute(
-            select(Ordres_intervention).where(Ordres_intervention.id == request_id)
+            select(OrdresIntervention).where(OrdresIntervention.id == request_id)
         )
         itv_request = request_result.scalar_one_or_none()
         if not itv_request:
@@ -199,7 +199,7 @@ async def validate_itv_request(
             itv_request.statut = "APPROVED"
 
             # Create a Work Order when approved - assign to the ChefOp who requested it
-            new_wo = Ordres_travail(
+            new_wo = OrdresTravail(
                 titre=f"Intervention #{itv_request.id}",
                 description=itv_request.problem_description or "",
                 priorite=itv_request.priority or "MOYENNE",

@@ -75,7 +75,6 @@ const metricConfig = {
 const generateMockHistory = (metric: string, days: number = 7): { timestamp: string; value: number }[] => {
   const data: { timestamp: string; value: number }[] = [];
   const now = new Date();
-  const config = metricConfig[metric as keyof typeof metricConfig];
   let baseValue: number;
   if (metric === 'rpm') {
     baseValue = 3000;

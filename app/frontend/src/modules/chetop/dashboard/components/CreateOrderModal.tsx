@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,14 +32,6 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
   onSubmit,
 }) => {
   if (!open) return null;
-
-  const selectedPlanning = formData.planning_id
-    ? plannings.find((p) => p.id === formData.planning_id)
-    : null;
-
-  const planningTechnicians = selectedPlanning
-    ? selectedPlanning.assigned_users.filter((u) => u.role === 'TECHNICIEN')
-    : [];
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -138,7 +130,7 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
               <Select
                 value={formData.planning_id?.toString() || ''}
                 onValueChange={(value) => {
-                  const pid = value ? parseInt(value) : null;
+                  const pid = value ? Number.parseInt(value) : null;
                   setFormData({
                     ...formData,
                     planning_id: pid,
@@ -183,3 +175,6 @@ export const CreateOrderModal: React.FC<CreateOrderModalProps> = ({
     </div>
   );
 };
+
+
+

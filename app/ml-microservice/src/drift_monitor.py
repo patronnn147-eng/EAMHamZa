@@ -180,10 +180,12 @@ class DriftMonitor:
         prediction_drift = None
         if current_predictions is not None and hasattr(self, '_reference_predictions'):
             ks_stat, p_value = ks_2samp(self._reference_predictions, current_predictions)
-            severity = (
-                'critical' if p_value < self.p_critical else
-                'warning'  if p_value < self.p_warning  else 'none'
-            )
+            if p_value < self.p_critical:
+                severity = 'critical'
+            elif p_value < self.p_warning:
+                severity = 'warning'
+            else:
+                severity = 'none'
             prediction_drift = FeatureDriftResult(
                 feature='predictions',
                 ks_statistic=round(float(ks_stat), 4),

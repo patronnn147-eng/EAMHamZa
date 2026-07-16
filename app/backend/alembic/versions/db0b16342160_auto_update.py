@@ -1,4 +1,4 @@
-"""auto update
+﻿"""auto update
 
 Revision ID: db0b16342160
 Revises:
@@ -55,7 +55,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_machines_id"), "machines", ["id"], unique=False)
     op.create_table(
-        "maintenances_planifiees",
+        "MaintenancesPlanifiees",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("utilisateur_id", sa.Integer(), nullable=True),
         sa.Column("rapport_id", sa.Integer(), nullable=True),
@@ -65,8 +65,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_maintenances_planifiees_id"),
-        "maintenances_planifiees",
+        op.f("ix_MaintenancesPlanifiees_id"),
+        "MaintenancesPlanifiees",
         ["id"],
         unique=False,
     )
@@ -83,7 +83,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f("ix_ordres_id"), "ordres", ["id"], unique=False)
     op.create_table(
-        "ordres_intervention",
+        "OrdresIntervention",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("date_intervention", sa.DateTime(timezone=True), nullable=False),
         sa.Column("rapport", sa.String(), nullable=True),
@@ -92,10 +92,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_ordres_intervention_id"), "ordres_intervention", ["id"], unique=False
+        op.f("ix_OrdresIntervention_id"), "OrdresIntervention", ["id"], unique=False
     )
     op.create_table(
-        "ordres_travail",
+        "OrdresTravail",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("date_echeance", sa.DateTime(timezone=True), nullable=False),
         sa.Column("priorite", sa.String(), nullable=False),
@@ -107,10 +107,10 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_ordres_travail_id"), "ordres_travail", ["id"], unique=False
+        op.f("ix_OrdresTravail_id"), "OrdresTravail", ["id"], unique=False
     )
     op.create_table(
-        "planning_ordres_travail",
+        "planning_OrdresTravail",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("planning_id", sa.Integer(), nullable=False),
         sa.Column("ordre_travail_id", sa.Integer(), nullable=False),
@@ -118,13 +118,13 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_planning_ordres_travail_id"),
-        "planning_ordres_travail",
+        op.f("ix_planning_OrdresTravail_id"),
+        "planning_OrdresTravail",
         ["id"],
         unique=False,
     )
     op.create_table(
-        "planning_utilisateurs",
+        "PlanningUtilisateurs",
         sa.Column("id", sa.Integer(), autoincrement=True, nullable=False),
         sa.Column("planning_id", sa.Integer(), nullable=False),
         sa.Column("utilisateur_id", sa.Integer(), nullable=False),
@@ -132,8 +132,8 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_planning_utilisateurs_id"),
-        "planning_utilisateurs",
+        op.f("ix_PlanningUtilisateurs_id"),
+        "PlanningUtilisateurs",
         ["id"],
         unique=False,
     )
@@ -185,23 +185,23 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_plannings_id"), table_name="plannings")
     op.drop_table("plannings")
     op.drop_index(
-        op.f("ix_planning_utilisateurs_id"), table_name="planning_utilisateurs"
+        op.f("ix_PlanningUtilisateurs_id"), table_name="PlanningUtilisateurs"
     )
-    op.drop_table("planning_utilisateurs")
+    op.drop_table("PlanningUtilisateurs")
     op.drop_index(
-        op.f("ix_planning_ordres_travail_id"), table_name="planning_ordres_travail"
+        op.f("ix_planning_OrdresTravail_id"), table_name="planning_OrdresTravail"
     )
-    op.drop_table("planning_ordres_travail")
-    op.drop_index(op.f("ix_ordres_travail_id"), table_name="ordres_travail")
-    op.drop_table("ordres_travail")
-    op.drop_index(op.f("ix_ordres_intervention_id"), table_name="ordres_intervention")
-    op.drop_table("ordres_intervention")
+    op.drop_table("planning_OrdresTravail")
+    op.drop_index(op.f("ix_OrdresTravail_id"), table_name="OrdresTravail")
+    op.drop_table("OrdresTravail")
+    op.drop_index(op.f("ix_OrdresIntervention_id"), table_name="OrdresIntervention")
+    op.drop_table("OrdresIntervention")
     op.drop_index(op.f("ix_ordres_id"), table_name="ordres")
     op.drop_table("ordres")
     op.drop_index(
-        op.f("ix_maintenances_planifiees_id"), table_name="maintenances_planifiees"
+        op.f("ix_MaintenancesPlanifiees_id"), table_name="MaintenancesPlanifiees"
     )
-    op.drop_table("maintenances_planifiees")
+    op.drop_table("MaintenancesPlanifiees")
     op.drop_index(op.f("ix_machines_id"), table_name="machines")
     op.drop_table("machines")
     op.drop_index(op.f("ix_archives_id"), table_name="archives")

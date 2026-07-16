@@ -1,4 +1,4 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Float, Integer, String, Text, Enum as SQLEnum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -20,8 +20,8 @@ class OrdreStatut(str, enum.Enum):
     ANNULÉ = "ANNULÉ"
 
 
-class Ordres_travail(Base):
-    __tablename__ = "ordres_travail"
+class OrdresTravail(Base):
+    __tablename__ = "OrdresTravail"
     __table_args__ = {"extend_existing": True}
 
     id = Column(
@@ -72,25 +72,25 @@ class Ordres_travail(Base):
     # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
     machine = relationship(
         "Machines",
-        primaryjoin="foreign(Ordres_travail.machine_id) == Machines.id",
+        primaryjoin="foreign(OrdresTravail.machine_id) == Machines.id",
         lazy="noload",
         viewonly=True,
     )
     utilisateur = relationship(
         "Utilisateurs",
-        primaryjoin="foreign(Ordres_travail.utilisateur_id) == Utilisateurs.id",
+        primaryjoin="foreign(OrdresTravail.utilisateur_id) == Utilisateurs.id",
         lazy="noload",
         viewonly=True,
     )
     interventions = relationship(
-        "Ordres_intervention",
-        primaryjoin="Ordres_travail.id == foreign(Ordres_intervention.ordre_travail_id)",
+        "OrdresIntervention",
+        primaryjoin="OrdresTravail.id == foreign(OrdresIntervention.ordre_travail_id)",
         lazy="noload",
         viewonly=True,
     )
     linked_alerts = relationship(
         "Alert",
-        primaryjoin="Ordres_travail.id == foreign(Alert.work_order_id)",
+        primaryjoin="OrdresTravail.id == foreign(Alert.work_order_id)",
         lazy="noload",
         viewonly=True,
     )

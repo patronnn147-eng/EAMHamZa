@@ -1,13 +1,13 @@
-"""Universal soft-archive columns across date-based modules
+﻿"""Universal soft-archive columns across date-based modules
 
 Revision ID: universal_archive_columns
 Revises: inventory_stock_decimal
 Create Date: 2026-05-18
 
 Adds `archived_at` + `archive_reason` columns to:
-- planning_taches
-- ordres_travail
-- ordres_intervention
+- PlanningTaches
+- OrdresTravail
+- OrdresIntervention
 - plannings
 
 Soft-archive design — archived rows stay in their original table with a
@@ -25,7 +25,7 @@ branch_labels = None
 depends_on = None
 
 
-TABLES = ["planning_taches", "ordres_travail", "ordres_intervention", "plannings"]
+TABLES = ["PlanningTaches", "OrdresTravail", "OrdresIntervention", "plannings"]
 
 
 def upgrade() -> None:

@@ -59,7 +59,7 @@ async def notification_stream(
     user_id = user.id
 
     async def event_generator():
-        queue = await broadcaster.subscribe(user_id)
+        queue = broadcaster.subscribe(user_id)
         try:
             while True:
                 # Check if client is still connected

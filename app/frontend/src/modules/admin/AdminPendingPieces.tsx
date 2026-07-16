@@ -171,10 +171,11 @@ export default function AdminPendingPieces() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="font-mono text-[11px] uppercase tracking-wider text-red-400/80">
+            <label htmlFor="reject-reason" className="font-mono text-[11px] uppercase tracking-wider text-red-400/80">
               Motif (min. 3 caractères)
             </label>
             <Textarea
+              id="reject-reason"
               placeholder="Doublon, soumission incorrecte, etc."
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}

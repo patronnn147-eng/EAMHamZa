@@ -1,4 +1,4 @@
-"""Add PDCA ML prediction logs table and feedback columns
+﻿"""Add PDCA ML prediction logs table and feedback columns
 
 Revision ID: add_pdca_ml_tables
 Revises: interventions_approval_workflow
@@ -80,21 +80,21 @@ def upgrade() -> None:
             ),
         )
 
-    # 2. Add PDCA feedback columns to ordres_intervention
-    if not _column_exists("ordres_intervention", "actual_failure_type"):
+    # 2. Add PDCA feedback columns to OrdresIntervention
+    if not _column_exists("OrdresIntervention", "actual_failure_type"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("actual_failure_type", sa.String(20), nullable=True),
         )
 
-    if not _column_exists("ordres_intervention", "ml_prediction_matched"):
+    if not _column_exists("OrdresIntervention", "ml_prediction_matched"):
         op.add_column(
-            "ordres_intervention",
+            "OrdresIntervention",
             sa.Column("ml_prediction_matched", sa.Boolean(), nullable=True),
         )
 
 
 def downgrade() -> None:
-    op.drop_column("ordres_intervention", "ml_prediction_matched")
-    op.drop_column("ordres_intervention", "actual_failure_type")
+    op.drop_column("OrdresIntervention", "ml_prediction_matched")
+    op.drop_column("OrdresIntervention", "actual_failure_type")
     op.drop_table("ml_prediction_logs")

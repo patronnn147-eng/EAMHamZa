@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 import { useDataSync } from '@/contexts/DataSyncContext';
@@ -110,7 +110,7 @@ export const useInterventions = () => {
       const submitData = {
         date_intervention: formData.date_intervention,
         rapport: formData.rapport,
-        ordre_travail_id: parseInt(formData.ordre_travail_id),
+        ordre_travail_id: Number.parseInt(formData.ordre_travail_id),
       };
 
       if (editingIntervention) {
@@ -209,3 +209,6 @@ export const useInterventions = () => {
     handleDelete,
   };
 };
+
+
+

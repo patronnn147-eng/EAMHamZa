@@ -115,7 +115,7 @@ export const InterventionFormDialog: React.FC<InterventionFormDialogProps> = ({
           {/* PDCA Feedback Section */}
           <div className="border-t pt-4 mt-2">
             <p className="text-sm font-semibold text-blue-700 mb-3 flex items-center gap-2">
-              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>
+              <span className="inline-block w-2 h-2 bg-blue-500 rounded-full"></span>{' '}
               Validation ML (PDCA)
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 from typing import List, Optional, Annotated
 
@@ -9,20 +9,20 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from services.planning_utilisateurs import Planning_utilisateursService
+from services.PlanningUtilisateurs import PlanningUtilisateursService
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/v1/entities/planning_utilisateurs", tags=["planning_utilisateurs"]
+    prefix="/api/v1/entities/PlanningUtilisateurs", tags=["PlanningUtilisateurs"]
 )
 
-_NOT_FOUND_MSG = "Planning_utilisateurs not found"
+_NOT_FOUND_MSG = "PlanningUtilisateurs not found"
 
 
 # ---------- Pydantic Schemas ----------
-class Planning_utilisateursData(BaseModel):
+class PlanningUtilisateursData(BaseModel):
     """Entity data schema (for create/update)"""
 
     planning_id: int
@@ -30,7 +30,7 @@ class Planning_utilisateursData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class Planning_utilisateursUpdateData(BaseModel):
+class PlanningUtilisateursUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
 
     planning_id: Optional[int] = None
@@ -38,7 +38,7 @@ class Planning_utilisateursUpdateData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class Planning_utilisateursResponse(BaseModel):
+class PlanningUtilisateursResponse(BaseModel):
     """Entity response schema"""
 
     id: int
@@ -50,43 +50,43 @@ class Planning_utilisateursResponse(BaseModel):
         from_attributes = True
 
 
-class Planning_utilisateursListResponse(BaseModel):
+class PlanningUtilisateursListResponse(BaseModel):
     """List response schema"""
 
-    items: List[Planning_utilisateursResponse]
+    items: List[PlanningUtilisateursResponse]
     total: int
     skip: int
     limit: int
 
 
-class Planning_utilisateursBatchCreateRequest(BaseModel):
+class PlanningUtilisateursBatchCreateRequest(BaseModel):
     """Batch create request"""
 
-    items: List[Planning_utilisateursData]
+    items: List[PlanningUtilisateursData]
 
 
-class Planning_utilisateursBatchUpdateItem(BaseModel):
+class PlanningUtilisateursBatchUpdateItem(BaseModel):
     """Batch update item"""
 
     id: int
-    updates: Planning_utilisateursUpdateData
+    updates: PlanningUtilisateursUpdateData
 
 
-class Planning_utilisateursBatchUpdateRequest(BaseModel):
+class PlanningUtilisateursBatchUpdateRequest(BaseModel):
     """Batch update request"""
 
-    items: List[Planning_utilisateursBatchUpdateItem]
+    items: List[PlanningUtilisateursBatchUpdateItem]
 
 
-class Planning_utilisateursBatchDeleteRequest(BaseModel):
+class PlanningUtilisateursBatchDeleteRequest(BaseModel):
     """Batch delete request"""
 
     ids: List[int]
 
 
 # ---------- Routes ----------
-@router.get("", response_model=Planning_utilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_planning_utilisateurss(
+@router.get("", response_model=PlanningUtilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_PlanningUtilisateurss(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -96,12 +96,12 @@ async def query_planning_utilisateurss(
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Query planning_utilisateurss with filtering, sorting, and pagination"""
+    """Query PlanningUtilisateurss with filtering, sorting, and pagination"""
     logger.debug(
-        f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying PlanningUtilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         # Parse query JSON if provided
         query_dict = None
@@ -117,19 +117,19 @@ async def query_planning_utilisateurss(
             query_dict=query_dict,
             sort=sort,
         )
-        logger.debug(f"Found {result['total']} planning_utilisateurss")
+        logger.debug(f"Found {result['total']} PlanningUtilisateurss")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying planning_utilisateurss: {str(e)}", exc_info=True
+            f"Error querying PlanningUtilisateurss: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Planning_utilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_planning_utilisateurss_all(
+@router.get("/all", response_model=PlanningUtilisateursListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_PlanningUtilisateurss_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -139,12 +139,12 @@ async def query_planning_utilisateurss_all(
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    # Query planning_utilisateurss with filtering, sorting, and pagination without user limitation
+    # Query PlanningUtilisateurss with filtering, sorting, and pagination without user limitation
     logger.debug(
-        f"Querying planning_utilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying PlanningUtilisateurss: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         # Parse query JSON if provided
         query_dict = None
@@ -157,31 +157,31 @@ async def query_planning_utilisateurss_all(
         result = await service.get_list(
             skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
-        logger.debug(f"Found {result['total']} planning_utilisateurss")
+        logger.debug(f"Found {result['total']} PlanningUtilisateurss")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying planning_utilisateurss: {str(e)}", exc_info=True
+            f"Error querying PlanningUtilisateurss: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Planning_utilisateursResponse, responses={404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
-async def get_planning_utilisateurs(
+@router.get("/{id}", response_model=PlanningUtilisateursResponse, responses={404: {"description": "PlanningUtilisateurs not found"}, 500: {"description": "Internal Server Error"}})
+async def get_PlanningUtilisateurs(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get a single planning_utilisateurs by ID"""
-    logger.debug(f"Fetching planning_utilisateurs with id: {id}, fields={fields}")
+    """Get a single PlanningUtilisateurs by ID"""
+    logger.debug(f"Fetching PlanningUtilisateurs with id: {id}, fields={fields}")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
-            logger.warning(f"Planning_utilisateurs with id {id} not found")
+            logger.warning(f"PlanningUtilisateurs with id {id} not found")
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
@@ -191,51 +191,51 @@ async def get_planning_utilisateurs(
         raise
     except Exception as e:
         logger.exception(
-            f"Error fetching planning_utilisateurs {id}: {str(e)}", exc_info=True
+            f"Error fetching PlanningUtilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Planning_utilisateursResponse, status_code=201, responses={400: {"description": "Failed to create planning_utilisateurs"}, 500: {"description": "Internal Server Error"}})
-async def create_planning_utilisateurs(
-    data: Planning_utilisateursData,
+@router.post("", response_model=PlanningUtilisateursResponse, status_code=201, responses={400: {"description": "Failed to create PlanningUtilisateurs"}, 500: {"description": "Internal Server Error"}})
+async def create_PlanningUtilisateurs(
+    data: PlanningUtilisateursData,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create a new planning_utilisateurs"""
-    logger.debug(f"Creating new planning_utilisateurs with data: {data}")
+    """Create a new PlanningUtilisateurs"""
+    logger.debug(f"Creating new PlanningUtilisateurs with data: {data}")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(
-                status_code=400, detail="Failed to create planning_utilisateurs"
+                status_code=400, detail="Failed to create PlanningUtilisateurs"
             )
 
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
-        logger.info(f"Planning_utilisateurs created successfully with id: {safe_id}")
+        logger.info(f"PlanningUtilisateurs created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.exception(f"Validation error creating planning_utilisateurs: {str(e)}")
+        logger.exception(f"Validation error creating PlanningUtilisateurs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(
-            f"Error creating planning_utilisateurs: {str(e)}", exc_info=True
+            f"Error creating PlanningUtilisateurs: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post(
-    "/batch", response_model=List[Planning_utilisateursResponse], status_code=201, 
+    "/batch", response_model=List[PlanningUtilisateursResponse], status_code=201, 
 responses={500: {"description": "Internal Server Error"}})
-async def create_planning_utilisateurss_batch(
-    request: Planning_utilisateursBatchCreateRequest,
+async def create_PlanningUtilisateurss_batch(
+    request: PlanningUtilisateursBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create multiple planning_utilisateurss in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} planning_utilisateurss")
+    """Create multiple PlanningUtilisateurss in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} PlanningUtilisateurss")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     results = []
 
     try:
@@ -244,7 +244,7 @@ async def create_planning_utilisateurss_batch(
             if result:
                 results.append(result)
 
-        logger.info(f"Batch created {len(results)} planning_utilisateurss successfully")
+        logger.info(f"Batch created {len(results)} PlanningUtilisateurss successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -252,15 +252,15 @@ async def create_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[Planning_utilisateursResponse], responses={500: {"description": "Internal Server Error"}})
-async def update_planning_utilisateurss_batch(
-    request: Planning_utilisateursBatchUpdateRequest,
+@router.put("/batch", response_model=List[PlanningUtilisateursResponse], responses={500: {"description": "Internal Server Error"}})
+async def update_PlanningUtilisateurss_batch(
+    request: PlanningUtilisateursBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update multiple planning_utilisateurss in a single request"""
-    logger.debug(f"Batch updating {len(request.items)} planning_utilisateurss")
+    """Update multiple PlanningUtilisateurss in a single request"""
+    logger.debug(f"Batch updating {len(request.items)} PlanningUtilisateurss")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     results = []
 
     try:
@@ -273,7 +273,7 @@ async def update_planning_utilisateurss_batch(
             if result:
                 results.append(result)
 
-        logger.info(f"Batch updated {len(results)} planning_utilisateurss successfully")
+        logger.info(f"Batch updated {len(results)} PlanningUtilisateurss successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -281,51 +281,51 @@ async def update_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Planning_utilisateursResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
-async def update_planning_utilisateurs(
+@router.put("/{id}", response_model=PlanningUtilisateursResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "PlanningUtilisateurs not found"}, 500: {"description": "Internal Server Error"}})
+async def update_PlanningUtilisateurs(
     id: int,
-    data: Planning_utilisateursUpdateData,
+    data: PlanningUtilisateursUpdateData,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update an existing planning_utilisateurs"""
-    logger.debug(f"Updating planning_utilisateurs {id} with data: {data}")
+    """Update an existing PlanningUtilisateurs"""
+    logger.debug(f"Updating PlanningUtilisateurs {id} with data: {data}")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
         result = await service.update(id, update_dict)
         if not result:
-            logger.warning(f"Planning_utilisateurs with id {id} not found for update")
+            logger.warning(f"PlanningUtilisateurs with id {id} not found for update")
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
 
-        logger.info(f"Planning_utilisateurs {id} updated successfully")
+        logger.info(f"PlanningUtilisateurs {id} updated successfully")
         return result
     except HTTPException:
         raise
     except ValueError as e:
         logger.exception(
-            f"Validation error updating planning_utilisateurs {id}: {str(e)}"
+            f"Validation error updating PlanningUtilisateurs {id}: {str(e)}"
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(
-            f"Error updating planning_utilisateurs {id}: {str(e)}", exc_info=True
+            f"Error updating PlanningUtilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
-async def delete_planning_utilisateurss_batch(
-    request: Planning_utilisateursBatchDeleteRequest,
+async def delete_PlanningUtilisateurss_batch(
+    request: PlanningUtilisateursBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete multiple planning_utilisateurss by their IDs"""
-    logger.debug(f"Batch deleting {len(request.ids)} planning_utilisateurss")
+    """Delete multiple PlanningUtilisateurss by their IDs"""
+    logger.debug(f"Batch deleting {len(request.ids)} PlanningUtilisateurss")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     deleted_count = 0
 
     try:
@@ -335,10 +335,10 @@ async def delete_planning_utilisateurss_batch(
                 deleted_count += 1
 
         logger.info(
-            f"Batch deleted {deleted_count} planning_utilisateurss successfully"
+            f"Batch deleted {deleted_count} PlanningUtilisateurss successfully"
         )
         return {
-            "message": f"Successfully deleted {deleted_count} planning_utilisateurss",
+            "message": f"Successfully deleted {deleted_count} PlanningUtilisateurss",
             "deleted_count": deleted_count,
         }
     except Exception as e:
@@ -347,29 +347,29 @@ async def delete_planning_utilisateurss_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}", responses={404: {"description": "Planning_utilisateurs not found"}, 500: {"description": "Internal Server Error"}})
-async def delete_planning_utilisateurs(
+@router.delete("/{id}", responses={404: {"description": "PlanningUtilisateurs not found"}, 500: {"description": "Internal Server Error"}})
+async def delete_PlanningUtilisateurs(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete a single planning_utilisateurs by ID"""
-    logger.debug(f"Deleting planning_utilisateurs with id: {id}")
+    """Delete a single PlanningUtilisateurs by ID"""
+    logger.debug(f"Deleting PlanningUtilisateurs with id: {id}")
 
-    service = Planning_utilisateursService(db)
+    service = PlanningUtilisateursService(db)
     try:
         success = await service.delete(id)
         if not success:
-            logger.warning(f"Planning_utilisateurs with id {id} not found for deletion")
+            logger.warning(f"PlanningUtilisateurs with id {id} not found for deletion")
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
 
-        logger.info(f"Planning_utilisateurs {id} deleted successfully")
-        return {"message": "Planning_utilisateurs deleted successfully", "id": id}
+        logger.info(f"PlanningUtilisateurs {id} deleted successfully")
+        return {"message": "PlanningUtilisateurs deleted successfully", "id": id}
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error deleting planning_utilisateurs {id}: {str(e)}", exc_info=True
+            f"Error deleting PlanningUtilisateurs {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

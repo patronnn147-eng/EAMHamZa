@@ -83,7 +83,7 @@ export default function Header() {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || globalThis.location.origin;
     const eventSource = new EventSource(`${baseUrl}/api/v1/notifications/stream?token=${token}`);
 
     eventSource.onmessage = (event) => {
@@ -157,7 +157,7 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await client.auth.logout();
-      window.location.href = '/login';
+      globalThis.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -224,7 +224,7 @@ export default function Header() {
                     notifications.map((notif) => (
                       <DropdownMenuItem
                         key={notif.id}
-                        className={`flex flex-col items-start p-4 cursor-pointer ${!notif.lu ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
+                        className={`flex flex-col items-start p-4 cursor-pointer ${notif.lu ? '' : 'bg-blue-50 dark:bg-blue-900/30'}`}
                         onClick={() => !notif.lu && markAsRead(notif.id)}
                       >
                         <div className="flex items-start justify-between w-full">

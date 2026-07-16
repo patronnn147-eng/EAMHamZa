@@ -23,6 +23,174 @@ logger = logging.getLogger(__name__)
 RULE_COLUMN = "Règle"
 
 
+def _read_dataframe(contents: bytes, filename: str) -> pd.DataFrame:
+    """Parse file bytes into a DataFrame (CSV or Excel)."""
+    if filename.endswith(".csv"):
+        try:
+            return pd.read_csv(io.BytesIO(contents), sep=None, engine="python")
+        except Exception:
+            return pd.read_csv(io.BytesIO(contents))
+    return pd.read_excel(io.BytesIO(contents))
+
+
+def _clean_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise column names, strip whitespace, replace NaN with None."""
+    df.columns = df.columns.str.strip().str.lower()
+    strip_fn = lambda x: x.strip() if isinstance(x, str) else x
+    if hasattr(df, "map"):
+        df = df.map(strip_fn)
+    else:
+        df = df.applymap(strip_fn)
+    return df.where(pd.notnull(df), None)
+
+
+def _extract_row_fields(row_dict: dict) -> tuple:
+    """Extract and normalise the five key fields from a row dict."""
+    raw_nom = None
+    for key in row_dict:
+        if "nom" in key.lower():
+            val = row_dict[key]
+            raw_nom = str(val).strip() if pd.notnull(val) and str(val).strip() else None
+            break
+
+    def _safe_str(key, default=""):
+        v = row_dict.get(key)
+        return str(v).strip() if pd.notnull(v) else default
+
+    r_zone = _safe_str("zone")
+    r_sous_zone = _safe_str("sous_zone")
+    r_ordre = _safe_str("ordre").replace(".0", "").strip()
+    r_statut = _safe_str("statut") or "OPERATIONNELLE"
+    return raw_nom, r_zone, r_sous_zone, r_ordre, r_statut
+
+
+def _validate_zone_and_sous_zone(r_zone: str, r_sous_zone: str, errors: list) -> bool:
+    """Validate zone/sous_zone; returns False if invalid."""
+    if not r_zone:
+        errors.append("La 'zone' est obligatoire.")
+        return False
+    if r_zone not in ZONE_OPTIONS:
+        errors.append(
+            f"La zone '{r_zone}' est invalide. Choisissez parmi les zones définies dans le guide."
+        )
+        return False
+    allowed_sous_zones = SOUS_ZONE_OPTIONS_BY_ZONE.get(r_zone, [])
+    if not allowed_sous_zones:
+        return True
+    if not r_sous_zone:
+        errors.append(f"La 'sous_zone' est obligatoire pour {r_zone}.")
+        return False
+    if r_sous_zone not in allowed_sous_zones:
+        errors.append(
+            f"La sous_zone '{r_sous_zone}' est invalide pour {r_zone}. Options: {', '.join(allowed_sous_zones)}"
+        )
+        return False
+    return True
+
+
+def _validate_ordre(r_zone: str, r_sous_zone: str, r_ordre: str, errors: list) -> bool:
+    """Validate the ordre field against known templates; returns False if invalid."""
+    templates_list = ORDRE_TEMPLATES.get(r_zone, {}).get(r_sous_zone, [])
+    if not templates_list:
+        return True
+    if not r_ordre:
+        options = [str(t["ordre"]) for t in templates_list]
+        errors.append(
+            f"L' 'ordre' est obligatoire pour identifier la machine. Options: {options}"
+        )
+        return False
+    try:
+        r_ordre_int = int(r_ordre)
+    except ValueError:
+        errors.append("L'ordre doit être un nombre valide.")
+        return False
+    if not any(t["ordre"] == r_ordre_int for t in templates_list):
+        errors.append(f"L'ordre '{r_ordre}' n'existe pas pour {r_sous_zone}.")
+        return False
+    return True
+
+
+def _validate_row(r_zone: str, r_sous_zone: str, r_ordre: str, r_statut: str) -> tuple:
+    """Run all field validations; return (valid, errors)."""
+    errors = []
+    zone_ok = _validate_zone_and_sous_zone(r_zone, r_sous_zone, errors)
+    if zone_ok:
+        allowed_sous_zones = SOUS_ZONE_OPTIONS_BY_ZONE.get(r_zone, [])
+        if r_sous_zone in allowed_sous_zones or not allowed_sous_zones:
+            if not _validate_ordre(r_zone, r_sous_zone, r_ordre, errors):
+                zone_ok = False
+    if r_statut and r_statut not in MACHINE_STATUS_OPTIONS:
+        errors.append(
+            f"Statut '{r_statut}' invalide. Options: {', '.join(MACHINE_STATUS_OPTIONS)}"
+        )
+        zone_ok = False
+    return (len(errors) == 0), errors
+
+
+def _resolve_name(
+    raw_nom, r_zone: str, r_sous_zone: str, r_ordre: str, valid: bool
+) -> tuple:
+    """Generate/standardise name; return (final_name, warnings, valid, errors)."""
+    warnings = []
+    errors = []
+    if not valid:
+        return raw_nom, warnings, valid, errors
+    generated_name = generate_machine_name(r_zone, r_sous_zone, r_ordre)
+    if not raw_nom:
+        final_name = generated_name
+    elif raw_nom != generated_name and generated_name:
+        warnings.append(
+            f"Le nom '{raw_nom}' a été remplacé par le nom standard '{generated_name}'."
+        )
+        final_name = generated_name
+    else:
+        final_name = raw_nom
+    if not final_name:
+        errors.append("Le système n'a pas pu générer un nom de machine (manque de données).")
+        return final_name, warnings, False, errors
+    return final_name, warnings, valid, errors
+
+
+def _check_name_uniqueness(
+    final_name, valid: bool, existing_names: set, file_names_seen: set, errors: list
+) -> bool:
+    """Check DB and intra-file name uniqueness; returns updated valid flag."""
+    if not final_name or not valid:
+        return valid
+    if final_name in existing_names:
+        errors.append(f"La machine '{final_name}' existe déjà en base de données.")
+        return False
+    if final_name in file_names_seen:
+        errors.append(
+            f"Le nom '{final_name}' apparaît plusieurs fois dans ce fichier (vérifiez vos zones et ordres)."
+        )
+        return False
+    file_names_seen.add(final_name)
+    return valid
+
+
+def _process_row(index, row_data, existing_names: set, file_names_seen: set) -> dict:
+    """Validate and transform a single DataFrame row into a result dict."""
+    row_dict = row_data.to_dict()
+    raw_nom, r_zone, r_sous_zone, r_ordre, r_statut = _extract_row_fields(row_dict)
+    valid, errors = _validate_row(r_zone, r_sous_zone, r_ordre, r_statut)
+    final_name, warnings, valid, name_errors = _resolve_name(
+        raw_nom, r_zone, r_sous_zone, r_ordre, valid
+    )
+    errors.extend(name_errors)
+    valid = _check_name_uniqueness(final_name, valid, existing_names, file_names_seen, errors)
+    clean_row = {
+        "nom": final_name if final_name else (raw_nom or ""),
+        "type": row_dict.get("type") if pd.notnull(row_dict.get("type")) else "",
+        "emplacement": row_dict.get("emplacement") if pd.notnull(row_dict.get("emplacement")) else "",
+        "zone": r_zone,
+        "sous_zone": r_sous_zone,
+        "ordre": r_ordre,
+        "statut": r_statut,
+    }
+    return {"row_index": index + 2, "data": clean_row, "valid": valid, "errors": errors, "warnings": warnings}
+
+
 @router.get("/import/template", responses={500: {"description": "Internal Server Error"}})
 async def download_import_template():
     """Download a template for mass importing machines"""
@@ -130,182 +298,22 @@ async def preview_machine_import(
 
     try:
         contents = await file.read()
+        df = _clean_dataframe(_read_dataframe(contents, file.filename))
 
-        if file.filename.endswith(".csv"):
-            try:
-                df = pd.read_csv(io.BytesIO(contents), sep=None, engine="python")
-            except Exception:
-                df = pd.read_csv(io.BytesIO(contents))
-        else:
-            df = pd.read_excel(io.BytesIO(contents))
+        db_result = await db.execute(select(Machines.nom))
+        existing_names = {row[0] for row in db_result.all()}
+        file_names_seen: set = set()
 
-        df.columns = df.columns.str.strip().str.lower()
-        if hasattr(df, "map"):
-            df = df.map(lambda x: x.strip() if isinstance(x, str) else x)
-        else:
-            df = df.applymap(lambda x: x.strip() if isinstance(x, str) else x)
-        df = df.where(pd.notnull(df), None)
-
-        results = []
-
-        stmt = select(Machines.nom)
-        db_result = await db.execute(stmt)
-        existing_names = set([row[0] for row in db_result.all()])
-
-        file_names_seen = set()
-
-        for index, row_data in df.iterrows():
-            row_dict = row_data.to_dict()
-
-            raw_nom = None
-            for key in row_dict.keys():
-                if "nom" in key.lower():
-                    raw_nom = (
-                        str(row_dict[key]).strip()
-                        if pd.notnull(row_dict[key]) and str(row_dict[key]).strip()
-                        else None
-                    )
-                    break
-
-            r_zone = (
-                str(row_dict.get("zone", "")).strip()
-                if pd.notnull(row_dict.get("zone"))
-                else ""
-            )
-            r_sous_zone = (
-                str(row_dict.get("sous_zone", "")).strip()
-                if pd.notnull(row_dict.get("sous_zone"))
-                else ""
-            )
-            r_ordre = (
-                str(row_dict.get("ordre", "")).replace(".0", "").strip()
-                if pd.notnull(row_dict.get("ordre"))
-                else ""
-            )
-            r_statut = (
-                str(row_dict.get("statut", "")).strip()
-                if pd.notnull(row_dict.get("statut"))
-                else ""
-            )
-            if not r_statut:
-                r_statut = "OPERATIONNELLE"
-
-            errors = []
-            warnings = []
-            valid = True
-
-            if not r_zone:
-                errors.append("La 'zone' est obligatoire.")
-                valid = False
-            elif r_zone not in ZONE_OPTIONS:
-                errors.append(
-                    f"La zone '{r_zone}' est invalide. Choisissez parmi les zones définies dans le guide."
-                )
-                valid = False
-
-            if r_zone in ZONE_OPTIONS:
-                allowed_sous_zones = SOUS_ZONE_OPTIONS_BY_ZONE.get(r_zone, [])
-                if allowed_sous_zones:
-                    if not r_sous_zone:
-                        errors.append(f"La 'sous_zone' est obligatoire pour {r_zone}.")
-                        valid = False
-                    elif r_sous_zone not in allowed_sous_zones:
-                        errors.append(
-                            f"La sous_zone '{r_sous_zone}' est invalide pour {r_zone}. Options: {', '.join(allowed_sous_zones)}"
-                        )
-                        valid = False
-
-                if r_sous_zone in allowed_sous_zones or not allowed_sous_zones:
-                    templates_list = ORDRE_TEMPLATES.get(r_zone, {}).get(
-                        r_sous_zone, []
-                    )
-                    if templates_list:
-                        if not r_ordre:
-                            errors.append(
-                                f"L' 'ordre' est obligatoire pour identifier la machine. Options: {[str(t['ordre']) for t in templates_list]}"
-                            )
-                            valid = False
-                        else:
-                            try:
-                                r_ordre_int = int(r_ordre)
-                                if not any(
-                                    t["ordre"] == r_ordre_int for t in templates_list
-                                ):
-                                    errors.append(
-                                        f"L'ordre '{r_ordre}' n'existe pas pour {r_sous_zone}."
-                                    )
-                                    valid = False
-                            except ValueError:
-                                errors.append("L'ordre doit être un nombre valide.")
-                                valid = False
-
-            if r_statut and r_statut not in MACHINE_STATUS_OPTIONS:
-                errors.append(
-                    f"Statut '{r_statut}' invalide. Options: {', '.join(MACHINE_STATUS_OPTIONS)}"
-                )
-                valid = False
-
-            final_name = raw_nom
-            if valid:
-                generated_name = generate_machine_name(r_zone, r_sous_zone, r_ordre)
-                if not raw_nom:
-                    final_name = generated_name
-                elif raw_nom != generated_name and generated_name:
-                    warnings.append(
-                        f"Le nom '{raw_nom}' a été remplacé par le nom standard '{generated_name}'."
-                    )
-                    final_name = generated_name
-
-            if not final_name and valid:
-                errors.append(
-                    "Le système n'a pas pu générer un nom de machine (manque de données)."
-                )
-                valid = False
-
-            if final_name and valid:
-                if final_name in existing_names:
-                    errors.append(
-                        f"La machine '{final_name}' existe déjà en base de données."
-                    )
-                    valid = False
-                if final_name in file_names_seen:
-                    errors.append(
-                        f"Le nom '{final_name}' apparaît plusieurs fois dans ce fichier (vérifiez vos zones et ordres)."
-                    )
-                    valid = False
-                else:
-                    file_names_seen.add(final_name)
-
-            clean_row = {
-                "nom": final_name if final_name else (raw_nom or ""),
-                "type": row_dict.get("type")
-                if pd.notnull(row_dict.get("type"))
-                else "",
-                "emplacement": row_dict.get("emplacement")
-                if pd.notnull(row_dict.get("emplacement"))
-                else "",
-                "zone": r_zone,
-                "sous_zone": r_sous_zone,
-                "ordre": r_ordre,
-                "statut": r_statut,
-            }
-
-            results.append(
-                {
-                    "row_index": index + 2,
-                    "data": clean_row,
-                    "valid": valid,
-                    "errors": errors,
-                    "warnings": warnings,
-                }
-            )
+        results = [
+            _process_row(index, row_data, existing_names, file_names_seen)
+            for index, row_data in df.iterrows()
+        ]
 
         stats = {
             "total": len(results),
-            "valid": len([r for r in results if r["valid"]]),
-            "invalid": len([r for r in results if not r["valid"]]),
+            "valid": sum(1 for r in results if r["valid"]),
+            "invalid": sum(1 for r in results if not r["valid"]),
         }
-
         return {"stats": stats, "items": results}
 
     except HTTPException:

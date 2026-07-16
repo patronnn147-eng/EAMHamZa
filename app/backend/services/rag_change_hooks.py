@@ -1,4 +1,4 @@
-"""
+﻿"""
 Event-driven RAG sync — SQLAlchemy hooks.
 
 Registers `after_insert` / `after_update` / `after_delete` listeners on the
@@ -122,25 +122,25 @@ def register_rag_hooks() -> None:
 
     # Import models lazily so SQLAlchemy mappers are configured first.
     from models.machines import Machines
-    from models.ordres_travail import Ordres_travail
+    from models.OrdresTravail import OrdresTravail
     from models.alertes import Alert
     from models.pieces import Piece
 
     try:
-        from models.maintenances_planifiees import (
-            Maintenances_planifiees as MaintenancesPlanifiees,
+        from models.MaintenancesPlanifiees import (
+            MaintenancesPlanifiees as maintenances_planifiees,
         )
     except Exception:
-        MaintenancesPlanifiees = None  # type: ignore
+        maintenances_planifiees = None  # type: ignore
 
     targets: list[tuple[Any, str]] = [
         (Machines, "machines"),
-        (Ordres_travail, "ordres_travail"),
+        (OrdresTravail, "OrdresTravail"),
         (Alert, "alertes"),
         (Piece, "pieces"),
     ]
-    if MaintenancesPlanifiees is not None:
-        targets.append((MaintenancesPlanifiees, "maintenances_planifiees"))
+    if maintenances_planifiees is not None:
+        targets.append((maintenances_planifiees, "MaintenancesPlanifiees"))
 
     for model, table in targets:
         event.listen(model, "after_insert", _make_listener(table, "upsert"))

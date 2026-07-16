@@ -1,4 +1,4 @@
-"""PendingPieceService — uncatalogued piece review queue.
+﻿"""PendingPieceService — uncatalogued piece review queue.
 
 When a technician submits an uncatalogued piece, this service:
 1. Inserts a ``pending_pieces`` row (status=PENDING_REVIEW)
@@ -413,13 +413,13 @@ class PendingPieceService:
         if not intervention_id:
             return
         try:
-            from models.ordres_intervention import Ordres_intervention
+            from models.OrdresIntervention import OrdresIntervention
             from models.piece_machine import piece_machine
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 
             machine_id = await self.db.scalar(
-                select(Ordres_intervention.machine_id).where(
-                    Ordres_intervention.id == intervention_id
+                select(OrdresIntervention.machine_id).where(
+                    OrdresIntervention.id == intervention_id
                 )
             )
             if not machine_id:

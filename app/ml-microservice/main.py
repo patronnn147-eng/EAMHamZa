@@ -73,21 +73,21 @@ def _fit_wave2_models():
             "tool_wear",
         ]
 
-        # Build X matrix (all rows, 5 features)
-        X_all = []
+        # Build x matrix (all rows, 5 features)
+        x_all = []
         rul_col = "RUL" if "RUL" in rows[0] else None
         for row in rows:
             try:
                 x = [float(row[f]) for f in FEATURES]
-                X_all.append(x)
+                x_all.append(x)
             except (KeyError, ValueError):
                 continue
 
-        if len(X_all) < 50:
+        if len(x_all) < 50:
             logger.warning("Wave 2 startup fit skipped: too few valid rows in CSV.")
             return
 
-        X_all = np.array(X_all, dtype=np.float32)
+        x_all = np.array(x_all, dtype=np.float32)
 
         # ── AnomalyEnsemble: fit on rows where machine_failure == 0 (healthy baseline) ──
         try:
@@ -100,12 +100,12 @@ def _fit_wave2_models():
                     for i, row in enumerate(rows)
                     if row.get(failure_col, "0").strip() in ("0", "0.0", "False")
                 ]
-                X_healthy = X_all[healthy_mask] if healthy_mask else X_all
+                x_healthy = x_all[healthy_mask] if healthy_mask else x_all
             else:
-                X_healthy = X_all
+                x_healthy = x_all
 
-            fit_anomaly_ensemble(X_healthy, FEATURE_NAMES)
-            logger.info(f"AnomalyEnsemble fitted on {len(X_healthy)} healthy samples.")
+            fit_anomaly_ensemble(x_healthy, FEATURE_NAMES)
+            logger.info(f"AnomalyEnsemble fitted on {len(x_healthy)} healthy samples.")
         except Exception as e:
             logger.warning(f"AnomalyEnsemble startup fit failed: {e}", exc_info=True)
 
@@ -123,8 +123,8 @@ def _fit_wave2_models():
 
             if rul_col and rul_col in rows[0]:
                 # Dataset has RUL column — use directly
-                for i in range(WINDOW, len(X_all), WINDOW):
-                    seq = X_all[i - WINDOW : i]
+                for i in range(WINDOW, len(x_all), WINDOW):
+                    seq = x_all[i - WINDOW : i]
                     try:
                         rul = float(rows[i - 1].get(rul_col, 60))
                     except ValueError:
@@ -133,8 +133,8 @@ def _fit_wave2_models():
                     rul_labels.append(rul)
             else:
                 # No RUL column — derive from tool wear (proxy: 300 - wear)
-                for i in range(WINDOW, len(X_all), WINDOW):
-                    seq = X_all[i - WINDOW : i]
+                for i in range(WINDOW, len(x_all), WINDOW):
+                    seq = x_all[i - WINDOW : i]
                     wear = seq[-1, 4]  # tool_wear is index 4
                     rul = max(0.0, 300.0 - float(wear))
                     sequences.append(seq)

@@ -1,4 +1,4 @@
-"""
+﻿"""
 P7.5 — Machine Readiness Score + Maintenance Timeline.
 Blends unified_health_score + inventory coverage + procurement risk
 + recent maintenance into a 0-100 readiness index.
@@ -195,7 +195,7 @@ async def get_readiness_for_machine(
 ) -> Dict[str, Any]:
     """Compute readiness score from live DB state."""
     from models.alertes import Alert, AlertType
-    from models.ordres_intervention import Ordres_intervention
+    from models.OrdresIntervention import OrdresIntervention
 
     # Is there an active PARTS_SHORTAGE alert?
     alert_q = await db.execute(
@@ -211,14 +211,14 @@ async def get_readiness_for_machine(
 
     # Days since last completed intervention
     itv_q = await db.execute(
-        select(Ordres_intervention)
+        select(OrdresIntervention)
         .where(
             and_(
-                Ordres_intervention.machine_id == machine_id,
-                Ordres_intervention.statut == "VALIDATED",
+                OrdresIntervention.machine_id == machine_id,
+                OrdresIntervention.statut == "VALIDATED",
             )
         )
-        .order_by(desc(Ordres_intervention.date_fin))
+        .order_by(desc(OrdresIntervention.date_fin))
         .limit(1)
     )
     last_itv = itv_q.scalar_one_or_none()
@@ -245,8 +245,8 @@ async def get_timeline_for_machine(
 ) -> List[Dict[str, Any]]:
     """Fetch timeline events from existing timestamps — no new table."""
     from models.ml_prediction_log import MlPredictionLog
-    from models.ordres_travail import Ordres_travail
-    from models.ordres_intervention import Ordres_intervention
+    from models.OrdresTravail import OrdresTravail
+    from models.OrdresIntervention import OrdresIntervention
     from models.alertes import Alert, AlertType
 
     # Last 10 prediction logs
@@ -267,9 +267,9 @@ async def get_timeline_for_machine(
 
     # Work orders
     wo_q = await db.execute(
-        select(Ordres_travail)
-        .where(Ordres_travail.machine_id == machine_id)
-        .order_by(desc(Ordres_travail.created_at))
+        select(OrdresTravail)
+        .where(OrdresTravail.machine_id == machine_id)
+        .order_by(desc(OrdresTravail.created_at))
         .limit(10)
     )
     wo_rows = [
@@ -287,9 +287,9 @@ async def get_timeline_for_machine(
 
     # Interventions
     itv_q = await db.execute(
-        select(Ordres_intervention)
-        .where(Ordres_intervention.machine_id == machine_id)
-        .order_by(desc(Ordres_intervention.created_at))
+        select(OrdresIntervention)
+        .where(OrdresIntervention.machine_id == machine_id)
+        .order_by(desc(OrdresIntervention.created_at))
         .limit(10)
     )
     itv_rows = [

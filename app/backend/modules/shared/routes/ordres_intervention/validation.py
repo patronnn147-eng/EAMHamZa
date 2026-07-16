@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -7,36 +7,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs
-from models.ordres_travail import OrdreStatut
+from models.OrdresTravail import OrdreStatut
 from services.audit import AuditService, AuditEntityType
-from services.ordres_intervention import Ordres_interventionService
+from services.OrdresIntervention import OrdresInterventionService
 from services.inventory import InventoryReservationService
-from ..ordres_intervention.schemas import (
-    Ordres_interventionValidationData,
-    Ordres_interventionResponse,
+from ..OrdresIntervention.schemas import (
+    OrdresInterventionValidationData,
+    OrdresInterventionResponse,
 )
 from typing import Annotated
 
 router = APIRouter(
-    prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"]
+    prefix="/api/v1/entities/OrdresIntervention", tags=["OrdresIntervention"]
 )
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{id}/validate", response_model=Ordres_interventionResponse, responses={400: {"description": "Cannot create Work Order: Intervention must be associated with a machine.; Invalid action"}, 404: {"description": "Ordres_intervention not found"}, 500: {"description": "Failed to create linked Work Order."}})
-async def validate_ordres_intervention(
+@router.post("/{id}/validate", response_model=OrdresInterventionResponse, responses={400: {"description": "Cannot create Work Order: Intervention must be associated with a machine.; Invalid action"}, 404: {"description": "OrdresIntervention not found"}, 500: {"description": "Failed to create linked Work Order."}})
+async def validate_OrdresIntervention(
     id: int,
-    data: Ordres_interventionValidationData,
+    data: OrdresInterventionValidationData,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],
 ):
     """Validate or reject an Intervention (CHEFTECH only)"""
-    logger.debug(f"Validating ordres_intervention {id} with action: {data.action}")
-    service = Ordres_interventionService(db)
+    logger.debug(f"Validating OrdresIntervention {id} with action: {data.action}")
+    service = OrdresInterventionService(db)
 
     intervention = await service.get_by_id(id)
     if not intervention:
-        raise HTTPException(status_code=404, detail="Ordres_intervention not found")
+        raise HTTPException(status_code=404, detail="OrdresIntervention not found")
 
     update_dict = {}
     if data.action == "APPROVE":
@@ -45,9 +45,9 @@ async def validate_ordres_intervention(
         update_dict["approved_at"] = datetime.now()
 
         try:
-            from services.ordres_travail import Ordres_travailService
+            from services.OrdresTravail import OrdresTravailService
 
-            wo_service = Ordres_travailService(db)
+            wo_service = OrdresTravailService(db)
 
             if not intervention.machine_id:
                 raise HTTPException(

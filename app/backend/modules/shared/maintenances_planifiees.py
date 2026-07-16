@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 from typing import List, Optional, Annotated
 
@@ -9,20 +9,20 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from services.maintenances_planifiees import Maintenances_planifieesService
+from services.MaintenancesPlanifiees import MaintenancesPlanifieesService
 
 # Set up logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(
-    prefix="/api/v1/entities/maintenances_planifiees", tags=["maintenances_planifiees"]
+    prefix="/api/v1/entities/MaintenancesPlanifiees", tags=["MaintenancesPlanifiees"]
 )
 
-_NOT_FOUND_MSG = "Maintenances_planifiees not found"
+_NOT_FOUND_MSG = "MaintenancesPlanifiees not found"
 
 
 # ---------- Pydantic Schemas ----------
-class Maintenances_planifieesData(BaseModel):
+class MaintenancesPlanifieesData(BaseModel):
     """Entity data schema (for create/update)"""
 
     utilisateur_id: Optional[int] = None
@@ -32,7 +32,7 @@ class Maintenances_planifieesData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class Maintenances_planifieesUpdateData(BaseModel):
+class MaintenancesPlanifieesUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
 
     utilisateur_id: Optional[int] = None
@@ -42,7 +42,7 @@ class Maintenances_planifieesUpdateData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class Maintenances_planifieesResponse(BaseModel):
+class MaintenancesPlanifieesResponse(BaseModel):
     """Entity response schema"""
 
     id: int
@@ -56,43 +56,43 @@ class Maintenances_planifieesResponse(BaseModel):
         from_attributes = True
 
 
-class Maintenances_planifieesListResponse(BaseModel):
+class MaintenancesPlanifieesListResponse(BaseModel):
     """List response schema"""
 
-    items: List[Maintenances_planifieesResponse]
+    items: List[MaintenancesPlanifieesResponse]
     total: int
     skip: int
     limit: int
 
 
-class Maintenances_planifieesBatchCreateRequest(BaseModel):
+class MaintenancesPlanifieesBatchCreateRequest(BaseModel):
     """Batch create request"""
 
-    items: List[Maintenances_planifieesData]
+    items: List[MaintenancesPlanifieesData]
 
 
-class Maintenances_planifieesBatchUpdateItem(BaseModel):
+class MaintenancesPlanifieesBatchUpdateItem(BaseModel):
     """Batch update item"""
 
     id: int
-    updates: Maintenances_planifieesUpdateData
+    updates: MaintenancesPlanifieesUpdateData
 
 
-class Maintenances_planifieesBatchUpdateRequest(BaseModel):
+class MaintenancesPlanifieesBatchUpdateRequest(BaseModel):
     """Batch update request"""
 
-    items: List[Maintenances_planifieesBatchUpdateItem]
+    items: List[MaintenancesPlanifieesBatchUpdateItem]
 
 
-class Maintenances_planifieesBatchDeleteRequest(BaseModel):
+class MaintenancesPlanifieesBatchDeleteRequest(BaseModel):
     """Batch delete request"""
 
     ids: List[int]
 
 
 # ---------- Routes ----------
-@router.get("", response_model=Maintenances_planifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_maintenances_planifieess(
+@router.get("", response_model=MaintenancesPlanifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_MaintenancesPlanifieess(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -102,12 +102,12 @@ async def query_maintenances_planifieess(
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Query maintenances_planifieess with filtering, sorting, and pagination"""
+    """Query MaintenancesPlanifieess with filtering, sorting, and pagination"""
     logger.debug(
-        f"Querying maintenances_planifieess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying MaintenancesPlanifieess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         # Parse query JSON if provided
         query_dict = None
@@ -123,19 +123,19 @@ async def query_maintenances_planifieess(
             query_dict=query_dict,
             sort=sort,
         )
-        logger.debug(f"Found {result['total']} maintenances_planifieess")
+        logger.debug(f"Found {result['total']} MaintenancesPlanifieess")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying maintenances_planifieess: {str(e)}", exc_info=True
+            f"Error querying MaintenancesPlanifieess: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=Maintenances_planifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_maintenances_planifieess_all(
+@router.get("/all", response_model=MaintenancesPlanifieesListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_MaintenancesPlanifieess_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -145,12 +145,12 @@ async def query_maintenances_planifieess_all(
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    # Query maintenances_planifieess with filtering, sorting, and pagination without user limitation
+    # Query MaintenancesPlanifieess with filtering, sorting, and pagination without user limitation
     logger.debug(
-        f"Querying maintenances_planifieess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying MaintenancesPlanifieess: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         # Parse query JSON if provided
         query_dict = None
@@ -163,31 +163,31 @@ async def query_maintenances_planifieess_all(
         result = await service.get_list(
             skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
-        logger.debug(f"Found {result['total']} maintenances_planifieess")
+        logger.debug(f"Found {result['total']} MaintenancesPlanifieess")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying maintenances_planifieess: {str(e)}", exc_info=True
+            f"Error querying MaintenancesPlanifieess: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=Maintenances_planifieesResponse, responses={404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
-async def get_maintenances_planifiees(
+@router.get("/{id}", response_model=MaintenancesPlanifieesResponse, responses={404: {"description": "MaintenancesPlanifiees not found"}, 500: {"description": "Internal Server Error"}})
+async def get_MaintenancesPlanifiees(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Get a single maintenances_planifiees by ID"""
-    logger.debug(f"Fetching maintenances_planifiees with id: {id}, fields={fields}")
+    """Get a single MaintenancesPlanifiees by ID"""
+    logger.debug(f"Fetching MaintenancesPlanifiees with id: {id}, fields={fields}")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
-            logger.warning(f"Maintenances_planifiees with id {id} not found")
+            logger.warning(f"MaintenancesPlanifiees with id {id} not found")
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
@@ -197,51 +197,51 @@ async def get_maintenances_planifiees(
         raise
     except Exception as e:
         logger.exception(
-            f"Error fetching maintenances_planifiees {id}: {str(e)}", exc_info=True
+            f"Error fetching MaintenancesPlanifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=Maintenances_planifieesResponse, status_code=201, responses={400: {"description": "Failed to create maintenances_planifiees"}, 500: {"description": "Internal Server Error"}})
-async def create_maintenances_planifiees(
-    data: Maintenances_planifieesData,
+@router.post("", response_model=MaintenancesPlanifieesResponse, status_code=201, responses={400: {"description": "Failed to create MaintenancesPlanifiees"}, 500: {"description": "Internal Server Error"}})
+async def create_MaintenancesPlanifiees(
+    data: MaintenancesPlanifieesData,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create a new maintenances_planifiees"""
-    logger.debug(f"Creating new maintenances_planifiees with data: {data}")
+    """Create a new MaintenancesPlanifiees"""
+    logger.debug(f"Creating new MaintenancesPlanifiees with data: {data}")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(
-                status_code=400, detail="Failed to create maintenances_planifiees"
+                status_code=400, detail="Failed to create MaintenancesPlanifiees"
             )
 
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
-        logger.info(f"Maintenances_planifiees created successfully with id: {safe_id}")
+        logger.info(f"MaintenancesPlanifiees created successfully with id: {safe_id}")
         return result
     except ValueError as e:
-        logger.exception(f"Validation error creating maintenances_planifiees: {str(e)}")
+        logger.exception(f"Validation error creating MaintenancesPlanifiees: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(
-            f"Error creating maintenances_planifiees: {str(e)}", exc_info=True
+            f"Error creating MaintenancesPlanifiees: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post(
-    "/batch", response_model=List[Maintenances_planifieesResponse], status_code=201, 
+    "/batch", response_model=List[MaintenancesPlanifieesResponse], status_code=201, 
 responses={500: {"description": "Internal Server Error"}})
-async def create_maintenances_planifieess_batch(
-    request: Maintenances_planifieesBatchCreateRequest,
+async def create_MaintenancesPlanifieess_batch(
+    request: MaintenancesPlanifieesBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Create multiple maintenances_planifieess in a single request"""
-    logger.debug(f"Batch creating {len(request.items)} maintenances_planifieess")
+    """Create multiple MaintenancesPlanifieess in a single request"""
+    logger.debug(f"Batch creating {len(request.items)} MaintenancesPlanifieess")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     results = []
 
     try:
@@ -251,7 +251,7 @@ async def create_maintenances_planifieess_batch(
                 results.append(result)
 
         logger.info(
-            f"Batch created {len(results)} maintenances_planifieess successfully"
+            f"Batch created {len(results)} MaintenancesPlanifieess successfully"
         )
         return results
     except Exception as e:
@@ -260,15 +260,15 @@ async def create_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=List[Maintenances_planifieesResponse], responses={500: {"description": "Internal Server Error"}})
-async def update_maintenances_planifieess_batch(
-    request: Maintenances_planifieesBatchUpdateRequest,
+@router.put("/batch", response_model=List[MaintenancesPlanifieesResponse], responses={500: {"description": "Internal Server Error"}})
+async def update_MaintenancesPlanifieess_batch(
+    request: MaintenancesPlanifieesBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update multiple maintenances_planifieess in a single request"""
-    logger.debug(f"Batch updating {len(request.items)} maintenances_planifieess")
+    """Update multiple MaintenancesPlanifieess in a single request"""
+    logger.debug(f"Batch updating {len(request.items)} MaintenancesPlanifieess")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     results = []
 
     try:
@@ -282,7 +282,7 @@ async def update_maintenances_planifieess_batch(
                 results.append(result)
 
         logger.info(
-            f"Batch updated {len(results)} maintenances_planifieess successfully"
+            f"Batch updated {len(results)} MaintenancesPlanifieess successfully"
         )
         return results
     except Exception as e:
@@ -291,51 +291,51 @@ async def update_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=Maintenances_planifieesResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
-async def update_maintenances_planifiees(
+@router.put("/{id}", response_model=MaintenancesPlanifieesResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "MaintenancesPlanifiees not found"}, 500: {"description": "Internal Server Error"}})
+async def update_MaintenancesPlanifiees(
     id: int,
-    data: Maintenances_planifieesUpdateData,
+    data: MaintenancesPlanifieesUpdateData,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Update an existing maintenances_planifiees"""
-    logger.debug(f"Updating maintenances_planifiees {id} with data: {data}")
+    """Update an existing MaintenancesPlanifiees"""
+    logger.debug(f"Updating MaintenancesPlanifiees {id} with data: {data}")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         # Only include non-None values for partial updates
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
         result = await service.update(id, update_dict)
         if not result:
-            logger.warning(f"Maintenances_planifiees with id {id} not found for update")
+            logger.warning(f"MaintenancesPlanifiees with id {id} not found for update")
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
 
-        logger.info(f"Maintenances_planifiees {id} updated successfully")
+        logger.info(f"MaintenancesPlanifiees {id} updated successfully")
         return result
     except HTTPException:
         raise
     except ValueError as e:
         logger.exception(
-            f"Validation error updating maintenances_planifiees {id}: {str(e)}"
+            f"Validation error updating MaintenancesPlanifiees {id}: {str(e)}"
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(
-            f"Error updating maintenances_planifiees {id}: {str(e)}", exc_info=True
+            f"Error updating MaintenancesPlanifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
-async def delete_maintenances_planifieess_batch(
-    request: Maintenances_planifieesBatchDeleteRequest,
+async def delete_MaintenancesPlanifieess_batch(
+    request: MaintenancesPlanifieesBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete multiple maintenances_planifieess by their IDs"""
-    logger.debug(f"Batch deleting {len(request.ids)} maintenances_planifieess")
+    """Delete multiple MaintenancesPlanifieess by their IDs"""
+    logger.debug(f"Batch deleting {len(request.ids)} MaintenancesPlanifieess")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     deleted_count = 0
 
     try:
@@ -345,10 +345,10 @@ async def delete_maintenances_planifieess_batch(
                 deleted_count += 1
 
         logger.info(
-            f"Batch deleted {deleted_count} maintenances_planifieess successfully"
+            f"Batch deleted {deleted_count} MaintenancesPlanifieess successfully"
         )
         return {
-            "message": f"Successfully deleted {deleted_count} maintenances_planifieess",
+            "message": f"Successfully deleted {deleted_count} MaintenancesPlanifieess",
             "deleted_count": deleted_count,
         }
     except Exception as e:
@@ -357,31 +357,31 @@ async def delete_maintenances_planifieess_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}", responses={404: {"description": "Maintenances_planifiees not found"}, 500: {"description": "Internal Server Error"}})
-async def delete_maintenances_planifiees(
+@router.delete("/{id}", responses={404: {"description": "MaintenancesPlanifiees not found"}, 500: {"description": "Internal Server Error"}})
+async def delete_MaintenancesPlanifiees(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Delete a single maintenances_planifiees by ID"""
-    logger.debug(f"Deleting maintenances_planifiees with id: {id}")
+    """Delete a single MaintenancesPlanifiees by ID"""
+    logger.debug(f"Deleting MaintenancesPlanifiees with id: {id}")
 
-    service = Maintenances_planifieesService(db)
+    service = MaintenancesPlanifieesService(db)
     try:
         success = await service.delete(id)
         if not success:
             logger.warning(
-                f"Maintenances_planifiees with id {id} not found for deletion"
+                f"MaintenancesPlanifiees with id {id} not found for deletion"
             )
             raise HTTPException(
                 status_code=404, detail=_NOT_FOUND_MSG
             )
 
-        logger.info(f"Maintenances_planifiees {id} deleted successfully")
-        return {"message": "Maintenances_planifiees deleted successfully", "id": id}
+        logger.info(f"MaintenancesPlanifiees {id} deleted successfully")
+        return {"message": "MaintenancesPlanifiees deleted successfully", "id": id}
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error deleting maintenances_planifiees {id}: {str(e)}", exc_info=True
+            f"Error deleting MaintenancesPlanifiees {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

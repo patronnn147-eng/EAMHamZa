@@ -1,4 +1,4 @@
-"""Add cheftech_feedback column to ordres_travail
+﻿"""Add cheftech_feedback column to OrdresTravail
 
 Revision ID: a1b2c3d4e5f6
 Revises: e0fddb28a2cf
@@ -21,10 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     """Add cheftech_feedback text column."""
     op.add_column(
-        "ordres_travail", sa.Column("cheftech_feedback", sa.Text(), nullable=True)
+        "OrdresTravail", sa.Column("cheftech_feedback", sa.Text(), nullable=True)
     )
 
 
 def downgrade() -> None:
     """Remove cheftech_feedback column."""
-    op.drop_column("ordres_travail", "cheftech_feedback")
+    op.drop_column("OrdresTravail", "cheftech_feedback")

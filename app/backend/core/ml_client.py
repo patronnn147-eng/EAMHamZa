@@ -1,4 +1,4 @@
-"""
+﻿"""
 ML Client - Backend client for ML microservice
 Calls ML predictions from the separate ML container
 """
@@ -23,7 +23,7 @@ class MLClient:
         self.base_url = base_url or ML_SERVICE_URL
         self._client: Optional[httpx.AsyncClient] = None
 
-    async def get_client(self) -> httpx.AsyncClient:
+    def get_client(self) -> httpx.AsyncClient:
         if self._client is None:
             self._client = httpx.AsyncClient(base_url=self.base_url, timeout=TIMEOUT)
         return self._client
@@ -35,7 +35,7 @@ class MLClient:
 
     async def health_check(self) -> Dict:
         """Check ML service health."""
-        client = await self.get_client()
+        client = self.get_client()
         try:
             response = await client.get("/api/v1/ml/health")
             return response.json()
@@ -52,7 +52,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P1: Predict failure probability."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict",
             json={
@@ -81,7 +81,7 @@ class MLClient:
         Set include_shap=True to request SHAP feature-importance explanations
         (+50-200 ms overhead).  Default False for normal fleet/alert polling.
         """
-        client = await self.get_client()
+        client = self.get_client()
         payload = {
             "air_temperature": air_temperature,
             "process_temperature": process_temperature,
@@ -107,7 +107,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P2: Predict specific failure types."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/failure-type",
             json={
@@ -129,7 +129,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P3: Predict Remaining Useful Life."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/rul",
             json={
@@ -151,7 +151,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P4: Detect anomaly."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/anomaly",
             json={
@@ -173,7 +173,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P5: Predict work order priority."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/priority",
             json={
@@ -195,7 +195,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """P6: Predict maintenance schedule."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/schedule",
             json={
@@ -210,7 +210,7 @@ class MLClient:
 
     async def batch_predict(self, machines: List[Dict]) -> Dict:
         """Batch predict for multiple machines."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/predict/batch", json={"machines": machines}
         )
@@ -218,19 +218,19 @@ class MLClient:
 
     async def get_cache_stats(self) -> Dict:
         """Get cache statistics."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.get("/api/v1/ml/cache/stats")
         return response.json()
 
     async def clear_cache(self) -> Dict:
         """Clear prediction cache."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post("/api/v1/ml/cache/clear")
         return response.json()
 
     async def get_rate_limit_status(self) -> Dict:
         """Get rate limit status."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.get("/api/v1/ml/rate-limit/status")
         return response.json()
 
@@ -243,7 +243,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """Validate features against allowed ranges."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.get(
             "/api/v1/ml/features/validate",
             params={
@@ -265,7 +265,7 @@ class MLClient:
         tool_wear: int,
     ) -> Dict:
         """Check for data drift."""
-        client = await self.get_client()
+        client = self.get_client()
         response = await client.post(
             "/api/v1/ml/drift/check",
             json={
@@ -317,3 +317,4 @@ async def get_model_metrics() -> Dict:
     except Exception as e:
         logger.warning(f"Could not get model metrics: {e}")
         return {"success": False, "error": str(e)}
+

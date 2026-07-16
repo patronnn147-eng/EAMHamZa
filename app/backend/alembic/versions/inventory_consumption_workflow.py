@@ -1,4 +1,4 @@
-"""Inventory consumption workflow — reservations, consumed pieces, pending pieces
+﻿"""Inventory consumption workflow — reservations, consumed pieces, pending pieces
 
 Revision ID: inventory_consumption_workflow
 Revises: add_pgvector_rag
@@ -9,7 +9,7 @@ Adds the inventory ↔ work-order consumption workflow:
 - Extends `mouvement_stock` for DECIMAL quantities, units, new movement types,
   and nullable piece_id (so pending-piece placeholder movements can exist
   before their piece is resolved).
-- Extends `ordres_intervention` with `parts_approved` flag and renames
+- Extends `OrdresIntervention` with `parts_approved` flag and renames
   `parts_replaced` to `legacy_parts_text` (kept for old records only).
 - Creates `required_pieces`, `consumed_pieces`, `pending_pieces` tables with
   CHECK constraints and indexes.
@@ -28,7 +28,7 @@ branch_labels = None
 depends_on = None
 
 # Shared literals (deduplicated per sonar S1192)
-_FK_ORDRES_INTERVENTION_ID = "ordres_intervention.id"
+_FK_OrdresIntervention_ID = "OrdresIntervention.id"
 _FK_PIECES_ID = "pieces.id"
 _ON_DELETE_SET_NULL = "SET NULL"
 _SQL_NOW = "now()"
@@ -90,14 +90,14 @@ def upgrade() -> None:
     )
     # pending_piece_id added AFTER pending_pieces table exists (see below)
 
-    # ── ordres_intervention: parts_approved + rename ─────────────────────────
+    # ── OrdresIntervention: parts_approved + rename ─────────────────────────
     op.add_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         sa.Column("parts_approved", sa.Boolean(), nullable=True),
     )
     # Keep parts_replaced as legacy_parts_text — preserve existing data
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "parts_replaced",
         new_column_name="legacy_parts_text",
         existing_type=sa.Text(),
@@ -110,7 +110,7 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete=_ON_DELETE_SET_NULL),
+            sa.ForeignKey(_FK_OrdresIntervention_ID, ondelete=_ON_DELETE_SET_NULL),
             nullable=True,
         ),
         sa.Column(
@@ -212,7 +212,7 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete="CASCADE"),
+            sa.ForeignKey(_FK_OrdresIntervention_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -262,7 +262,7 @@ def upgrade() -> None:
         sa.Column(
             "intervention_id",
             sa.Integer(),
-            sa.ForeignKey(_FK_ORDRES_INTERVENTION_ID, ondelete="CASCADE"),
+            sa.ForeignKey(_FK_OrdresIntervention_ID, ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
@@ -420,12 +420,12 @@ def downgrade() -> None:
     op.drop_table("pending_pieces")
 
     op.alter_column(
-        "ordres_intervention",
+        "OrdresIntervention",
         "legacy_parts_text",
         new_column_name="parts_replaced",
         existing_type=sa.Text(),
     )
-    op.drop_column("ordres_intervention", "parts_approved")
+    op.drop_column("OrdresIntervention", "parts_approved")
 
     op.drop_column("mouvement_stock", "intervention_id")
     op.drop_column("mouvement_stock", "unit")

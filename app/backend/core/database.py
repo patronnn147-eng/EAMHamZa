@@ -4,6 +4,7 @@ import os
 import re
 import time
 from pathlib import Path
+from typing import AsyncGenerator
 
 from asyncpg.exceptions import (
     DuplicateTableError,
@@ -607,7 +608,7 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """FastAPI dependency for database session with lazy initialization support"""
     start_time = time.time()
     logger.debug("[DB_OP] Starting get_db session creation")

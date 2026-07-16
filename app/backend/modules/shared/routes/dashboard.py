@@ -1,4 +1,4 @@
-"""Dashboard command-center endpoints. Auto-discovered via main.py router scan."""
+﻿"""Dashboard command-center endpoints. Auto-discovered via main.py router scan."""
 
 import logging
 from datetime import datetime, timezone, timedelta
@@ -14,7 +14,7 @@ from core.auth import get_current_user
 from core.groq_client import get_groq_client
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.ordres_travail import Ordres_travail, OrdreStatut
+from models.OrdresTravail import OrdresTravail, OrdreStatut
 
 from modules.shared.services.dashboard_briefing import compute_facts, make_briefing
 
@@ -69,20 +69,20 @@ async def _gather_facts(role: str, user_id, db: AsyncSession) -> dict:
             logger.warning(f"[dashboard] count failed: {e}")
             return 0
 
-    base_wo = select(func.count()).select_from(Ordres_travail)
+    base_wo = select(func.count()).select_from(OrdresTravail)
     if role == "TECHNICIEN" and user_id is not None:
-        base_wo = base_wo.where(Ordres_travail.utilisateur_id == user_id)
+        base_wo = base_wo.where(OrdresTravail.utilisateur_id == user_id)
 
     urgent = await _count(
         base_wo.where(
-            Ordres_travail.priorite == "URGENTE",
-            Ordres_travail.statut.notin_(_TERMINAL),
+            OrdresTravail.priorite == "URGENTE",
+            OrdresTravail.statut.notin_(_TERMINAL),
         )
     )
-    pending = await _count(base_wo.where(Ordres_travail.statut.in_(_PENDING)))
+    pending = await _count(base_wo.where(OrdresTravail.statut.in_(_PENDING)))
     completed = await _count(
         base_wo.where(
-            Ordres_travail.statut.in_(_COMPLETED), Ordres_travail.created_at >= week_ago
+            OrdresTravail.statut.in_(_COMPLETED), OrdresTravail.created_at >= week_ago
         )
     )
 

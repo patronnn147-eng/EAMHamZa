@@ -1,4 +1,4 @@
-"""
+﻿"""
 Post-Maintenance Recovery Service.
 
 Tracks how a machine's health evolves after a work order is completed.
@@ -6,8 +6,8 @@ Uses the same P1-P6 + DST fusion models as the rest of the ML pipeline —
 no new models are trained; the unified_health_score is the single signal.
 
 Flow:
-    1. WO created -> snapshot_health() -> stored in ordres_travail.health_score_at_creation
-    2. WO completed -> snapshot_health() -> stored in ordres_travail.health_score_at_completion
+    1. WO created -> snapshot_health() -> stored in OrdresTravail.health_score_at_creation
+    2. WO completed -> snapshot_health() -> stored in OrdresTravail.health_score_at_completion
     3. Frontend reads recovery delta = current_unified_health_score - health_score_at_creation
 """
 
@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.ml_client import ml_client, is_ml_service_available
 from models.machine_telemetry import MachineTelemetry
-from models.ordres_travail import Ordres_travail, OrdreStatut
+from models.OrdresTravail import OrdresTravail, OrdreStatut
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ class PostMaintenanceRecoveryService:
 
     def compute_recovery(
         self,
-        work_order: Ordres_travail,
+        work_order: OrdresTravail,
         current_score: Optional[float],
     ) -> RecoveryResult:
         """Classify recovery state for a (work_order, current_score) pair."""
@@ -225,12 +225,12 @@ class PostMaintenanceRecoveryService:
         Returns None if no qualifying WO exists.
         """
         result = await self.db.execute(
-            select(Ordres_travail)
+            select(OrdresTravail)
             .where(
-                Ordres_travail.machine_id == machine_id,
-                Ordres_travail.date_fin.isnot(None),
+                OrdresTravail.machine_id == machine_id,
+                OrdresTravail.date_fin.isnot(None),
             )
-            .order_by(Ordres_travail.date_fin.desc())
+            .order_by(OrdresTravail.date_fin.desc())
             .limit(1)
         )
         wo = result.scalar_one_or_none()

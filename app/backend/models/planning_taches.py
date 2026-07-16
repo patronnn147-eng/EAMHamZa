@@ -1,4 +1,4 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Text, Enum as SQLEnum
 from sqlalchemy.sql import func
 import enum
@@ -11,10 +11,10 @@ class TaskType(str, enum.Enum):
     CORRECTION = "CORRECTION"
 
 
-class Planning_taches(Base):
+class PlanningTaches(Base):
     """Detailed execution tasks defined by CHEFTECH for a planning before submission."""
 
-    __tablename__ = "planning_taches"
+    __tablename__ = "PlanningTaches"
     __table_args__ = {"extend_existing": True}
 
     id = Column(

@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Annotated
 
@@ -10,8 +10,8 @@ from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
-from models.ordres_intervention import Ordres_intervention
-from models.ordres_travail import Ordres_travail
+from models.OrdresIntervention import OrdresIntervention
+from models.OrdresTravail import OrdresTravail
 from ..schemas import InterventionResponse
 from ..dependencies import verify_cheftech
 
@@ -33,49 +33,49 @@ async def get_interventions(
 
         # Count total - show interventions where current user is involved OR pending approval
         count_query = (
-            select(func.count(Ordres_intervention.id))
-            .where(Ordres_intervention.archived_at.is_(None))
+            select(func.count(OrdresIntervention.id))
+            .where(OrdresIntervention.archived_at.is_(None))
             .outerjoin(
-                Ordres_travail,
-                Ordres_intervention.ordre_travail_id == Ordres_travail.id,
+                OrdresTravail,
+                OrdresIntervention.ordre_travail_id == OrdresTravail.id,
             )
             .where(
                 or_(
-                    Ordres_intervention.technician_id == current_user.id,
-                    Ordres_travail.created_by == current_user.id,
-                    Ordres_intervention.statut == "PENDING_APPROVAL",
+                    OrdresIntervention.technician_id == current_user.id,
+                    OrdresTravail.created_by == current_user.id,
+                    OrdresIntervention.statut == "PENDING_APPROVAL",
                 )
             )
         )
         if statut:
-            count_query = count_query.where(Ordres_intervention.statut == statut)
+            count_query = count_query.where(OrdresIntervention.statut == statut)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
-            select(Ordres_intervention)
-            .where(Ordres_intervention.archived_at.is_(None))
+            select(OrdresIntervention)
+            .where(OrdresIntervention.archived_at.is_(None))
             .outerjoin(
-                Ordres_travail,
-                Ordres_intervention.ordre_travail_id == Ordres_travail.id,
+                OrdresTravail,
+                OrdresIntervention.ordre_travail_id == OrdresTravail.id,
             )
             .where(
                 or_(
-                    Ordres_intervention.technician_id == current_user.id,
-                    Ordres_travail.created_by == current_user.id,
-                    Ordres_intervention.statut == "PENDING_APPROVAL",
+                    OrdresIntervention.technician_id == current_user.id,
+                    OrdresTravail.created_by == current_user.id,
+                    OrdresIntervention.statut == "PENDING_APPROVAL",
                 )
             )
         )
         if statut:
-            query = query.where(Ordres_intervention.statut == statut)
+            query = query.where(OrdresIntervention.statut == statut)
         query = query.options(
-            selectinload(Ordres_intervention.machine),
-            selectinload(Ordres_intervention.technician),
-            selectinload(Ordres_intervention.ordre_travail),
+            selectinload(OrdresIntervention.machine),
+            selectinload(OrdresIntervention.technician),
+            selectinload(OrdresIntervention.ordre_travail),
         )
         query = (
-            query.order_by(Ordres_intervention.date_intervention.desc())
+            query.order_by(OrdresIntervention.date_intervention.desc())
             .offset(skip)
             .limit(size)
         )
@@ -91,8 +91,8 @@ async def get_interventions(
         due_map = {}
         if ordre_ids:
             ordres_res = await db.execute(
-                select(Ordres_travail.id, Ordres_travail.date_echeance).where(
-                    Ordres_travail.id.in_(ordre_ids)
+                select(OrdresTravail.id, OrdresTravail.date_echeance).where(
+                    OrdresTravail.id.in_(ordre_ids)
                 )
             )
             due_map = {row.id: row.date_echeance for row in ordres_res.all()}

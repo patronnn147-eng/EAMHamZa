@@ -143,7 +143,7 @@ def _yager_combine(m1: Dict[str, float], m2: Dict[str, float]) -> tuple:
     Returns (combined_bpa, K).
     """
     # Compute pairwise products
-    combined = {label: 0.0 for label in FRAME}
+    combined = dict.fromkeys(FRAME, 0.0)
     K = 0.0
 
     for label1 in FRAME:

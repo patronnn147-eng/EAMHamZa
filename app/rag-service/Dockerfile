@@ -39,12 +39,11 @@ COPY . .
 
 # Pre-create cache dirs BEFORE chown so the named volume inherits raguser ownership.
 # Without this, Docker creates the mount point as root → "Permission denied" at runtime.
-RUN mkdir -p /app/.cache/huggingface /app/.cache/sentence_transformers
-
 # Non-root user — security baseline; never run ML inference as root.
-RUN addgroup --gid 1001 raguser && \
-    adduser --disabled-password --gecos "" --uid 1001 --ingroup raguser raguser && \
-    chown -R raguser:raguser /app
+RUN mkdir -p /app/.cache/huggingface /app/.cache/sentence_transformers \
+    && addgroup --gid 1001 raguser \
+    && adduser --disabled-password --gecos "" --uid 1001 --ingroup raguser raguser \
+    && chown -R raguser:raguser /app
 
 USER raguser
 

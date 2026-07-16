@@ -42,14 +42,13 @@ _MODEL_PATH = os.path.join(MODELS_DIR, "basic_machine_model.pkl")
 def get_model():
     """Get P1 failure probability model (lazy loading)."""
     global _MODEL
-    if _MODEL is None:
-        if os.path.exists(_MODEL_PATH):
-            try:
-                data = joblib.load(_MODEL_PATH)
-                _MODEL = _extract_model(data)
-                logger.info(f"[OK] P1 model loaded from {_MODEL_PATH}")
-            except Exception as e:
-                logger.exception(f"[ERROR] Failed to load P1 model: {e}")
+    if _MODEL is None and os.path.exists(_MODEL_PATH):
+        try:
+            data = joblib.load(_MODEL_PATH)
+            _MODEL = _extract_model(data)
+            logger.info(f"[OK] P1 model loaded from {_MODEL_PATH}")
+        except Exception as e:
+            logger.exception(f"[ERROR] Failed to load P1 model: {e}")
     return _MODEL
 
 

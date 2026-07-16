@@ -1,9 +1,9 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import Column, DateTime, Integer
 
 
-class Planning_machines(Base):
-    __tablename__ = "planning_machines"
+class PlanningMachines(Base):
+    __tablename__ = "PlanningMachines"
     __table_args__ = {"extend_existing": True}
 
     id = Column(

@@ -78,7 +78,7 @@ export const CheckColumn: React.FC<CheckColumnProps> = ({
                             onClick={() => onAction(item, 'VALIDATE')}
                             disabled={actionLoading === item.id.toString() || !item.hasDiagnostic}
                             className="flex-1 text-[10px] h-7 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-700 disabled:cursor-not-allowed"
-                            title={!item.hasDiagnostic ? 'Add diagnosis first' : 'CHEFTECH validates this intervention'}
+                            title={item.hasDiagnostic ? 'CHEFTECH validates this intervention' : 'Add diagnosis first'}
                         >
                             {actionLoading === item.id.toString()
                                 ? <RefreshCcw className="w-3 h-3 animate-spin" />

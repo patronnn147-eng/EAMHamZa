@@ -1,4 +1,4 @@
-"""Tool definitions for Groq function calling."""
+﻿"""Tool definitions for Groq function calling."""
 
 from typing import Dict, List, Any
 
@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.machines import Machines
-from models.ordres_travail import Ordres_travail
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresTravail import OrdresTravail
+from models.OrdresIntervention import OrdresIntervention
 from models.plannings import Plannings
 from models.alertes import Alert
 
@@ -169,15 +169,15 @@ async def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
         ]
 
     elif name == "get_work_orders":
-        query = select(Ordres_travail)
+        query = select(OrdresTravail)
         if arguments.get("status"):
-            query = query.where(Ordres_travail.statut == arguments["status"])
+            query = query.where(OrdresTravail.statut == arguments["status"])
         if arguments.get("utilisateur_id"):
             query = query.where(
-                Ordres_travail.utilisateur_id == arguments["utilisateur_id"]
+                OrdresTravail.utilisateur_id == arguments["utilisateur_id"]
             )
         if arguments.get("machine_id"):
-            query = query.where(Ordres_travail.machine_id == arguments["machine_id"])
+            query = query.where(OrdresTravail.machine_id == arguments["machine_id"])
         result = await db.execute(query.limit(50))
         return [
             {
@@ -191,13 +191,13 @@ async def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
         ]
 
     elif name == "get_interventions":
-        query = select(Ordres_intervention)
+        query = select(OrdresIntervention)
         if arguments.get("machine_id"):
             query = query.where(
-                Ordres_intervention.machine_id == arguments["machine_id"]
+                OrdresIntervention.machine_id == arguments["machine_id"]
             )
         if arguments.get("statut"):
-            query = query.where(Ordres_intervention.statut == arguments["statut"])
+            query = query.where(OrdresIntervention.statut == arguments["statut"])
         result = await db.execute(query.limit(50))
         return [
             {

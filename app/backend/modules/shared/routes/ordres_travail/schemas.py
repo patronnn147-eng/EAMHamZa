@@ -1,9 +1,9 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
 
-class Ordres_travailData(BaseModel):
+class OrdresTravailData(BaseModel):
     """Entity data schema (for create/update) - US-CHETOP-001"""
 
     titre: Optional[str] = None
@@ -20,7 +20,7 @@ class Ordres_travailData(BaseModel):
     )
 
 
-class Ordres_travailUpdateData(BaseModel):
+class OrdresTravailUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
 
     titre: Optional[str] = None
@@ -40,7 +40,7 @@ class Ordres_travailUpdateData(BaseModel):
     failure_type: Optional[str] = None
 
 
-class Ordres_travailResponse(BaseModel):
+class OrdresTravailResponse(BaseModel):
     """Entity response schema"""
 
     id: int
@@ -64,41 +64,41 @@ class Ordres_travailResponse(BaseModel):
         from_attributes = True
 
 
-class Ordres_travailValidationData(BaseModel):
+class OrdresTravailValidationData(BaseModel):
     action: str
     utilisateur_id: Optional[int] = None
     reason: Optional[str] = None
 
 
-class Ordres_travailListResponse(BaseModel):
+class OrdresTravailListResponse(BaseModel):
     """List response schema"""
 
-    items: List[Ordres_travailResponse]
+    items: List[OrdresTravailResponse]
     total: int
     skip: int
     limit: int
 
 
-class Ordres_travailBatchCreateRequest(BaseModel):
+class OrdresTravailBatchCreateRequest(BaseModel):
     """Batch create request"""
 
-    items: List[Ordres_travailData]
+    items: List[OrdresTravailData]
 
 
-class Ordres_travailBatchUpdateItem(BaseModel):
+class OrdresTravailBatchUpdateItem(BaseModel):
     """Batch update item"""
 
     id: int
-    updates: Ordres_travailUpdateData
+    updates: OrdresTravailUpdateData
 
 
-class Ordres_travailBatchUpdateRequest(BaseModel):
+class OrdresTravailBatchUpdateRequest(BaseModel):
     """Batch update request"""
 
-    items: List[Ordres_travailBatchUpdateItem]
+    items: List[OrdresTravailBatchUpdateItem]
 
 
-class Ordres_travailBatchDeleteRequest(BaseModel):
+class OrdresTravailBatchDeleteRequest(BaseModel):
     """Batch delete request"""
 
     ids: List[int]

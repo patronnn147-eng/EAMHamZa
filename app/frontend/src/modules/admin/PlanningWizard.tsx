@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { client } from '@/lib/api';
 import { toDateTimeLocalInputValue } from '@/lib/date';
 import { Badge } from '@/components/ui/badge';
@@ -372,21 +372,26 @@ export default function PlanningWizard({
 
   // ── Validation ────────────────────────────────────────────────────────────
 
+  const validateStep1 = (): string | null => {
+    if (!formData.identifiant_planning.trim()) return "L'identifiant du planning est requis.";
+    if (!formData.date_debut) return 'La date de début est requise.';
+    if (!formData.date_fin) return 'La date de fin est requise.';
+    if (new Date(formData.date_fin) <= new Date(formData.date_debut))
+      return 'La date de fin doit être postérieure à la date de début.';
+    if (formData.type === 'SHIFT' && !formData.shift_type)
+      return 'Le type de shift est requis pour un planning de type SHIFT.';
+    return null;
+  };
+
+  const validateStep4 = (): string | null => {
+    if (formData.type === 'SHIFT' && !formData.chef_operation_id)
+      return "Un Chef Opération est requis pour un planning de type SHIFT.";
+    return null;
+  };
+
   const validateStep = (step: number): string | null => {
-    if (step === 1) {
-      if (!formData.identifiant_planning.trim())
-        return "L'identifiant du planning est requis.";
-      if (!formData.date_debut) return 'La date de début est requise.';
-      if (!formData.date_fin) return 'La date de fin est requise.';
-      if (new Date(formData.date_fin) <= new Date(formData.date_debut))
-        return 'La date de fin doit être postérieure à la date de début.';
-      if (formData.type === 'SHIFT' && !formData.shift_type)
-        return 'Le type de shift est requis pour un planning de type SHIFT.';
-    }
-    if (step === 4) {
-      if (formData.type === 'SHIFT' && !formData.chef_operation_id)
-        return "Un Chef Opération est requis pour un planning de type SHIFT.";
-    }
+    if (step === 1) return validateStep1();
+    if (step === 4) return validateStep4();
     return null;
   };
 
@@ -691,7 +696,7 @@ export default function PlanningWizard({
         <Select
           value={formData.chef_operation_id?.toString()}
           onValueChange={(v) =>
-            setFormData((prev) => ({ ...prev, chef_operation_id: parseInt(v, 10) }))
+            setFormData((prev) => ({ ...prev, chef_operation_id: Number.parseInt(v, 10) }))
           }
         >
           <SelectTrigger>
@@ -719,7 +724,7 @@ export default function PlanningWizard({
         <Select
           value={formData.chef_technique_id?.toString()}
           onValueChange={(v) =>
-            setFormData((prev) => ({ ...prev, chef_technique_id: parseInt(v, 10) }))
+            setFormData((prev) => ({ ...prev, chef_technique_id: Number.parseInt(v, 10) }))
           }
         >
           <SelectTrigger>
@@ -997,3 +1002,6 @@ export default function PlanningWizard({
     </Sheet>
   );
 }
+
+
+

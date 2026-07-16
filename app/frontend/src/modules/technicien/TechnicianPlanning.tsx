@@ -94,7 +94,7 @@ export default function TechnicianPlanning() {
     const end = new Date(dateFin);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return `${diffDays} jour${diffDays !== 1 ? 's' : ''}`;
+    return `${diffDays} jour${diffDays === 1 ? '' : 's'}`;
   };
 
   if (loading) {

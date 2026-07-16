@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -48,7 +48,6 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
-  initialOrdreTravailId?: number | null;
   initialMachineId?: number | null;
   initialPlanningTacheId?: number | null;
 }
@@ -159,7 +158,7 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
       setPriorityAISuggested(false);
       setStep(1);
       setFormData({
-        machine_id: initialMachineId != null ? initialMachineId.toString() : '',
+        machine_id: initialMachineId == null ? '' : initialMachineId.toString(),
         description: '',
         priority: 'MOYENNE',
         estimated_duration_minutes: '',
@@ -254,11 +253,11 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
       const token = localStorage.getItem('access_token');
       const apiBase = import.meta.env.VITE_API_BASE_URL || '';
       const payload = {
-        machine_id: parseInt(formData.machine_id),
+        machine_id: Number.parseInt(formData.machine_id),
         ...(initialPlanningTacheId != null && { planning_tache_id: initialPlanningTacheId }),
         problem_description: formData.description,
         priority: formData.priority,
-        estimated_duration_minutes: formData.estimated_duration_minutes ? parseInt(formData.estimated_duration_minutes) : null,
+        estimated_duration_minutes: formData.estimated_duration_minutes ? Number.parseInt(formData.estimated_duration_minutes) : null,
         required_materials: formData.required_materials || null,
         machine_category: formData.machine_category,
         symptoms: formData.symptoms.join(', '),
@@ -595,3 +594,6 @@ export const TechnicianNewInterventionModal: React.FC<Props> = ({
     </Dialog>
   );
 };
+
+
+

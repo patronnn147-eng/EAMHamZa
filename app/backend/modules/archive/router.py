@@ -1,4 +1,4 @@
-"""Archive API — per-module listing + admin reactivate + manual sweep.
+﻿"""Archive API — per-module listing + admin reactivate + manual sweep.
 
 Routes:
   GET  /api/v1/archive/{module}        — paginated archived items (role-scoped)
@@ -7,7 +7,7 @@ Routes:
   POST /api/v1/archive/purge           — manual purge trigger (admin only)
   GET  /api/v1/archive/counts          — per-module archived totals (for sidebar badge)
 
-`module` ∈ {planning_taches, ordres_travail, ordres_intervention, plannings}.
+`module` ∈ {PlanningTaches, OrdresTravail, OrdresIntervention, plannings}.
 
 Role scoping:
 - TECHNICIEN sees only items where they're the assigned technician
@@ -41,9 +41,9 @@ VALID_MODULES = {r.module for r in ARCHIVE_RULES}
 
 # Role → which column gates user-visibility for archived items
 SCOPE_COLUMN_BY_MODULE_ROLE = {
-    ("planning_taches", "TECHNICIEN"): "technicien_id",
-    ("ordres_travail", "TECHNICIEN"): "utilisateur_id",
-    ("ordres_intervention", "TECHNICIEN"): "technician_id",
+    ("PlanningTaches", "TECHNICIEN"): "technicien_id",
+    ("OrdresTravail", "TECHNICIEN"): "utilisateur_id",
+    ("OrdresIntervention", "TECHNICIEN"): "technician_id",
     # CHEFTECH/CHETOP/ADMIN see all by default
 }
 

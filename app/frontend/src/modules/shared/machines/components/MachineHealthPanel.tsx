@@ -33,13 +33,13 @@ const MachineHealthPanel: React.FC<MachineHealthPanelProps> = ({ health }) => {
         {
             icon: Wrench,
             label: "Ordres de travail ouverts",
-            value: `${openWorkOrders} actif${openWorkOrders !== 1 ? 's' : ''}`,
+            value: `${openWorkOrders} actif${openWorkOrders === 1 ? '' : 's'}`,
             deduction: health.deductions.workOrders,
         },
         {
             icon: Zap,
             label: 'Interventions (30 jours)',
-            value: `${recentInterventions} intervention${recentInterventions !== 1 ? 's' : ''}`,
+            value: `${recentInterventions} intervention${recentInterventions === 1 ? '' : 's'}`,
             deduction: health.deductions.interventions,
         },
         ...(isDown

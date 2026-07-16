@@ -306,10 +306,10 @@ body.is-scrolling {
 
 /* Input Glass */
 .input-glass {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(15, 15, 35, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  color: white;
+  color: #e8eaf0;
   transition: all 0.2s ease;
 }
 .input-glass:focus {

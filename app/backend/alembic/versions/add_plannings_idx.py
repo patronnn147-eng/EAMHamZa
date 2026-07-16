@@ -1,4 +1,4 @@
-"""add planning_machines machine_id index
+﻿"""add PlanningMachines machine_id index
 
 Revision ID: add_plannings_idx
 Revises: new_perf_indexes
@@ -20,13 +20,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.create_index(
-        "idx_planning_machines_machine_id", "planning_machines", ["machine_id"]
+        "idx_PlanningMachines_machine_id", "PlanningMachines", ["machine_id"]
     )
     op.create_index(
-        "idx_planning_machines_planning_id", "planning_machines", ["planning_id"]
+        "idx_PlanningMachines_planning_id", "PlanningMachines", ["planning_id"]
     )
 
 
 def downgrade() -> None:
-    op.drop_index("idx_planning_machines_planning_id", table_name="planning_machines")
-    op.drop_index("idx_planning_machines_machine_id", table_name="planning_machines")
+    op.drop_index("idx_PlanningMachines_planning_id", table_name="PlanningMachines")
+    op.drop_index("idx_PlanningMachines_machine_id", table_name="PlanningMachines")

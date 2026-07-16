@@ -246,6 +246,14 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
     }
   };
 
+  const toggleSymptom = (symptom: string, checked: boolean) => {
+    if (checked) {
+      setSymptoms(prev => [...prev, symptom]);
+    } else {
+      setSymptoms(prev => prev.filter(x => x !== symptom));
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
@@ -346,10 +354,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
                         <Checkbox
                           id={`sym-modal-${s}`}
                           checked={symptoms.includes(s)}
-                          onCheckedChange={(checked) => {
-                            if (checked) setSymptoms(prev => [...prev, s]);
-                            else setSymptoms(prev => prev.filter(x => x !== s));
-                          }}
+                          onCheckedChange={(checked) => toggleSymptom(s, !!checked)}
                         />
                         <label htmlFor={`sym-modal-${s}`} className="text-xs font-medium cursor-pointer">{s}</label>
                       </div>

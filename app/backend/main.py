@@ -1,4 +1,4 @@
-import importlib
+﻿import importlib
 import logging
 import os
 import pkgutil
@@ -217,7 +217,7 @@ from modules.ml.router import router as ml_router  # noqa: E402
 
 app.include_router(ml_router)
 
-# Note: planning_taches routers are auto-included via include_routers_from_package
+# Note: PlanningTaches routers are auto-included via include_routers_from_package
 
 
 @app.get("/")

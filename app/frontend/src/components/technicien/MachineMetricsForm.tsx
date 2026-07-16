@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,7 +47,7 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
               max="400"
               placeholder="298.0"
               value={formData.air_temperature ?? ''}
-              onChange={(e) => handleChange('air_temperature', parseFloat(e.target.value) || undefined)}
+              onChange={(e) => handleChange('air_temperature', Number.parseFloat(e.target.value) || undefined)}
             />
           </div>
 
@@ -64,7 +64,7 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
               max="450"
               placeholder="308.0"
               value={formData.process_temperature ?? ''}
-              onChange={(e) => handleChange('process_temperature', parseFloat(e.target.value) || undefined)}
+              onChange={(e) => handleChange('process_temperature', Number.parseFloat(e.target.value) || undefined)}
             />
           </div>
 
@@ -81,7 +81,7 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
               max="10000"
               placeholder="1500"
               value={formData.rotational_speed ?? ''}
-              onChange={(e) => handleChange('rotational_speed', parseInt(e.target.value) || undefined)}
+              onChange={(e) => handleChange('rotational_speed', Number.parseInt(e.target.value) || undefined)}
             />
           </div>
 
@@ -98,7 +98,7 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
               max="1000"
               placeholder="40.0"
               value={formData.torque ?? ''}
-              onChange={(e) => handleChange('torque', parseFloat(e.target.value) || undefined)}
+              onChange={(e) => handleChange('torque', Number.parseFloat(e.target.value) || undefined)}
             />
           </div>
 
@@ -115,7 +115,7 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
               max="500"
               placeholder="0"
               value={formData.tool_wear ?? ''}
-              onChange={(e) => handleChange('tool_wear', parseInt(e.target.value) || undefined)}
+              onChange={(e) => handleChange('tool_wear', Number.parseInt(e.target.value) || undefined)}
             />
           </div>
         </div>
@@ -139,3 +139,6 @@ export const MachineMetricsForm: React.FC<MachineMetricsFormProps> = ({ formData
 };
 
 export type { TelemetryFormData };
+
+
+

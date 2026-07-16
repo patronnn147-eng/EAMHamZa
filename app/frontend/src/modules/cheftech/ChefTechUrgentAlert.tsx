@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,10 +45,10 @@ export default function ChefTechUrgentAlert() {
       }
 
       const submitData = {
-        utilisateur_id: parseInt(user.data.id),
+        utilisateur_id: Number.parseInt(user.data.id),
         categorie: formData.categorie,
         description: formData.description,
-        machine_id: formData.machine_id ? parseInt(formData.machine_id) : null,
+        machine_id: formData.machine_id ? Number.parseInt(formData.machine_id) : null,
         statut: 'EN_ATTENTE',
       };
 
@@ -171,3 +171,6 @@ export default function ChefTechUrgentAlert() {
     </div>
   );
 }
+
+
+

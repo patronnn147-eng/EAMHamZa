@@ -1,4 +1,4 @@
-"""ConsumedPiece model — actual piece consumption recorded at WO completion.
+﻿"""ConsumedPiece model — actual piece consumption recorded at WO completion.
 
 One row per piece consumed during an intervention.
 - quantity_used     = actually consumed (counted as 'out' stock movement)
@@ -38,7 +38,7 @@ class ConsumedPiece(Base):
     )
     intervention_id = Column(
         Integer,
-        ForeignKey("ordres_intervention.id", ondelete="CASCADE"),
+        ForeignKey("OrdresIntervention.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 import io
 import logging
 
@@ -12,9 +12,9 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_travail import Ordres_travail
+from models.OrdresTravail import OrdresTravail
 from models.machines import Machines
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresIntervention import OrdresIntervention
 from typing import Annotated
 
 logger = logging.getLogger(__name__)
@@ -37,17 +37,17 @@ async def list_work_orders(
         skip = (page - 1) * size
 
         # Base query structure for both count and select
-        select(Ordres_travail).where(Ordres_travail.archived_at.is_(None)).outerjoin(
-            Machines, Ordres_travail.machine_id == Machines.id
+        select(OrdresTravail).where(OrdresTravail.archived_at.is_(None)).outerjoin(
+            Machines, OrdresTravail.machine_id == Machines.id
         ).outerjoin(
-            Ordres_intervention,
-            Ordres_travail.id == Ordres_intervention.ordre_travail_id,
-        ).outerjoin(Utilisateurs, Ordres_travail.created_by == Utilisateurs.id)
+            OrdresIntervention,
+            OrdresTravail.id == OrdresIntervention.ordre_travail_id,
+        ).outerjoin(Utilisateurs, OrdresTravail.created_by == Utilisateurs.id)
 
         # Count total
         total_result = await db.execute(
-            select(func.count(Ordres_travail.id)).where(
-                Ordres_travail.archived_at.is_(None)
+            select(func.count(OrdresTravail.id)).where(
+                OrdresTravail.archived_at.is_(None)
             )
         )
         total = total_result.scalar() or 0
@@ -55,19 +55,19 @@ async def list_work_orders(
         # Detailed query with pagination
         query = (
             select(
-                Ordres_travail,
+                OrdresTravail,
                 Machines.nom.label("machine_nom"),
                 Utilisateurs.nom.label("chefop_nom"),
                 Utilisateurs.email.label("chefop_email"),
-                Ordres_intervention.id.label("intervention_id"),
+                OrdresIntervention.id.label("intervention_id"),
             )
-            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
             .outerjoin(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
-            .outerjoin(Utilisateurs, Ordres_travail.created_by == Utilisateurs.id)
-            .order_by(Ordres_travail.created_at.desc())
+            .outerjoin(Utilisateurs, OrdresTravail.created_by == Utilisateurs.id)
+            .order_by(OrdresTravail.created_at.desc())
             .offset(skip)
             .limit(size)
         )
@@ -129,19 +129,19 @@ async def export_work_order_report(
         # Fetch WO with all related data
         query = (
             select(
-                Ordres_travail,
+                OrdresTravail,
                 Machines.nom.label("machine_nom"),
                 Utilisateurs.nom.label("chefop_nom"),
                 Utilisateurs.email.label("chefop_email"),
-                Ordres_intervention,
+                OrdresIntervention,
             )
-            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
             .outerjoin(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
-            .outerjoin(Utilisateurs, Ordres_travail.created_by == Utilisateurs.id)
-            .where(Ordres_travail.id == order_id)
+            .outerjoin(Utilisateurs, OrdresTravail.created_by == Utilisateurs.id)
+            .where(OrdresTravail.id == order_id)
         )
 
         result = await db.execute(query)

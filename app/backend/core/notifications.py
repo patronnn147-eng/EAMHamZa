@@ -11,7 +11,7 @@ class NotificationBroadcaster:
     def __init__(self):
         self.user_queues: Dict[int, List[asyncio.Queue]] = {}
 
-    async def subscribe(self, user_id: int) -> asyncio.Queue:
+    def subscribe(self, user_id: int) -> asyncio.Queue:
         queue = asyncio.Queue()
         if user_id not in self.user_queues:
             self.user_queues[user_id] = []

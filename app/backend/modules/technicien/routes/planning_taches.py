@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import Optional, Annotated
 
 from fastapi import APIRouter, Depends
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import verify_technicien
 from models.machines import Machines
-from models.planning_taches import Planning_taches, TaskType
+from models.PlanningTaches import PlanningTaches, TaskType
 from models.plannings import PlanningStatut, Plannings
 from models.utilisateurs import Utilisateurs
 
@@ -41,9 +41,9 @@ async def get_my_planning_tasks(
     current_user: Annotated[Utilisateurs, Depends(verify_technicien)],
 ):
     result = await db.execute(
-        select(Planning_taches)
-        .where(Planning_taches.technicien_id == current_user.id)
-        .where(Planning_taches.archived_at.is_(None))
+        select(PlanningTaches)
+        .where(PlanningTaches.technicien_id == current_user.id)
+        .where(PlanningTaches.archived_at.is_(None))
     )
     tasks = result.scalars().all()
 

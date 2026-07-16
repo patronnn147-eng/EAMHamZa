@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite';
+﻿import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
-import path from 'path';
+import path from 'node:path';
 import { viteSourceLocator } from '@metagptx/vite-plugin-source-locator';
 
 // https://vitejs.dev/config/
@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: '0.0.0.0', // 监听所有网络接口
-    port: parseInt(process.env.VITE_PORT || '3000'),
+    port: Number.parseInt(process.env.VITE_PORT || '3000'),
     proxy: {
       '/api': {
         target: `http://localhost:8000`,
@@ -78,3 +78,6 @@ export default defineConfig(({ mode }) => ({
     chunkSizeWarningLimit: 1000,
   },
 }));
+
+
+

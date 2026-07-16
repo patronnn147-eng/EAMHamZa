@@ -64,7 +64,7 @@ async def get_scheduled_reports(
     paginated = result[start:end]
 
     return {
-        "items": [r for r in paginated],
+        "items": list(paginated),
         "total": total,
         "page": page,
         "page_size": page_size,

@@ -1,6 +1,6 @@
-"""Add planning_machines table for multi-machine selection in planning
+﻿"""Add PlanningMachines table for multi-machine selection in planning
 
-Revision ID: planning_machines_multi_select
+Revision ID: PlanningMachines_multi_select
 Revises: phase1_work_orders_interventions
 Create Date: 2026-02-10
 
@@ -41,16 +41,16 @@ def _index_exists(index_name: str) -> bool:
 
 
 # revision identifiers, used by Alembic.
-revision = "planning_machines_multi_select"
+revision = "PlanningMachines_multi_select"
 down_revision = "phase1_work_orders_interventions"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    if not _table_exists("planning_machines"):
+    if not _table_exists("PlanningMachines"):
         op.create_table(
-            "planning_machines",
+            "PlanningMachines",
             sa.Column(
                 "id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False
             ),
@@ -59,32 +59,32 @@ def upgrade() -> None:
             sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         )
 
-    if not _index_exists("ix_planning_machines_planning_id"):
+    if not _index_exists("ix_PlanningMachines_planning_id"):
         op.create_index(
-            "ix_planning_machines_planning_id",
-            "planning_machines",
+            "ix_PlanningMachines_planning_id",
+            "PlanningMachines",
             ["planning_id"],
             unique=False,
         )
-    if not _index_exists("ix_planning_machines_machine_id"):
+    if not _index_exists("ix_PlanningMachines_machine_id"):
         op.create_index(
-            "ix_planning_machines_machine_id",
-            "planning_machines",
+            "ix_PlanningMachines_machine_id",
+            "PlanningMachines",
             ["machine_id"],
             unique=False,
         )
 
     op.create_unique_constraint(
-        "uq_planning_machines_planning_machine",
-        "planning_machines",
+        "uq_PlanningMachines_planning_machine",
+        "PlanningMachines",
         ["planning_id", "machine_id"],
     )
 
 
 def downgrade() -> None:
     op.drop_constraint(
-        "uq_planning_machines_planning_machine", "planning_machines", type_="unique"
+        "uq_PlanningMachines_planning_machine", "PlanningMachines", type_="unique"
     )
-    op.drop_index("ix_planning_machines_machine_id", table_name="planning_machines")
-    op.drop_index("ix_planning_machines_planning_id", table_name="planning_machines")
-    op.drop_table("planning_machines")
+    op.drop_index("ix_PlanningMachines_machine_id", table_name="PlanningMachines")
+    op.drop_index("ix_PlanningMachines_planning_id", table_name="PlanningMachines")
+    op.drop_table("PlanningMachines")

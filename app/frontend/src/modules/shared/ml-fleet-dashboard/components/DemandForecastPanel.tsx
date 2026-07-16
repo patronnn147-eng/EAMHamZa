@@ -83,7 +83,7 @@ function ForecastItemCard({ item }: Readonly<{ item: ForecastItem }>) {
         {/* Stockout warning */}
         {item.days_until_stockout !== null && item.days_until_stockout <= 30 && (
           <p className="text-[10px] text-red-400 font-mono">
-            ⚠ Rupture estimée dans ~{item.days_until_stockout} jour{item.days_until_stockout !== 1 ? 's' : ''}
+            ⚠ Rupture estimée dans ~{item.days_until_stockout} jour{item.days_until_stockout === 1 ? '' : 's'}
           </p>
         )}
       </CardContent>
@@ -146,7 +146,7 @@ export function DemandForecastPanel() {
       )}
 
       {/* Empty state */}
-      {!loading && !error && data && data.items.length === 0 && (
+      {!loading && !error && data?.items.length === 0 && (
         <Card>
           <CardContent className="pt-8 pb-8 text-center">
             <CheckCircle2 className="h-10 w-10 text-emerald-500 mx-auto mb-3" />
@@ -157,7 +157,7 @@ export function DemandForecastPanel() {
       )}
 
       {/* Forecast list */}
-      {!loading && !error && data && data.items.length > 0 && (
+      {!loading && !error && data?.items.length > 0 && (
         <div className="space-y-3">
           {data.items.map((item) => (
             <ForecastItemCard key={item.piece_id} item={item} />

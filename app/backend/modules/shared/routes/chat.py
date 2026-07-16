@@ -252,6 +252,166 @@ async def rename_session(
 
 
 # ---------------------------------------------------------------------------
+# AI chat — private helpers to keep ai_chat CC < 15
+# ---------------------------------------------------------------------------
+
+
+async def _resolve_chat_session(request, current_user, session_svc):
+    """Resolve or create the target chat session."""
+    if not request.session_id:
+        return await session_svc.get_or_create(current_user.id)
+    try:
+        sid = UUID(request.session_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
+    session = await session_svc.get_by_id(sid, current_user.id)
+    if session is None:
+        raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
+    return session
+
+
+async def _load_ranked_memories(memory_svc, user_id: int) -> list:
+    """Load and rank user memories by success count. Returns [] on failure."""
+    try:
+        mems = await memory_svc.get_by_user(user_id)
+        mems.sort(key=lambda m: m.success_count, reverse=True)
+        return mems[:15]
+    except Exception as e:
+        logger.warning(f"Memory load failed, continuing without: {e}")
+        return []
+
+
+async def _fetch_rag_chunks(query: str, machine_id) -> list:
+    """Retrieve RAG chunks, returning [] on any failure."""
+    try:
+        return await rag_client.retrieve_chunks(
+            query=query, machine_id=machine_id, top_k=8, threshold=0.30,
+        )
+    except Exception as e:
+        logger.warning(f"RAG retrieval failed, continuing without context: {e}")
+        return []
+
+
+async def _load_db_history(session_svc, session, user_id: int) -> list:
+    """Load DB conversation history for a session, returning [] on failure."""
+    try:
+        return await session_svc.get_history_by_session(session.id, user_id, limit=20)
+    except Exception as e:
+        logger.warning(f"History load failed, continuing without: {e}")
+        return []
+
+
+def _inject_rag_context(messages: list, rag_chunks: list) -> None:
+    """Append RAG doc context turns to messages if chunks are present."""
+    if not rag_chunks:
+        return
+    rag_text = build_rag_context(rag_chunks)
+    messages.append({
+        "role": "user",
+        "content": (
+            f"[BASE DOCUMENTAIRE] Extraits pertinents de la documentation:\n{rag_text}\n\n"
+            "Utilise ces extraits comme contexte. "
+            "Si la question demande une liste exhaustive, un comptage, "
+            "ou des donnees structurees (machines, ordres, alertes, pieces), "
+            "appelle l'outil approprie pour obtenir la donnee complete depuis la base."
+        ),
+    })
+    messages.append({
+        "role": "assistant",
+        "content": "Compris. J'utilise la documentation comme contexte et "
+                   "j'appelle les outils quand la question necessite des donnees completes.",
+    })
+
+
+def _inject_ml_context(messages: list, ml_snapshot) -> bool:
+    """Append live ML state turns if available. Returns True if injected."""
+    if ml_snapshot is None:
+        return False
+    ml_text = build_ml_context(ml_snapshot)
+    if not ml_text:
+        return False
+    messages.append({
+        "role": "user",
+        "content": (
+            f"{ml_text}\n\n"
+            "Ces donnees ML sont en temps reel pour la machine concernee. "
+            "Combine cet etat actuel avec la documentation pour donner "
+            "un diagnostic precis et actionnable. Mentionne les capteurs "
+            "en ATTENTION ou CRITIQUE si pertinent."
+        ),
+    })
+    messages.append({
+        "role": "assistant",
+        "content": "Compris. Je dispose de l'etat ML en temps reel de cette machine "
+                   "et je l'integre dans mon analyse avec la documentation technique.",
+    })
+    return True
+
+
+async def _run_tool_call(tool_call: dict, messages: list, db) -> tuple:
+    """Execute one tool call, append result turns to messages. Returns (source, success, failed)."""
+    func_name = tool_call["function"]["name"]
+    func_args_raw = tool_call["function"]["arguments"]
+    func_args = json.loads(func_args_raw) if isinstance(func_args_raw, str) else func_args_raw
+    success = False
+    failed = False
+    try:
+        result = await execute_tool(func_name, func_args, db)
+        success = bool(result)
+        if not result:
+            failed = True
+    except Exception as e:
+        safe_name = str(func_name).replace("\r", "").replace("\n", "")
+        logger.exception(f"Tool {safe_name} failed: {e}")
+        result = {"error": str(e)}
+        failed = True
+    messages.append({"role": "assistant", "content": None, "tool_calls": [tool_call]})
+    messages.append({"role": "tool", "tool_call_id": tool_call["id"],
+                     "content": format_tool_result(func_name, result)})
+    return {"tool": func_name, "result": result}, success, failed
+
+
+async def _execute_tools(tool_calls: list, messages: list, db, groq, initial_content: str) -> tuple:
+    """Run all tool calls, do second Groq call, return (content, sources, success, failure)."""
+    if not tool_calls:
+        return initial_content, None, False, False
+    sources = []
+    tool_success = False
+    tool_failure = False
+    for tc in tool_calls:
+        src, ok, fail = await _run_tool_call(tc, messages, db)
+        sources.append(src)
+        tool_success = tool_success or ok
+        tool_failure = tool_failure or fail
+    try:
+        final_resp = groq.chat(messages=messages)
+        final_choices = final_resp.get("choices", [])
+        if final_choices:
+            initial_content = final_choices[0].get("message", {}).get("content", initial_content) or initial_content
+    except Exception as e:
+        logger.warning(f"Final Groq call failed: {e}")
+        initial_content = initial_content or "J'ai execute les actions demandees."
+    return initial_content, sources, tool_success, tool_failure
+
+
+async def _record_memory_feedback(memories, memory_svc, tool_calls, tool_success, tool_failure):
+    """Update memory success/failure counters after tool execution."""
+    if not memories or not tool_calls:
+        return
+    try:
+        if tool_success:
+            top = next((m for m in memories if m.memory_type == "strategy"), None)
+            if top:
+                await memory_svc.increment_success(str(top.id))
+        elif tool_failure:
+            top = next((m for m in memories if m.memory_type == "failure"), None)
+            if top:
+                await memory_svc.increment_failure(str(top.id))
+    except Exception as e:
+        logger.warning(f"Memory feedback failed: {e}")
+
+
+# ---------------------------------------------------------------------------
 # AI chat — LLM + tool calling + memory + DB history
 # ---------------------------------------------------------------------------
 
@@ -263,157 +423,47 @@ async def ai_chat(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """
-    AI-powered chat using Groq LLM with:
-    - Role-based system prompt
-    - User memory context (preferences, strategies, failures)
-    - DB-persisted conversation history
-    - Tool calling for structured EAM data
-    - Memory feedback (success/failure tracking)
+    AI-powered chat using Groq LLM with role-based system prompt, memory, RAG, tool calling.
     """
     role_name = current_user.role.value if current_user.role else "TECHNICIEN"
     user_name = current_user.nom or "User"
+    machine_id = getattr(request, "machine_id", None)
 
     memory_svc = AIMemoryService(db)
     session_svc = ChatSessionService(db)
 
-    # ── 0. Resolve target session — multi-conversation aware ──────────────
-    target_session = None
-    if request.session_id:
-        try:
-            sid = UUID(request.session_id)
-        except ValueError:
-            raise HTTPException(status_code=400, detail=_INVALID_SESSION_ID_MSG)
-        target_session = await session_svc.get_by_id(sid, current_user.id)
-        if target_session is None:
-            raise HTTPException(status_code=404, detail=_SESSION_NOT_FOUND_MSG)
-    else:
-        # Backward-compat: no session_id → use user's most-recent (or create one)
-        target_session = await session_svc.get_or_create(current_user.id)
+    target_session = await _resolve_chat_session(request, current_user, session_svc)
+    memories = await _load_ranked_memories(memory_svc, current_user.id)
 
-    # ── 1. Load + rank memories ───────────────────────────────────────────
-    try:
-        memories = await memory_svc.get_by_user(current_user.id)
-        memories.sort(key=lambda m: m.success_count, reverse=True)
-        memories = memories[:15]
-    except Exception as e:
-        logger.warning(f"Memory load failed, continuing without: {e}")
-        memories = []
-
-    # ── 2. RAG retrieval + ML snapshot (parallel when machine_id present) ────
-    machine_id = getattr(request, "machine_id", None)
-    ml_snapshot = None
-
-    async def _safe_rag() -> list:
-        try:
-            return await rag_client.retrieve_chunks(
-                query=request.message,
-                machine_id=machine_id,
-                top_k=8,
-                threshold=0.30,
-            )
-        except Exception as e:
-            logger.warning(f"RAG retrieval failed, continuing without context: {e}")
-            return []
-
+    # RAG + ML snapshot (parallel when machine_id present)
     if machine_id is not None:
-        # Both fetches run concurrently — total latency = max, not sum.
-        # get_ml_snapshot never raises (returns None on any failure).
         rag_chunks, ml_snapshot = await asyncio.gather(
-            _safe_rag(),
+            _fetch_rag_chunks(request.message, machine_id),
             get_ml_snapshot(machine_id, db),
         )
     else:
-        rag_chunks = await _safe_rag()
+        rag_chunks = await _fetch_rag_chunks(request.message, machine_id)
+        ml_snapshot = None
 
-    # ── 3. System prompt + memory + RAG context ───────────────────────────
     system_prompt = build_full_system_prompt(role_name, user_name, memories, rag_chunks)
-
-    # ── 4. Message list (client history → DB fallback) ────────────────────
     messages: List[Dict[str, Any]] = [{"role": "system", "content": system_prompt}]
 
     if request.history:
         for msg in request.history:
             messages.append({"role": msg.role, "content": msg.content})
     else:
-        try:
-            db_history = await session_svc.get_history_by_session(
-                target_session.id, current_user.id, limit=20
-            )
-            for msg in db_history:
-                if msg.get("role") in ("user", "assistant"):
-                    messages.append(msg)
-        except Exception as e:
-            logger.warning(f"History load failed, continuing without: {e}")
+        for msg in await _load_db_history(session_svc, target_session, current_user.id):
+            if msg.get("role") in ("user", "assistant"):
+                messages.append(msg)
 
-    # ── 4b. RAG pre-turn: inject doc context as a hint, NOT a mandate ──────
-    # When RAG chunks found, surface them as additional context. The LLM still
-    # decides whether tools (search_machines, get_work_orders, etc.) are needed.
-    # Tools are authoritative for exhaustive queries ("list all", "count of");
-    # RAG is best for descriptive / procedural questions.
-    if rag_chunks:
-        rag_text = build_rag_context(rag_chunks)
-        messages.append(
-            {
-                "role": "user",
-                "content": (
-                    f"[BASE DOCUMENTAIRE] Extraits pertinents de la documentation:\n"
-                    f"{rag_text}\n\n"
-                    "Utilise ces extraits comme contexte. "
-                    "Si la question demande une liste exhaustive, un comptage, "
-                    "ou des donnees structurees (machines, ordres, alertes, pieces), "
-                    "appelle l'outil approprie pour obtenir la donnee complete depuis la base."
-                ),
-            }
-        )
-        messages.append(
-            {
-                "role": "assistant",
-                "content": (
-                    "Compris. J'utilise la documentation comme contexte et "
-                    "j'appelle les outils quand la question necessite des donnees completes."
-                ),
-            }
-        )
-
-    # ── 4c. ML pre-turn: live machine state injected right before the query ──
-    # Placed last (recency bias) so the LLM grounds its answer in the live
-    # ML predictions + sensor status, combined with the doc context above.
-    ml_context_injected = False
-    if ml_snapshot is not None:
-        ml_text = build_ml_context(ml_snapshot)
-        if ml_text:
-            ml_context_injected = True
-            messages.append(
-                {
-                    "role": "user",
-                    "content": (
-                        f"{ml_text}\n\n"
-                        "Ces donnees ML sont en temps reel pour la machine concernee. "
-                        "Combine cet etat actuel avec la documentation pour donner "
-                        "un diagnostic precis et actionnable. Mentionne les capteurs "
-                        "en ATTENTION ou CRITIQUE si pertinent."
-                    ),
-                }
-            )
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": (
-                        "Compris. Je dispose de l'etat ML en temps reel de cette machine "
-                        "et je l'integre dans mon analyse avec la documentation technique."
-                    ),
-                }
-            )
+    _inject_rag_context(messages, rag_chunks)
+    ml_context_injected = _inject_ml_context(messages, ml_snapshot)
 
     if machine_id is not None:
-        safe_machine_id = str(machine_id).replace("\r", "").replace("\n", "")
-        logger.info(
-            f"[ml_bridge] machine_id={safe_machine_id} ml_context_used={ml_context_injected}"
-        )
+        logger.info(f"[ml_bridge] machine_id={str(machine_id).replace(chr(13), '').replace(chr(10), '')} ml_context_used={ml_context_injected}")
 
     messages.append({"role": "user", "content": request.message})
 
-    # ── 5. Groq call ──────────────────────────────────────────────────────
     tools = get_tool_definitions()
     try:
         groq = get_groq_client()
@@ -428,122 +478,40 @@ async def ai_chat(
     if not choices:
         raise HTTPException(status_code=500, detail="No response from AI")
 
-    choice = choices[0]
-    response_message = choice.get("message", {})
-    content: str = response_message.get("content", "") or ""
-    tool_calls = response_message.get("tool_calls", [])
+    resp_msg = choices[0].get("message", {})
+    content: str = resp_msg.get("content", "") or ""
+    tool_calls = resp_msg.get("tool_calls", [])
 
-    # ── 5. Tool execution ─────────────────────────────────────────────────
-    sources = None
-    tool_success = False
-    tool_failure = False
-
-    if tool_calls:
-        sources = []
-        for tool_call in tool_calls:
-            func_name = tool_call["function"]["name"]
-            func_args_raw = tool_call["function"]["arguments"]
-            func_args = (
-                json.loads(func_args_raw)
-                if isinstance(func_args_raw, str)
-                else func_args_raw
-            )
-
-            try:
-                result = await execute_tool(func_name, func_args, db)
-                tool_success = bool(result)
-                if not result:
-                    tool_failure = True
-            except Exception as e:
-                safe_func_name = str(func_name).replace("\r", "").replace("\n", "")
-                logger.exception(f"Tool {safe_func_name} failed: {e}")
-                result = {"error": str(e)}
-                tool_failure = True
-
-            sources.append({"tool": func_name, "result": result})
-
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [tool_call],
-                }
-            )
-            messages.append(
-                {
-                    "role": "tool",
-                    "tool_call_id": tool_call["id"],
-                    "content": format_tool_result(func_name, result),
-                }
-            )
-
-        # ── 6. Second Groq call with tool results ─────────────────────────
-        try:
-            final_response = groq.chat(messages=messages)
-            final_choices = final_response.get("choices", [])
-            if final_choices:
-                content = (
-                    final_choices[0].get("message", {}).get("content", content)
-                    or content
-                )
-        except Exception as e:
-            logger.warning(f"Final Groq call failed: {e}")
-            content = content or "J'ai execute les actions demandees."
-
+    content, sources, tool_success, tool_failure = await _execute_tools(
+        tool_calls, messages, db, groq, content
+    )
     final_content = content or "J'ai traite votre requete."
 
-    # ── 7. Persist exchange to the target session ─────────────────────────
     try:
         await session_svc.append_to_session(
-            target_session.id,
-            current_user.id,
-            [
-                {"role": "user", "content": request.message},
-                {"role": "assistant", "content": final_content},
-            ],
+            target_session.id, current_user.id,
+            [{"role": "user", "content": request.message},
+             {"role": "assistant", "content": final_content}],
         )
     except Exception as e:
         logger.warning(f"Failed to persist AI chat messages: {e}")
 
-    # ── 8. Memory feedback ────────────────────────────────────────────────
-    if memories and tool_calls:
-        try:
-            if tool_success:
-                top = next((m for m in memories if m.memory_type == "strategy"), None)
-                if top:
-                    await memory_svc.increment_success(str(top.id))
-            elif tool_failure:
-                top = next((m for m in memories if m.memory_type == "failure"), None)
-                if top:
-                    await memory_svc.increment_failure(str(top.id))
-        except Exception as e:
-            logger.warning(f"Memory feedback failed: {e}")
+    await _record_memory_feedback(memories, memory_svc, tool_calls, tool_success, tool_failure)
 
-    # ── 9. Return ─────────────────────────────────────────────────────────
-    # Re-read session post-append to pick up auto-derived title
     try:
         await db.refresh(target_session)
     except Exception:
         pass
 
+    formatted_tool_calls = [
+        {"id": tc["id"], "name": tc["function"]["name"],
+         "arguments": json.loads(tc["function"]["arguments"]) if isinstance(tc["function"]["arguments"], str) else tc["function"]["arguments"]}
+        for tc in tool_calls
+    ] if tool_calls else None
+
     return ChatResponse(
         message=final_content,
-        tool_calls=(
-            [
-                {
-                    "id": tc["id"],
-                    "name": tc["function"]["name"],
-                    "arguments": (
-                        json.loads(tc["function"]["arguments"])
-                        if isinstance(tc["function"]["arguments"], str)
-                        else tc["function"]["arguments"]
-                    ),
-                }
-                for tc in tool_calls
-            ]
-            if tool_calls
-            else None
-        ),
+        tool_calls=formatted_tool_calls,
         sources=sources,
         session_id=str(target_session.id),
         session_title=target_session.title or _DEFAULT_SESSION_TITLE,

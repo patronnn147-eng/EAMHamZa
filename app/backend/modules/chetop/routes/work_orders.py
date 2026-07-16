@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,8 +10,8 @@ from sqlalchemy import func as sa_func
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_travail import Ordres_travail
-from models.ordres_intervention import Ordres_intervention
+from models.OrdresTravail import OrdresTravail
+from models.OrdresIntervention import OrdresIntervention
 from models.machines import Machines
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
@@ -43,27 +43,27 @@ async def get_my_work_orders(
         skip = (page - 1) * size
 
         count_query = (
-            select(sa_func.count(Ordres_travail.id))
-            .where(Ordres_travail.archived_at.is_(None))
+            select(sa_func.count(OrdresTravail.id))
+            .where(OrdresTravail.archived_at.is_(None))
             .join(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
-            .where(Ordres_intervention.requested_by == current_user.id)
+            .where(OrdresIntervention.requested_by == current_user.id)
         )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
-            select(Ordres_travail, Machines.nom.label("machine_nom"))
+            select(OrdresTravail, Machines.nom.label("machine_nom"))
             .join(
-                Ordres_intervention,
-                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
+                OrdresIntervention,
+                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
-            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
-            .where(Ordres_intervention.requested_by == current_user.id)
-            .where(Ordres_travail.archived_at.is_(None))
-            .order_by(Ordres_travail.created_at.desc())
+            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
+            .where(OrdresIntervention.requested_by == current_user.id)
+            .where(OrdresTravail.archived_at.is_(None))
+            .order_by(OrdresTravail.created_at.desc())
             .offset(skip)
             .limit(size)
         )
@@ -109,9 +109,9 @@ async def start_work_order(
     try:
         # Verify ownership via intervention request - check requested_by not technician_id
         check_query = (
-            select(Ordres_intervention)
-            .where(Ordres_intervention.ordre_travail_id == order_id)
-            .where(Ordres_intervention.requested_by == current_user.id)
+            select(OrdresIntervention)
+            .where(OrdresIntervention.ordre_travail_id == order_id)
+            .where(OrdresIntervention.requested_by == current_user.id)
         )
 
         check_result = await db.execute(check_query)
@@ -121,7 +121,7 @@ async def start_work_order(
             )
 
         wo_result = await db.execute(
-            select(Ordres_travail).where(Ordres_travail.id == order_id)
+            select(OrdresTravail).where(OrdresTravail.id == order_id)
         )
         wo = wo_result.scalar_one_or_none()
         if not wo:
@@ -171,9 +171,9 @@ async def complete_work_order(
     try:
         # Verify ownership via intervention request - check requested_by not technician_id
         check_query = (
-            select(Ordres_intervention)
-            .where(Ordres_intervention.ordre_travail_id == order_id)
-            .where(Ordres_intervention.requested_by == current_user.id)
+            select(OrdresIntervention)
+            .where(OrdresIntervention.ordre_travail_id == order_id)
+            .where(OrdresIntervention.requested_by == current_user.id)
         )
 
         check_result = await db.execute(check_query)
@@ -185,7 +185,7 @@ async def complete_work_order(
             )
 
         wo_result = await db.execute(
-            select(Ordres_travail).where(Ordres_travail.id == order_id)
+            select(OrdresTravail).where(OrdresTravail.id == order_id)
         )
         wo = wo_result.scalar_one_or_none()
         if not wo:

@@ -1,4 +1,4 @@
-from core.database import Base
+﻿from core.database import Base
 from sqlalchemy import (
     Column,
     DateTime,
@@ -48,7 +48,7 @@ class Alert(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     is_linked_to_wo = Column(Boolean, default=False, nullable=False)
     work_order_id = Column(
-        Integer, ForeignKey("ordres_travail.id", ondelete="SET NULL"), nullable=True
+        Integer, ForeignKey("OrdresTravail.id", ondelete="SET NULL"), nullable=True
     )
     priority = Column(
         String(20), nullable=True, default="MEDIUM"
@@ -62,7 +62,7 @@ class Alert(Base):
     # Relationships
     machine = relationship("Machines", back_populates="alerts")
     user = relationship("Utilisateurs", back_populates="dismissed_alerts")
-    work_order = relationship("Ordres_travail", back_populates="linked_alerts")
+    work_order = relationship("OrdresTravail", back_populates="linked_alerts")
 
 
 class AlertConfig(Base):

@@ -1,4 +1,4 @@
-import logging
+﻿import logging
 from datetime import datetime
 from typing import List, Optional
 from fastapi import HTTPException, status
@@ -7,8 +7,8 @@ from sqlalchemy import select
 
 from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings, PlanningType
-from models.planning_machines import Planning_machines
-from models.planning_utilisateurs import Planning_utilisateurs
+from models.PlanningMachines import PlanningMachines
+from models.PlanningUtilisateurs import PlanningUtilisateurs
 from services.notifications import NotificationsService
 
 logger = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ def _serialize_planning_for_email(payload: dict) -> dict:
     }
 
 
-async def verify_admin(current_user: Utilisateurs):
+def verify_admin(current_user: Utilisateurs):
     """Verify that the current user is an admin"""
     if current_user.role != UserRole.ADMIN:
         raise HTTPException(
@@ -42,7 +42,7 @@ async def verify_admin(current_user: Utilisateurs):
         )
 
 
-async def verify_cheftech(current_user: Utilisateurs):
+def verify_cheftech(current_user: Utilisateurs):
     """Verify that the current user is a CHEFTECH"""
     if current_user.role != UserRole.CHEFTECH:
         raise HTTPException(
@@ -51,7 +51,7 @@ async def verify_cheftech(current_user: Utilisateurs):
         )
 
 
-async def verify_chetop_or_cheftech(current_user: Utilisateurs):
+def verify_chetop_or_cheftech(current_user: Utilisateurs):
     """Verify that the current user is CHETOP or CHEFTECH"""
     if current_user.role not in [UserRole.CHETOP, UserRole.CHEFTECH]:
         raise HTTPException(
@@ -60,7 +60,7 @@ async def verify_chetop_or_cheftech(current_user: Utilisateurs):
         )
 
 
-async def verify_cheftech_or_tech(current_user: Utilisateurs):
+def verify_cheftech_or_tech(current_user: Utilisateurs):
     """Verify that the current user is CHEFTECH or TECHNICIEN"""
     if current_user.role not in [UserRole.CHEFTECH, UserRole.TECHNICIEN]:
         raise HTTPException(
@@ -81,67 +81,61 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[Utilisateur
     return result.scalar_one_or_none()
 
 
-async def validate_planning_data(db: AsyncSession, data):
-    """Validate planning data"""
-    # Validate shift_type is provided only for SHIFT type
+def _enum_val(obj) -> Optional[str]:
+    """Return obj.value for enums, str(obj) for plain values, None for None."""
+    if obj is None:
+        return None
+    return obj.value if hasattr(obj, "value") else str(obj)
+
+
+def _serialize_user(user) -> dict:
+    """Return a standard user dict suitable for planning responses."""
+    return {
+        "id": user.id,
+        "nom": user.nom,
+        "email": user.email,
+        "role": _enum_val(user.role),
+        "shift_type": _enum_val(getattr(user, "shift_type", None)),
+    }
+
+
+async def _validate_shift_type_fields(data) -> None:
+    """Validate shift_type / chef_operation_id consistency for SHIFT plannings."""
     if data.type == PlanningType.SHIFT:
         if not data.shift_type:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="shift_type is required for SHIFT planning",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="shift_type is required for SHIFT planning")
         if not data.chef_operation_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="chef_operation_id is required for SHIFT planning",
-            )
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                                detail="chef_operation_id is required for SHIFT planning")
     elif data.shift_type:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="shift_type should only be provided for SHIFT planning",
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="shift_type should only be provided for SHIFT planning")
 
-    # Validate chef_operation exists and has CHETOP role
+
+async def _validate_user_role(db: AsyncSession, user_id: int, expected_role: UserRole, label: str) -> None:
+    """Raise 404 if user not found, 400 if role mismatch."""
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"{label} with ID {user_id} not found")
+    if user.role != expected_role:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"{label} must have {expected_role.value} role")
+
+
+async def validate_planning_data(db: AsyncSession, data):
+    """Validate planning data."""
+    await _validate_shift_type_fields(data)
+
     if data.chef_operation_id:
-        chef_op = await get_user_by_id(db, data.chef_operation_id)
-        if not chef_op:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Chef Operation with ID {data.chef_operation_id} not found",
-            )
-        if chef_op.role != UserRole.CHETOP:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chef Operation must have CHETOP role",
-            )
+        await _validate_user_role(db, data.chef_operation_id, UserRole.CHETOP, "Chef Operation")
 
-    # Validate chef_technique exists and has CHEFTECH role
     if data.chef_technique_id:
-        chef_tech = await get_user_by_id(db, data.chef_technique_id)
-        if not chef_tech:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Chef Technique with ID {data.chef_technique_id} not found",
-            )
-        if chef_tech.role != UserRole.CHEFTECH:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Chef Technique must have CHEFTECH role",
-            )
+        await _validate_user_role(db, data.chef_technique_id, UserRole.CHEFTECH, "Chef Technique")
 
-    # Validate all technicians exist and have TECHNICIEN role
     for tech_id in data.technicien_ids:
-        tech = await get_user_by_id(db, tech_id)
-        if not tech:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Technician with ID {tech_id} not found",
-            )
-        if tech.role != UserRole.TECHNICIEN:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"User {tech_id} must have TECHNICIEN role",
-            )
+        await _validate_user_role(db, tech_id, UserRole.TECHNICIEN, f"User {tech_id}")
 
 
 async def send_planning_notifications(
@@ -169,145 +163,81 @@ async def send_planning_notifications(
             logger.exception(f"Failed to send notification to user {user_id}: {str(e)}")
 
 
+def _load_users_preloaded(planning) -> tuple:
+    """Return (assigned_users, seen_ids) from pre-loaded PlanningUtilisateurs."""
+    users, seen = [], set()
+    for pu in planning.PlanningUtilisateurs:
+        user = pu.utilisateur
+        if not user or user.id in seen:
+            continue
+        seen.add(user.id)
+        users.append(_serialize_user(user))
+    return users, seen
+
+
+async def _load_users_from_db(db: AsyncSession, planning_id: int) -> tuple:
+    """Return (assigned_users, seen_ids) via DB join query."""
+    result = await db.execute(
+        select(PlanningUtilisateurs, Utilisateurs)
+        .join(Utilisateurs, PlanningUtilisateurs.utilisateur_id == Utilisateurs.id)
+        .where(PlanningUtilisateurs.planning_id == planning_id)
+    )
+    users, seen = [], set()
+    for _pu, user in result:
+        if user.id in seen:
+            continue
+        seen.add(user.id)
+        users.append(_serialize_user(user))
+    return users, seen
+
+
+async def _recover_chef_users(db: AsyncSession, planning, seen_ids: set) -> list:
+    """Recover chef users when bridge table has no rows (handles past-bug plannings)."""
+    chef_ids = list(filter(None, [planning.chef_operation_id, planning.chef_technique_id]))
+    if not chef_ids:
+        return []
+    result = await db.execute(select(Utilisateurs).where(Utilisateurs.id.in_(chef_ids)))
+    users = []
+    for chef in result.scalars().all():
+        if chef.id in seen_ids:
+            continue
+        seen_ids.add(chef.id)
+        users.append(_serialize_user(chef))
+    return users
+
+
+async def _get_machine_ids(db: AsyncSession, planning) -> list:
+    """Return machine_ids from pre-loaded relationship or DB query."""
+    if "PlanningMachines" in planning.__dict__:
+        return [pm.machine_id for pm in planning.PlanningMachines]
+    result = await db.execute(
+        select(PlanningMachines.machine_id).where(PlanningMachines.planning_id == planning.id)
+    )
+    return [row[0] for row in result.fetchall()]
+
+
 async def get_planning_with_users(db: AsyncSession, planning: Plannings) -> dict:
     """Get planning with assigned users.
     Uses pre-loaded relationships if available (via selectinload), otherwise falls back to queries.
     """
-    # Check if relationships were pre-loaded via selectinload
-    pu_loaded = "planning_utilisateurs" in planning.__dict__
-    pm_loaded = "planning_machines" in planning.__dict__
-
-    assigned_users = []
-    seen_user_ids = set()
-
-    if pu_loaded:
-        # Use pre-loaded data (no extra queries)
-        for pu in planning.planning_utilisateurs:
-            user = pu.utilisateur
-            if not user or user.id in seen_user_ids:
-                continue
-            seen_user_ids.add(user.id)
-            role_val = (
-                user.role.value if hasattr(user.role, "value") else str(user.role)
-            )
-            shift_val = None
-            if user.shift_type:
-                shift_val = (
-                    user.shift_type.value
-                    if hasattr(user.shift_type, "value")
-                    else str(user.shift_type)
-                )
-            assigned_users.append(
-                {
-                    "id": user.id,
-                    "nom": user.nom,
-                    "email": user.email,
-                    "role": role_val,
-                    "shift_type": shift_val,
-                }
-            )
+    if "PlanningUtilisateurs" in planning.__dict__:
+        assigned_users, seen_ids = _load_users_preloaded(planning)
     else:
-        # Fallback: query the database (single-item endpoints)
-        result = await db.execute(
-            select(Planning_utilisateurs, Utilisateurs)
-            .join(Utilisateurs, Planning_utilisateurs.utilisateur_id == Utilisateurs.id)
-            .where(Planning_utilisateurs.planning_id == planning.id)
-        )
-        for pu, user in result:
-            if user.id in seen_user_ids:
-                continue
-            seen_user_ids.add(user.id)
-            role_val = (
-                user.role.value if hasattr(user.role, "value") else str(user.role)
-            )
-            shift_val = None
-            if user.shift_type:
-                shift_val = (
-                    user.shift_type.value
-                    if hasattr(user.shift_type, "value")
-                    else str(user.shift_type)
-                )
-            assigned_users.append(
-                {
-                    "id": user.id,
-                    "nom": user.nom,
-                    "email": user.email,
-                    "role": role_val,
-                    "shift_type": shift_val,
-                }
-            )
+        assigned_users, seen_ids = await _load_users_from_db(db, planning.id)
 
-    # If planning_utilisateurs had no rows, recover chef users from the plannings table itself
-    # (handles plannings whose bridge rows were wiped by a past bug)
     if not assigned_users:
-        chef_ids = list(
-            filter(None, [planning.chef_operation_id, planning.chef_technique_id])
-        )
-        if chef_ids:
-            chefs_result = await db.execute(
-                select(Utilisateurs).where(Utilisateurs.id.in_(chef_ids))
-            )
-            for chef in chefs_result.scalars().all():
-                if chef.id in seen_user_ids:
-                    continue
-                seen_user_ids.add(chef.id)
-                role_val = (
-                    chef.role.value if hasattr(chef.role, "value") else str(chef.role)
-                )
-                chef_shift_type = getattr(chef, "shift_type", None)
-                if chef_shift_type and hasattr(chef_shift_type, "value"):
-                    shift_val = chef_shift_type.value
-                elif chef_shift_type:
-                    shift_val = str(chef_shift_type)
-                else:
-                    shift_val = None
-                assigned_users.append(
-                    {
-                        "id": chef.id,
-                        "nom": chef.nom,
-                        "email": chef.email,
-                        "role": role_val,
-                        "shift_type": shift_val,
-                    }
-                )
+        assigned_users = await _recover_chef_users(db, planning, seen_ids)
 
-    if pm_loaded:
-        machine_ids = [pm.machine_id for pm in planning.planning_machines]
-    else:
-        machines_result = await db.execute(
-            select(Planning_machines.machine_id).where(
-                Planning_machines.planning_id == planning.id
-            )
-        )
-        machine_ids = [row[0] for row in machines_result.fetchall()]
-
-    # Safely handle enum values for planning
-    type_val = (
-        planning.type.value if hasattr(planning.type, "value") else str(planning.type)
-    )
-    planning_shift_val = None
-    if planning.shift_type:
-        planning_shift_val = (
-            planning.shift_type.value
-            if hasattr(planning.shift_type, "value")
-            else str(planning.shift_type)
-        )
-    planning_statut_val = None
-    if planning.planning_statut:
-        planning_statut_val = (
-            planning.planning_statut.value
-            if hasattr(planning.planning_statut, "value")
-            else str(planning.planning_statut)
-        )
+    machine_ids = await _get_machine_ids(db, planning)
 
     return {
         "id": planning.id,
         "identifiant_planning": planning.identifiant_planning,
         "date_debut": planning.date_debut,
         "date_fin": planning.date_fin,
-        "type": type_val,
-        "shift_type": planning_shift_val,
-        "planning_statut": planning_statut_val,
+        "type": _enum_val(planning.type),
+        "shift_type": _enum_val(planning.shift_type),
+        "planning_statut": _enum_val(planning.planning_statut),
         "chef_operation_id": planning.chef_operation_id,
         "chef_technique_id": planning.chef_technique_id,
         "zone_travail": planning.zone_travail,

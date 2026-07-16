@@ -81,7 +81,7 @@ interface ChatSessionSummary {
 function parseTable(content: string): { headers: string[]; rows: string[][] } | null {
   const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
   const tableLines = lines.filter(
-    (l) => l.startsWith('|') && !l.match(/^\|[\s\-:|]+\|$/) && l.includes('|')
+    (l) => l.startsWith('|') && !/^\|[\s\-:|]+\|$/.exec(l) && l.includes('|')
   );
   if (tableLines.length < 2) return null;
 
@@ -99,7 +99,7 @@ function parseTable(content: string): { headers: string[]; rows: string[][] } | 
 
 function parseLists(content: string): string[] | null {
   const lines = content.split('\n').filter(
-    (l) => l.match(/^[-*•]|^(\d+)\.\s/) && l.length > 3
+    (l) => /^[-*•]|^(\d+)\.\s/.exec(l) && l.length > 3
   );
   if (lines.length < 2) return null;
   return lines.map((l) => l.replace(/^[-*•]\s?|^(\d+)\.\s?/, '').trim());
@@ -230,7 +230,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
       })()}
 
       {/* Sources panel */}
-      {sources && sources.length > 0 && (
+      {sources?.length > 0 && (
         <div className="mt-3">
           <button
             onClick={() => setShowSources((v) => !v)}
@@ -246,7 +246,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
                 <Table className="h-3 w-3 text-primary" />
                 <span className="text-xs font-medium font-mono">{src.tool}</span>
                 <span className="text-xs text-muted-foreground ml-auto">
-                  {src.result?.length ?? 0} row{(src.result?.length ?? 0) !== 1 ? 's' : ''}
+                  {src.result?.length ?? 0} row{(src.result?.length ?? 0) === 1 ? '' : 's'}
                 </span>
               </div>
               {(src.result?.length ?? 0) > 0 && (
@@ -296,7 +296,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
       )}
 
       {/* Tool call badges (if no formatted sources) */}
-      {!sources && toolCalls && toolCalls.length > 0 && (
+      {!sources && toolCalls?.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {toolCalls.map((tc) => (
             <Badge key={tc.id} variant="secondary" className="text-xs font-mono">
@@ -548,8 +548,9 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
               </DialogHeader>
               <div className="space-y-3 py-2">
                 <div>
-                  <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                  <label htmlFor="chat-doc-file" className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
                   <input
+                    id="chat-doc-file"
                     type="file"
                     accept=".pdf,.txt"
                     className="text-sm w-full"
@@ -557,9 +558,9 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium block mb-1.5">Type</label>
+                  <label htmlFor="chat-doc-type" className="text-sm font-medium block mb-1.5">Type</label>
                   <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
-                    <SelectTrigger>
+                    <SelectTrigger id="chat-doc-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -742,7 +743,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const renameSession = async (id: string) => {
     const current = sessions.find((s) => s.id === id);
     const next = prompt('Nouveau titre :', current?.title ?? '');
-    if (!next || !next.trim()) return;
+    if (!next?.trim()) return;
     try {
       const res = await fetch(`${API}/api/v1/chat/sessions/${id}`, {
         method: 'PATCH',
@@ -1066,8 +1067,9 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                   <div>
-                    <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                    <label htmlFor="chat-doc-file-2" className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
                     <input
+                      id="chat-doc-file-2"
                       type="file"
                       accept=".pdf,.txt"
                       className="text-sm w-full"
@@ -1075,9 +1077,9 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium block mb-1.5">Type</label>
+                    <label htmlFor="chat-doc-type-2" className="text-sm font-medium block mb-1.5">Type</label>
                     <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
-                      <SelectTrigger>
+                      <SelectTrigger id="chat-doc-type-2">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

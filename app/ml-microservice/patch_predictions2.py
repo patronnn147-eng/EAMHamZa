@@ -164,7 +164,13 @@ for label, old, new in [('P3', old_p3, new_p3), ('P4', old_p4, new_p4), ('P6', o
         print(f'{label}: patched OK')
     else:
         print(f'{label}: PATTERN NOT FOUND')
-        idx = patched.find(f'predict_{"rul" if label=="P3" else "anomaly" if label=="P4" else "maintenance_schedule"}')
+        if label == "P3":
+            method_name = "rul"
+        elif label == "P4":
+            method_name = "anomaly"
+        else:
+            method_name = "maintenance_schedule"
+        idx = patched.find(f'predict_{method_name}')
         if idx >= 0:
             print('  actual content around method:', repr(patched[idx:idx+300]))
 

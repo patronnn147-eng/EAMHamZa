@@ -1,4 +1,4 @@
-"""
+﻿"""
 Model E: Isolation Forest + CUSUM Control Chart Anomaly Ensemble
 Dual-gate: BOTH detectors must fire to flag anomaly (reduces false alarms).
 
@@ -55,8 +55,8 @@ class CUSUMDetector:
         """
         self.k = float(k)
         self.h = float(h)
-        self.S_pos: float = 0.0   # upper CUSUM statistic
-        self.S_neg: float = 0.0   # lower CUSUM statistic
+        self.s_pos: float = 0.0   # upper CUSUM statistic
+        self.s_neg: float = 0.0   # lower CUSUM statistic
         self.n_updates: int = 0
 
     def update(self, x_t: float, mu_0: float) -> bool:
@@ -74,19 +74,19 @@ class CUSUMDetector:
         Returns:
             True if alarm triggered (shift detected), False otherwise
         """
-        self.S_pos = max(0.0, self.S_pos + (x_t - mu_0 - self.k))
-        self.S_neg = max(0.0, self.S_neg - (x_t - mu_0 + self.k))
+        self.s_pos = max(0.0, self.s_pos + (x_t - mu_0 - self.k))
+        self.s_neg = max(0.0, self.s_neg - (x_t - mu_0 + self.k))
         self.n_updates += 1
-        return self.S_pos > self.h or self.S_neg > self.h
+        return self.s_pos > self.h or self.s_neg > self.h
 
     def reset(self) -> None:
         """Reset statistics to zero (e.g., after alarm investigation)."""
-        self.S_pos = 0.0
-        self.S_neg = 0.0
+        self.s_pos = 0.0
+        self.s_neg = 0.0
 
     @property
     def is_alarmed(self) -> bool:
-        return self.S_pos > self.h or self.S_neg > self.h
+        return self.s_pos > self.h or self.s_neg > self.h
 
 
 # -----------------------------------------------------------------------
@@ -406,3 +406,4 @@ def fit_anomaly_ensemble(
     _anomaly_ensemble = AnomalyEnsemble()
     _anomaly_ensemble.fit(X, feature_names)
     return _anomaly_ensemble
+

@@ -14,7 +14,7 @@ export default function NotFoundPage() {
           <Button asChild>
             <a href="/">Return Home</a>
           </Button>
-          <Button variant="outline" onClick={() => window.history.back()}>
+          <Button variant="outline" onClick={() => globalThis.history.back()}>
             Go Back
           </Button>
         </div>
