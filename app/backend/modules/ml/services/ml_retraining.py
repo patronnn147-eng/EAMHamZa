@@ -15,6 +15,14 @@ logger = logging.getLogger(__name__)
 # ai4i2020 dataset column names (deduplicated per sonar S1192)
 _COL_TOOL_WEAR = "Tool wear [min]"
 _COL_MACHINE_FAILURE = "Machine failure"
+_BASE_COLUMNS = [
+    "Air temperature [K]",
+    "Process temperature [K]",
+    "Rotational speed [rpm]",
+    "Torque [Nm]",
+    _COL_TOOL_WEAR,
+]
+_FAILURE_TYPES = ["TWF", "HDF", "PWF", "OSF", "RNF"]
 
 # Models live in the ml-microservice container.
 # In Docker Compose this maps to the 'ml-models' named volume mounted at:
@@ -135,20 +143,19 @@ class RetrainingService:
             return None  # no label data yet
 
         if mt == "p2":
-            failure_types = ["TWF", "HDF", "PWF", "OSF", "RNF"]
             train_df = train_df.copy()
             val_df = val_df.copy()
             ft_col = train_df.get("actual_failure_type", _pd.Series(["NONE"] * len(train_df)))
             ft_val = val_df.get("actual_failure_type", _pd.Series(["NONE"] * len(val_df)))
-            for ft in failure_types:
+            for ft in _FAILURE_TYPES:
                 train_df[ft] = ft_col.str.contains(ft, na=False).astype(int)
                 val_df[ft] = ft_val.str.contains(ft, na=False).astype(int)
             return {
-                "y": train_df[failure_types].fillna(0),
-                "y_val": val_df[failure_types].fillna(0),
+                "y": train_df[_FAILURE_TYPES].fillna(0),
+                "y_val": val_df[_FAILURE_TYPES].fillna(0),
                 "train_df": train_df,
                 "val_df": val_df,
-                "labels": failure_types,
+                "labels": _FAILURE_TYPES,
             }
 
         if mt == "p3":
@@ -277,18 +284,14 @@ class RetrainingService:
         existing_features = existing_data.get("features", [])
         xgb_features = existing_data.get("xgb_features", existing_features)
 
-        _BASE_COLS = [
-            "Air temperature [K]", "Process temperature [K]",
-            "Rotational speed [rpm]", "Torque [Nm]", _COL_TOOL_WEAR,
-        ]
         if xgb_features:
             X = train_df[existing_features].copy()
             X.columns = xgb_features
             x_val = val_df[existing_features].copy()
             x_val.columns = xgb_features
         else:
-            X = train_df[_BASE_COLS]
-            x_val = val_df[_BASE_COLS]
+            X = train_df[_BASE_COLUMNS]
+            x_val = val_df[_BASE_COLUMNS]
 
         targets = RetrainingService._prepare_model_targets(mt, train_df, val_df)
         if targets is None:

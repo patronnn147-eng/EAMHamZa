@@ -16,9 +16,8 @@ COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install "pip>=26.1.2" && \
     pip install -r requirements-notebooks.txt && \
-    pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
-
-RUN chown -R appuser:appuser /workspace
+    pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2" && \
+    chown -R appuser:appuser /workspace
 USER appuser
 
 # Jupyter config — ip must stay 0.0.0.0 for docker-compose's port mapping to reach it

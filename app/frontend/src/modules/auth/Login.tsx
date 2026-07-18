@@ -40,8 +40,11 @@ export default function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+    const at = email.indexOf('@');
+    if (at < 1 || at !== email.lastIndexOf('@')) return false;
+    const domain = email.slice(at + 1);
+    const dot = domain.lastIndexOf('.');
+    return dot > 0 && dot < domain.length - 1;
   };
 
   const validatePassword = (password: string): string | null => {

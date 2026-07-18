@@ -35,7 +35,7 @@ const generateMachineName = (zone: string, sous_zone: string, ordre: string, ord
     cmsNumber = '2';
   }
 
-  const cleanStr = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+  const cleanStr = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+/, '').replace(/_+$/, '');
 
   const subzoneKey = cleanStr(sous_zone);
   const selectedTemplate = ordreTemplates.find(t => t.ordre.toString() === ordre);

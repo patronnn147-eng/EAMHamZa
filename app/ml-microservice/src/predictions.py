@@ -569,7 +569,7 @@ class MachineLearningService:
                     cons[int(pid)] = rate * horizon_days / 30.0
 
             # Use parts_catalog as stock proxy (on_hand=0 until DB lookup wired in T8)
-            stock = {pid: meta for pid, meta in parts_catalog.items()}
+            stock = dict(parts_catalog)
 
             return build_parts_demand(surv, cons, stock, horizon_days, "p7_model")
         except Exception:

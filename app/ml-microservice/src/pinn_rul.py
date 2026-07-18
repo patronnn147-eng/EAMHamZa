@@ -211,7 +211,7 @@ class PINNRULEstimator:
         x_tensor = torch.tensor(np.stack(x_list), dtype=torch.float32)
         y_tensor = torch.tensor(y_list, dtype=torch.float32)
 
-        optimizer = torch.optim.Adam(self._model.parameters(), lr=lr, weight_decay=0.0)
+        optimizer = torch.optim.Adam(self._model.parameters(), lr=lr, weight_decay=1e-4)
         self._model.train()
 
         for _ in range(epochs):

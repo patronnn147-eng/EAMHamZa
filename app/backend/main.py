@@ -17,6 +17,8 @@ from core.rabbitmq import get_rabbitmq, RabbitMQService
 # Import all models to ensure they are registered with SQLAlchemy metadata
 # MODULE_IMPORTS_END
 
+DEFAULT_LOG_DIR = "logs"
+
 
 def setup_logging():
     """Configure the logging system."""
@@ -24,13 +26,12 @@ def setup_logging():
         return
 
     # Create the logs directory
-    log_dir = "logs"
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+    if not os.path.exists(DEFAULT_LOG_DIR):
+        os.makedirs(DEFAULT_LOG_DIR)
 
     # Generate log filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f"{log_dir}/app_{timestamp}.log"
+    log_file = f"{DEFAULT_LOG_DIR}/app_{timestamp}.log"
 
     # Configure log format
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -85,7 +86,6 @@ async def lifespan(app: FastAPI):
     # or unconditionally when RAG_BACKFILL_ON_STARTUP=true. Non-blocking — task runs
     # in celery_worker so app startup is not delayed.
     try:
-        import os
         from sqlalchemy import text
         from core.database import db_manager
 
