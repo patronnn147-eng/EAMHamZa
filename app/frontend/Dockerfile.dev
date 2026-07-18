@@ -9,6 +9,10 @@ RUN pnpm install
 
 COPY . .
 
+RUN chown -R node:node /app
+
+USER node
+
 EXPOSE 3000
 
 CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]
