@@ -471,7 +471,7 @@ class InventoryReservationService:
         compatible — the link is grown organically from real consumption.
         """
         try:
-            from models.OrdresIntervention import OrdresIntervention
+            from models.ordres_intervention import OrdresIntervention
             from models.piece_machine import piece_machine
             from sqlalchemy.dialects.postgresql import insert as pg_insert
 

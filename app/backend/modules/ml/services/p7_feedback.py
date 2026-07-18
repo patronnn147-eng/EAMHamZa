@@ -119,7 +119,7 @@ async def record_p7_feedback(
     4. Mark intervention for P7 retrain queue via `retrained` flag logic.
     Returns feedback metrics dict or None if data insufficient.
     """
-    from models.OrdresIntervention import OrdresIntervention
+    from models.ordres_intervention import OrdresIntervention
     from models.ml_prediction_log import MlPredictionLog
 
     # 1. Load intervention

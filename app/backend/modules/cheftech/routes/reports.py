@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.machines import Machines
 from ..schemas import CompletedWorkOrderItem, ChefTechFeedbackRequest
 from ..dependencies import verify_cheftech_or_admin
@@ -214,7 +214,7 @@ async def get_cheftech_analytics_dashboard(
     For simplicity in this MVP, we query all work orders and interventions
     to compute the PDCA stages and performance trends.
     """
-    from models.OrdresIntervention import OrdresIntervention
+    from models.ordres_intervention import OrdresIntervention
 
     # 1. Fetch all work orders and interventions
     w_result = await db.execute(

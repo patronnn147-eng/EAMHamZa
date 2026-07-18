@@ -8,7 +8,7 @@ from core.celery_app import celery_app
 from core.database import db_manager
 from models.alertes import Alert  # noqa: F401 — registers Alert mapper for string relationships
 from models.machines import Machines
-from models.OrdresTravail import OrdresTravail
+from models.ordres_travail import OrdresTravail
 from sqlalchemy import select, and_
 
 logger = logging.getLogger(__name__)

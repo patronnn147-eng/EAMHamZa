@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from models.machines import Machines
 from ..schemas import DashboardStats
 from typing import Annotated

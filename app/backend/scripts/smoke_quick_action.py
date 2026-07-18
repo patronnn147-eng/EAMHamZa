@@ -58,6 +58,31 @@ def _stock_snapshot(client: httpx.Client, token: str) -> str:
     return json.dumps(pairs)
 
 
+def _parse_json_resp(r: httpx.Response) -> dict:
+    """Return parsed JSON body if response is JSON content-type, else empty dict."""
+    if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON):
+        return r.json()
+    return {}
+
+
+def _check_admin_guard(client: httpx.Client, mid: int, failures: list) -> None:
+    """Verify non-ADMIN gets HTTP 403. Skips quietly when TECH creds are not set."""
+    tu, tp = os.environ.get("TECH_USER"), os.environ.get("TECH_PASS")
+    if not tu or not tp:
+        print("[skip] TECH_USER/TECH_PASS unset — 403 check skipped")
+        return
+    tech = _login(client, tu, tp)
+    if not tech:
+        print("[skip] TECH login failed — 403 check skipped")
+        return
+    r = client.post(
+        f"{API}/api/v1/ml/procurement/quick-action/{mid}",
+        headers={"Authorization": f"Bearer {tech}"},
+    )
+    if r.status_code != 403:
+        failures.append(f"non-admin not blocked: got HTTP {r.status_code}")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--machine-id", type=int, required=True)
@@ -82,11 +107,7 @@ def main() -> int:
             params={"dry_run": "true"},
             headers=ah,
         )
-        dry = (
-            r.json()
-            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
-            else {}
-        )
+        dry = _parse_json_resp(r)
         if r.status_code != 200 or not dry.get("dry_run"):
             failures.append(f"dry_run response wrong: HTTP {r.status_code} {dry}")
         after = _stock_snapshot(client, admin)
@@ -99,39 +120,18 @@ def main() -> int:
 
         # 2. Real run.
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
-        run1 = (
-            r.json()
-            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
-            else {}
-        )
+        run1 = _parse_json_resp(r)
         if r.status_code != 200 or not run1.get("success"):
             failures.append(f"real run failed: HTTP {r.status_code} {run1}")
 
         # 3. Idempotent repeat (same recommendation → no new writes).
         r = client.post(f"{API}/api/v1/ml/procurement/quick-action/{mid}", headers=ah)
-        run2 = (
-            r.json()
-            if r.headers.get("content-type", "").startswith(CONTENT_TYPE_JSON)
-            else {}
-        )
+        run2 = _parse_json_resp(r)
         if r.status_code != 200 or not run2.get("idempotent"):
             failures.append(f"repeat not idempotent: HTTP {r.status_code} {run2}")
 
         # 4. Non-ADMIN 403 (only if creds provided).
-        tu, tp = os.environ.get("TECH_USER"), os.environ.get("TECH_PASS")
-        if tu and tp:
-            tech = _login(client, tu, tp)
-            if tech:
-                r = client.post(
-                    f"{API}/api/v1/ml/procurement/quick-action/{mid}",
-                    headers={"Authorization": f"Bearer {tech}"},
-                )
-                if r.status_code != 403:
-                    failures.append(f"non-admin not blocked: got HTTP {r.status_code}")
-            else:
-                print("[skip] TECH login failed — 403 check skipped")
-        else:
-            print("[skip] TECH_USER/TECH_PASS unset — 403 check skipped")
+        _check_admin_guard(client, mid, failures)
 
     if failures:
         print("\nSMOKE FAIL:")

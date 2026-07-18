@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from core.security import verify_technicien
 from models.machines import Machines
-from models.PlanningTaches import PlanningTaches, TaskType
+from models.planning_taches import PlanningTaches, TaskType
 from models.plannings import PlanningStatut, Plannings
 from models.utilisateurs import Utilisateurs
 

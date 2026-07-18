@@ -23,9 +23,9 @@ from typing import Dict, List, Optional, Sequence
 from sqlalchemy import String, and_, cast, delete, func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail
-from models.PlanningTaches import PlanningTaches
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail
+from models.planning_taches import PlanningTaches
 from models.plannings import Plannings
 
 logger = logging.getLogger(__name__)

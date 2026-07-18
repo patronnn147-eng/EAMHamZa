@@ -195,7 +195,7 @@ async def get_readiness_for_machine(
 ) -> Dict[str, Any]:
     """Compute readiness score from live DB state."""
     from models.alertes import Alert, AlertType
-    from models.OrdresIntervention import OrdresIntervention
+    from models.ordres_intervention import OrdresIntervention
 
     # Is there an active PARTS_SHORTAGE alert?
     alert_q = await db.execute(
@@ -245,8 +245,8 @@ async def get_timeline_for_machine(
 ) -> List[Dict[str, Any]]:
     """Fetch timeline events from existing timestamps — no new table."""
     from models.ml_prediction_log import MlPredictionLog
-    from models.OrdresTravail import OrdresTravail
-    from models.OrdresIntervention import OrdresIntervention
+    from models.ordres_travail import OrdresTravail
+    from models.ordres_intervention import OrdresIntervention
     from models.alertes import Alert, AlertType
 
     # Last 10 prediction logs

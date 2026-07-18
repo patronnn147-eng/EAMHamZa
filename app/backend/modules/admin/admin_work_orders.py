@@ -12,9 +12,9 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresTravail import OrdresTravail
+from models.ordres_travail import OrdresTravail
 from models.machines import Machines
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from typing import Annotated
 
 logger = logging.getLogger(__name__)

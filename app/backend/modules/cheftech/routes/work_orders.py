@@ -7,7 +7,7 @@ from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from ..schemas import WorkOrderResponse
 from ..dependencies import verify_cheftech
 

@@ -127,6 +127,31 @@ class NotificationsService:
             logger.exception(f"Error fetching notification {obj_id}: {str(e)}")
             raise
 
+    @staticmethod
+    def _apply_filters(query, count_query, model, query_dict):
+        """Apply equality filters from query_dict to both queries."""
+        if not query_dict:
+            return query, count_query
+        for field, value in query_dict.items():
+            if hasattr(model, field):
+                condition = getattr(model, field) == value
+                query = query.where(condition)
+                count_query = count_query.where(condition)
+        return query, count_query
+
+    @staticmethod
+    def _apply_sort(query, sort, model):
+        """Apply ordering to query; defaults to id.desc()."""
+        if not sort:
+            return query.order_by(model.id.desc())
+        if sort.startswith("-"):
+            field_name = sort[1:]
+            if hasattr(model, field_name):
+                return query.order_by(getattr(model, field_name).desc())
+        elif hasattr(model, sort):
+            return query.order_by(getattr(model, sort))
+        return query.order_by(model.id.desc())
+
     async def get_list(
         self,
         skip: int = 0,
@@ -136,42 +161,17 @@ class NotificationsService:
     ) -> Dict[str, Any]:
         """Get paginated list of notifications"""
         try:
-            query = select(Notifications)
-            count_query = select(func.count(Notifications.id))
-
-            if query_dict:
-                for field, value in query_dict.items():
-                    if hasattr(Notifications, field):
-                        query = query.where(getattr(Notifications, field) == value)
-                        count_query = count_query.where(
-                            getattr(Notifications, field) == value
-                        )
-
-            count_result = await self.db.execute(count_query)
-            total = count_result.scalar()
-
-            if sort:
-                if sort.startswith("-"):
-                    field_name = sort[1:]
-                    if hasattr(Notifications, field_name):
-                        query = query.order_by(
-                            getattr(Notifications, field_name).desc()
-                        )
-                else:
-                    if hasattr(Notifications, sort):
-                        query = query.order_by(getattr(Notifications, sort))
-            else:
-                query = query.order_by(Notifications.id.desc())
-
+            query, count_query = self._apply_filters(
+                select(Notifications),
+                select(func.count(Notifications.id)),
+                Notifications,
+                query_dict,
+            )
+            total = (await self.db.execute(count_query)).scalar()
+            query = self._apply_sort(query, sort, Notifications)
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-
-            return {
-                "items": items,
-                "total": total,
-                "skip": skip,
-                "limit": limit,
-            }
+            return {"items": items, "total": total, "skip": skip, "limit": limit}
         except Exception as e:
             logger.exception(f"Error fetching notification list: {str(e)}")
             raise

@@ -173,7 +173,7 @@ def _wo_to_dict(wo) -> Dict[str, Any]:
 
 async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
     from models.utilisateurs import Utilisateurs
 
     now = datetime.now(timezone.utc)

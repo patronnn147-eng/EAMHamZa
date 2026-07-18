@@ -56,6 +56,90 @@ def clear_retrieval_cache() -> None:
     logger.info("Retrieval cache cleared.")
 
 
+async def _get_vector_candidates(
+    db: AsyncSession,
+    vec_str: Optional[str],
+    machine_id: Optional[int],
+    threshold: float,
+    overfetch: int,
+    hybrid_on: bool,
+) -> list[dict]:
+    """Run the pgvector cosine-similarity SQL; return candidate dicts.
+
+    Raises on SQL failure when hybrid_on=False so the caller can early-return []
+    without caching; when hybrid_on=True failures return [] (keyword branch continues).
+    """
+    if vec_str is None:
+        return []
+    try:
+        sql = text("""
+            SELECT dc.id AS chunk_id, dc.content, dc.metadata,
+                   1 - (dc.embedding <=> CAST(:vec AS vector)) AS similarity
+            FROM doc_chunks dc
+            JOIN documents d ON dc.doc_id = d.id
+            WHERE (CAST(:machine_id AS integer) IS NULL OR d.machine_id = CAST(:machine_id AS integer))
+              AND 1 - (dc.embedding <=> CAST(:vec AS vector)) > :threshold
+            ORDER BY dc.embedding <=> CAST(:vec AS vector)
+            LIMIT :top_k
+        """)
+        result = await db.execute(
+            sql,
+            {"vec": vec_str, "machine_id": machine_id, "threshold": threshold, "top_k": overfetch},
+        )
+        rows = result.fetchall()
+        return [
+            {
+                "chunk_id": r.chunk_id,
+                "content": r.content,
+                "metadata": r.metadata,
+                "similarity": float(r.similarity),
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.exception(f"Retrieval SQL failed: {e}")
+        if hybrid_on:
+            return []  # keyword branch can still contribute
+        raise  # caller returns [] without caching
+
+
+def _log_hybrid_stats(
+    results: list[dict],
+    candidates: list[dict],
+    keyword_hits: list[dict],
+    query: str,
+    fused: list[dict],
+) -> None:
+    """Compute source-mix statistics and emit INFO log for hybrid queries."""
+    source_mix: list[str] = []
+    for c in results:
+        has_v = "vector_rank" in c
+        has_k = "keyword_rank" in c
+        if has_v and has_k:
+            source_mix.append("both")
+        elif has_v:
+            source_mix.append("vector_only")
+        else:
+            source_mix.append("keyword_only")
+    record_call(
+        vector_n=len(candidates),
+        keyword_n=len(keyword_hits),
+        returned_with_source=source_mix,
+    )
+    logger.info(
+        "hybrid query=%r vector_hits=%d keyword_hits=%d "
+        "fused=%d returned=%d source_mix=(both:%d, vector_only:%d, keyword_only:%d)",
+        query.strip()[:80],
+        len(candidates),
+        len(keyword_hits),
+        len(fused),
+        len(results),
+        source_mix.count("both"),
+        source_mix.count("vector_only"),
+        source_mix.count("keyword_only"),
+    )
+
+
 def retrieve_cache_stats() -> dict:
     total = _retrieve_hits + _retrieve_misses
     hit_rate = (_retrieve_hits / total) if total else 0.0
@@ -114,44 +198,12 @@ async def retrieve_chunks(
             return []
         vec_str = None  # skip vector SQL; let keyword branch run
 
-    if vec_str is not None:
-        try:
-            sql = text("""
-                SELECT dc.id AS chunk_id, dc.content, dc.metadata,
-                       1 - (dc.embedding <=> CAST(:vec AS vector)) AS similarity
-                FROM doc_chunks dc
-                JOIN documents d ON dc.doc_id = d.id
-                WHERE (CAST(:machine_id AS integer) IS NULL OR d.machine_id = CAST(:machine_id AS integer))
-                  AND 1 - (dc.embedding <=> CAST(:vec AS vector)) > :threshold
-                ORDER BY dc.embedding <=> CAST(:vec AS vector)
-                LIMIT :top_k
-            """)
-
-            result = await db.execute(
-                sql,
-                {
-                    "vec": vec_str,
-                    "machine_id": machine_id,
-                    "threshold": threshold,
-                    "top_k": overfetch,
-                },
-            )
-            rows = result.fetchall()
-
-            candidates = [
-                {
-                    "chunk_id": r.chunk_id,
-                    "content": r.content,
-                    "metadata": r.metadata,
-                    "similarity": float(r.similarity),
-                }
-                for r in rows
-            ]
-        except Exception as e:
-            logger.exception(f"Retrieval SQL failed: {e}")
-            if not hybrid_on:
-                return []
-            candidates = []  # let keyword branch still contribute
+    try:
+        candidates = await _get_vector_candidates(
+            db, vec_str, machine_id, threshold, overfetch, hybrid_on
+        )
+    except Exception:
+        return []  # vector-only mode SQL failure; do not cache
 
     # ── Stage 1b: keyword branch (hybrid only) ───────────────────────────────
     # FAIL LOUD on BM25 errors per CONTEXT.md -- no silent fallback.
@@ -182,35 +234,7 @@ async def retrieve_chunks(
 
     # ── Stats + INFO log (hybrid only) ───────────────────────────────────────
     if hybrid_on:
-        source_mix = []
-        for c in results:
-            has_v = "vector_rank" in c
-            has_k = "keyword_rank" in c
-            if has_v and has_k:
-                source = "both"
-            elif has_v:
-                source = "vector_only"
-            else:
-                source = "keyword_only"
-            source_mix.append(source)
-        record_call(
-            vector_n=len(candidates),
-            keyword_n=len(keyword_hits),
-            returned_with_source=source_mix,
-        )
-        logger.info(
-            "hybrid query=%r machine_id=%s vector_hits=%d keyword_hits=%d "
-            "fused=%d returned=%d source_mix=(both:%d, vector_only:%d, keyword_only:%d)",
-            query.strip()[:80],
-            machine_id,
-            len(candidates),
-            len(keyword_hits),
-            len(fused),
-            len(results),
-            source_mix.count("both"),
-            source_mix.count("vector_only"),
-            source_mix.count("keyword_only"),
-        )
+        _log_hybrid_stats(results, candidates, keyword_hits, query, fused)
 
     _retrieve_cache[cache_key] = results
     return results

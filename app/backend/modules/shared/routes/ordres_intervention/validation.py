@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs
-from models.OrdresTravail import OrdreStatut
+from models.ordres_travail import OrdreStatut
 from services.audit import AuditService, AuditEntityType
 from services.OrdresIntervention import OrdresInterventionService
 from services.inventory import InventoryReservationService

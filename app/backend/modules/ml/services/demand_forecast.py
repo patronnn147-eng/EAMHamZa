@@ -220,72 +220,12 @@ async def compute_demand_forecast(
         all_items: List[Dict[str, Any]] = []
 
         for piece_id, machine_ids in pieces_to_machines.items():
-            if piece_id not in piece_meta:
-                continue
-
-            piece_name, min_stock = piece_meta[piece_id]
-            current_qty = stock_by_piece.get(piece_id, 0)
-            rate, data_quality = consumption_rates.get(
-                piece_id, (_DEFAULT_CONSUMPTION_RATE, "estimated")
+            item = _process_piece(
+                piece_id, machine_ids, piece_meta, stock_by_piece,
+                consumption_rates, logs_by_machine, machine_names,
             )
-
-            # Only consider machines with actual ML log data
-            affected_machines = []
-            max_urgency = 0.0
-            max_fail_prob = 0.0
-
-            for m_id in machine_ids:
-                log = logs_by_machine.get(m_id)
-                if log is None:
-                    continue
-                rul = (
-                    float(log.rul_days)
-                    if log.rul_days is not None
-                    else _RUL_HORIZON_DAYS
-                )
-                fail_prob = float(log.failure_probability or 0.0)
-                score = _urgency_score(rul, fail_prob, current_qty, rate)
-                if score > max_urgency:
-                    max_urgency = score
-                if fail_prob > max_fail_prob:
-                    max_fail_prob = fail_prob
-                affected_machines.append(
-                    {
-                        "id": m_id,
-                        "name": machine_names.get(m_id, f"Machine {m_id}"),
-                        "rul_days": round(rul, 1),
-                        "urgency_score": score,
-                    }
-                )
-
-            if not affected_machines:
-                continue
-
-            # Sort machines by urgency descending within the item
-            affected_machines.sort(key=lambda x: x["urgency_score"], reverse=True)
-
-            projected_demand = max(1, round(rate * len(affected_machines)))
-            reorder_qty = max(projected_demand, min_stock) + max(1, round(rate))
-            days_out = _days_until_stockout(current_qty, rate)
-
-            all_items.append(
-                {
-                    "piece_id": piece_id,
-                    "piece_name": piece_name,
-                    "current_qty": current_qty,
-                    "min_stock": min_stock,
-                    "urgency_score": max_urgency,
-                    "urgency_label": _urgency_label(max_urgency),
-                    "projected_demand": projected_demand,
-                    "reorder_qty_suggested": reorder_qty,
-                    "days_until_stockout": days_out,
-                    "consumption_data": data_quality,
-                    "machines_affected": [
-                        {"id": m["id"], "name": m["name"], "rul_days": m["rul_days"]}
-                        for m in affected_machines
-                    ],
-                }
-            )
+            if item is not None:
+                all_items.append(item)
 
         # Sort by urgency descending
         all_items.sort(key=lambda x: x["urgency_score"], reverse=True)
@@ -307,6 +247,76 @@ async def compute_demand_forecast(
     except Exception as e:
         logger.exception(f"Error computing demand forecast: {str(e)}", exc_info=True)
         raise
+
+
+def _process_piece(
+    piece_id: int,
+    machine_ids: List[int],
+    piece_meta: Dict[int, tuple],
+    stock_by_piece: Dict[int, float],
+    consumption_rates: Dict[int, tuple],
+    logs_by_machine: Dict[int, Any],
+    machine_names: Dict[int, str],
+) -> Optional[Dict[str, Any]]:
+    """Build forecast item for one piece across all linked machines.
+
+    Returns the item dict, or None if the piece should be skipped.
+    """
+    if piece_id not in piece_meta:
+        return None
+
+    piece_name, min_stock = piece_meta[piece_id]
+    current_qty = stock_by_piece.get(piece_id, 0)
+    rate, data_quality = consumption_rates.get(piece_id, (_DEFAULT_CONSUMPTION_RATE, "estimated"))
+
+    affected_machines: List[Dict[str, Any]] = []
+    max_urgency = 0.0
+    max_fail_prob = 0.0
+
+    for m_id in machine_ids:
+        log = logs_by_machine.get(m_id)
+        if log is None:
+            continue
+        rul = float(log.rul_days) if log.rul_days is not None else _RUL_HORIZON_DAYS
+        fail_prob = float(log.failure_probability or 0.0)
+        score = _urgency_score(rul, fail_prob, current_qty, rate)
+        if score > max_urgency:
+            max_urgency = score
+        if fail_prob > max_fail_prob:
+            max_fail_prob = fail_prob
+        affected_machines.append(
+            {
+                "id": m_id,
+                "name": machine_names.get(m_id, f"Machine {m_id}"),
+                "rul_days": round(rul, 1),
+                "urgency_score": score,
+            }
+        )
+
+    if not affected_machines:
+        return None
+
+    affected_machines.sort(key=lambda x: x["urgency_score"], reverse=True)
+    projected_demand = max(1, round(rate * len(affected_machines)))
+    reorder_qty = max(projected_demand, min_stock) + max(1, round(rate))
+    days_out = _days_until_stockout(current_qty, rate)
+
+    return {
+        "piece_id": piece_id,
+        "piece_name": piece_name,
+        "current_qty": current_qty,
+        "min_stock": min_stock,
+        "urgency_score": max_urgency,
+        "urgency_label": _urgency_label(max_urgency),
+        "projected_demand": projected_demand,
+        "reorder_qty_suggested": reorder_qty,
+        "days_until_stockout": days_out,
+        "consumption_data": data_quality,
+        "machines_affected": [
+            {"id": m["id"], "name": m["name"], "rul_days": m["rul_days"]}
+            for m in affected_machines
+        ],
+    }
 
 
 def _build_response(

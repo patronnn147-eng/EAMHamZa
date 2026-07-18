@@ -10,8 +10,8 @@ from sqlalchemy import func as sa_func
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresTravail import OrdresTravail
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail
+from models.ordres_intervention import OrdresIntervention
 from models.machines import Machines
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType

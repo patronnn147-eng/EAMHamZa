@@ -6,7 +6,7 @@ from core.database import get_db
 from core.security import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.plannings import Plannings, PlanningStatut
-from models.PlanningTaches import PlanningTaches
+from models.planning_taches import PlanningTaches
 from models.machines import Machines
 from services.notifications import NotificationsService
 from tasks.planning_tache_emails import send_task_assignment_email

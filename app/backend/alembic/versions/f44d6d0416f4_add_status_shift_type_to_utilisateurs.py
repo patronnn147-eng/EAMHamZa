@@ -59,13 +59,26 @@ def upgrade() -> None:
         server_default=sa.text("now()"),
         existing_nullable=True,
     )
-    op.alter_column(
-        "OrdresIntervention",
-        "retrained",
-        existing_type=sa.BOOLEAN(),
-        server_default=None,
-        existing_nullable=True,
-    )
+    bind = op.get_bind()
+    retrained_exists = bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='OrdresIntervention' AND column_name='retrained'"
+        )
+    ).first()
+    if retrained_exists:
+        op.alter_column(
+            "OrdresIntervention",
+            "retrained",
+            existing_type=sa.BOOLEAN(),
+            server_default=None,
+            existing_nullable=True,
+        )
+    else:
+        op.add_column(
+            "OrdresIntervention",
+            sa.Column("retrained", sa.Boolean(), nullable=True),
+        )
     op.alter_column(
         "OrdresIntervention",
         "problem_start_time",

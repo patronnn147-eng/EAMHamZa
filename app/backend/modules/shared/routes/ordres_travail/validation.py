@@ -7,10 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresTravail import OrdreStatut
+from models.ordres_travail import OrdreStatut
 from services.OrdresTravail import OrdresTravailService
 from services.inventory import InventoryReservationService
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from sqlalchemy import select
 from ..OrdresTravail.schemas import (
     OrdresTravailValidationData,

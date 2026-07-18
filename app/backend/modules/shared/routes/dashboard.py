@@ -14,7 +14,7 @@ from core.auth import get_current_user
 from core.groq_client import get_groq_client
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_travail import OrdresTravail, OrdreStatut
 
 from modules.shared.services.dashboard_briefing import compute_facts, make_briefing
 

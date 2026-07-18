@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.ml_client import ml_client, is_ml_service_available
 from models.machine_telemetry import MachineTelemetry
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_travail import OrdresTravail, OrdreStatut
 
 logger = logging.getLogger(__name__)
 

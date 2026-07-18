@@ -21,7 +21,7 @@ import numpy as np
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional
 
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from models.machines import Machines
 
 

@@ -6,8 +6,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.machines import Machines
-from models.OrdresTravail import OrdresTravail
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail
+from models.ordres_intervention import OrdresIntervention
 from models.plannings import Plannings
 from models.alertes import Alert
 
@@ -136,109 +136,79 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
     ]
 
 
+async def _tool_search_machines(arguments: dict, db: AsyncSession) -> Any:
+    query = select(Machines)
+    if arguments.get("zone"):
+        query = query.where(Machines.zone == arguments["zone"])
+    if arguments.get("status"):
+        query = query.where(Machines.statut == arguments["status"])
+    if arguments.get("machine_type"):
+        query = query.where(Machines.type == arguments["machine_type"])
+    result = await db.execute(query)
+    return [
+        {"id": m.id, "nom": m.nom, "zone": m.zone, "statut": m.statut, "type": m.type}
+        for m in result.scalars().all()
+    ]
+
+
+async def _tool_get_work_orders(arguments: dict, db: AsyncSession) -> Any:
+    query = select(OrdresTravail)
+    if arguments.get("status"):
+        query = query.where(OrdresTravail.statut == arguments["status"])
+    if arguments.get("utilisateur_id"):
+        query = query.where(OrdresTravail.utilisateur_id == arguments["utilisateur_id"])
+    if arguments.get("machine_id"):
+        query = query.where(OrdresTravail.machine_id == arguments["machine_id"])
+    result = await db.execute(query.limit(50))
+    return [
+        {"id": o.id, "titre": o.titre, "statut": o.statut, "priorite": o.priorite, "machine_id": o.machine_id}
+        for o in result.scalars().all()
+    ]
+
+
+async def _tool_get_interventions(arguments: dict, db: AsyncSession) -> Any:
+    query = select(OrdresIntervention)
+    if arguments.get("machine_id"):
+        query = query.where(OrdresIntervention.machine_id == arguments["machine_id"])
+    if arguments.get("statut"):
+        query = query.where(OrdresIntervention.statut == arguments["statut"])
+    result = await db.execute(query.limit(50))
+    return [
+        {"id": i.id, "machine_id": i.machine_id, "statut": i.statut, "problem_description": i.problem_description}
+        for i in result.scalars().all()
+    ]
+
+
+async def _tool_get_alerts(arguments: dict, db: AsyncSession) -> Any:
+    query = select(Alert).where(Alert.is_active)
+    if arguments.get("priorite"):
+        query = query.where(Alert.priority == arguments["priorite"])
+    if arguments.get("machine_id"):
+        query = query.where(Alert.machine_id == arguments["machine_id"])
+    result = await db.execute(query.limit(20))
+    return [
+        {"id": a.id, "machine_id": a.machine_id, "message": a.message, "priority": a.priority, "severity": str(a.severity)}
+        for a in result.scalars().all()
+    ]
+
+
 async def execute_tool(name: str, arguments: dict, db: AsyncSession) -> Any:
-    """
-    Execute a tool call and return results.
-
-    Args:
-        name: Tool name (function name)
-        arguments: Tool arguments
-        db: Database session
-
-    Returns:
-        Tool execution results
-    """
-    if name == "search_machines":
-        query = select(Machines)
-        if arguments.get("zone"):
-            query = query.where(Machines.zone == arguments["zone"])
-        if arguments.get("status"):
-            query = query.where(Machines.statut == arguments["status"])
-        if arguments.get("machine_type"):
-            query = query.where(Machines.type == arguments["machine_type"])
-        result = await db.execute(query)
+    """Execute a tool call and return results."""
+    _dispatch: Dict[str, Any] = {
+        "search_machines": _tool_search_machines,
+        "get_work_orders": _tool_get_work_orders,
+        "get_interventions": _tool_get_interventions,
+        "get_plannings": None,  # handled inline (no filter args)
+        "get_alerts": _tool_get_alerts,
+    }
+    if name == "get_plannings":
+        result = await db.execute(select(Plannings).limit(50))
         return [
-            {
-                "id": m.id,
-                "nom": m.nom,
-                "zone": m.zone,
-                "statut": m.statut,
-                "type": m.type,
-            }
-            for m in result.scalars().all()
-        ]
-
-    elif name == "get_work_orders":
-        query = select(OrdresTravail)
-        if arguments.get("status"):
-            query = query.where(OrdresTravail.statut == arguments["status"])
-        if arguments.get("utilisateur_id"):
-            query = query.where(
-                OrdresTravail.utilisateur_id == arguments["utilisateur_id"]
-            )
-        if arguments.get("machine_id"):
-            query = query.where(OrdresTravail.machine_id == arguments["machine_id"])
-        result = await db.execute(query.limit(50))
-        return [
-            {
-                "id": o.id,
-                "titre": o.titre,
-                "statut": o.statut,
-                "priorite": o.priorite,
-                "machine_id": o.machine_id,
-            }
-            for o in result.scalars().all()
-        ]
-
-    elif name == "get_interventions":
-        query = select(OrdresIntervention)
-        if arguments.get("machine_id"):
-            query = query.where(
-                OrdresIntervention.machine_id == arguments["machine_id"]
-            )
-        if arguments.get("statut"):
-            query = query.where(OrdresIntervention.statut == arguments["statut"])
-        result = await db.execute(query.limit(50))
-        return [
-            {
-                "id": i.id,
-                "machine_id": i.machine_id,
-                "statut": i.statut,
-                "problem_description": i.problem_description,
-            }
-            for i in result.scalars().all()
-        ]
-
-    elif name == "get_plannings":
-        query = select(Plannings)
-        result = await db.execute(query.limit(50))
-        return [
-            {
-                "id": p.id,
-                "identifiant_planning": p.identifiant_planning,
-                "date_debut": str(p.date_debut),
-                "date_fin": str(p.date_fin),
-                "type": str(p.type),
-            }
+            {"id": p.id, "identifiant_planning": p.identifiant_planning,
+             "date_debut": str(p.date_debut), "date_fin": str(p.date_fin), "type": str(p.type)}
             for p in result.scalars().all()
         ]
-
-    elif name == "get_alerts":
-        query = select(Alert).where(Alert.is_active)
-        if arguments.get("priorite"):
-            query = query.where(Alert.priority == arguments["priorite"])
-        if arguments.get("machine_id"):
-            query = query.where(Alert.machine_id == arguments["machine_id"])
-        result = await db.execute(query.limit(20))
-        return [
-            {
-                "id": a.id,
-                "machine_id": a.machine_id,
-                "message": a.message,
-                "priority": a.priority,
-                "severity": str(a.severity),
-            }
-            for a in result.scalars().all()
-        ]
-
+    handler = _dispatch.get(name)
+    if handler:
+        return await handler(arguments, db)
     return {"error": f"Unknown tool: {name}"}

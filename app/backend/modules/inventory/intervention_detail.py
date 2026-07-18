@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.database import get_db
 from dependencies.auth import require_role
 from models.consumed_pieces import ConsumedPiece
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from models.pending_pieces import PendingPiece
 from models.pieces import Piece
 from models.required_pieces import RequiredPiece

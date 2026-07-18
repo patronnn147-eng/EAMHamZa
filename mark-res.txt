@@ -1,0 +1,13 @@
+
+1-cadre de project :
+EAMSagemCom predicts industrial machine failures before they happen  using 7 ML models covering failure probability, type, lifespan, anomalies, scheduling, and spare parts.
+
+Net result: SagemCom cuts unplanned downtime, lowers maintenance costs, and extends machine lifespan all compounding as models learn from real outcomes.
+2- decharger les infos de'image prblematique 
+3-functional requirement before methologie(its going to be 05)
+4-images et diagramme des architectures de project 
+5-diagramme d'activite
+6-use case diagram
+7-tableau de comparaison des models ml 
+8-benchmark des models ml 
+9-use case 

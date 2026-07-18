@@ -8,8 +8,8 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.plannings import Plannings, PlanningType, PlanningStatut
-from models.PlanningMachines import PlanningMachines
-from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.planning_machines import PlanningMachines
+from models.planning_utilisateurs import PlanningUtilisateurs
 from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
 from services.PlanningUtilisateurs import PlanningUtilisateursService
@@ -30,6 +30,84 @@ logger = logging.getLogger(__name__)
 _PLANNING_NOT_FOUND_MSG = "Planning not found"
 
 
+def _resolve_planning_statut(value: str | None) -> PlanningStatut:
+    """Return PlanningStatut from raw string; fall back to DRAFT on bad value."""
+    if value is None:
+        return PlanningStatut.DRAFT
+    try:
+        return PlanningStatut(value)
+    except ValueError:
+        return PlanningStatut.DRAFT
+
+
+def _collect_user_ids(data: "PlanningCreateData") -> list:
+    """Aggregate chef/tech user IDs from planning request into a deduplicated list."""
+    user_ids: set = set()
+    if data.chef_operation_id:
+        user_ids.add(data.chef_operation_id)
+    if data.chef_technique_id:
+        user_ids.add(data.chef_technique_id)
+    if data.technicien_ids:
+        user_ids.update(data.technicien_ids)
+    return list(user_ids)
+
+
+async def _add_machines_to_planning(
+    db: AsyncSession, planning_id: int, machine_ids: list, now: datetime
+) -> list:
+    """Insert PlanningMachines rows; return sorted deduped id list."""
+    deduped = sorted(set(machine_ids))
+    for machine_id in deduped:
+        db.add(PlanningMachines(planning_id=planning_id, machine_id=machine_id, created_at=now))
+    await db.commit()
+    return deduped
+
+
+async def _validate_shift_compatibility(
+    db: AsyncSession, all_assigned_users: list, shift_type: str | None, planning_type: str
+) -> None:
+    """Raise 400 when any assigned user has a mismatched shift_type for SHIFT plannings."""
+    if planning_type != PlanningType.SHIFT.value or not shift_type or not all_assigned_users:
+        return
+    mismatched_result = await db.execute(
+        select(Utilisateurs.id)
+        .where(Utilisateurs.id.in_(all_assigned_users))
+        .where(Utilisateurs.shift_type != shift_type)
+    )
+    mismatched_ids = [row[0] for row in mismatched_result.fetchall()]
+    if mismatched_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Users {mismatched_ids} do not match planning shift_type {shift_type}",
+        )
+
+
+async def _send_user_notifications(
+    db: AsyncSession,
+    planning_id: int,
+    identifiant: str,
+    planning_response_data: dict,
+    all_assigned_users: list,
+) -> None:
+    """Send in-app + email notifications to assigned users (no-op when list is empty)."""
+    if not all_assigned_users:
+        return
+    await send_planning_notifications(db, planning_id, identifiant, all_assigned_users)
+    users_result = await db.execute(
+        select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users))
+    )
+    users = users_result.scalars().all()
+    recipients = [
+        {"id": u.id, "nom": u.nom, "email": u.email}
+        for u in users
+        if getattr(u, "email", None)
+    ]
+    if recipients:
+        send_planning_assignment_emails.delay(
+            recipients, _serialize_planning_for_email(planning_response_data)
+        )
+
+
 @router.post("", response_model=PlanningResponse, status_code=status.HTTP_201_CREATED, responses={400: {"description": "Failed to create planning"}, 500: {"description": "Internal Server Error"}})
 async def create_planning(
     data: PlanningCreateData,
@@ -43,13 +121,7 @@ async def create_planning(
 
     try:
         # Create planning directly without service to avoid greenlet_spawn
-        planning_statut_value = PlanningStatut.DRAFT
-        if data.planning_statut:
-            # Validate the provided status if any
-            try:
-                planning_statut_value = PlanningStatut(data.planning_statut)
-            except ValueError:
-                planning_statut_value = PlanningStatut.DRAFT
+        planning_statut_value = _resolve_planning_statut(data.planning_statut)
 
         planning_data = {
             "identifiant_planning": data.identifiant_planning,
@@ -98,46 +170,13 @@ async def create_planning(
         }
 
         if data.machine_ids:
-            now = datetime.now()
-            for machine_id in sorted(set(data.machine_ids)):
-                db.add(
-                    PlanningMachines(
-                        planning_id=planning_id,
-                        machine_id=machine_id,
-                        created_at=now,
-                    )
-                )
-            await db.commit()
-            planning_response_data["machine_ids"] = sorted(set(data.machine_ids))
-
-        # Assign users (dedupe + single commit)
-        user_ids_set = set()
-        if data.chef_operation_id:
-            user_ids_set.add(data.chef_operation_id)
-        if data.chef_technique_id:
-            user_ids_set.add(data.chef_technique_id)
-        if data.technicien_ids:
-            user_ids_set.update(data.technicien_ids)
-
-        all_assigned_users = list(user_ids_set)
-
-        # Enforce user shift availability for SHIFT plannings
-        if (
-            data.type == PlanningType.SHIFT.value
-            and data.shift_type
-            and all_assigned_users
-        ):
-            mismatched_result = await db.execute(
-                select(Utilisateurs.id)
-                .where(Utilisateurs.id.in_(all_assigned_users))
-                .where(Utilisateurs.shift_type != data.shift_type)
+            planning_response_data["machine_ids"] = await _add_machines_to_planning(
+                db, planning_id, data.machine_ids, datetime.now()
             )
-            mismatched_ids = [row[0] for row in mismatched_result.fetchall()]
-            if mismatched_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Users {mismatched_ids} do not match planning shift_type {data.shift_type}",
-                )
+
+        # Assign users (dedupe + shift validation)
+        all_assigned_users = _collect_user_ids(data)
+        await _validate_shift_compatibility(db, all_assigned_users, data.shift_type, data.type)
 
         now = datetime.now()
         for user_id in all_assigned_users:
@@ -150,24 +189,9 @@ async def create_planning(
             )
         await db.commit()
 
-        if all_assigned_users:
-            await send_planning_notifications(
-                db, planning_id, data.identifiant_planning, all_assigned_users
-            )
-
-            users_result = await db.execute(
-                select(Utilisateurs).where(Utilisateurs.id.in_(all_assigned_users))
-            )
-            users = users_result.scalars().all()
-            recipients = [
-                {"id": u.id, "nom": u.nom, "email": u.email}
-                for u in users
-                if getattr(u, "email", None)
-            ]
-            if recipients:
-                send_planning_assignment_emails.delay(
-                    recipients, _serialize_planning_for_email(planning_response_data)
-                )
+        await _send_user_notifications(
+            db, planning_id, data.identifiant_planning, planning_response_data, all_assigned_users
+        )
 
         # Fetch assigned users and machines using helper function for accurate response
         fresh_planning = await PlanningsService(db).get_by_id(planning_id)

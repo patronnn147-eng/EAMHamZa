@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.machines import Machines
 from ..schemas import DashboardStats, DistributionSlice, InterventionDistributions
 from ..dependencies import verify_cheftech

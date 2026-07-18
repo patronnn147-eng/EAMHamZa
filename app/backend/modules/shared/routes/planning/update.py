@@ -8,8 +8,8 @@ from sqlalchemy import select, delete
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.PlanningMachines import PlanningMachines
-from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.planning_machines import PlanningMachines
+from models.planning_utilisateurs import PlanningUtilisateurs
 from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
 from tasks.planning_emails import send_planning_assignment_emails

@@ -65,7 +65,7 @@ async def compute_fleet_downtime(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select, func
     from models.ml_prediction_log import MlPredictionLog
     from models.machines import Machines
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
 
     now = datetime.now(timezone.utc)
     cache_key = str(horizon_days)

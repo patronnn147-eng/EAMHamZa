@@ -93,7 +93,7 @@ async def create_procurement_draft(
     The draft is NOT committed to DB here; caller commits.
     """
     from models.alertes import Alert, AlertType
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
 
     if not parts_demand or not parts_demand.get("items"):
         return None
@@ -163,7 +163,7 @@ async def approve_procurement_draft(
     Approve draft: DRAFT → SUBMITTED, enters normal CHEFTECH/ADMIN workflow.
     No inventory reservation here — happens when WO is validated downstream.
     """
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
 
     result = await db.execute(select(OrdresTravail).where(OrdresTravail.id == wo_id))
     wo = result.scalar_one_or_none()
@@ -191,7 +191,7 @@ async def reject_procurement_draft(
     Reject draft: DRAFT → ANNULÉ. Unlinks from PARTS_SHORTAGE alert.
     No reservation was ever made, so nothing to release.
     """
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
     from models.alertes import Alert
 
     result = await db.execute(select(OrdresTravail).where(OrdresTravail.id == wo_id))

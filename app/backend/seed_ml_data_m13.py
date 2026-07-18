@@ -36,12 +36,12 @@ from models.alertes import Alert  # noqa: F401 — registers Alert mapper
 from models.machine_telemetry import MachineTelemetry
 from models.machines import Machines
 from models.ml_prediction_log import MlPredictionLog
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail, OrdreStatut
-from models.PlanningMachines import PlanningMachines
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail, OrdreStatut
+from models.planning_machines import PlanningMachines
 from models.planning_OrdresTravail import PlanningOrdresTravail
-from models.PlanningTaches import PlanningTaches, TaskType
-from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.planning_taches import PlanningTaches, TaskType
+from models.planning_utilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings, PlanningStatut, PlanningType
 from models.utilisateurs import UserRole, UserStatus, Utilisateurs
 

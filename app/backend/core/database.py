@@ -523,6 +523,22 @@ class DatabaseManager:
 
         return missing
 
+    def _default_clause(self, default: str, column_type: str) -> str:
+        """Return a ' DEFAULT ...' SQL fragment for the given value and column type."""
+        upper = column_type.upper()
+        if default == "":
+            if upper in ("TEXT", "VARCHAR", "STRING"):
+                return " DEFAULT ''"
+            if upper in ("INTEGER", "BIGINT"):
+                return " DEFAULT 0"
+            if upper in ("BOOLEAN",):
+                return " DEFAULT false"
+            return " DEFAULT ''"
+        # Non-empty default value
+        if upper in ("TEXT", "VARCHAR", "STRING") and not default.isdigit():
+            return f" DEFAULT '{default}'"
+        return f" DEFAULT {default}"
+
     def _generate_add_column_sql(self, table_name: str, column_info: dict):
         """Generate ALTER TABLE ADD COLUMN SQL statement"""
         column_name = column_info["name"]
@@ -549,27 +565,7 @@ class DatabaseManager:
             sql += " NOT NULL"
 
         if default is not None:
-            # Handle different data types for default values
-            if default == "":
-                if column_type.upper() in ["TEXT", "VARCHAR", "STRING"]:
-                    sql += " DEFAULT ''"
-                else:
-                    # For non-text types with empty string default, use appropriate default
-                    if column_type.upper() in ["INTEGER", "BIGINT"]:
-                        sql += " DEFAULT 0"
-                    elif column_type.upper() in ["BOOLEAN"]:
-                        sql += " DEFAULT false"
-                    else:
-                        sql += " DEFAULT ''"
-            else:
-                # Quote string values for text types
-                if (
-                    column_type.upper() in ["TEXT", "VARCHAR", "STRING"]
-                    and not default.isdigit()
-                ):
-                    sql += f" DEFAULT '{default}'"
-                else:
-                    sql += f" DEFAULT {default}"
+            sql += self._default_clause(default, column_type)
         logger.debug(f"ALTER SQL: {sql}")
 
         return sql

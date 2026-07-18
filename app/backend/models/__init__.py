@@ -1,19 +1,19 @@
-﻿# Models package
+# Models package
 
 from . import utilisateurs  # noqa: F401
-from . import AlertesUrgentes  # noqa: F401
+from . import alertes_urgentes  # noqa: F401
 from . import archives  # noqa: F401
 from . import commentaires  # noqa: F401
 from . import machines  # noqa: F401
-from . import MaintenancesPlanifiees  # noqa: F401
+from . import maintenances_planifiees  # noqa: F401
 from . import notifications  # noqa: F401
 from . import ordres  # noqa: F401
-from . import OrdresIntervention  # noqa: F401
-from . import OrdresTravail  # noqa: F401
-from . import planning_OrdresTravail  # noqa: F401
-from . import PlanningMachines  # noqa: F401
-from . import PlanningUtilisateurs  # noqa: F401
-from . import PlanningTaches  # noqa: F401
+from . import ordres_intervention  # noqa: F401
+from . import ordres_travail  # noqa: F401
+from . import planning_ordres_travail  # noqa: F401
+from . import planning_machines  # noqa: F401
+from . import planning_utilisateurs  # noqa: F401
+from . import planning_taches  # noqa: F401
 from . import plannings  # noqa: F401
 from . import rapports  # noqa: F401
 from . import ml_prediction_log  # noqa: F401

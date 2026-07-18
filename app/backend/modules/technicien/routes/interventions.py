@@ -14,9 +14,9 @@ from core.rabbitmq import (
     ROUTING_KEY_INT_REQUESTED,
     ROUTING_KEY_INT_STATUS_CHANGED,
 )
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail
-from models.PlanningTaches import PlanningTaches
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail
+from models.planning_taches import PlanningTaches
 from models.utilisateurs import Utilisateurs, UserRole
 from core.security import verify_technicien
 from tasks.intervention_events import (

@@ -12,9 +12,9 @@ from core.database import get_db
 from core.security import verify_technicien
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.OrdresTravail import OrdresTravail, OrdreStatut
-from models.OrdresIntervention import OrdresIntervention
-from models.PlanningTaches import PlanningTaches
+from models.ordres_travail import OrdresTravail, OrdreStatut
+from models.ordres_intervention import OrdresIntervention
+from models.planning_taches import PlanningTaches
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
 from services.inventory import InventoryReservationService

@@ -150,8 +150,8 @@ async def list_in_scope_machines(
     from sqlalchemy import distinct, select
     from datetime import datetime, timedelta, timezone
     from models.machines import Machines
-    from models.PlanningMachines import PlanningMachines
-    from models.OrdresTravail import OrdresTravail
+    from models.planning_machines import PlanningMachines
+    from models.ordres_travail import OrdresTravail
 
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
 

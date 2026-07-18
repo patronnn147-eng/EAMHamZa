@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity  # noqa: E402
 from models.machines import Machines  # noqa: E402
 from models.machine_telemetry import MachineTelemetry  # noqa: E402
-from models.OrdresIntervention import OrdresIntervention  # noqa: E402
-from models.OrdresTravail import OrdresTravail  # noqa: E402
+from models.ordres_intervention import OrdresIntervention  # noqa: E402
+from models.ordres_travail import OrdresTravail  # noqa: E402
 from core.notifications import broadcaster  # noqa: E402
 
 logger = logging.getLogger(__name__)

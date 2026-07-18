@@ -122,12 +122,12 @@ def register_rag_hooks() -> None:
 
     # Import models lazily so SQLAlchemy mappers are configured first.
     from models.machines import Machines
-    from models.OrdresTravail import OrdresTravail
+    from models.ordres_travail import OrdresTravail
     from models.alertes import Alert
     from models.pieces import Piece
 
     try:
-        from models.MaintenancesPlanifiees import (
+        from models.maintenances_planifiees import (
             MaintenancesPlanifiees as maintenances_planifiees,
         )
     except Exception:

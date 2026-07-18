@@ -5,8 +5,8 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.ml_prediction_log import MlPredictionLog
 from models.machine_telemetry import MachineTelemetry
 from .logging import ShadowLogger
@@ -962,7 +962,7 @@ async def get_p7_kpis(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
     """
     from models.alertes import Alert, AlertType
     from models.ml_prediction_log import MlPredictionLog
-    from models.OrdresTravail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import OrdresTravail, OrdreStatut
     from sqlalchemy import func, distinct
 
     # Total machine count

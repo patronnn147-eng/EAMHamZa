@@ -18,8 +18,8 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail, OrdreStatut
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.plannings import Plannings
 from models.machines import Machines
 from services.audit import AuditService, AuditEntityType
@@ -101,7 +101,7 @@ async def create_intervention_from_planning(
         has_permission = planning.chef_operation_id == current_user.id
     else:
         # Check if technician is assigned to planning
-        from models.PlanningUtilisateurs import PlanningUtilisateurs
+        from models.planning_utilisateurs import PlanningUtilisateurs
 
         assignment = await db.scalar(
             select(PlanningUtilisateurs).where(

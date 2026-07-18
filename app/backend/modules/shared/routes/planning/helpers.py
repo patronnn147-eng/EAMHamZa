@@ -7,8 +7,8 @@ from sqlalchemy import select
 
 from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings, PlanningType
-from models.PlanningMachines import PlanningMachines
-from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.planning_machines import PlanningMachines
+from models.planning_utilisateurs import PlanningUtilisateurs
 from services.notifications import NotificationsService
 
 logger = logging.getLogger(__name__)

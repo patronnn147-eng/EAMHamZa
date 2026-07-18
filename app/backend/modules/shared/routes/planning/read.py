@@ -10,9 +10,9 @@ from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
 from models.plannings import Plannings
-from models.PlanningMachines import PlanningMachines
-from models.PlanningUtilisateurs import PlanningUtilisateurs
-from models.PlanningTaches import PlanningTaches
+from models.planning_machines import PlanningMachines
+from models.planning_utilisateurs import PlanningUtilisateurs
+from models.planning_taches import PlanningTaches
 from models.machines import Machines
 from services.plannings import PlanningsService
 from .schemas import PlanningResponse, PlanningMachineResponse, UserOption

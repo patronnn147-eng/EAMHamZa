@@ -10,8 +10,8 @@ from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
-from models.OrdresIntervention import OrdresIntervention
-from models.OrdresTravail import OrdresTravail
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdresTravail
 from ..schemas import InterventionResponse
 from ..dependencies import verify_cheftech
 

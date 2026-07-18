@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy.future import select
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
-from models.OrdresIntervention import OrdresIntervention
+from models.ordres_intervention import OrdresIntervention
 from models.ml_prediction_log import MlPredictionLog
 
 logger = logging.getLogger(__name__)

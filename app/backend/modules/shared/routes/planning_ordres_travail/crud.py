@@ -8,7 +8,7 @@ from sqlalchemy import select
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.PlanningUtilisateurs import PlanningUtilisateurs
+from models.planning_utilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings
 from services.planning_OrdresTravail import PlanningOrdresTravailService
 from ..planning_OrdresTravail.schemas import (
