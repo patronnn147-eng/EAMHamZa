@@ -885,6 +885,7 @@ async def get_anomaly_review_queue(
         .where(
             MlPredictionLog.is_anomaly.is_(True),
             MlPredictionLog.anomaly_verdict.is_(None),
+            MlPredictionLog.is_synthetic.is_(False),
         )
         .order_by(desc(MlPredictionLog.created_at))
         .limit(limit)

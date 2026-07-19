@@ -381,6 +381,7 @@ async def _seed_machine(
                 tool_wear=round(wear, 2),
                 recorded_at=recorded_at,
                 notes=f"Seed C{cycle_num:02d} step {step + 1}/{TELEMETRY_PER_CYCLE}",
+                is_synthetic=True,
             )
             db.add(telemetry)
             await db.flush()
@@ -402,6 +403,7 @@ async def _seed_machine(
                 tool_wear=int(wear),
                 ml_model_used=False,
                 created_at=recorded_at,
+                is_synthetic=True,
             )
             db.add(shadow)
 

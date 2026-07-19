@@ -57,6 +57,9 @@ class MlPredictionLog(Base):
     # Metadata
     data_points = Column(Integer, nullable=True)
     ml_model_used = Column(Boolean, nullable=True, default=False)
+    is_synthetic = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )  # True for rows created by seed_ml_data_all.py
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

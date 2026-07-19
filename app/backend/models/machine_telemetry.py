@@ -1,5 +1,5 @@
 from core.database import Base
-from sqlalchemy import Column, DateTime, Integer, Float, Text
+from sqlalchemy import Column, DateTime, Integer, Float, Text, Boolean
 from sqlalchemy.sql import func
 
 
@@ -22,6 +22,9 @@ class MachineTelemetry(Base):
 
     recorded_at = Column(DateTime(timezone=True), nullable=False)
     notes = Column(Text, nullable=True)
+    is_synthetic = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )  # True for rows created by seed_ml_data_all.py
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
