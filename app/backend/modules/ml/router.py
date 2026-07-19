@@ -160,6 +160,65 @@ async def _try_update_maintenance_schedule(machine, db: AsyncSession, schedule_d
     return rounded
 
 
+async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSession) -> Dict:
+    """P7 fix: ml-microservice is stateless and has no DB access, so
+    predict_parts_demand() computes shortfall/order/urgency against
+    on_hand=0 for every part (parts_catalog is a static snapshot baked
+    into the pkl at training time, not a live lookup — see p7_parts_demand.py
+    build_parts_demand()). That makes every part with any expected demand
+    look like a full shortfall, which is the mechanism behind P7's stale
+    12% precision / 100% recall. Re-price each item here against the real,
+    live Stock/Piece tables (the only place in the stack with DB access),
+    using the same shortfall/order/urgency formula as build_parts_demand.
+    """
+    items = parts_demand.get("items") or []
+    piece_ids = [i["piece_id"] for i in items if i.get("piece_id") is not None]
+    if not piece_ids:
+        return parts_demand
+
+    from models.pieces import Piece
+    from models.stock import Stock
+
+    query = (
+        select(Piece.id, Piece.name, Piece.reference, Piece.min_stock, Stock.quantity)
+        .outerjoin(Stock, Stock.piece_id == Piece.id)
+        .where(Piece.id.in_(piece_ids))
+    )
+    rows = (await db.execute(query)).all()
+    real_stock = {
+        row.id: {
+            "name": row.name,
+            "reference": row.reference,
+            "min_stock": float(row.min_stock or 0),
+            "on_hand": float(row.quantity or 0),
+        }
+        for row in rows
+    }
+
+    for item in items:
+        meta = real_stock.get(item["piece_id"])
+        if not meta:
+            continue  # piece no longer catalogued — leave the pkl's stale numbers as-is
+        expected = item.get("expected_qty", 0.0)
+        on_hand = meta["on_hand"]
+        min_stock = meta["min_stock"]
+        shortfall = max(0.0, expected - on_hand)
+        order = max(shortfall, min_stock - on_hand, 0.0)
+        item["on_hand"] = on_hand
+        item["min_stock"] = int(min_stock)
+        item["shortfall"] = round(shortfall, 3)
+        item["recommended_order_qty"] = round(order, 3)
+        item["urgency_score"] = round(min(1.0, (shortfall / expected) if expected else 0.0), 4)
+        if meta["name"]:
+            item["name"] = meta["name"]
+        if meta["reference"]:
+            item["reference"] = meta["reference"]
+
+    items.sort(key=lambda i: (-i["urgency_score"], -i["shortfall"]))
+    parts_demand["items"] = items
+    return parts_demand
+
+
 @router.get("/machines/{machine_id}/unified-health", responses={404: {"description": "Machine non trouvée"}})
 async def get_unified_health(
     machine_id: int, db: Annotated[AsyncSession, Depends(get_db)]
@@ -261,6 +320,8 @@ async def get_unified_health(
     )
 
     _parts_demand = fusion_result.get("p7_parts_demand") if fusion_result else None
+    if _parts_demand:
+        _parts_demand = await _enrich_parts_demand_with_real_stock(_parts_demand, db)
     response["parts_demand"] = _parts_demand
 
     try:
@@ -798,6 +859,90 @@ async def get_shadow_logs(
     return PaginatedResponse.create(
         items=items, total=total_count, page=page, size=size
     )
+
+
+_ANOMALY_VERDICTS = {"CONFIRMED", "FALSE_POSITIVE", "BENIGN_TRANSIENT"}
+
+
+class AnomalyVerdictData(BaseModel):
+    verdict: str  # CONFIRMED / FALSE_POSITIVE / BENIGN_TRANSIENT
+    root_cause_if_found: Optional[str] = None
+
+
+@router.get("/anomaly-review/queue")
+async def get_anomaly_review_queue(
+    *, limit: Annotated[int, Query(ge=1, le=200, description="Max flags to return")] = 50,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Dict:
+    """
+    P4 evaluation loop: flagged anomalies awaiting technician adjudication.
+    First-ever ground truth source for the unsupervised anomaly ensemble —
+    without this, P4's precision/recall can never be measured.
+    """
+    query = (
+        select(MlPredictionLog)
+        .where(
+            MlPredictionLog.is_anomaly.is_(True),
+            MlPredictionLog.anomaly_verdict.is_(None),
+        )
+        .order_by(desc(MlPredictionLog.created_at))
+        .limit(limit)
+    )
+    result = await db.execute(query)
+    logs = result.scalars().all()
+
+    return {
+        "pending_count": len(logs),
+        "items": [
+            {
+                "id": log.id,
+                "machine_id": log.machine_id,
+                "machine_name": log.machine_name,
+                "anomaly_score": log.anomaly_score,
+                "sensor_snapshot": {
+                    "air_temperature": log.air_temperature,
+                    "process_temperature": log.process_temperature,
+                    "rotational_speed": log.rotational_speed,
+                    "torque": log.torque,
+                    "tool_wear": log.tool_wear,
+                },
+                "flagged_at": log.created_at.isoformat() if log.created_at else None,
+            }
+            for log in logs
+        ],
+    }
+
+
+@router.patch("/anomaly-review/{log_id}", responses={404: {"description": "Prediction log not found"}, 400: {"description": "Invalid verdict"}})
+async def submit_anomaly_verdict(
+    log_id: int,
+    data: AnomalyVerdictData,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(get_current_user)],
+) -> Dict:
+    """Technician adjudication of a P4 anomaly flag: was it real?"""
+    if data.verdict not in _ANOMALY_VERDICTS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"verdict must be one of {sorted(_ANOMALY_VERDICTS)}",
+        )
+
+    result = await db.execute(select(MlPredictionLog).where(MlPredictionLog.id == log_id))
+    log = result.scalar_one_or_none()
+    if not log:
+        raise HTTPException(status_code=404, detail="Prediction log not found")
+
+    log.anomaly_verdict = data.verdict
+    log.anomaly_root_cause = data.root_cause_if_found
+    log.anomaly_reviewed_by = current_user.id if current_user else None
+    log.anomaly_reviewed_at = datetime.now(timezone.utc)
+    await db.commit()
+
+    return {
+        "id": log.id,
+        "anomaly_verdict": log.anomaly_verdict,
+        "anomaly_reviewed_at": log.anomaly_reviewed_at.isoformat(),
+    }
 
 
 @router.patch("/machines/{machine_id}/telemetry", responses={404: {"description": "Machine non trouvée"}})

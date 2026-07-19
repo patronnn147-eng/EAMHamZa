@@ -310,6 +310,7 @@ async def _seed_machine(
             actual_failure_type=cfg["failure_type"],
             ml_prediction_matched=False,
             retrained=False,
+            is_synthetic=True,
             intervention_type=cfg["itv_type"],
             machine_status_after="OPERATIONNELLE",
             priority=cfg["priority"],

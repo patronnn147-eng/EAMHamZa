@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModelHealthTable } from './ModelHealthTable';
+import { AnomalyReviewQueue } from './AnomalyReviewQueue';
 
 interface MLStats {
     new_data_points: number;
@@ -147,6 +148,8 @@ export default function MLDashboard() {
             </div>
 
             <ModelHealthTable />
+
+            <AnomalyReviewQueue />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Data Collection Card */}

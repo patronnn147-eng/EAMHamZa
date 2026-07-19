@@ -35,6 +35,11 @@ class MlPredictionLog(Base):
     # P4: Anomaly Detection
     is_anomaly = Column(Boolean, nullable=True, default=False)
     anomaly_score = Column(Float, nullable=True)
+    # P4 adjudication — technician review of a flagged anomaly (nullable until reviewed)
+    anomaly_verdict = Column(String(30), nullable=True)  # CONFIRMED / FALSE_POSITIVE / BENIGN_TRANSIENT
+    anomaly_root_cause = Column(Text, nullable=True)
+    anomaly_reviewed_by = Column(Integer, nullable=True)
+    anomaly_reviewed_at = Column(DateTime(timezone=True), nullable=True)
 
     # P2: Failure Type (stored as JSON string, e.g. '{"TWF": true, "HDF": false, ...}')
     p2_failure_types = Column(Text, nullable=True)

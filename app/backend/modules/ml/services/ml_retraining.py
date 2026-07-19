@@ -57,18 +57,6 @@ MODEL_FILES = {
 MAX_MODEL_VERSIONS = 3
 
 
-def _priority_proxy_value(is_failure: int, tool_wear: float, high_wear_thresh: float) -> int:
-    """Derive a P5 priority-proxy label from failure flag and tool wear.
-
-    Extracted out of a nested conditional expression (sonar:S3358).
-    """
-    if is_failure == 1 and tool_wear >= high_wear_thresh:
-        return 0
-    if is_failure == 1:
-        return 1
-    return 2
-
-
 class RetrainingService:
     @staticmethod
     async def get_retraining_stats(db: AsyncSession):
@@ -186,16 +174,24 @@ class RetrainingService:
             }
 
         if mt == "p5":
-            max_wear = train_df[_COL_TOOL_WEAR].max()
-            high_thresh = max_wear * 0.75
+            # Real dispatcher-assigned priority (OrdresIntervention.priority),
+            # not derived from tool_wear. Rows without one (e.g. baseline
+            # ai4i2020.csv, which has no priority concept) default to
+            # MOYENNE — same fallback convention already used in
+            # ordres_intervention/validation.py. Must fill rather than drop:
+            # X is built from this same train_df/val_df by the caller, so
+            # row count/index have to stay aligned with y/y_val.
             train_df = train_df.copy()
             val_df = val_df.copy()
-
-            def _pri(row, ht=high_thresh):
-                return _priority_proxy_value(row[_COL_MACHINE_FAILURE], row[_COL_TOOL_WEAR], ht)
-
-            train_df["_priority_proxy"] = train_df.apply(_pri, axis=1)
-            val_df["_priority_proxy"] = val_df.apply(_pri, axis=1)
+            _PRIORITY_MAP = {"URGENTE": 0, "ÉLEVÉE": 1, "MOYENNE": 2, "BASSE": 3}
+            pri_train = train_df.get("priority", _pd.Series([None] * len(train_df)))
+            pri_val = val_df.get("priority", _pd.Series([None] * len(val_df)))
+            train_df["_priority_proxy"] = (
+                pri_train.map(_PRIORITY_MAP).fillna(_PRIORITY_MAP["MOYENNE"]).astype(int)
+            )
+            val_df["_priority_proxy"] = (
+                pri_val.map(_PRIORITY_MAP).fillna(_PRIORITY_MAP["MOYENNE"]).astype(int)
+            )
             return {
                 "y": train_df["_priority_proxy"],
                 "y_val": val_df["_priority_proxy"],
@@ -253,8 +249,10 @@ class RetrainingService:
             from sklearn.ensemble import RandomForestClassifier as _RFC
             model = _RFC(n_estimators=100, random_state=42, min_samples_leaf=1, max_features="sqrt")
             model.fit(X, targets["y"])
-            return {"model": model, "features": existing_features, "labels": ["P1", "P2", "P3"],
-                    "metrics": {**meta, "priority_source": "failure_proxy"}}
+            # Order must match the _PRIORITY_MAP index in _prepare_model_targets.
+            return {"model": model, "features": existing_features,
+                    "labels": ["URGENTE", "ÉLEVÉE", "MOYENNE", "BASSE"],
+                    "metrics": {**meta, "priority_source": "real_dispatcher_priority"}}
 
         return None
 
@@ -387,6 +385,7 @@ class RetrainingService:
             .where(
                 OrdresIntervention.actual_failure_type.is_not(None),
                 OrdresIntervention.retrained.is_(False),
+                OrdresIntervention.is_synthetic.is_(False),
                 MlPredictionLog.created_at <= OrdresIntervention.requested_at,
             )
             .order_by(MlPredictionLog.created_at.desc())
@@ -413,6 +412,7 @@ class RetrainingService:
                 _COL_MACHINE_FAILURE: is_failure,
                 "actual_failure_type": intervention.actual_failure_type,
                 "machine_id": intervention.machine_id,
+                "priority": intervention.priority,
             })
 
         try:

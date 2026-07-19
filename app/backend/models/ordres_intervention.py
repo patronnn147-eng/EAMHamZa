@@ -53,6 +53,9 @@ class OrdresIntervention(Base):
     retrained = Column(
         Boolean, nullable=True, default=False
     )  # Has this feedback been used to retrain the model?
+    is_synthetic = Column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )  # True for rows created by seed_ml_data_all.py — excluded from ML retrain ground truth
 
     # --- New Enhanced DI Fields ---
     machine_category = Column(String(50), nullable=True)  # critical / non-critical
