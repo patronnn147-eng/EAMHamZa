@@ -227,7 +227,30 @@ class RetrainingService:
             from sklearn.multioutput import MultiOutputClassifier
             from xgboost import XGBClassifier as _XGBC
             model = MultiOutputClassifier(_XGBC(n_estimators=100, max_depth=4, eval_metric="logloss", random_state=42))
-            model.fit(X, targets["y"])
+            model.fit(X, targets["y"])  # initial fit populates model.estimators_ structure
+
+            # Per-class imbalance weighting: MultiOutputClassifier clones the
+            # SAME estimator params for every label, so a single scale_pos_weight
+            # set at construction would apply uniformly regardless of each
+            # failure type's actual rarity (RNF/TWF are far rarer than the
+            # others in the debug run: F1=0%/11% vs macro 69%). Re-fit each
+            # per-label estimator individually with its own class-appropriate
+            # weight, then swap it into model.estimators_ in place —
+            # predictions.py reads model.estimators_ directly, so the object
+            # stays a normal fitted MultiOutputClassifier from the outside.
+            y_df = targets["y"]
+            for i, col in enumerate(y_df.columns):
+                y_col = y_df[col]
+                n_pos = int(y_col.sum())
+                n_neg = len(y_col) - n_pos
+                scale_pos_weight = (n_neg / n_pos) if n_pos > 0 else 1.0
+                per_label_model = _XGBC(
+                    n_estimators=100, max_depth=4, eval_metric="logloss",
+                    random_state=42, scale_pos_weight=scale_pos_weight,
+                )
+                per_label_model.fit(X, y_col)
+                model.estimators_[i] = per_label_model
+
             return {"model": model, "features": existing_features,
                     "labels": targets.get("labels"), "metrics": meta}
 

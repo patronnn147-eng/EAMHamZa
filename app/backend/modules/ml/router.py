@@ -199,6 +199,8 @@ async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSess
         for row in rows
     }
 
+    horizon = parts_demand.get("horizon_days") or 30
+
     for item in items:
         meta = real_stock.get(item["piece_id"])
         if not meta:
@@ -208,11 +210,21 @@ async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSess
         min_stock = meta["min_stock"]
         shortfall = max(0.0, expected - on_hand)
         order = max(shortfall, min_stock - on_hand, 0.0)
+        # Mirrors p7_parts_demand.py build_parts_demand()/stock_coverage_days
+        # exactly — this function re-prices items after the ml-microservice
+        # call. stock_coverage_days is display-only (see the NOTE in that
+        # file): algebraically identical to shortfall/expected whenever
+        # shortfall>0, so it's computed here purely for display consistency,
+        # not used to adjust urgency_score.
+        daily_burn = expected / horizon if horizon else 0.0
+        coverage = (on_hand / daily_burn) if daily_burn > 0 else None
+        urgency = round(min(1.0, (shortfall / expected) if expected else 0.0), 4)
         item["on_hand"] = on_hand
         item["min_stock"] = int(min_stock)
         item["shortfall"] = round(shortfall, 3)
         item["recommended_order_qty"] = round(order, 3)
-        item["urgency_score"] = round(min(1.0, (shortfall / expected) if expected else 0.0), 4)
+        item["stock_coverage_days"] = round(coverage, 1) if coverage is not None else None
+        item["urgency_score"] = urgency
         if meta["name"]:
             item["name"] = meta["name"]
         if meta["reference"]:
