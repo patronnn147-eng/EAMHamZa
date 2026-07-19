@@ -131,15 +131,6 @@ class RetrainingService:
         if mt == "p6":
             return None  # no label data yet
 
-        if mt == "p4":
-            # Ensemble refit not implemented: _fit_model_for_type would fit a
-            # bare IsolationForest and joblib.dump it over the live pkl, but
-            # the deployed v2 ensemble format requires weights/thresholds/
-            # training_stats/ae_scaler alongside iso_model. Overwriting would
-            # silently break production inference. Skip until real ensemble
-            # refit logic exists (see ML roadmap Phase 4.3).
-            return None
-
         if mt == "p2":
             train_df = train_df.copy()
             val_df = val_df.copy()
@@ -262,11 +253,39 @@ class RetrainingService:
                     "metrics": {**meta, "rul_source": "tool_wear_proxy"}}
 
         if mt == "p4":
+            # Rebuilds 2 of the deployed ensemble's 4 components (Isolation
+            # Forest 30% + Z-score 20%) from real data. Autoencoder (40%) and
+            # Cluster Deviation (10%) are intentionally omitted: Autoencoder
+            # is already always skipped in this runtime (no TensorFlow), and
+            # Cluster Deviation's exact construction (which clustering setup
+            # the original research notebook used) isn't visible from this
+            # service, so it's not guessed at. detect_anomaly() already
+            # renormalizes weights by whatever components are actually
+            # present (total_weight = sum of available weights), which is
+            # the same mechanism that already handles the missing
+            # Autoencoder today — so a 2-component ensemble here is a real,
+            # functioning degradation of the original design, not a broken one.
             from sklearn.ensemble import IsolationForest
             model = IsolationForest(n_estimators=100, contamination=0.04, max_samples=0.9, random_state=42)
             model.fit(X)
-            return {"model": model, "features": existing_features,
-                    "best_params": {"n_estimators": 100, "contamination": 0.04}, "metrics": meta}
+
+            means = X.mean()
+            stds = X.std().replace(0, 1.0)
+            if_scores = -model.decision_function(X)
+            z_scores = ((X - means) / stds).abs().max(axis=1)
+
+            return {
+                "model": model,
+                "features": existing_features,
+                "weights": {"if": 0.30, "zscore": 0.20},
+                "thresholds": {
+                    "if_min": float(if_scores.min()), "if_max": float(if_scores.max()),
+                    "zscore_min": float(z_scores.min()), "zscore_max": float(z_scores.max()),
+                },
+                "training_stats": {"mean": means.tolist(), "std": stds.tolist()},
+                "best_params": {"n_estimators": 100, "contamination": 0.04},
+                "metrics": {**meta, "ensemble_components": "if+zscore (cluster+ae intentionally omitted)"},
+            }
 
         if mt == "p5":
             from sklearn.ensemble import RandomForestClassifier as _RFC
@@ -363,9 +382,6 @@ class RetrainingService:
         if targets is None:
             _SKIP_REASONS = {
                 "p6": "P6 requires actual maintenance scheduling outcomes",
-                "p4": "P4 ensemble refit not implemented — retraining would overwrite "
-                      "the ensemble pkl (weights/thresholds/training_stats/ae_scaler) "
-                      "with a bare IsolationForest",
             }
             return {"model": mt, "status": "skipped",
                     "reason": _SKIP_REASONS.get(mt, "no label data available")}
