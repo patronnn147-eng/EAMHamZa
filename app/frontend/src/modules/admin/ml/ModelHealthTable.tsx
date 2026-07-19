@@ -5,7 +5,8 @@ import { AlertTriangle, CheckCircle, RefreshCw } from 'lucide-react';
 const API = import.meta.env.VITE_API_BASE_URL || '';
 const token = () => localStorage.getItem('access_token');
 
-interface ModelRow { key: string; label: string; in_backend: boolean; in_micro: boolean; hash_match: boolean; mtime_backend: number | null }
+interface HeadlineMetric { name: string; value: number; per_label?: Record<string, number> }
+interface ModelRow { key: string; label: string; in_backend: boolean; in_micro: boolean; hash_match: boolean; mtime_backend: number | null; headline_metric: HeadlineMetric | null }
 interface Health { models: ModelRow[]; divergences: { filename: string; reason: string }[]; drift: { verdict: string }; retrain: { recommended: boolean; reasons: string[] } }
 
 function ago(mtime: number | null): string {
@@ -52,7 +53,7 @@ export function ModelHealthTable() {
       <div className="rounded-lg border border-slate-700 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800 text-blue-300 text-xs">
-            <tr><th className="text-left px-3 py-2">Modèle</th><th className="text-left px-3 py-2">Synchro</th><th className="text-left px-3 py-2">Dernier entraînement</th></tr>
+            <tr><th className="text-left px-3 py-2">Modèle</th><th className="text-left px-3 py-2">Synchro</th><th className="text-left px-3 py-2">Précision</th><th className="text-left px-3 py-2">Dernier entraînement</th></tr>
           </thead>
           <tbody>
             {h.models.map((m) => {
@@ -72,6 +73,13 @@ export function ModelHealthTable() {
                   {inSync
                     ? <span className="text-emerald-400 inline-flex items-center gap-1"><CheckCircle className="h-3.5 w-3.5" /> à jour</span>
                     : <span className="text-red-400 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {mismatchReason}</span>}
+                </td>
+                <td className="px-3 py-2">
+                  {m.headline_metric
+                    ? <span className="text-slate-200 font-medium" title={m.headline_metric.per_label ? Object.entries(m.headline_metric.per_label).map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`).join(' · ') : undefined}>
+                        {(m.headline_metric.value * 100).toFixed(1)}% <span className="text-slate-500 text-xs">{m.headline_metric.name}</span>
+                      </span>
+                    : <span className="text-slate-500">—</span>}
                 </td>
                 <td className="px-3 py-2 text-blue-300">{ago(m.mtime_backend)}</td>
               </tr>

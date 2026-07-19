@@ -151,8 +151,8 @@ services:
       minio:
         condition: service_started
     volumes:
-      - ./app/ml-microservice/models:/ml-microservice/models:ro
-      - ./app/ml-microservice/models:/app/modules/ml/models:ro
+      - ./app/ml-microservice/models:/ml-microservice/models
+      - ./app/ml-microservice/models:/app/modules/ml/models
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/api/v1/health" ]
       interval: 30s

@@ -31,6 +31,20 @@ interface ModelMetrics {
     roc_auc?: number;
     pr_auc?: number;
     f1_failure?: number;
+    retrained_at?: string;
+}
+
+function formatRelativeTime(isoDate: string): string {
+    const then = new Date(isoDate).getTime();
+    if (Number.isNaN(then)) return 'Date inconnue';
+    const diffMs = Date.now() - then;
+    const diffMin = Math.round(diffMs / 60000);
+    if (diffMin < 1) return "À l'instant";
+    if (diffMin < 60) return `Il y a ${diffMin} min`;
+    const diffH = Math.round(diffMin / 60);
+    if (diffH < 24) return `Il y a ${diffH} h`;
+    const diffD = Math.round(diffH / 24);
+    return `Il y a ${diffD} j`;
 }
 
 interface RetrainResult {
@@ -201,9 +215,12 @@ export default function MLDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-1">
-                            <span className="text-xl font-bold text-blue-100">Il y a 2 jours</span>
+                            <span className="text-xl font-bold text-blue-100">
+                                {metrics?.retrained_at ? formatRelativeTime(metrics.retrained_at) : 'Jamais'}
+                            </span>
                             <span className="text-xs text-blue-300 text-emerald-600 font-medium flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" /> État : Stable
+                                <CheckCircle2 className="h-3 w-3" />
+                                État : {metrics?.retrained_at ? 'Stable' : 'Aucune donnée'}
                             </span>
                         </div>
                     </CardContent>

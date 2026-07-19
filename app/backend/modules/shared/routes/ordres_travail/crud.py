@@ -8,8 +8,8 @@ from core.auth import get_current_user
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
 from services.audit import AuditService, AuditEntityType
-from services.OrdresTravail import OrdresTravailService
-from ..OrdresTravail.schemas import (
+from services.ordres_travail import OrdresTravailService
+from .schemas import (
     OrdresTravailData,
     OrdresTravailUpdateData,
     OrdresTravailResponse,
@@ -149,13 +149,13 @@ async def create_OrdresTravail(
             await AuditService(db).log_create(
                 entity_type=AuditEntityType.WORK_ORDER,
                 entity_id=result.id,
-                new_values=data.model_dump(),
+                new_values=data.model_dump(mode="json"),
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=getattr(result, "titre", None),
             )
         except Exception:
-            logger.warning("Audit log failed for create work order %s", result.id)
+            logger.warning("Audit log failed for create work order %s", safe_id)
 
         return result
     except ValueError as e:
@@ -182,18 +182,19 @@ async def create_OrdresTravails_batch(
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
+                safe_item_id = str(result.id).replace("\r", "").replace("\n", "")
                 try:
                     await AuditService(db).log_create(
                         entity_type=AuditEntityType.WORK_ORDER,
                         entity_id=result.id,
-                        new_values=item_data.model_dump(),
+                        new_values=item_data.model_dump(mode="json"),
                         user_id=current_user.id,
                         user_name=current_user.nom,
                         entity_name=getattr(result, "titre", None),
                     )
                 except Exception:
                     logger.warning(
-                        "Audit log failed for batch create work order %s", result.id
+                        "Audit log failed for batch create work order %s", safe_item_id
                     )
 
         logger.info(f"Batch created {len(results)} OrdresTravails successfully")

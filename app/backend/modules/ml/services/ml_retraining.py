@@ -40,7 +40,8 @@ MODELS_DIR = os.getenv(
     ),
 )
 DATA_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "ai4i2020.csv"
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+    "ai4i2020.csv",
 )
 
 # Model file mapping
@@ -48,7 +49,7 @@ MODEL_FILES = {
     "p1": "basic_machine_model.pkl",
     "p2": "ml_model_p2_failure_type.pkl",
     "p3": "ml_model_p3_rul.pkl",
-    "p4": "ml_model_p4_anomaly.pkl",
+    "p4": "ml_model_p4_anomaly_v2.pkl",
     "p5": "ml_model_p5_priority.pkl",
     "p6": "ml_model_p6_schedule.pkl",
 }
@@ -73,8 +74,8 @@ class RetrainingService:
     async def get_retraining_stats(db: AsyncSession):
         """Get number of new data points available for retraining."""
         query = select(func.count(OrdresIntervention.id)).where(
-            OrdresIntervention.actual_failure_type is not None,
-            not OrdresIntervention.retrained,
+            OrdresIntervention.actual_failure_type.is_not(None),
+            OrdresIntervention.retrained.is_(False),
         )
         result = await db.execute(query)
         new_points = result.scalar_one()
@@ -141,6 +142,15 @@ class RetrainingService:
 
         if mt == "p6":
             return None  # no label data yet
+
+        if mt == "p4":
+            # Ensemble refit not implemented: _fit_model_for_type would fit a
+            # bare IsolationForest and joblib.dump it over the live pkl, but
+            # the deployed v2 ensemble format requires weights/thresholds/
+            # training_stats/ae_scaler alongside iso_model. Overwriting would
+            # silently break production inference. Skip until real ensemble
+            # refit logic exists (see ML roadmap Phase 4.3).
+            return None
 
         if mt == "p2":
             train_df = train_df.copy()
@@ -260,7 +270,17 @@ class RetrainingService:
 
             if mt == "p1":
                 score = float(_f1(y_val, preds, zero_division=0))
-                return score >= min_f1, {"val_f1": round(score, 4)}
+                metrics = {"val_f1": round(score, 4), "f1_failure": round(score, 4)}
+                # roc_auc/pr_auc — displayed by the admin ML dashboard card,
+                # computed here since predict_proba needs the fitted model.
+                try:
+                    from sklearn.metrics import roc_auc_score as _roc, average_precision_score as _pr
+                    proba = model.predict_proba(x_val)[:, 1]
+                    metrics["roc_auc"] = round(float(_roc(y_val, proba)), 4)
+                    metrics["pr_auc"] = round(float(_pr(y_val, proba)), 4)
+                except Exception as _auc_exc:
+                    logger.warning(f"ROC/PR-AUC computation failed for p1: {_auc_exc}")
+                return score >= min_f1, metrics
             if mt == "p2":
                 score = float(_f1(y_val, preds, average="macro", zero_division=0))
                 return score >= min_f1, {"val_f1_macro": round(score, 4)}
@@ -282,7 +302,15 @@ class RetrainingService:
         """Full retrain cycle for one model type. Returns a status dict."""
         existing_data = joblib.load(model_path)
         existing_features = existing_data.get("features", [])
-        xgb_features = existing_data.get("xgb_features", existing_features)
+        xgb_features = existing_data.get("xgb_features")
+        if not xgb_features and existing_features:
+            # No safe-name mapping stored on this pkl — derive one. XGBoost
+            # rejects '[', ']', '<' in feature names; sklearn models don't
+            # care, so this is a no-op risk-wise for non-XGBoost model types.
+            xgb_features = [
+                f.replace("[", "").replace("]", "").replace("<", "").strip()
+                for f in existing_features
+            ]
 
         if xgb_features:
             X = train_df[existing_features].copy()
@@ -295,12 +323,28 @@ class RetrainingService:
 
         targets = RetrainingService._prepare_model_targets(mt, train_df, val_df)
         if targets is None:
+            _SKIP_REASONS = {
+                "p6": "P6 requires actual maintenance scheduling outcomes",
+                "p4": "P4 ensemble refit not implemented — retraining would overwrite "
+                      "the ensemble pkl (weights/thresholds/training_stats/ae_scaler) "
+                      "with a bare IsolationForest",
+            }
             return {"model": mt, "status": "skipped",
-                    "reason": "P6 requires actual maintenance scheduling outcomes"}
+                    "reason": _SKIP_REASONS.get(mt, "no label data available")}
 
         backup_path = RetrainingService._backup_model(mt)
-        model_data = RetrainingService._fit_model_for_type(mt, X, targets, existing_data, n_samples)
+        try:
+            model_data = RetrainingService._fit_model_for_type(mt, X, targets, existing_data, n_samples)
+        except Exception as fit_exc:
+            # _backup_model already renamed the live pkl away — restore it
+            # before propagating, or a fit failure permanently orphans the model.
+            if backup_path and os.path.exists(backup_path):
+                os.rename(backup_path, model_path)
+            logger.exception(f"Fit failed for {mt}, restored backup: {fit_exc}")
+            return {"model": mt, "status": "failed", "error": str(fit_exc)}
         if model_data is None:
+            if backup_path and os.path.exists(backup_path):
+                os.rename(backup_path, model_path)
             return {"model": mt, "status": "skipped", "reason": "unknown model type"}
 
         validation = RetrainingService.validate_model(mt, model_data)
@@ -341,8 +385,8 @@ class RetrainingService:
             select(OrdresIntervention, MlPredictionLog)
             .join(MlPredictionLog, OrdresIntervention.machine_id == MlPredictionLog.machine_id)
             .where(
-                OrdresIntervention.actual_failure_type is not None,
-                not OrdresIntervention.retrained,
+                OrdresIntervention.actual_failure_type.is_not(None),
+                OrdresIntervention.retrained.is_(False),
                 MlPredictionLog.created_at <= OrdresIntervention.requested_at,
             )
             .order_by(MlPredictionLog.created_at.desc())
@@ -368,6 +412,7 @@ class RetrainingService:
                 _COL_TOOL_WEAR: log.tool_wear,
                 _COL_MACHINE_FAILURE: is_failure,
                 "actual_failure_type": intervention.actual_failure_type,
+                "machine_id": intervention.machine_id,
             })
 
         try:
@@ -376,13 +421,48 @@ class RetrainingService:
 
             baseline_df = pd.read_csv(DATA_PATH)
             combined_df = pd.concat([baseline_df, pd.DataFrame(new_data)], ignore_index=True)
-            _train_df, _val_df = _tts(
-                combined_df, test_size=0.2, random_state=42,
-                stratify=combined_df.get(_COL_MACHINE_FAILURE, None),
+            # Engineered features expected by P1/P2/P5/P6 (mirrors
+            # ml-microservice/src/core/feature_pipeline.py FeaturePipeline.build_7,
+            # which computes these at inference time but never persists them).
+            combined_df["temp_delta"] = (
+                combined_df["Process temperature [K]"] - combined_df["Air temperature [K]"]
             )
+            combined_df["rpm_torque"] = (
+                combined_df["Rotational speed [rpm]"] * combined_df["Torque [Nm]"]
+            ) / 1000.0
+            # P6's 8th feature (mirrors predictions.py:523 fallback: wear ** 2).
+            combined_df["tool_wear_sq"] = combined_df[_COL_TOOL_WEAR] ** 2
+
+            # Group-based split: hold out one WHOLE machine for validation
+            # instead of a random row shuffle. Our seeded cycles are smooth
+            # interpolations — adjacent rows within a cycle are near-duplicates,
+            # so a random split leaks near-identical rows into both train and
+            # validation and inflates the score. Validating on a machine the
+            # model never trained on is the only way to know if it generalizes.
+            # Baseline ai4i2020.csv rows have no machine_id — always train-only,
+            # they're real historical data, not synthetic, no leakage risk.
+            machine_ids = sorted(combined_df["machine_id"].dropna().unique()) if "machine_id" in combined_df else []
+            if len(machine_ids) >= 2:
+                holdout_machine = machine_ids[-1]
+                val_mask = combined_df["machine_id"] == holdout_machine
+                _val_df = combined_df[val_mask]
+                _train_df = combined_df[~val_mask]
+                logger.info(f"Group-holdout validation: machine_id={holdout_machine} held out entirely ({len(_val_df)} rows).")
+            else:
+                logger.warning("Fewer than 2 machines with ground truth — falling back to random split (score may be inflated by leakage).")
+                _train_df, _val_df = _tts(
+                    combined_df, test_size=0.2, random_state=42,
+                    stratify=combined_df.get(_COL_MACHINE_FAILURE, None),
+                )
 
             _MIN_CLASSIFIER_F1 = 0.70
-            _MIN_REGRESSOR_R2  = 0.40
+            # P3 (the only model this currently gates — P6 is hard-skipped) proved
+            # a genuine 0.67 R2 under group-holdout validation. 0.40 was a
+            # placeholder that would let almost any retrain pass, including a
+            # regression back toward the pre-fix leakage-inflated baseline.
+            # 0.60 gives a small buffer under the validated number without
+            # being a hair-trigger on normal retrain variance.
+            _MIN_REGRESSOR_R2  = 0.60
             model_types = list(MODEL_FILES.keys()) if model_type == "all" else [model_type]
             models_retrained = []
 
@@ -393,9 +473,16 @@ class RetrainingService:
                 if not os.path.exists(model_path):
                     models_retrained.append({"model": mt, "status": "skipped", "reason": "Model file not found"})
                     continue
-                result = RetrainingService._retrain_one_model(
-                    mt, model_path, _train_df, _val_df, len(new_data), _MIN_CLASSIFIER_F1, _MIN_REGRESSOR_R2
-                )
+                try:
+                    result = RetrainingService._retrain_one_model(
+                        mt, model_path, _train_df, _val_df, len(new_data), _MIN_CLASSIFIER_F1, _MIN_REGRESSOR_R2
+                    )
+                except Exception as model_exc:
+                    # Failure before backup (e.g. missing engineered feature
+                    # column) — nothing to restore, just don't let it kill
+                    # the rest of the batch.
+                    logger.exception(f"Retrain failed for {mt}: {model_exc}")
+                    result = {"model": mt, "status": "failed", "error": str(model_exc)}
                 models_retrained.append(result)
 
             await db.execute(

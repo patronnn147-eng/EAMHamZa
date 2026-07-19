@@ -2,6 +2,45 @@
 
 import hashlib
 import os
+from typing import Optional
+
+# Which metric key best represents each model's accuracy, and how to label it.
+# p4 is unsupervised (IsolationForest) — no accuracy label exists.
+_HEADLINE_METRIC = {
+    "p1": [("roc_auc", "ROC-AUC"), ("f1_failure", "F1"), ("val_f1", "F1")],
+    "p2": [("_f1_per_label_avg", "F1 moyen")],
+    "p3": [("val_r2", "R²"), ("r2", "R²")],
+    "p5": [("val_f1_macro", "F1 macro")],
+    "p6": [("r2", "R²")],
+    "p7": [("f1", "F1")],
+}
+
+
+def _headline_metric(key: str, metrics: Optional[dict]) -> Optional[dict]:
+    if not metrics:
+        return None
+    if key == "p2" and "f1_per_label" in metrics:
+        per_label = metrics["f1_per_label"]
+        if per_label:
+            avg = sum(per_label.values()) / len(per_label)
+            return {"name": "F1 moyen", "value": round(avg, 4), "per_label": per_label}
+        return None
+    for source_key, display_name in _HEADLINE_METRIC.get(key, []):
+        if source_key in metrics and metrics[source_key] is not None:
+            return {"name": display_name, "value": round(float(metrics[source_key]), 4)}
+    return None
+
+
+def _load_metrics(path: str) -> Optional[dict]:
+    try:
+        import joblib
+
+        data = joblib.load(path)
+        if isinstance(data, dict):
+            return data.get("metrics") or data.get("meta")
+    except Exception:
+        return None
+    return None
 
 MODEL_CATALOG = [
     {
@@ -43,6 +82,7 @@ def scan_models(backend_dir: str, micro_dir: str) -> list:
         bp = os.path.join(backend_dir, m["filename"])
         mp = os.path.join(micro_dir, m["filename"])
         bh, mh = _file_hash(bp), _file_hash(mp)
+        raw_metrics = _load_metrics(bp) if bh else None
         out.append(
             {
                 **m,
@@ -51,6 +91,7 @@ def scan_models(backend_dir: str, micro_dir: str) -> list:
                 "hash_match": bh is not None and bh == mh,
                 "size_backend": os.path.getsize(bp) if bh else None,
                 "mtime_backend": os.path.getmtime(bp) if bh else None,
+                "headline_metric": _headline_metric(m["key"], raw_metrics),
             }
         )
     return out

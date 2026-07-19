@@ -309,7 +309,7 @@ async def is_ml_service_available() -> bool:
 async def get_model_metrics() -> Dict:
     """Get trained model metrics from ML service."""
     try:
-        client = await ml_client.get_client()
+        client = ml_client.get_client()
         response = await client.get("/api/v1/ml/model/metrics")
         if response.status_code == 200:
             return response.json()

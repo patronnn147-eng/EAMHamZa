@@ -103,6 +103,11 @@ export default function Login() {
 
       // Store token in localStorage
       localStorage.setItem('access_token', data.access_token);
+      // @metagptx/web-sdk's built-in entity CRUD client (client.entities.*)
+      // reads its own auth token from this exact key, independent of our
+      // injectToken wrapper in lib/api.ts — must be kept in sync or SDK
+      // POST/PUT/DELETE calls silently go out with no Authorization header.
+      localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
@@ -182,6 +187,11 @@ export default function Login() {
 
       // Store token in localStorage
       localStorage.setItem('access_token', data.access_token);
+      // @metagptx/web-sdk's built-in entity CRUD client (client.entities.*)
+      // reads its own auth token from this exact key, independent of our
+      // injectToken wrapper in lib/api.ts — must be kept in sync or SDK
+      // POST/PUT/DELETE calls silently go out with no Authorization header.
+      localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
