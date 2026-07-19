@@ -177,6 +177,12 @@ async def record_p7_feedback(
             "recall": metrics["recall"],
             "f1": metrics["f1"],
             "actual_count": metrics["actual_count"],
+            # tp/predicted_count: needed (alongside actual_count above) to
+            # micro-average precision/recall correctly across interventions
+            # in the aggregation report — a mean of per-intervention ratios
+            # would over-weight interventions with tiny predicted/actual sets.
+            "tp": metrics["tp"],
+            "predicted_count": metrics["predicted_count"],
         }
         pred_log.p7_parts_demand = json.dumps(augmented, default=str)
         await db.commit()

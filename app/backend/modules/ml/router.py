@@ -26,6 +26,7 @@ from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
 from pathlib import Path as _Path
 import asyncio
+import json
 import os
 
 # System/simulation entries need a non-null technician_id.
@@ -942,6 +943,77 @@ async def submit_anomaly_verdict(
         "id": log.id,
         "anomaly_verdict": log.anomaly_verdict,
         "anomaly_reviewed_at": log.anomaly_reviewed_at.isoformat(),
+    }
+
+
+@router.get("/p7-feedback/report")
+async def get_p7_feedback_report(db: Annotated[AsyncSession, Depends(get_db)]) -> Dict:
+    """
+    Aggregates the predicted-vs-actual comparisons p7_feedback.py has been
+    writing into ml_prediction_logs.p7_parts_demand._feedback on every
+    completed intervention, into a live precision/recall report — replacing
+    the stale 12%/100% figure from the original May training run, which has
+    never been re-verified against real usage.
+
+    Micro-averaged (sum of tp / sum of predicted, sum of tp / sum of actual)
+    rather than a mean of per-intervention ratios, so interventions with a
+    tiny predicted or actual parts set don't get equal weight to ones with
+    many — a mean-of-ratios would be a common but misleading way to combine
+    these. Older feedback entries recorded before tp/predicted_count were
+    added to the log are skipped and counted separately rather than silently
+    dropped from the denominator.
+    """
+    query = select(MlPredictionLog).where(MlPredictionLog.p7_parts_demand.like("%_feedback%"))
+    result = await db.execute(query)
+    logs = result.scalars().all()
+
+    total_tp = total_predicted = total_actual = 0
+    usable = 0
+    skipped_legacy = 0
+    per_intervention = []
+
+    for log in logs:
+        try:
+            parsed = json.loads(log.p7_parts_demand or "{}")
+        except Exception:
+            continue
+        fb = parsed.get("_feedback")
+        if not fb:
+            continue
+        if fb.get("tp") is None or fb.get("predicted_count") is None:
+            skipped_legacy += 1
+            continue
+        total_tp += fb["tp"]
+        total_predicted += fb["predicted_count"]
+        total_actual += fb.get("actual_count") or 0
+        usable += 1
+        per_intervention.append({
+            "intervention_id": fb.get("intervention_id"),
+            "machine_id": log.machine_id,
+            "precision": fb.get("precision"),
+            "recall": fb.get("recall"),
+        })
+
+    precision = round(total_tp / total_predicted, 4) if total_predicted else None
+    recall = round(total_tp / total_actual, 4) if total_actual else None
+    f1 = (
+        round(2 * precision * recall / (precision + recall), 4)
+        if precision is not None and recall is not None and (precision + recall) > 0
+        else None
+    )
+
+    return {
+        "sample_count": usable,
+        "skipped_legacy_entries": skipped_legacy,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "note": (
+            "No feedback recorded yet — precision/recall will appear once "
+            "technicians complete interventions with parts_replaced data."
+            if usable == 0 else None
+        ),
+        "per_intervention": per_intervention[-20:],  # most recent slice, not the full history
     }
 
 
