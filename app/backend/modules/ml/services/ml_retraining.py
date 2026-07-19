@@ -301,6 +301,23 @@ class RetrainingService:
         existing_data = joblib.load(model_path)
         existing_features = existing_data.get("features", [])
         xgb_features = existing_data.get("xgb_features")
+
+        if mt == "p3":
+            # Force the extended feature set regardless of what the
+            # currently-deployed pkl was last trained with — the old pkl may
+            # still only list the base 7. xgb_features is force-recomputed
+            # too: reusing an old 7-name xgb_features list against an
+            # 11-column X would raise a length-mismatch error on
+            # `X.columns = xgb_features` below.
+            existing_features = _BASE_COLUMNS + [
+                "temp_delta", "rpm_torque", "tool_wear_velocity",
+                "process_temp_roll5_mean", "torque_roll5_mean", "rpm_roll5_mean",
+            ]
+            xgb_features = [
+                f.replace("[", "").replace("]", "").replace("<", "").strip()
+                for f in existing_features
+            ]
+
         if not xgb_features and existing_features:
             # No safe-name mapping stored on this pkl — derive one. XGBoost
             # rejects '[', ']', '<' in feature names; sklearn models don't
@@ -413,6 +430,7 @@ class RetrainingService:
                 "actual_failure_type": intervention.actual_failure_type,
                 "machine_id": intervention.machine_id,
                 "priority": intervention.priority,
+                "timestamp": log.created_at,
             })
 
         try:
@@ -432,6 +450,43 @@ class RetrainingService:
             ) / 1000.0
             # P6's 8th feature (mirrors predictions.py:523 fallback: wear ** 2).
             combined_df["tool_wear_sq"] = combined_df[_COL_TOOL_WEAR] ** 2
+
+            # P3-only engineered features: per-machine, time-ordered wear
+            # velocity + rolling-5 means (mirrors predictions.py's
+            # _p3_history_features, which computes the same thing live from
+            # real telemetry history). Baseline ai4i2020.csv rows have no
+            # machine_id/timestamp — no sequence exists — so they get neutral
+            # defaults (0 velocity, rolling mean = own instantaneous value)
+            # rather than NaN, matching what predict_all() falls back to for
+            # a machine with no history yet.
+            if "timestamp" in combined_df.columns:
+                combined_df = combined_df.sort_values(
+                    ["machine_id", "timestamp"], na_position="first"
+                ).reset_index(drop=True)
+                _has_machine = combined_df["machine_id"].notna()
+                _grp = combined_df.loc[_has_machine].groupby("machine_id", group_keys=False)
+                combined_df["tool_wear_velocity"] = 0.0
+                combined_df.loc[_has_machine, "tool_wear_velocity"] = (
+                    _grp[_COL_TOOL_WEAR].diff().fillna(0.0)
+                )
+                for _col, _out in [
+                    ("Process temperature [K]", "process_temp_roll5_mean"),
+                    ("Torque [Nm]", "torque_roll5_mean"),
+                    ("Rotational speed [rpm]", "rpm_roll5_mean"),
+                ]:
+                    # Must be float64 from the start — assigning a rolling
+                    # mean (always float) into a column initialized from an
+                    # int-dtype source (e.g. Rotational speed [rpm] is an
+                    # int column) raises a pandas LossySetitemError.
+                    combined_df[_out] = combined_df[_col].astype(float)  # default: own instantaneous value
+                    combined_df.loc[_has_machine, _out] = _grp[_col].transform(
+                        lambda s: s.rolling(5, min_periods=1).mean()
+                    )
+            else:
+                combined_df["tool_wear_velocity"] = 0.0
+                combined_df["process_temp_roll5_mean"] = combined_df["Process temperature [K]"]
+                combined_df["torque_roll5_mean"] = combined_df["Torque [Nm]"]
+                combined_df["rpm_roll5_mean"] = combined_df["Rotational speed [rpm]"]
 
             # Group-based split: hold out one WHOLE machine for validation
             # instead of a random row shuffle. Our seeded cycles are smooth

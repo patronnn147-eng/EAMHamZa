@@ -115,6 +115,36 @@ def _parse_iso_ts(s: str):
         return None
 
 
+def _p3_history_features(logs: list, machine_id: int,
+                          current_process: float, current_torque: float,
+                          current_rpm: float, current_wear: float) -> tuple:
+    """P3-only engineered features: tool_wear velocity + rolling-5 means of
+    process_temp/torque/rpm, matching ml_retraining.py's training-time
+    computation (rolling window includes the current reading, min_periods=1
+    so a machine with no history yet just gets its own instantaneous value —
+    same defaults training uses for baseline ai4i2020.csv rows with no
+    machine sequence). `logs` is telemetry_logs from the backend, already
+    filtered to real (non-synthetic) data by _get_telemetry_history.
+    """
+    machine_logs = [lg for lg in logs if int(lg.get("machine_id", -1)) == machine_id]
+    machine_logs.sort(key=lambda lg: str(lg.get("created_at", "")))
+    recent_hist = machine_logs[-4:]  # up to 4 prior readings + current = window of 5
+
+    prev_wear = float(recent_hist[-1].get("tool_wear", current_wear)) if recent_hist else current_wear
+    velocity = current_wear - prev_wear
+
+    proc_vals = [float(lg.get("process_temperature", current_process)) for lg in recent_hist] + [current_process]
+    torque_vals = [float(lg.get("torque", current_torque)) for lg in recent_hist] + [current_torque]
+    rpm_vals = [float(lg.get("rotational_speed", current_rpm)) for lg in recent_hist] + [current_rpm]
+
+    return (
+        velocity,
+        sum(proc_vals) / len(proc_vals),
+        sum(torque_vals) / len(torque_vals),
+        sum(rpm_vals) / len(rpm_vals),
+    )
+
+
 def _run_model_c(hi_model, logs: list, features_5: list) -> Optional[Dict]:
     """Run Mahalanobis Health Index model; returns output dict or None."""
     if hi_model is None and len(logs) >= 2:
@@ -443,14 +473,21 @@ class MachineLearningService:
     def predict_rul(features: List[float]) -> Optional[float]:
         """
         Predict Remaining Useful Life using P3 XGBoost.
-        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 features)
+        Args: [air, process, rpm, torque, wear, temp_delta, rpm_torque] (7 base
+        features) + optionally [tool_wear_velocity, process_temp_roll5_mean,
+        torque_roll5_mean, rpm_roll5_mean] (11 total once P3 has been
+        retrained with the extended set). Slices to whatever the loaded
+        model actually expects (model.n_features_in_) rather than a
+        hardcoded count, so this stays correct across both the current
+        7-feature pkl and any future retrain with more features.
         Returns: days until failure
         """
         model_p3 = load_p3()
         if model_p3 is None:
             return None
         try:
-            pred_rul = model_p3.predict(np.array([features[:7]]))[0]
+            n = getattr(model_p3, "n_features_in_", 7)
+            pred_rul = model_p3.predict(np.array([features[:n]]))[0]
             return float(pred_rul)
         except Exception:
             logger.warning("P3 RUL prediction failed", exc_info=True)
@@ -602,10 +639,21 @@ class MachineLearningService:
         features_5 = FeaturePipeline.build_5(reading)
         features_7 = FeaturePipeline.build_7(reading)
 
+        # P3-only: append velocity + rolling-5 means computed from real
+        # telemetry history (if any). predict_rul() slices to however many
+        # features the loaded model actually expects, so this is a no-op
+        # against the current 7-feature pkl and only activates once P3 is
+        # retrained with the extended feature set.
+        _velocity, _proc_mean, _torque_mean, _rpm_mean = _p3_history_features(
+            telemetry.get("telemetry_logs", []), int(telemetry.get("machine_id", -1)),
+            process, torque, rpm, wear,
+        )
+        features_11 = features_7 + [_velocity, _proc_mean, _torque_mean, _rpm_mean]
+
         # Wave 1: P1-P7 predictions
         failure_prob  = MachineLearningService.predict_failure_probability(features_7)
         failure_types = MachineLearningService.predict_failure_type(features_7)
-        rul_days      = MachineLearningService.predict_rul(features_7)
+        rul_days      = MachineLearningService.predict_rul(features_11)
         is_anomaly, anomaly_score = MachineLearningService.detect_anomaly(features_5)
         priority      = MachineLearningService.predict_priority(features_7)
         schedule_days = MachineLearningService.predict_maintenance_schedule(features_7)

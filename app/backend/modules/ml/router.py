@@ -71,7 +71,10 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     # Order DESC + limit, then reverse in Python to get oldest-first ascending.
     result = await db.execute(
         select(MachineTelemetry)
-        .where(MachineTelemetry.machine_id == machine_id)
+        .where(
+            MachineTelemetry.machine_id == machine_id,
+            MachineTelemetry.is_synthetic.is_(False),
+        )
         .order_by(MachineTelemetry.recorded_at.desc())
         .limit(500)
     )
