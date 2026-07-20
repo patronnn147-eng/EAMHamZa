@@ -23,6 +23,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useInterventionPartsByWO } from '@/hooks/useInventory';
 import { PartsConsumedSelector, ConsumedRow, buildInitialConsumedRows, serializeConsumedRows } from '@/components/inventory/PartsConsumedSelector';
 import { DirectConsumeSelector, DirectConsumeRow, PendingDraftRow, directHasErrors, serializeDirect, serializePendingDirect } from '@/components/inventory/DirectConsumeSelector';
+import { MACHINE_STATUS_OPTIONS } from '@/lib/constants';
 
 interface WorkOrderCompleteDialogProps {
     open: boolean;
@@ -75,13 +76,6 @@ const ROOT_CAUSE_CATEGORIES = [
     { value: 'ENVIRONMENTAL', label: 'Conditions environnementales' },
     { value: 'MATERIAL', label: 'Problème de matière première' },
     { value: 'UNKNOWN', label: 'Cause indéterminée' },
-];
-
-const MACHINE_STATUS_OPTIONS = [
-    { value: 'OPERATIONAL', label: 'Opérationnel' },
-    { value: 'DEGRADED', label: 'Dégradé (fonctionne partiellement)' },
-    { value: 'STOPPED', label: 'Arrêté (en attente)' },
-    { value: 'SCRAP', label: 'Mettre au rebut' },
 ];
 
 const STEPS = [
@@ -165,7 +159,7 @@ export const WorkOrderCompleteDialog: React.FC<WorkOrderCompleteDialogProps> = (
     const [actionsPerformed, setActionsPerformed] = useState('');
     const [partsReplaced, setPartsReplaced] = useState('');
     const [toolsUsed, setToolsUsed] = useState('');
-    const [machineStatusAfter, setMachineStatusAfter] = useState<string>('OPERATIONAL');
+    const [machineStatusAfter, setMachineStatusAfter] = useState<string>('OPERATIONNELLE');
 
     const [airTemperature, setAirTemperature] = useState('');
     const [processTemperature, setProcessTemperature] = useState('');
