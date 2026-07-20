@@ -1,0 +1,151 @@
+env:
+  contexts:
+    - name: "backend"
+      urls:
+        - "http://backend:8000"
+      includePaths:
+        - "http://backend:8000.*"
+      authentication:
+        method: "json"
+        parameters:
+          loginRequestUrl: "http://backend:8000/api/v1/auth/login"
+          loginRequestBody: '{"email":"{%username%}","mot_de_passe":"{%password%}"}'
+        verification:
+          method: "response"
+          loggedInRegex: "\\Qaccess_token\\E"
+      sessionManagement:
+        method: "headers"
+        parameters:
+          Authorization: "Bearer {%json:access_token%}"
+      users:
+        - name: "admin"
+          credentials:
+            username: "hamza.mbarki2002@gmail.com"
+            password: "${ZAP_LOGIN_PASSWORD}"
+        - name: "cheftech"
+          credentials:
+            username: "hamza.mbarki@esprit.tn"
+            password: "${ZAP_LOGIN_PASSWORD}"
+        - name: "chetop"
+          credentials:
+            username: "mbarkih92@gmail.com"
+            password: "${ZAP_LOGIN_PASSWORD}"
+        - name: "technicien"
+          credentials:
+            username: "hamedikilani44@gmail.com"
+            password: "${ZAP_LOGIN_PASSWORD}"
+    - name: "ml-service"
+      urls:
+        - "http://ml-service:8000"
+      includePaths:
+        - "http://ml-service:8000.*"
+    - name: "rag-service"
+      urls:
+        - "http://rag-service:8003"
+      includePaths:
+        - "http://rag-service:8003.*"
+    - name: "frontend"
+      urls:
+        - "http://frontend:80"
+      includePaths:
+        - "http://frontend:80.*"
+  parameters:
+    failOnError: false
+    failOnWarning: false
+    progressToStdout: true
+
+jobs:
+  # ── backend: authenticated, once per role ──────────────────────────────
+  - type: spider
+    parameters:
+      context: "backend"
+      user: "admin"
+      url: "http://backend:8000"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: activeScan
+    parameters:
+      context: "backend"
+      user: "admin"
+      policy: "Default Policy"
+
+  - type: activeScan
+    parameters:
+      context: "backend"
+      user: "cheftech"
+      policy: "Default Policy"
+
+  - type: activeScan
+    parameters:
+      context: "backend"
+      user: "chetop"
+      policy: "Default Policy"
+
+  - type: activeScan
+    parameters:
+      context: "backend"
+      user: "technicien"
+      policy: "Default Policy"
+
+  # ── ml-service: unauthenticated, internal-only ─────────────────────────
+  - type: spider
+    parameters:
+      context: "ml-service"
+      url: "http://ml-service:8000"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: activeScan
+    parameters:
+      context: "ml-service"
+      policy: "Default Policy"
+
+  # ── rag-service: unauthenticated, internal-only ────────────────────────
+  - type: spider
+    parameters:
+      context: "rag-service"
+      url: "http://rag-service:8003"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: activeScan
+    parameters:
+      context: "rag-service"
+      policy: "Default Policy"
+
+  # ── frontend: unauthenticated, public UI ───────────────────────────────
+  - type: spider
+    parameters:
+      context: "frontend"
+      url: "http://frontend:80"
+
+  - type: passiveScan-wait
+    parameters:
+      maxDuration: 5
+
+  - type: activeScan
+    parameters:
+      context: "frontend"
+      policy: "Default Policy"
+
+  # ── reports ─────────────────────────────────────────────────────────────
+  - type: report
+    parameters:
+      template: "traditional-html"
+      reportDir: "/zap/wrk"
+      reportFile: "zap-report"
+      reportTitle: "EAMSagemCom DAST Report"
+      reportDescription: "Full active scan: backend (4 roles), ml-service, rag-service, frontend"
+
+  - type: report
+    parameters:
+      template: "traditional-json"
+      reportDir: "/zap/wrk"
+      reportFile: "zap-report"

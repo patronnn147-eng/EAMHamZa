@@ -1,9 +1,12 @@
 # EAMSagemCom — Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → sast → build → image-scan → lint → gate
+# Stages: secret-scan → sca-deps → sast → build → image-scan → dast → lint → gate
 # Blocking: build-images, quality-gate
 # Non-blocking (allow_failure: true, visibility over gating): scan-secrets,
 # audit-backend, audit-frontend, license-scan-backend, license-scan-frontend,
-# sonarqube-scan, iac-scan, image-scan, lint-backend, lint-frontend
+# sonarqube-scan, iac-scan, image-scan, dast-scan, lint-backend, lint-frontend
+# dast-scan (OWASP ZAP) assumes `make up` is already running on the self-hosted
+# runner host (same convention as sonarqube-scan) — see
+# docs/superpowers/specs/2026-07-20-owasp-zap-dast-design.md
 # SonarQube is the sole SAST tool (Semgrep removed). sonarqube-scan requires a
 # self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
 # SonarQube Community Edition has no branch analysis — the project key is suffixed
@@ -16,6 +19,7 @@ stages:
   - sast
   - build
   - image-scan
+  - dast
   - lint
   - gate
 
@@ -350,6 +354,75 @@ restart-scanner:
   timeout: 2 minutes
   allow_failure: true
 
+# ─── Stage 5b: DAST (OWASP ZAP, self-hosted local runner) ───────────────────
+# Assumes `make up` is already running on the runner host (same convention as
+# sonarqube-scan — this runner IS the dev machine, not an ephemeral cloud
+# runner). Full active scan: real attack traffic, real write/delete calls.
+# Two-layer safety guard before any attack traffic is sent:
+#   1. Targets are hardcoded Docker-internal service names in
+#      zap-automation.yaml (not parameterized) — cannot be pointed anywhere
+#      else via CI variables.
+#   2. Pre-flight query confirms the known seeded test accounts exist in the
+#      target DB before proceeding, so this never runs against an unexpected
+#      or wiped database.
+
+dast-scan:
+  stage: dast
+  needs: [image-scan]
+  tags: [local]
+  image: docker:24-cli
+  before_script:
+    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
+  script:
+    - |
+      echo "=== Pre-flight: checking target services are reachable ==="
+      for svc_check in \
+        "asset_management_backend|http://localhost:8000/api/v1/health" \
+        "asset_management_ml_service|http://localhost:8000/health" \
+        "asset_management_rag|http://localhost:8003/health" \
+        "asset_management_frontend|http://localhost:80/"; do
+        CONTAINER="${svc_check%%|*}"
+        URL="${svc_check##*|}"
+        if ! docker exec "$CONTAINER" curl -sf "$URL" > /dev/null 2>&1; then
+          echo "FAIL: $CONTAINER not reachable at $URL — is 'make up' running on this host?"
+          exit 1
+        fi
+        echo "  OK: $CONTAINER"
+      done
+
+      echo "=== Pre-flight: verifying known seeded test accounts exist ==="
+      SEED_COUNT=$(docker exec asset_management_db psql -U postgres -d asset_management -tAc \
+        "SELECT count(*) FROM utilisateurs WHERE email IN ('hamza.mbarki2002@gmail.com','hamza.mbarki@esprit.tn','mbarkih92@gmail.com','hamedikilani44@gmail.com');")
+      if [ "$SEED_COUNT" -ne 4 ]; then
+        echo "FAIL: expected 4 seeded test accounts, found $SEED_COUNT — refusing to run active scan against unexpected data."
+        exit 1
+      fi
+      echo "  OK: all 4 seeded test accounts present"
+
+      echo "=== Running ZAP full active scan ==="
+      docker run --rm \
+        --network eamsagemcom_asset_management_network \
+        -e ZAP_LOGIN_PASSWORD="${ZAP_LOGIN_PASSWORD}" \
+        -v "$CI_PROJECT_DIR/security/zap:/zap/wrk:rw" \
+        ghcr.io/zaproxy/zaproxy:stable \
+        zap.sh -cmd -autorun /zap/wrk/zap-automation.yaml || true
+
+      cp security/zap/zap-report.html ./zap-report.html || echo "WARN: zap-report.html not found"
+      cp security/zap/zap-report.json ./zap-report.json || echo "WARN: zap-report.json not found"
+
+      if [ -f zap-report.json ]; then
+        python3 monitoring/scripts/security_report.py zap zap-report.json "DAST — backend/ml-service/rag-service/frontend" || true
+      fi
+  artifacts:
+    paths:
+      - zap-report.html
+      - zap-report.json
+    expire_in: 1 week
+    when: always
+  rules: *branch-rules
+  timeout: 45 minutes
+  allow_failure: true
+
 # ─── Stage 6: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
@@ -389,6 +462,8 @@ quality-gate:
     - build-images
     - iac-scan
     - image-scan
+    - job: dast-scan
+      optional: true
     - job: license-scan-backend
       optional: true
     - job: license-scan-frontend
@@ -410,6 +485,7 @@ quality-gate:
       echo "  Image build          -- PASSED (blocking)"
       echo "  IaC scan (Trivy)     -- RAN (findings, if any, shown above; non-blocking)"
       echo "  Image scan (Trivy)   -- RAN (findings, if any, shown above; non-blocking)"
+      echo "  DAST (OWASP ZAP)     -- RAN (findings, if any, shown above; non-blocking)"
       echo ""
       echo "Security jobs provide visibility, not gating — review terminal output"
       echo "and job artifacts (SARIF/JSON/HTML) above for full details."

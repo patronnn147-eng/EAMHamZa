@@ -19,6 +19,7 @@ help:
 	@echo "  backend    - View backend logs"
 	@echo "  frontend   - View frontend logs"
 	@echo "  db         - Connect to PostgreSQL database"
+	@echo "  dast       - Run OWASP ZAP full active scan (needs 'make up' running)"
 	@echo "  setup      - Install pre-commit hooks (run once after cloning)"
 
 setup:
@@ -72,6 +73,19 @@ frontend:
 
 db:
 	docker exec -it asset_management_db psql -U postgres -d asset_management
+
+# Run the OWASP ZAP full active scan locally (headless), same automation
+# plan the CI dast-scan job uses. Requires `make up` running first.
+dast:
+	@echo "Running OWASP ZAP full active scan against the local stack..."
+	docker run --rm \
+		--network eamsagemcom_asset_management_network \
+		--env-file .env \
+		-v "$(CURDIR)/security/zap:/zap/wrk:rw" \
+		ghcr.io/zaproxy/zaproxy:stable \
+		zap.sh -cmd -autorun /zap/wrk/zap-automation.yaml
+	@echo ""
+	@echo "Done. Report: security/zap/zap-report.html"
 
 # ── Security monitoring stack ─────────────────────────────────────────────────
 

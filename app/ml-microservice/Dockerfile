@@ -1,15 +1,14 @@
 # syntax=docker/dockerfile:1
 # EAM ML Prediction Service v2.0.0
-FROM python:3.11-slim
+# Multi-stage build
+
+# Stage 1: Build — install Python deps into an isolated venv
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
-# Upgrade OS packages, install runtime deps, then remove linux-libc-dev
-# (kernel headers — never needed at runtime, but pulled in by python:3.11-slim base).
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
-    curl \
-    && apt-get purge -y --auto-remove linux-libc-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # ── Layer 1: Heavy deps (torch, numpy, sklearn, scipy…) ──────────────────────
 # Cached until requirements-heavy.txt changes. BuildKit cache mount means
@@ -22,7 +21,8 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # CPU-only torch: this is an inference service with no GPU in CI/prod. Installing
 # torch from the dedicated CPU index FIRST avoids pulling PyPI's default CUDA
 # build (~2.5GB of nvidia-* wheels) which blew past the CI build-images timeout.
-# The subsequent requirements-heavy install then sees torch already satisfied.
+# The subsequent requirements-heavy install then sees torch already satisfied
+# (same venv site-packages across builder-stage RUN layers).
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --index-url https://download.pytorch.org/whl/cpu 'torch>=2.2.0'
 COPY requirements-heavy.txt .
@@ -39,6 +39,21 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # jaraco.context>=6.1.0 (CVE-2026-23949), wheel>=0.46.2 (CVE-2026-24049)
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
+
+# Stage 2: Runtime — slim image, no pip cache/build toolchain
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Upgrade OS packages, install runtime deps, then remove linux-libc-dev
+# (kernel headers — never needed at runtime, but pulled in by python:3.11-slim base).
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+    curl \
+    && apt-get purge -y --auto-remove linux-libc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
 # ── Source code & models (most frequently changed — no pip cost) ──────────────
 COPY src/ ./src/
