@@ -28,6 +28,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/contexts/AuthContext';
 import { MachineMetricsForm, TelemetryFormData } from '@/components/technicien/MachineMetricsForm';
+import { MACHINE_STATUS_OPTIONS } from '@/lib/constants';
 
 interface CompleteWorkOrderModalProps {
   open: boolean;
@@ -102,7 +103,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
     actions_performed: '',
     parts_replaced: '',
     tools_used: '',
-    machine_status_after: 'EN_MARCHE',
+    machine_status_after: 'OPERATIONNELLE',
   });
 
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -131,7 +132,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
         actions_performed: '',
         parts_replaced: '',
         tools_used: '',
-        machine_status_after: 'EN_MARCHE',
+        machine_status_after: 'OPERATIONNELLE',
       });
       setAttachments([]);
       setSymptoms([]);
@@ -314,9 +315,11 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
                     >
                       <SelectTrigger id="m_status"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="EN_MARCHE">En marche (Fonctionnel)</SelectItem>
-                        <SelectItem value="ARRETEE">Arrêtée (En attente/HS)</SelectItem>
-                        <SelectItem value="FONCTIONNEMENT_RESTREINT">Fonctionnement restreint</SelectItem>
+                        {MACHINE_STATUS_OPTIONS.map((status) => (
+                          <SelectItem key={status.value} value={status.value}>
+                            {status.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
