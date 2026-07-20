@@ -81,6 +81,7 @@ async def approve_status_change_request(
     request_id: int,
     approved_by: int,
     db: AsyncSession,
+    approved_by_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """PENDING -> APPROVED. Sets Machines.statut = to_status, writes AuditLog."""
     from models.machines import Machines
@@ -119,6 +120,7 @@ async def approve_status_change_request(
             old_values={"statut": request.from_status},
             new_values={"statut": request.to_status},
             user_id=approved_by,
+            user_name=approved_by_name,
             entity_name=machine.nom,
         )
     except Exception:
@@ -141,6 +143,7 @@ async def reject_status_change_request(
     rejected_by: int,
     note: Optional[str],
     db: AsyncSession,
+    rejected_by_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """PENDING -> REJECTED. Machines.statut untouched, writes AuditLog.
 
@@ -190,6 +193,7 @@ async def reject_status_change_request(
                 "review_note": note or "",
             },
             user_id=rejected_by,
+            user_name=rejected_by_name,
             entity_name=machine.nom if machine else None,
         )
     except Exception:

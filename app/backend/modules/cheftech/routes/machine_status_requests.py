@@ -40,7 +40,9 @@ async def approve_machine_status_request(
     current_user: Annotated[Utilisateurs, Depends(verify_cheftech_only)],
 ) -> dict:
     """CHEFTECH: approve a proposed status change. Sets Machines.statut."""
-    result = await approve_status_change_request(request_id, current_user.id, db)
+    result = await approve_status_change_request(
+        request_id, current_user.id, db, approved_by_name=current_user.nom
+    )
     if not result["success"]:
         status_code = 404 if result["error"] == "Request not found" else 400
         raise HTTPException(status_code=status_code, detail=result["error"])
@@ -59,7 +61,7 @@ async def reject_machine_status_request(
 ) -> dict:
     """CHEFTECH: reject a proposed status change. Machines.statut unchanged."""
     result = await reject_status_change_request(
-        request_id, current_user.id, payload.note, db
+        request_id, current_user.id, payload.note, db, rejected_by_name=current_user.nom
     )
     if not result["success"]:
         status_code = 404 if result["error"] == "Request not found" else 400
