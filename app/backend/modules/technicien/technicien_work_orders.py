@@ -6,7 +6,7 @@ from typing import List, Optional, Annotated
 from schemas.pagination import PaginatedResponse
 from datetime import datetime, timezone
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from core.database import get_db
 from core.security import verify_technicien
@@ -16,9 +16,11 @@ from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.ordres_intervention import OrdresIntervention
 from models.planning_taches import PlanningTaches
 from models.machine_telemetry import MachineTelemetry
+from models.machine_status import MACHINE_STATUSES
 from services.audit import AuditService, AuditEntityType
 from services.inventory import InventoryReservationService
 from services.ml.recovery import PostMaintenanceRecoveryService
+from modules.shared.services.machine_status_requests import create_status_change_request
 from schemas.stock import ConsumedPieceItem, ConsumedPieceDirect, PendingPieceDirect
 
 logger = logging.getLogger(__name__)
@@ -54,6 +56,13 @@ class WorkOrderCompletePayload(BaseModel):
     parts_replaced: Optional[str] = None
     tools_used: Optional[str] = None
     machine_status_after: Optional[str] = None
+
+    @field_validator("machine_status_after")
+    @classmethod
+    def _validate_machine_status_after(cls, v):
+        if v is not None and v not in MACHINE_STATUSES:
+            raise ValueError(f"machine_status_after must be one of {MACHINE_STATUSES}")
+        return v
 
     # PDCA Specific
     plan_hypothesis: Optional[str] = None
@@ -438,6 +447,19 @@ async def complete_work_order(
         )).scalar_one_or_none()
         if intervention:
             await _update_intervention_fields(db, intervention, payload, wo.date_debut, now)
+            if payload.machine_status_after:
+                try:
+                    await create_status_change_request(
+                        machine_id=wo.machine_id,
+                        to_status=payload.machine_status_after,
+                        requested_by=current_user.id,
+                        source_intervention_id=intervention.id,
+                        db=db,
+                    )
+                except Exception:
+                    logger.warning(
+                        f"Machine status change request failed for WO {order_id}"
+                    )
 
         _add_telemetry_if_present(db, wo, current_user.id, payload, now)
         await _consume_direct_parts(db, intervention, payload, order_id)
