@@ -63,6 +63,7 @@ interface MLPrediction {
 function getMachineStatusConfig(statut: string) {
     const map: Record<string, { label: string; className: string }> = {
         OPERATIONNELLE: { label: '● Opérationnelle', className: 'bg-emerald-100 text-emerald-800 border border-emerald-200' },
+        FONCTIONNEMENT_RESTREINT: { label: '● Fonctionnement restreint', className: 'bg-orange-100 text-orange-800 border border-orange-200' },
         EN_MAINTENANCE: { label: '● En Maintenance', className: 'bg-amber-100 text-amber-800 border border-amber-200' },
         EN_PANNE: { label: '● En Panne', className: 'bg-red-100 text-red-800 border border-red-200 animate-pulse' },
         HORS_SERVICE: { label: '● Hors Service', className: 'bg-gray-100 text-blue-100 border border-blue-700/50' },
@@ -423,6 +424,7 @@ export default function MachineDetailPage() {
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="OPERATIONNELLE">Opérationnelle</SelectItem>
+                                    <SelectItem value="FONCTIONNEMENT_RESTREINT">Fonctionnement restreint</SelectItem>
                                     <SelectItem value="EN_MAINTENANCE">En Maintenance</SelectItem>
                                     <SelectItem value="EN_PANNE">En Panne</SelectItem>
                                     <SelectItem value="HORS_SERVICE">Hors Service</SelectItem>

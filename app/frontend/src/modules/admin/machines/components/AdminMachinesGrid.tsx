@@ -23,6 +23,7 @@ const TruncateText: React.FC<{ text: string; maxLength: number }> = ({ text, max
 function getMachineStatusConfig(statut = '') {
   const map: Record<string, { label: string; dot: string }> = {
     OPERATIONNELLE: { label: 'Opérationnelle', dot: 'bg-emerald-500' },
+    FONCTIONNEMENT_RESTREINT: { label: 'Fonctionnement restreint', dot: 'bg-amber-600' },
     EN_MAINTENANCE: { label: 'En Maintenance', dot: 'bg-amber-500' },
     EN_PANNE: { label: 'En Panne', dot: 'bg-red-500 animate-pulse' },
     HORS_SERVICE: { label: 'Hors Service', dot: 'bg-gray-400' },
