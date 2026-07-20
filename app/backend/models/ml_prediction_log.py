@@ -40,6 +40,9 @@ class MlPredictionLog(Base):
     anomaly_root_cause = Column(Text, nullable=True)
     anomaly_reviewed_by = Column(Integer, nullable=True)
     anomaly_reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    # P4 automated outcome tracking (Phase 4.3) — did a real WO follow this
+    # flag within N days. JSON: {flag_preceded_wo, intervention_id, days_between, window_days}
+    p4_wo_outcome = Column(Text, nullable=True)
 
     # P2: Failure Type (stored as JSON string, e.g. '{"TWF": true, "HDF": false, ...}')
     p2_failure_types = Column(Text, nullable=True)

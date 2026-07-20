@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     # Groq AI
     groq_api_key: str = ""
 
+    # ML telemetry
+    # Synthetic (seeded) telemetry is quarantined out of every ML read path by
+    # default so predictions can never be built on fabricated sensor history.
+    # Set ML_ALLOW_SYNTHETIC_TELEMETRY=true in development to feed seeded data
+    # to the models; must stay false in staging/production.
+    ml_allow_synthetic_telemetry: bool = False
+
     @property
     def backend_url(self) -> str:
         """Generate backend URL from host and port."""

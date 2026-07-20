@@ -14,6 +14,7 @@ import { Loader2 } from 'lucide-react';
 interface MLPredictionFull {
     risk_level?: string;
     rul_days?: number | null;
+    rul_confidence_interval?: { low: number; high: number; confidence: number } | null;
     health_score?: number;
     unified_health_score?: number;
     failure_probability?: number;
@@ -39,6 +40,11 @@ interface MLPredictionFull {
     explanations?: string[];
     // P6: maintenance schedule
     p6_schedule_days?: number | null;
+    // Telemetry availability (injected by unified-health endpoint). When
+    // telemetry_available is false the sensor fields below are null and the
+    // ML models were not run — figures come from maintenance history only.
+    telemetry_available?: boolean;
+    telemetry_data_points?: number;
     // Latest telemetry readings (injected by unified-health endpoint)
     air_temperature?: number | null;
     process_temperature?: number | null;
@@ -597,6 +603,7 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
     const healthScore = p?.unified_health_score ?? p?.health_score ?? 0;
     const failureProb = p?.failure_probability ?? 0;
     const rulDays = p?.rul_days ?? p?.kalman_rul ?? null;
+    const rulInterval = p?.rul_confidence_interval ?? null;
     const isAnomaly = p?.is_anomaly ?? false;
     const riskLevel = p?.risk_level ?? 'LOW';
     const dstVerdict = p?.dst_verdict ?? riskLevel;
@@ -634,6 +641,12 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
     const behaviorFlagged = isAnomaly || behaviorScore > 0.5;
     const mahalScore = mo?.mahal_hi?.dm2 ?? 0;
 
+    // The backend reports telemetry_available: false when the machine has no
+    // usable sensor history. In that case every sensor field is null and the
+    // ML models were never called — say so instead of rendering a full board
+    // of numbers that are really maintenance-history fallbacks.
+    const telemetryAvailable = p?.telemetry_available !== false;
+
     // Sensor values — prefer machine fields, fall back to values in mlPrediction
     const airTemp = machine.air_temperature ?? p?.air_temperature ?? null;
     const procTemp = machine.process_temperature ?? p?.process_temperature ?? null;
@@ -662,12 +675,14 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
 
             {/* ── Header Status Row ── */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#00f2ff', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#475569', fontFamily: 'Space Grotesk, monospace' }}>Neural Engine Operational</span>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: telemetryAvailable ? '#00f2ff' : '#64748b', display: 'inline-block', animation: telemetryAvailable ? 'pulse 2s infinite' : 'none' }} />
+                <span style={{ fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.18em', color: '#475569', fontFamily: 'Space Grotesk, monospace' }}>
+                    {telemetryAvailable ? 'Neural Engine Operational' : 'Neural Engine Idle — No Sensor Data'}
+                </span>
                 <div style={{ marginLeft: 'auto', display: 'flex', gap: '1rem', ...glass, padding: '0.5rem 1.25rem', borderRadius: '0.75rem' }}>
                     <div style={{ textAlign: 'center' }}>
                         <p style={{ fontSize: '0.55rem', textTransform: 'uppercase', letterSpacing: '0.12em', color: '#475569', fontFamily: 'Space Grotesk, monospace', marginBottom: 2 }}>Live Engines</p>
-                        <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.8rem' }}>8 Models Active</p>
+                        <p style={{ fontWeight: 700, color: '#fff', fontSize: '0.8rem' }}>{telemetryAvailable ? '8 Models Active' : 'Models Idle'}</p>
                     </div>
                     <div style={{ width: 1, background: 'rgba(255,255,255,0.1)', alignSelf: 'stretch' }} />
                     <div style={{ textAlign: 'center' }}>
@@ -676,6 +691,28 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
                     </div>
                 </div>
             </div>
+
+            {/* ── No-telemetry banner ── */}
+            {!telemetryAvailable && (
+                <div style={{
+                    ...glassAlt,
+                    padding: '0.85rem 1.1rem',
+                    marginBottom: '1rem',
+                    borderLeft: '3px solid #f59e0b',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.25rem',
+                }}>
+                    <p style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fbbf24' }}>
+                        No sensor data for this machine
+                    </p>
+                    <p style={{ fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.5 }}>
+                        Sensor readings are unavailable, so the predictive models were not run.
+                        The figures below are estimated from maintenance history alone and are not
+                        condition-based. Record telemetry to enable full predictions.
+                    </p>
+                </div>
+            )}
 
             {/* ── 5 Sensor Cards ── */}
             <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -786,7 +823,11 @@ export function MLIntelligenceTab({ machine, mlPrediction, onProvisioned }: Read
                         {rulDays == null ? '—' : `${Math.round(rulDays)}`}
                         {rulDays != null && <span style={{ fontSize: '0.9rem', fontWeight: 400, color: '#64748b' }}> Days</span>}
                     </p>
-                    <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>Precision: ±0.8d</p>
+                    <p style={{ fontSize: '0.6rem', color: '#475569', marginTop: '0.25rem', fontFamily: 'Space Grotesk, monospace' }}>
+                        {rulInterval
+                            ? `Likely range: ${Math.round(rulInterval.low)}–${Math.round(rulInterval.high)}d`
+                            : 'Range: not yet available'}
+                    </p>
                 </div>
 
                 {/* P6 Schedule */}

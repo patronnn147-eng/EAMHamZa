@@ -415,14 +415,17 @@ async def _seed_machine(
 # ── Main seed ──────────────────────────────────────────────────────────────────
 
 
-async def seed(num_cycles: int, clean_mode: bool) -> None:
+async def seed(num_cycles: int, clean_mode: bool, machine_ids: list = None) -> None:
     await db_manager.init_db()
 
     async with db_manager.async_session_maker() as db:
-        # ── 1. Fetch every machine in the fleet ─────────────────────────────
-        machines = (await db.execute(select(Machines).order_by(Machines.id))).scalars().all()
+        # ── 1. Fetch every machine in the fleet (optionally filtered) ────────
+        query = select(Machines).order_by(Machines.id)
+        if machine_ids:
+            query = query.where(Machines.id.in_(machine_ids))
+        machines = (await db.execute(query)).scalars().all()
         if not machines:
-            logger.error("No machines found in DB. Aborting.")
+            logger.error("No matching machines found in DB. Aborting.")
             return
 
         logger.info(f"Found {len(machines)} machine(s): {[m.id for m in machines]}")
@@ -506,6 +509,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--clean", action="store_true", help="Delete existing seed data per machine before re-seeding")
     parser.add_argument("--cycles", type=int, default=60, help="Maintenance cycles per machine (default: 60)")
+    parser.add_argument("--machines", type=str, default=None, help="Comma-separated machine ids to seed (default: all)")
     args = parser.parse_args()
 
-    asyncio.run(seed(num_cycles=args.cycles, clean_mode=args.clean))
+    machine_ids = None
+    if args.machines:
+        machine_ids = [int(x.strip()) for x in args.machines.split(",") if x.strip()]
+
+    asyncio.run(seed(num_cycles=args.cycles, clean_mode=args.clean, machine_ids=machine_ids))

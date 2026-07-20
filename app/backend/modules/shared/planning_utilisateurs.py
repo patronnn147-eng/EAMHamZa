@@ -9,7 +9,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.database import get_db
-from services.PlanningUtilisateurs import PlanningUtilisateursService
+from services.planning_utilisateurs import PlanningUtilisateursService
 
 # Set up logging
 logger = logging.getLogger(__name__)

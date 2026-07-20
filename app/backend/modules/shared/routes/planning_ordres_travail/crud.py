@@ -10,8 +10,8 @@ from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
 from models.planning_utilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings
-from services.planning_OrdresTravail import PlanningOrdresTravailService
-from ..planning_OrdresTravail.schemas import (
+from services.planning_ordres_travail import PlanningOrdresTravailService
+from .schemas import (
     PlanningOrdresTravailData,
     PlanningOrdresTravailUpdateData,
     PlanningOrdresTravailResponse,

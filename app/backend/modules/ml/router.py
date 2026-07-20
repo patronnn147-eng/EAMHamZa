@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, cast, String, and_
 from core.database import get_db
 from core.auth import get_current_user
+from core.config import settings
 from models.utilisateurs import Utilisateurs
 from models.machines import Machines
 from models.ordres_intervention import OrdresIntervention
@@ -66,15 +67,19 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     Query all telemetry entries for a machine ordered oldest-first.
     Returns (entries, log_dicts) where log_dicts is compatible with
     FeatureStore.build_time_series_from_logs.
+
+    Synthetic (seeded) rows are excluded unless
+    settings.ml_allow_synthetic_telemetry is on (development only).
     """
+    filters = [MachineTelemetry.machine_id == machine_id]
+    if not settings.ml_allow_synthetic_telemetry:
+        filters.append(MachineTelemetry.is_synthetic.is_(False))
+
     # Fetch latest 500 entries (matches microservice _MAX_LOGS cap).
     # Order DESC + limit, then reverse in Python to get oldest-first ascending.
     result = await db.execute(
         select(MachineTelemetry)
-        .where(
-            MachineTelemetry.machine_id == machine_id,
-            MachineTelemetry.is_synthetic.is_(False),
-        )
+        .where(*filters)
         .order_by(MachineTelemetry.recorded_at.desc())
         .limit(500)
     )
@@ -95,6 +100,26 @@ async def _get_telemetry_history(machine_id: int, db: AsyncSession):
     return entries, log_dicts
 
 
+def _latest_sensors(entries) -> tuple:
+    """
+    Return (air, process, rpm, torque, wear) from the newest telemetry entry,
+    or all-None when the machine has no usable telemetry.
+
+    Deliberately no placeholder defaults: a machine with no sensor history must
+    surface as "no data", not as a plausible-looking reading.
+    """
+    if not entries:
+        return (None, None, None, None, None)
+    latest = entries[-1]
+    return (
+        float(latest.air_temperature),
+        float(latest.process_temperature),
+        int(latest.rotational_speed),
+        float(latest.torque),
+        float(latest.tool_wear),
+    )
+
+
 def _count_recent_interventions(interventions, cutoff) -> int:
     """Return count of interventions whose date_intervention is after cutoff."""
     count = 0
@@ -112,12 +137,18 @@ def _count_recent_interventions(interventions, cutoff) -> int:
 
 
 def _build_uh_base_response(
-    machine_id: int, machine, prediction: dict, fusion_result, sensors: tuple
+    machine_id: int, machine, prediction: dict, fusion_result, sensors: tuple,
+    telemetry_points: int = 0,
 ) -> dict:
     """Build the base unified-health response dict (no side-effect keys)."""
     _air, _proc, _rpm, _torq, _wear = sensors
     fr = fusion_result  # shorthand
     return {
+        # Explicit data-availability contract: when telemetry_available is
+        # false every sensor field is null and the ML models were not called —
+        # the health figures come from the maintenance-history fallback only.
+        "telemetry_available": telemetry_points > 0,
+        "telemetry_data_points": telemetry_points,
         "machine_id": machine_id,
         "machine_name": machine.nom,
         "unified_health_score": prediction.get(
@@ -146,7 +177,7 @@ def _build_uh_base_response(
         "process_temperature": _proc,
         "rotational_speed": _rpm,
         "torque": _torq,
-        "tool_wear": int(_wear),
+        "tool_wear": int(_wear) if _wear is not None else None,
         "maintenance_event": fr.get("maintenance_event", False) if fr else False,
     }
 
@@ -284,22 +315,15 @@ async def get_unified_health(
 
     telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
 
-    if telemetry_entries:
-        latest = telemetry_entries[-1]
-        sensors = (
-            float(latest.air_temperature),
-            float(latest.process_temperature),
-            int(latest.rotational_speed),
-            float(latest.torque),
-            float(latest.tool_wear),
-        )
-    else:
-        sensors = (300.0, 310.0, 1500, 40.0, 0.0)
+    # No telemetry => no sensor values. We never substitute placeholder
+    # readings: fabricated inputs produce identical, meaningless predictions
+    # for every machine while looking like a healthy pipeline.
+    sensors = _latest_sensors(telemetry_entries)
     _air, _proc, _rpm, _torq, _wear = sensors
 
     fusion_result: Optional[Dict] = None
     try:
-        if await is_ml_service_available():
+        if telemetry_entries and await is_ml_service_available():
             fusion_result = await ml_client.predict_all(
                 air_temperature=_air,
                 process_temperature=_proc,
@@ -322,7 +346,10 @@ async def get_unified_health(
         fusion_result=fusion_result,
     )
 
-    response = _build_uh_base_response(machine_id, machine, prediction, fusion_result, sensors)
+    response = _build_uh_base_response(
+        machine_id, machine, prediction, fusion_result, sensors,
+        telemetry_points=len(telemetry_entries),
+    )
 
     try:
         parts_readiness = await get_machine_parts_readiness(machine_id, db)
@@ -359,6 +386,8 @@ async def get_unified_health(
         response["recovery"] = None
 
     try:
+        if not response["telemetry_available"]:
+            raise ValueError("no telemetry")  # no readings => no per-sensor status
         response["sensor_status"] = build_sensor_status(
             machine.type or "",
             machine.nom or "",
@@ -438,20 +467,15 @@ async def get_machine_prediction(
     # 5. Query telemetry history; derive scalars from latest entry or use defaults
     telemetry_entries, telemetry_logs = await _get_telemetry_history(machine_id, db)
 
-    if telemetry_entries:
-        latest = telemetry_entries[-1]
-        _air = float(latest.air_temperature)
-        _proc = float(latest.process_temperature)
-        _rpm = int(latest.rotational_speed)
-        _torq = float(latest.torque)
-        _wear = float(latest.tool_wear)
-    else:
-        _air, _proc, _rpm, _torq, _wear = 300.0, 310.0, 1500, 40.0, 0.0
+    # No telemetry => all-None sensors (never placeholder readings, see
+    # _latest_sensors) and no ML call: the models would only echo the
+    # placeholders back identically for every machine.
+    _air, _proc, _rpm, _torq, _wear = _latest_sensors(telemetry_entries)
 
     # 6. Optionally fetch DST fusion from ML microservice (best-effort, non-blocking)
     fusion_result: Optional[Dict] = None
     try:
-        if await is_ml_service_available():
+        if telemetry_entries and await is_ml_service_available():
             fusion_result = await ml_client.predict_all(
                 air_temperature=_air,
                 process_temperature=_proc,

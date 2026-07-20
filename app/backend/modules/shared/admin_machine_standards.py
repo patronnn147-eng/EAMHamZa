@@ -1,4 +1,5 @@
 import re
+import unicodedata
 
 ZONE_CMS1_NAME = "ZONE CMS1 - COMPONENT SURFACE MOUNTING"
 ZONE_CMS2_NAME = "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)"
@@ -76,6 +77,28 @@ MACHINE_STATUS_OPTIONS = [
 ]
 
 
+SUBZONE_SHORT = {
+    "CMS LINE 1 (e.g., BBS - Broadband Products)": "L1",
+    "CMS LINE 2 (e.g., AVS - Audio Video Products)": "L2",
+    "TEST IN-SITU (Test des Composants)": "ISITU",
+    "TEST FONCTIONNEL (Test de Fonctionnement)": "TF",
+    "TEST WiFi (Test Sans Fil)": "WIFI",
+}
+
+FILLER_WORDS = {"MACHINE", "POSTE", "FOUR", "DE", "DU", "DES", "LA", "LE", "LES", "AVEC"}
+
+
+def _short_machine_name(nom: str) -> str:
+    without_parens = re.sub(r"\(.*?\)", "", nom).strip()
+    words = without_parens.split()
+    remaining = [w for w in words if w.upper() not in FILLER_WORDS]
+    if not remaining:
+        return without_parens
+    if len(remaining[0]) <= 2 and len(remaining) > 1:
+        return f"{remaining[0]} {remaining[1]}"
+    return remaining[0]
+
+
 def generate_machine_name(zone: str, sous_zone: str, ordre: str) -> str:
     """Generate the standardized machine name matching frontend logic."""
     if not zone or not sous_zone or not ordre:
@@ -87,12 +110,16 @@ def generate_machine_name(zone: str, sous_zone: str, ordre: str) -> str:
     elif "CMS2" in zone:
         cms_number = "2"
 
+    def strip_accents(s):
+        s = unicodedata.normalize("NFD", s)
+        return "".join(c for c in s if not unicodedata.combining(c))
+
     # Standardize strings: replace non-ALPHANUM sequence with a SINGLE underscore and strip
     def clean_str(s):
-        s = re.sub(r"[^A-Z0-9]+", "_", s.upper())
+        s = re.sub(r"[^A-Z0-9]+", "_", strip_accents(s).upper())
         return s.strip("_")
 
-    subzone_key = clean_str(sous_zone)
+    subzone_key = SUBZONE_SHORT.get(sous_zone) or clean_str(sous_zone).split("_")[0]
 
     order_name = ""
     try:
@@ -102,8 +129,8 @@ def generate_machine_name(zone: str, sous_zone: str, ordre: str) -> str:
             (t for t in templates if t["ordre"] == ordre_int), None
         )
         if selected_template:
-            order_name = clean_str(selected_template["nom"])
+            order_name = clean_str(_short_machine_name(selected_template["nom"]))
     except ValueError:
         pass
 
-    return f"ZONE_CMS{cms_number}_{subzone_key}_{order_name}"
+    return f"CMS{cms_number}-{subzone_key}-{order_name}"

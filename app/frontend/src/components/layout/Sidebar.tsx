@@ -225,7 +225,7 @@ export default function Sidebar() {
                     'group flex items-center px-4 py-3 text-[13px] font-semibold rounded-xl transition-all duration-300 relative overflow-hidden',
                     isActive
                       ? 'bg-blue-100 dark:bg-blue-600/40 text-blue-700 dark:text-blue-50 border-l-2 border-blue-500 dark:border-blue-400 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]'
-                      : 'text-slate-600 dark:text-blue-200/70 hover:bg-slate-100 dark:hover:bg-blue-800/30 hover:text-slate-900 dark:hover:text-blue-50'
+                      : 'text-slate-600 dark:text-blue-200/70 hover:bg-[hsl(226_70%_40%)] dark:hover:bg-blue-800/30 hover:text-white dark:hover:text-blue-50'
                   )}
                 >
                   {isActive && (
@@ -235,7 +235,7 @@ export default function Sidebar() {
                     className={cn(
                       isActive
                         ? 'text-blue-600 dark:text-white scale-110'
-                        : 'text-slate-400 dark:text-blue-400/70 group-hover:text-slate-700 dark:group-hover:text-blue-200',
+                        : 'text-slate-400 dark:text-blue-400/70 group-hover:text-white dark:group-hover:text-blue-200',
                       'mr-3 flex-shrink-0 h-5 w-5 transition-all duration-300 group-hover:rotate-3'
                     )}
                     aria-hidden="true"

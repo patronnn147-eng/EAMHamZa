@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 import joblib
 import logging
+import os
 from .config import config
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,42 @@ def load_p3():
     return _extract(data)
 
 
+def _load_p4_autoencoder(data: dict):
+    """Lazy-load the P4 autoencoder from its own .keras file (Phase 4.3).
+
+    The AE is never embedded in the joblib pkl — TF/Keras model objects
+    don't survive joblib round-trips reliably across versions — it's saved
+    separately by the training script and referenced by filename, mirroring
+    how p4_anomaly_ensemble.ipynb always intended this to work (see the
+    legacy src/model_loader.py, which already had this exact logic; this
+    was the missing half of the "real bug" found in Phase 4.3 — this
+    authoritative loader was still reading a nonexistent embedded
+    "autoencoder" key instead of resolving autoencoder_path).
+    Returns None (not an error) whenever TF isn't installed or no AE was
+    ever trained for this pkl — detect_anomaly()'s weight-renormalization
+    already handles a missing AE component gracefully.
+    """
+    ae_filename = data.get("autoencoder_path")
+    if not ae_filename:
+        return None
+    ae_path = config.models_dir / os.path.basename(ae_filename)
+    if not ae_path.exists():
+        logger.warning(f"[WARN] P4 autoencoder file missing: {ae_path}")
+        return None
+    try:
+        import tensorflow as tf  # noqa: F401  (local import — optional heavy dep)
+
+        model = tf.keras.models.load_model(str(ae_path))
+        logger.info("[OK] P4 autoencoder loaded (TF available)")
+        return model
+    except ImportError:
+        logger.info("[INFO] P4 autoencoder skipped — TensorFlow not installed")
+        return None
+    except Exception as ae_err:
+        logger.warning(f"[WARN] P4 autoencoder load failed: {ae_err}")
+        return None
+
+
 @lru_cache(maxsize=1)
 def load_p4():
     data = _load(config.models_dir / "ml_model_p4_anomaly_v2.pkl", "P4")
@@ -57,8 +94,20 @@ def load_p4():
         "thresholds": data.get("thresholds", {}),
         "training_stats": data.get("training_stats", {}),
         "ae_scaler": data.get("ae_scaler"),
-        "autoencoder": data.get("autoencoder"),
+        "autoencoder": _load_p4_autoencoder(data),
     }
+
+
+@lru_cache(maxsize=1)
+def load_p3_quantile():
+    """P3 prediction-interval heads (10th/50th/90th percentile), if the
+    loaded pkl was retrained with them (Phase 4.2 addition — older pkls
+    won't have this key, callers must treat None as 'no interval available'
+    rather than an error)."""
+    data = _load(config.models_dir / "ml_model_p3_rul.pkl", "P3-quantile")
+    if not isinstance(data, dict) or data.get("quantile_model") is None:
+        return None
+    return {"model": data["quantile_model"], "levels": data.get("quantile_levels", [0.1, 0.5, 0.9])}
 
 
 @lru_cache(maxsize=1)

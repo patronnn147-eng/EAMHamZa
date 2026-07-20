@@ -9,9 +9,9 @@ from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs
 from models.ordres_travail import OrdreStatut
 from services.audit import AuditService, AuditEntityType
-from services.OrdresIntervention import OrdresInterventionService
+from services.ordres_intervention import OrdresInterventionService
 from services.inventory import InventoryReservationService
-from ..OrdresIntervention.schemas import (
+from .schemas import (
     OrdresInterventionValidationData,
     OrdresInterventionResponse,
 )
@@ -45,7 +45,7 @@ async def validate_OrdresIntervention(
         update_dict["approved_at"] = datetime.now()
 
         try:
-            from services.OrdresTravail import OrdresTravailService
+            from services.ordres_travail import OrdresTravailService
 
             wo_service = OrdresTravailService(db)
 

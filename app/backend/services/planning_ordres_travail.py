@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any, List
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.planning_OrdresTravail import PlanningOrdresTravail
+from models.planning_ordres_travail import PlanningOrdresTravail
 
 logger = logging.getLogger(__name__)
 

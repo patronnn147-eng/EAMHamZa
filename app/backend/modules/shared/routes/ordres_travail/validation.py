@@ -8,11 +8,11 @@ from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import OrdreStatut
-from services.OrdresTravail import OrdresTravailService
+from services.ordres_travail import OrdresTravailService
 from services.inventory import InventoryReservationService
 from models.ordres_intervention import OrdresIntervention
 from sqlalchemy import select
-from ..OrdresTravail.schemas import (
+from .schemas import (
     OrdresTravailValidationData,
     OrdresTravailResponse,
 )

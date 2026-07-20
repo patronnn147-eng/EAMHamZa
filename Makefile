@@ -28,10 +28,10 @@ setup:
 	@echo "Pre-commit hooks installed. Secret scan + lint will run on every git commit."
 
 build:
-	docker-compose --env-file .env.docker build
+	docker-compose --env-file .env build
 
 up:
-	docker-compose --env-file .env.docker up -d
+	docker-compose --env-file .env up -d
 	@echo ""
 	@echo "✅ All services started!"
 	@echo ""
@@ -57,8 +57,8 @@ clean:
 
 rebuild:
 	docker-compose down
-	docker-compose --env-file .env.docker build --no-cache
-	docker-compose --env-file .env.docker up -d
+	docker-compose --env-file .env build --no-cache
+	docker-compose --env-file .env up -d
 	@echo "✅ Rebuilt and restarted all services"
 
 status:

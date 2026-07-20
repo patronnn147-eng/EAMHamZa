@@ -16,6 +16,43 @@ _HEADLINE_METRIC = {
 }
 
 
+# Phase 4.1 reporting hygiene: every model's accuracy number now carries an
+# honest trust label instead of being displayed as if all numbers were equally
+# real. Three states only (per roadmap doc, Phase 4.1):
+#   leaked                    -> label is a deterministic formula of an input
+#                                 feature (tool_wear); the number is real
+#                                 arithmetic but not a real prediction.
+#   unverified                -> no group-holdout (or no ground truth at all)
+#                                 backs this number; could be leakage-inflated.
+#   group-holdout-validated   -> scored against a machine never seen in
+#                                 training; the closest thing to a trustworthy
+#                                 number this app can currently produce.
+# P1/P2/P5 are "leaked" unconditionally — group-holdout doesn't fix a label
+# that's a formula of an input feature (see roadmap doc §6 for each model).
+# This overrides whatever a retrain run stored, since methodology can't cure
+# a labeling problem.
+_VALIDATION_STATUS_OVERRIDE = {"p1": "leaked", "p2": "leaked", "p5": "leaked"}
+# Fallback for models that never carry a live validation_status in their pkl
+# metrics (P4 is unsupervised — no accuracy exists to validate; P6 is
+# hard-skipped from retraining; P7 is a deterministic pipeline, not trained).
+_VALIDATION_STATUS_DEFAULT = {"p4": "unverified", "p6": "unverified", "p7": "unverified"}
+_VALIDATION_STATUS_LABEL = {
+    "leaked": "Non fiable",
+    "unverified": "Non vérifié",
+    "group-holdout-validated": "Vérifié",
+}
+
+
+def _validation_status(key: str, metrics: Optional[dict]) -> dict:
+    if key in _VALIDATION_STATUS_OVERRIDE:
+        status = _VALIDATION_STATUS_OVERRIDE[key]
+    elif metrics and metrics.get("validation_status"):
+        status = metrics["validation_status"]
+    else:
+        status = _VALIDATION_STATUS_DEFAULT.get(key, "unverified")
+    return {"status": status, "label": _VALIDATION_STATUS_LABEL.get(status, status)}
+
+
 def _headline_metric(key: str, metrics: Optional[dict]) -> Optional[dict]:
     if not metrics:
         return None
@@ -92,6 +129,7 @@ def scan_models(backend_dir: str, micro_dir: str) -> list:
                 "size_backend": os.path.getsize(bp) if bh else None,
                 "mtime_backend": os.path.getmtime(bp) if bh else None,
                 "headline_metric": _headline_metric(m["key"], raw_metrics),
+                "validation_status": _validation_status(m["key"], raw_metrics),
             }
         )
     return out

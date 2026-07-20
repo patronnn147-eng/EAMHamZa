@@ -12,7 +12,7 @@ from models.planning_machines import PlanningMachines
 from models.planning_utilisateurs import PlanningUtilisateurs
 from services.audit import AuditService, AuditEntityType
 from services.plannings import PlanningsService
-from services.PlanningUtilisateurs import PlanningUtilisateursService
+from services.planning_utilisateurs import PlanningUtilisateursService
 from tasks.planning_emails import send_planning_assignment_emails
 from .schemas import PlanningResponse, PlanningCreateData
 from .helpers import (

@@ -512,6 +512,8 @@ export const PDCACanbanBoard = () => {
             icon: <Search className="w-5 h-5 text-blue-400" />,
             color: 'bg-slate-900/60',
             border: 'border-blue-800/50',
+            badge: 'bg-blue-900/50 text-blue-200 border-blue-700/50',
+            labelClass: 'text-blue-700 dark:text-blue-50',
         },
         {
             id: 'DO',
@@ -520,6 +522,8 @@ export const PDCACanbanBoard = () => {
             icon: <PlayCircle className="w-5 h-5 text-orange-400" />,
             color: 'bg-slate-900/60',
             border: 'border-orange-800/50',
+            badge: 'bg-orange-900/50 text-orange-200 border-orange-700/50',
+            labelClass: 'text-orange-700 dark:text-orange-50',
         },
         {
             id: 'CHECK',
@@ -528,6 +532,8 @@ export const PDCACanbanBoard = () => {
             icon: <ClipboardList className="w-5 h-5 text-green-400" />,
             color: 'bg-slate-900/60',
             border: 'border-green-800/50',
+            badge: 'bg-green-900/50 text-green-200 border-green-700/50',
+            labelClass: 'text-green-700 dark:text-green-50',
         },
         {
             id: 'ACT',
@@ -536,6 +542,8 @@ export const PDCACanbanBoard = () => {
             icon: <CheckCircle2 className="w-5 h-5 text-indigo-400" />,
             color: 'bg-slate-900/60',
             border: 'border-indigo-800/50',
+            badge: 'bg-indigo-900/50 text-indigo-200 border-indigo-700/50',
+            labelClass: 'text-indigo-700 dark:text-indigo-50',
         },
     ];
 
@@ -579,14 +587,14 @@ export const PDCACanbanBoard = () => {
                     </p>
                 </div>
                 
-                <div className="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-blue-700/50 shadow-sm">
-                    <Filter className="w-4 h-4 text-blue-400 ml-2" />
+                <div className="flex items-center gap-2 bg-white dark:bg-slate-800 p-1.5 rounded-lg border border-slate-200 dark:border-blue-700/50 shadow-sm">
+                    <Filter className="w-4 h-4 text-blue-500 dark:text-blue-400 ml-2" />
                     <div className="flex gap-1">
                         <Button
                             variant={filterType === 'ALL' ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => setFilterType('ALL')}
-                            className={`h-8 text-xs ${filterType === 'ALL' ? 'bg-slate-800 text-white' : 'text-blue-200'}`}
+                            className={`h-8 text-xs ${filterType === 'ALL' ? 'bg-[hsl(226_70%_40%)] text-white' : 'text-slate-600 dark:text-blue-200 hover:bg-slate-100 dark:hover:bg-blue-900/30'}`}
                         >
                             All
                         </Button>
@@ -594,7 +602,7 @@ export const PDCACanbanBoard = () => {
                             variant={filterType === 'HIGH_PRIORITY' ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => setFilterType('HIGH_PRIORITY')}
-                            className={`h-8 text-xs ${filterType === 'HIGH_PRIORITY' ? 'bg-orange-600 text-white' : 'text-orange-400 hover:text-orange-300 hover:bg-orange-900/30'}`}
+                            className={`h-8 text-xs ${filterType === 'HIGH_PRIORITY' ? 'bg-orange-600 text-white' : 'text-orange-500 dark:text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/30'}`}
                         >
                             High Priority
                         </Button>
@@ -602,7 +610,7 @@ export const PDCACanbanBoard = () => {
                             variant={filterType === 'BLOCKED' ? 'default' : 'ghost'}
                             size="sm"
                             onClick={() => setFilterType('BLOCKED')}
-                            className={`h-8 text-xs ${filterType === 'BLOCKED' ? 'bg-red-600 text-white' : 'text-red-400 hover:text-red-300 hover:bg-red-900/30'}`}
+                            className={`h-8 text-xs ${filterType === 'BLOCKED' ? 'bg-red-600 text-white' : 'text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30'}`}
                         >
                             Blocked Only
                         </Button>
@@ -653,9 +661,9 @@ export const PDCACanbanBoard = () => {
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         {col.icon}
-                                        <span className="font-bold text-blue-50 tracking-wider text-base">{col.label}</span>
+                                        <span className={`font-bold tracking-wider text-base ${col.labelClass}`}>{col.label}</span>
                                     </div>
-                                    <Badge variant="outline" className="bg-slate-800/80 backdrop-blur-sm text-blue-200 border-blue-700/50 font-bold px-2.5">
+                                    <Badge variant="outline" className={`backdrop-blur-sm font-bold px-2.5 ${col.badge}`}>
                                         {colItems.length}
                                     </Badge>
                                 </div>

@@ -37,9 +37,15 @@ _SHAP_FRIENDLY = {
 class RULCalculator:
     @staticmethod
     def _extract_telemetry(entries: list) -> tuple:
-        """Return (air_temp, process_temp, rpm, torque, tool_wear) from last entry or defaults."""
+        """
+        Return (air_temp, process_temp, rpm, torque, tool_wear) from the last
+        entry, or all-None when there is no telemetry.
+
+        No placeholder defaults on purpose: substituting nominal readings makes
+        a machine with zero sensor history indistinguishable from a healthy one.
+        """
         if not entries:
-            return 300.0, 310.0, 1500, 40.0, 0.0
+            return None, None, None, None, None
         latest = entries[-1]
         return (
             float(latest.air_temperature),
@@ -57,9 +63,9 @@ class RULCalculator:
 
     @staticmethod
     def _extract_fusion_fields(fusion_result: Optional[Dict]) -> tuple:
-        """Return (ml_probability, model_rul, is_anomaly, anomaly_score, priority_ml, failure_types, shap_exps)."""
+        """Return (ml_probability, model_rul, is_anomaly, anomaly_score, priority_ml, failure_types, shap_exps, rul_interval)."""
         if not fusion_result:
-            return 0.0, None, False, 0.0, None, {}, []
+            return 0.0, None, False, 0.0, None, {}, [], None
         return (
             float(fusion_result.get("p1_failure_probability", 0.0)),
             fusion_result.get("p3_rul_days"),
@@ -68,7 +74,32 @@ class RULCalculator:
             fusion_result.get("p5_predicted_priority"),
             fusion_result.get("p2_failure_types", {}),
             fusion_result.get("shap_explanations", []),
+            fusion_result.get("p3_rul_interval"),
         )
+
+    @staticmethod
+    def _scale_rul_interval(rul_interval: Optional[Dict], rul_days: float) -> Optional[Dict]:
+        """Rescale the raw model's [p10,p50,p90] spread onto the final,
+        blended rul_days actually shown to the user (rul_days is model_rul
+        blended with historical MTBF + degradation adjustment — not the raw
+        model output the interval was fit against). Applies the model's
+        relative spread (as a fraction of its own p50) around the final
+        number instead of the raw model's absolute bounds, so a stale/absent
+        interval never contradicts the headline RUL figure. None when no
+        interval is available (older pkl, not yet retrained with Phase 4.2
+        quantile heads) — omitted entirely rather than faked."""
+        if not rul_interval:
+            return None
+        p10, p50, p90 = rul_interval.get("p10"), rul_interval.get("p50"), rul_interval.get("p90")
+        if not p50 or p50 <= 0 or p10 is None or p90 is None:
+            return None
+        low_ratio = max(0.0, min(1.0, (p50 - p10) / p50))
+        high_ratio = max(0.0, (p90 - p50) / p50)
+        return {
+            "low": round(max(0.0, rul_days * (1 - low_ratio)), 1),
+            "high": round(rul_days * (1 + high_ratio), 1),
+            "confidence": 0.8,
+        }
 
     @staticmethod
     def _compute_deductions(machine: Machines, now_dt: datetime,
@@ -181,7 +212,7 @@ class RULCalculator:
         deg_wear = RULCalculator._deg_rate(entries, "tool_wear")
         deg_magnitude = abs(deg_air) / 10.0 + abs(deg_proc) / 10.0 + abs(deg_wear) / 5.0
 
-        ml_probability, model_rul, is_anomaly, anomaly_score, predicted_priority_ml, failure_types, shap_exps = \
+        ml_probability, model_rul, is_anomaly, anomaly_score, predicted_priority_ml, failure_types, shap_exps, rul_interval_raw = \
             RULCalculator._extract_fusion_fields(fusion_result)
 
         hist_mtbf_days = RULCalculator._get_historical_mtbf(interventions)
@@ -204,6 +235,7 @@ class RULCalculator:
                                          failure_types, ml_health_score, ml_reliability_score)
 
         risk_level = RULCalculator._compute_risk_level(ml_probability, rul_days)
+        rul_confidence_interval = RULCalculator._scale_rul_interval(rul_interval_raw, rul_days)
 
         if predicted_priority_ml:
             predicted_priority = str(predicted_priority_ml)
@@ -216,6 +248,7 @@ class RULCalculator:
             "machine_id": machine.id,
             "machine_name": machine.nom,
             "rul_days": round(float(max(0, rul_days)), 1),
+            "rul_confidence_interval": rul_confidence_interval,
             "risk_level": risk_level,
             "failure_probability": float(ml_probability),
             "predicted_failure_date": (now + timedelta(days=max(0, rul_days))).isoformat(),
@@ -247,12 +280,13 @@ class RULCalculator:
             "mtbf_pred": round(float(ml_mtbf_hours), 1),
             "mttr_pred": round(float(ml_mttr_hours), 1),
             "availability_pred": round(float(ml_availability_pct), 1) if ml_availability_pct is not None else 0.0,
-            "air_temperature": round(float(air_temp), 2),
-            "process_temperature": round(float(process_temp), 2),
-            "rotational_speed": int(rpm),
-            "torque": round(float(torque), 2),
-            "tool_wear": round(float(tool_wear), 2),
+            "air_temperature": round(float(air_temp), 2) if air_temp is not None else None,
+            "process_temperature": round(float(process_temp), 2) if process_temp is not None else None,
+            "rotational_speed": int(rpm) if rpm is not None else None,
+            "torque": round(float(torque), 2) if torque is not None else None,
+            "tool_wear": round(float(tool_wear), 2) if tool_wear is not None else None,
             "telemetry_data_points": len(entries),
+            "telemetry_available": len(entries) > 0,
         }
 
         if not fusion_result:

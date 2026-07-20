@@ -264,11 +264,11 @@ body.is-scrolling {
 }
 
 .is-scrolling::-webkit-scrollbar-thumb {
-  background-color: rgba(148, 163, 184, 0.6);
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
 .is-scrolling::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(148, 163, 184, 0.85);
+  background-color: rgba(18, 19, 20, 0.85);
 }
 
 /* .no-scrollbar is intentionally a no-op — the global overlay scrollbar
@@ -344,11 +344,11 @@ body.is-scrolling {
 
 /* Orchestrated Void Colors */
 .text-orchestrated-glass {
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(12, 3, 3, 0.6);
 }
 
 .text-orchestrated-cyan {
-  color: #00fff2;
+  color: #1f41ae;
 }
 
 .bg-orchestrated-void {
@@ -356,7 +356,7 @@ body.is-scrolling {
 }
 
 .btn-cyan:hover {
-  background: #33fff6;
+  background: #1f41ae;
   box-shadow: 0 0 20px rgba(0, 255, 242, 0.4);
 }
 

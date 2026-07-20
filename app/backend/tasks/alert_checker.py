@@ -20,21 +20,26 @@ logger = logging.getLogger(__name__)
 
 
 async def run_alert_check() -> dict:
-    # Each asyncio.run() creates a new event loop. The db_manager singleton
-    # caches its async engine + asyncio.Lock() bound to the *first* loop.
-    # Fully close and reset before reinitialising so a fresh engine and lock
-    # are created for the current loop, avoiding
-    # "Future attached to a different loop" errors.
-    await db_manager.close_db()
-    # _init_lock was created inside the previous loop — replace it.
+    # Each asyncio.run() creates a new event loop. The db_manager singleton's
+    # engine, pool (incl. its internal sync primitives), and pooled asyncpg
+    # connections are all bound to whichever loop created them. They MUST be
+    # disposed inside that same loop -- disposing from a later call, running
+    # in a new loop, tries to close connections/primitives whose loop is
+    # already closed, causing "Future attached to a different loop" /
+    # "Event loop is closed". So: fresh locks + init at the START, and
+    # dispose at the END, all within this one loop, before asyncio.run()
+    # closes it.
     db_manager._init_lock = asyncio.Lock()
     db_manager._table_creation_lock = asyncio.Lock()
     await db_manager.init_db()
-    async with db_manager.async_session_maker() as session:
-        from services.alertes import AlertService
+    try:
+        async with db_manager.async_session_maker() as session:
+            from services.alertes import AlertService
 
-        service = AlertService(session)
-        return await service.check_and_create_alerts()
+            service = AlertService(session)
+            return await service.check_and_create_alerts()
+    finally:
+        await db_manager.close_db()
 
 
 @celery_app.task(name="tasks.check_predictive_alerts")

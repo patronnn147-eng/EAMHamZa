@@ -235,6 +235,14 @@ async def update_intervention_status(
         except Exception as _fb_err:
             logger.debug(f"[P7-feedback] non-fatal error: {_fb_err}")
 
+    # P4 flag-to-outcome feedback (Phase 4.3) — non-fatal
+    if data.statut in (_STATUT_TERMINE, "VALIDATED"):
+        try:
+            from modules.ml.services.p4_feedback import record_p4_feedback
+            await record_p4_feedback(intervention.id, db)
+        except Exception as _fb_err:
+            logger.debug(f"[P4-feedback] non-fatal error: {_fb_err}")
+
     if data.statut != old_status:
         await _notify_status_change(db, current_user, intervention, old_status, data.statut)
 

@@ -6,7 +6,14 @@ const API = import.meta.env.VITE_API_BASE_URL || '';
 const token = () => localStorage.getItem('access_token');
 
 interface HeadlineMetric { name: string; value: number; per_label?: Record<string, number> }
-interface ModelRow { key: string; label: string; in_backend: boolean; in_micro: boolean; hash_match: boolean; mtime_backend: number | null; headline_metric: HeadlineMetric | null }
+interface ValidationStatus { status: 'leaked' | 'unverified' | 'group-holdout-validated'; label: string }
+interface ModelRow { key: string; label: string; in_backend: boolean; in_micro: boolean; hash_match: boolean; mtime_backend: number | null; headline_metric: HeadlineMetric | null; validation_status: ValidationStatus }
+
+const TRUST_STYLE: Record<ValidationStatus['status'], { cls: string; title: string }> = {
+  'group-holdout-validated': { cls: 'text-emerald-400 bg-emerald-950 border-emerald-800', title: 'Testé sur une machine jamais vue à l’entraînement — le chiffre le plus fiable possible aujourd’hui.' },
+  'unverified': { cls: 'text-amber-400 bg-amber-950 border-amber-800', title: 'Pas encore testé sur des données mises de côté — ce chiffre pourrait être optimiste.' },
+  leaked: { cls: 'text-red-400 bg-red-950 border-red-800', title: 'Ce chiffre est calculé à partir d’une règle interne aux données d’exemple, pas d’un vrai historique de pannes — à ne pas prendre pour une vraie précision.' },
+};
 interface Health { models: ModelRow[]; divergences: { filename: string; reason: string }[]; drift: { verdict: string }; retrain: { recommended: boolean; reasons: string[] } }
 
 function ago(mtime: number | null): string {
@@ -75,11 +82,21 @@ export function ModelHealthTable() {
                     : <span className="text-red-400 inline-flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> {mismatchReason}</span>}
                 </td>
                 <td className="px-3 py-2">
-                  {m.headline_metric
-                    ? <span className="text-slate-200 font-medium" title={m.headline_metric.per_label ? Object.entries(m.headline_metric.per_label).map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`).join(' · ') : undefined}>
-                        {(m.headline_metric.value * 100).toFixed(1)}% <span className="text-slate-500 text-xs">{m.headline_metric.name}</span>
+                  <div className="flex items-center gap-2">
+                    {m.headline_metric
+                      ? <span className="text-slate-200 font-medium" title={m.headline_metric.per_label ? Object.entries(m.headline_metric.per_label).map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`).join(' · ') : undefined}>
+                          {(m.headline_metric.value * 100).toFixed(1)}% <span className="text-slate-500 text-xs">{m.headline_metric.name}</span>
+                        </span>
+                      : <span className="text-slate-500">—</span>}
+                    {m.validation_status && (
+                      <span
+                        title={TRUST_STYLE[m.validation_status.status]?.title}
+                        className={`text-[10px] px-1.5 py-0.5 rounded border ${TRUST_STYLE[m.validation_status.status]?.cls ?? 'text-slate-400 bg-slate-800 border-slate-700'}`}
+                      >
+                        {m.validation_status.label}
                       </span>
-                    : <span className="text-slate-500">—</span>}
+                    )}
+                  </div>
                 </td>
                 <td className="px-3 py-2 text-blue-300">{ago(m.mtime_backend)}</td>
               </tr>

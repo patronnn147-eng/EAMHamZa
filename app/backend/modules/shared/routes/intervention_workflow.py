@@ -24,11 +24,11 @@ from models.plannings import Plannings
 from models.machines import Machines
 from services.audit import AuditService, AuditEntityType
 from services.ml.recovery import PostMaintenanceRecoveryService
-from .OrdresIntervention.schemas import (
+from .ordres_intervention.schemas import (
     OrdresInterventionResponse,
     OrdresInterventionValidationData,
 )
-from .OrdresTravail.schemas import OrdresTravailResponse
+from .ordres_travail.schemas import OrdresTravailResponse
 
 logger = logging.getLogger(__name__)
 

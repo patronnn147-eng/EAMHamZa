@@ -56,4 +56,6 @@ export interface KanbanColumn {
     description: string;
     color: string;
     border: string;
+    badge: string;
+    labelClass: string;
 }

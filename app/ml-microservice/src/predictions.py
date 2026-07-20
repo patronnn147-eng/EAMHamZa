@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 
 from .core.config import config
 from .core.feature_pipeline import FeaturePipeline, SensorReading
-from .core.model_loader import load_p1, load_p2, load_p3, load_p4, load_p5, load_p6, load_p7
+from .core.model_loader import load_p1, load_p2, load_p3, load_p3_quantile, load_p4, load_p5, load_p6, load_p7
 from .p7_parts_demand import survival_demand, croston_forecast, build_parts_demand
 from .feature_store import FeatureStore
 from .health_index import MahalanobisHealthIndex, get_health_index_model
@@ -279,7 +279,7 @@ def _filter_dst_inputs(model_outputs: list, maintenance_event: bool) -> list:
     return valid
 
 
-def _run_shap_explanations(include_shap: bool, features_5: list) -> list:
+def _run_shap_explanations(include_shap: bool, features_7: list) -> list:
     """Return SHAP explanation list; empty list if disabled or on error."""
     if not include_shap:
         return []
@@ -288,14 +288,21 @@ def _run_shap_explanations(include_shap: bool, features_5: list) -> list:
         model_p1_raw = load_p1()
         if model_p1_raw is None:
             return []
+        # Must match FeaturePipeline.build_7's order exactly — the deployed
+        # P1 pkl is trained on 7 features (5 raw + temp_delta + rpm_torque),
+        # not 5. Passing only 5 here made SHAP's TreeExplainer compute
+        # pred_contribs off a 5-feature X while the booster expects 7,
+        # raising "XGBoostError: ... (6 vs. 8)" on every explained call.
         feature_names = [
             "Air temperature [K]",
             "Process temperature [K]",
             "Rotational speed [rpm]",
             "Torque [Nm]",
             "Tool wear [min]",
+            "temp_delta",
+            "rpm_torque",
         ]
-        return XAIService.explain_prediction(model_p1_raw, features_5, feature_names)
+        return XAIService.explain_prediction(model_p1_raw, features_7, feature_names)
     except Exception as _xai_exc:
         logger.warning(f"SHAP explanations failed: {_xai_exc}", exc_info=True)
         return []
@@ -493,6 +500,33 @@ class MachineLearningService:
             logger.warning("P3 RUL prediction failed", exc_info=True)
             return None
 
+    @staticmethod
+    def predict_rul_interval(features: List[float]) -> Optional[Dict]:
+        """
+        Prediction interval for RUL (10th/50th/90th percentile), from the
+        separate quantile-regression heads trained alongside P3's point
+        estimator (Phase 4.2). Returns None when the deployed pkl predates
+        this feature — same n_features_in_ slicing as predict_rul() so this
+        stays correct whether P3 is on the 7- or 11-feature vector.
+        """
+        q = load_p3_quantile()
+        if q is None or q.get("model") is None:
+            return None
+        try:
+            model = q["model"]
+            n = getattr(model, "n_features_in_", len(features))
+            preds = model.predict(np.array([features[:n]]))[0]
+            levels = q.get("levels", [0.1, 0.5, 0.9])
+            by_level = {round(float(lv), 2): max(0.0, float(p)) for lv, p in zip(levels, preds)}
+            return {
+                "p10": by_level.get(0.1),
+                "p50": by_level.get(0.5),
+                "p90": by_level.get(0.9),
+            }
+        except Exception:
+            logger.warning("P3 RUL interval prediction failed", exc_info=True)
+            return None
+
     # ==================== P4: Anomaly Detection ====================
     @staticmethod
     def detect_anomaly(features: List[float]) -> tuple:
@@ -654,6 +688,7 @@ class MachineLearningService:
         failure_prob  = MachineLearningService.predict_failure_probability(features_7)
         failure_types = MachineLearningService.predict_failure_type(features_7)
         rul_days      = MachineLearningService.predict_rul(features_11)
+        rul_interval  = MachineLearningService.predict_rul_interval(features_11)
         is_anomaly, anomaly_score = MachineLearningService.detect_anomaly(features_5)
         priority      = MachineLearningService.predict_priority(features_7)
         schedule_days = MachineLearningService.predict_maintenance_schedule(features_7)
@@ -675,6 +710,7 @@ class MachineLearningService:
             "p1_risk_level": risk_level,
             "p2_failure_types": failure_types,
             "p3_rul_days": round(rul_days, 1) if rul_days else None,
+            "p3_rul_interval": rul_interval,
             "p4_is_anomaly": is_anomaly,
             "p4_anomaly_score": round(anomaly_score, 3),
             "p5_predicted_priority": priority,
@@ -693,6 +729,6 @@ class MachineLearningService:
             base_result["score_source"] = "fallback_additive"
 
         base_result["shap_explanations"] = _run_shap_explanations(
-            include_shap, [air, process, rpm, torque, wear]
+            include_shap, features_7
         )
         return base_result

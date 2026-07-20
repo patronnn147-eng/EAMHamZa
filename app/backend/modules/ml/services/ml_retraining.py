@@ -249,8 +249,29 @@ class RetrainingService:
             from xgboost import XGBRegressor as _XGBR
             model = _XGBR(n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42)
             model.fit(X, targets["y"])
-            return {"model": model, "features": existing_features,
-                    "metrics": {**meta, "rul_source": "tool_wear_proxy"}}
+            result = {"model": model, "features": existing_features,
+                      "metrics": {**meta, "rul_source": "tool_wear_proxy"}}
+
+            # Phase 4.2: prediction-interval heads (10th/50th/90th percentile)
+            # alongside the point estimate above. Separate model object, same
+            # X/y — a point RUL number with no uncertainty band overstates
+            # what's actually knowable (roadmap doc P3 §5/§6). Best-effort:
+            # reg:quantileerror needs xgboost>=2.0; if the installed version
+            # or a training quirk rejects it, ship the point model alone
+            # rather than failing the whole P3 retrain over an add-on.
+            try:
+                quantile_levels = [0.1, 0.5, 0.9]
+                quantile_model = _XGBR(
+                    n_estimators=200, max_depth=5, learning_rate=0.1, random_state=42,
+                    objective="reg:quantileerror", quantile_alpha=quantile_levels,
+                )
+                quantile_model.fit(X, targets["y"])
+                result["quantile_model"] = quantile_model
+                result["quantile_levels"] = quantile_levels
+            except Exception as q_exc:
+                logger.warning(f"P3 quantile-head fit failed, shipping point estimate only: {q_exc}")
+
+            return result
 
         if mt == "p4":
             # Rebuilds 2 of the deployed ensemble's 4 components (Isolation
@@ -336,9 +357,67 @@ class RetrainingService:
             logger.warning(f"Accuracy gate eval failed for {mt}: {_gate_exc}")
             return True, {}  # don't block on infra failure
 
+    # Models whose headline metric is known (per the P1-P7 roadmap doc) to
+    # swing on small-sample noise rather than real progress — P5 measured
+    # 81%->88% on a single 60-row fold. Reporting one fold's score alone
+    # invites reading noise as improvement, so these get a repeated
+    # group-holdout pass (mean+/-std across multiple held-out machines)
+    # whenever enough machines exist to do it.
+    _REPEATED_HOLDOUT_MODELS = ("p2", "p5")
+    _MAX_REPEATED_FOLDS = 5
+
+    @staticmethod
+    def _repeated_holdout_scores(mt: str, full_df, machine_ids: list,
+                                  existing_features: list, xgb_features: list,
+                                  existing_data: dict) -> list:
+        """Re-split/re-fit/re-score mt across several held-out machines.
+
+        Independent of the single split already used for the model that
+        actually gets saved — this is purely a reporting-hygiene signal
+        (mean+/-std across folds), not an alternate model. Returns a list of
+        per-fold macro-F1 scores; best-effort, swallows per-fold failures so
+        one bad fold doesn't blank out the whole variance estimate.
+        """
+        from sklearn.metrics import f1_score as _f1
+
+        n = len(machine_ids)
+        step = max(1, n // RetrainingService._MAX_REPEATED_FOLDS)
+        fold_machines = machine_ids[::step][: RetrainingService._MAX_REPEATED_FOLDS]
+
+        scores = []
+        for holdout in fold_machines:
+            try:
+                val_mask = full_df["machine_id"] == holdout
+                fold_train_df = full_df[~val_mask]
+                fold_val_df = full_df[val_mask]
+                if fold_val_df.empty or fold_train_df.empty:
+                    continue
+
+                targets = RetrainingService._prepare_model_targets(mt, fold_train_df, fold_val_df)
+                if targets is None:
+                    continue
+                fold_train_df = targets["train_df"]
+                fold_val_df = targets["val_df"]
+
+                X = fold_train_df[existing_features].copy()
+                X.columns = xgb_features
+                x_val = fold_val_df[existing_features].copy()
+                x_val.columns = xgb_features
+
+                model_data = RetrainingService._fit_model_for_type(mt, X, targets, existing_data, len(X))
+                if model_data is None:
+                    continue
+                preds = model_data["model"].predict(x_val)
+                scores.append(float(_f1(targets["y_val"], preds, average="macro", zero_division=0)))
+            except Exception as fold_exc:
+                logger.warning(f"Repeated-holdout fold failed for {mt} (machine={holdout}): {fold_exc}")
+                continue
+        return scores
+
     @staticmethod
     def _retrain_one_model(mt: str, model_path: str, train_df, val_df,
-                            n_samples: int, min_f1: float, min_r2: float) -> dict:
+                            n_samples: int, min_f1: float, min_r2: float,
+                            full_df=None, machine_ids: Optional[list] = None) -> dict:
         """Full retrain cycle for one model type. Returns a status dict."""
         existing_data = joblib.load(model_path)
         existing_features = existing_data.get("features", [])
@@ -418,6 +497,29 @@ class RetrainingService:
                 "reason": f"accuracy gate failed: {gate_metrics} (minimum: classifier F1>={min_f1}, regressor R2>={min_r2})",
                 "metrics": gate_metrics,
             }
+
+        # P3 is the only model where group-holdout methodology actually earns
+        # a "validated" label (see model_registry._VALIDATION_STATUS_OVERRIDE
+        # for why P1/P2/P5 are unconditionally "leaked" regardless of
+        # methodology — a label formula can't be fixed by a better split).
+        if mt == "p3":
+            gate_metrics["validation_status"] = (
+                "group-holdout-validated" if machine_ids and len(machine_ids) >= 2 else "unverified"
+            )
+
+        if mt in RetrainingService._REPEATED_HOLDOUT_MODELS and full_df is not None \
+                and machine_ids and len(machine_ids) >= 2:
+            try:
+                fold_scores = RetrainingService._repeated_holdout_scores(
+                    mt, full_df, machine_ids, existing_features, xgb_features, existing_data
+                )
+                if len(fold_scores) >= 2:
+                    import statistics as _stats
+                    gate_metrics["val_f1_macro_mean"] = round(_stats.fmean(fold_scores), 4)
+                    gate_metrics["val_f1_macro_std"] = round(_stats.pstdev(fold_scores), 4)
+                    gate_metrics["n_folds"] = len(fold_scores)
+            except Exception as repeat_exc:
+                logger.warning(f"Repeated group-holdout reporting failed for {mt}: {repeat_exc}")
 
         model_data.setdefault("metrics", {}).update(gate_metrics)
         joblib.dump(model_data, model_path)
@@ -569,7 +671,8 @@ class RetrainingService:
                     continue
                 try:
                     result = RetrainingService._retrain_one_model(
-                        mt, model_path, _train_df, _val_df, len(new_data), _MIN_CLASSIFIER_F1, _MIN_REGRESSOR_R2
+                        mt, model_path, _train_df, _val_df, len(new_data), _MIN_CLASSIFIER_F1, _MIN_REGRESSOR_R2,
+                        full_df=combined_df, machine_ids=machine_ids,
                     )
                 except Exception as model_exc:
                     # Failure before backup (e.g. missing engineered feature
