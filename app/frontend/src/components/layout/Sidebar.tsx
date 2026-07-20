@@ -22,6 +22,7 @@ import {
   ListChecks,
   Database,
   PackageSearch,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { client } from '@/lib/api';
@@ -89,6 +90,7 @@ const getNavigationItems = (role: string): NavigationItem[] => {
       { name: 'IoT Dashboard', href: '/iot-dashboard', icon: Activity },
       { name: 'Alertes Prédictives', href: '/alerts', icon: Bell },
       { name: 'Centre des alertes', href: '/cheftech/alerts', icon: Bell },
+      { name: 'Changements de statut', href: '/cheftech/machine-status-requests', icon: RefreshCw },
       { name: 'Assistant IA', href: '/chat', icon: MessageSquare },
       { name: 'Base Documentaire', href: '/rag-documents', icon: Database },
       { name: 'Historique (Audit)', href: '/audit-log', icon: History },

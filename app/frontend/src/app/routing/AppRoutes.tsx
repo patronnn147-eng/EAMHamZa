@@ -57,6 +57,7 @@ import IoTDashboard from '@/modules/shared/IoTDashboard';
 import TelemetryPanel from '@/modules/shared/TelemetryPanel';
 import AuditLogViewer from '@/modules/shared/AuditLogViewer';
 import ChefTechAlertWorkflow from '@/modules/cheftech/ChefTechAlertWorkflow';
+import MachineStatusRequestsPage from '@/modules/cheftech/MachineStatusRequestsPage';
 import RAGDocuments from '@/modules/shared/RAGDocuments';
 import ForecastDashboard from '@/modules/cheftech/forecast/ForecastDashboard';
 
@@ -276,6 +277,16 @@ export function AppRoutes() {
           <ProtectedRoute allowedRoles={['CHEFTECH']}>
             <Layout>
               <ChefTechAlertWorkflow />
+            </Layout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/cheftech/machine-status-requests"
+        element={
+          <ProtectedRoute allowedRoles={['CHEFTECH']}>
+            <Layout>
+              <MachineStatusRequestsPage />
             </Layout>
           </ProtectedRoute>
         }
