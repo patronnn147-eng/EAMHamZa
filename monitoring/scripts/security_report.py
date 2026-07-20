@@ -9,7 +9,7 @@ GitLab CI job, not by this script's exit code.
 Usage:
   python3 security_report.py <tool> <json_file> [label]
 
-  tool  : gitleaks | pip-audit | pnpm-audit | trivy
+  tool  : gitleaks | pip-audit | pnpm-audit | trivy | zap
   label : optional string shown in the report header (e.g. image name)
 """
 
@@ -138,11 +138,43 @@ def parse_trivy(data: dict) -> list:
     return findings
 
 
+def _map_zap_severity(riskdesc: str) -> str:
+    # riskdesc looks like "High (Medium)" — risk level, then confidence in parens.
+    # We only care about the risk level (first word).
+    level = (riskdesc or "").split(" ")[0].strip().lower()
+    return {
+        "high": "HIGH",
+        "medium": "MEDIUM",
+        "low": "LOW",
+        "informational": "UNKNOWN",
+    }.get(level, "UNKNOWN")
+
+
+def parse_zap(data: dict) -> list:
+    findings = []
+    for site in data.get("site", []) or []:
+        for alert in site.get("alerts", []) or []:
+            instances = alert.get("instances", []) or []
+            location = instances[0].get("uri", "?") if instances else site.get("@name", "?")
+            if len(instances) > 1:
+                location = f"{location} (+{len(instances) - 1} more)"
+            findings.append(Finding(
+                id=alert.get("pluginid", "unknown-plugin"),
+                name=alert.get("alert", alert.get("name", "unknown-alert")),
+                installed="-",
+                fixed="-",
+                severity=_map_zap_severity(alert.get("riskdesc", "")),
+                location=location,
+            ))
+    return findings
+
+
 PARSERS = {
     "gitleaks": parse_gitleaks,
     "pip-audit": parse_pip_audit,
     "pnpm-audit": parse_pnpm_audit,
     "trivy": parse_trivy,
+    "zap": parse_zap,
 }
 
 
