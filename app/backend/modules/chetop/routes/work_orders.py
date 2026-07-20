@@ -17,6 +17,7 @@ from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
 from services.inventory import InventoryReservationService
 from services.ml.recovery import PostMaintenanceRecoveryService
+from modules.shared.services.machine_status_requests import create_status_change_request
 from schemas.stock import ConsumedPieceItem
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
 from typing import Annotated
@@ -302,6 +303,19 @@ async def complete_work_order(
             machine_obj.date_derniere_maintenance = now
 
         _apply_intervention_completion_fields(intervention, payload, wo, now)
+        if payload.machine_status_after:
+            try:
+                await create_status_change_request(
+                    machine_id=wo.machine_id,
+                    to_status=payload.machine_status_after,
+                    requested_by=current_user.id,
+                    source_intervention_id=intervention.id,
+                    db=db,
+                )
+            except Exception:
+                logger.warning(
+                    f"Machine status change request failed for WO {order_id}"
+                )
         _add_telemetry_if_present(db, payload, wo, order_id, now, current_user.id)
         await _apply_parts_consumption(db, intervention, payload, order_id)
 

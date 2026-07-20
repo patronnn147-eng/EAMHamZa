@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from models.machine_status import MACHINE_STATUSES
 
 
 class InterventionRequestCreate(BaseModel):
@@ -102,6 +104,13 @@ class WorkOrderCompletePayload(BaseModel):
     parts_replaced: Optional[str] = None
     tools_used: Optional[str] = None
     machine_status_after: Optional[str] = None
+
+    @field_validator("machine_status_after")
+    @classmethod
+    def _validate_machine_status_after(cls, v):
+        if v is not None and v not in MACHINE_STATUSES:
+            raise ValueError(f"machine_status_after must be one of {MACHINE_STATUSES}")
+        return v
 
     # PDCA Specific
     plan_hypothesis: Optional[str] = None
