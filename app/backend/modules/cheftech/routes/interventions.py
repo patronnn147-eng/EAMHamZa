@@ -3,15 +3,17 @@ from datetime import datetime, timezone
 from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func, or_
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
+from models.utilisateur_zones import UtilisateurZone
 from models.ordres_intervention import OrdresIntervention
 from models.ordres_travail import OrdresTravail
+from models.machines import Machines
 from ..schemas import InterventionResponse
 from ..dependencies import verify_cheftech
 
@@ -31,42 +33,39 @@ async def get_interventions(
     try:
         skip = (page - 1) * size
 
-        # Count total - show interventions where current user is involved OR pending approval
-        count_query = (
-            select(func.count(OrdresIntervention.id))
-            .where(OrdresIntervention.archived_at.is_(None))
-            .outerjoin(
-                OrdresTravail,
-                OrdresIntervention.ordre_travail_id == OrdresTravail.id,
-            )
-            .where(
-                or_(
-                    OrdresIntervention.technician_id == current_user.id,
-                    OrdresTravail.created_by == current_user.id,
-                    OrdresIntervention.statut == "PENDING_APPROVAL",
-                )
+        # Zone-scope: a CHEFTECH sees interventions for machines in any zone
+        # they're assigned to (utilisateur_zones). Unassigned CHEFTECHs (no
+        # zone rows yet) see everything — avoids breaking oversight before
+        # zones are configured.
+        zone_rows = await db.execute(
+            select(UtilisateurZone.zone).where(
+                UtilisateurZone.utilisateur_id == current_user.id
             )
         )
+        my_zones = [z for (z,) in zone_rows.all()]
+        zone_filter = (
+            OrdresIntervention.machine_id.in_(
+                select(Machines.id).where(Machines.zone.in_(my_zones))
+            )
+            if my_zones
+            else None
+        )
+
+        count_query = select(func.count(OrdresIntervention.id)).where(
+            OrdresIntervention.archived_at.is_(None)
+        )
+        if zone_filter is not None:
+            count_query = count_query.where(zone_filter)
         if statut:
             count_query = count_query.where(OrdresIntervention.statut == statut)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = (
-            select(OrdresIntervention)
-            .where(OrdresIntervention.archived_at.is_(None))
-            .outerjoin(
-                OrdresTravail,
-                OrdresIntervention.ordre_travail_id == OrdresTravail.id,
-            )
-            .where(
-                or_(
-                    OrdresIntervention.technician_id == current_user.id,
-                    OrdresTravail.created_by == current_user.id,
-                    OrdresIntervention.statut == "PENDING_APPROVAL",
-                )
-            )
+        query = select(OrdresIntervention).where(
+            OrdresIntervention.archived_at.is_(None)
         )
+        if zone_filter is not None:
+            query = query.where(zone_filter)
         if statut:
             query = query.where(OrdresIntervention.statut == statut)
         query = query.options(

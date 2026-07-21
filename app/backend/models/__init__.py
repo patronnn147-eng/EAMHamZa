@@ -1,6 +1,7 @@
 # Models package
 
 from . import utilisateurs  # noqa: F401
+from . import utilisateur_zones  # noqa: F401
 from . import alertes_urgentes  # noqa: F401
 from . import archives  # noqa: F401
 from . import commentaires  # noqa: F401

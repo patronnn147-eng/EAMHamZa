@@ -412,6 +412,10 @@ dast-scan:
 
       if [ -f zap-report.json ]; then
         python3 monitoring/scripts/security_report.py zap zap-report.json "DAST — backend/ml-service/rag-service/frontend" || true
+
+        export PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
+        echo "Pushing ZAP scan metrics to Pushgateway at ${PUSHGATEWAY_URL} ..."
+        python3 monitoring/scripts/zap_push_metrics.py zap-report.json "$PUSHGATEWAY_URL" || true
       fi
   artifacts:
     paths:

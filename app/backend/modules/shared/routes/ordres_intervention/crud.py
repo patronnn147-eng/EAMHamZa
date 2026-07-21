@@ -22,7 +22,7 @@ from .schemas import (
 from typing import Annotated
 
 router = APIRouter(
-    prefix="/api/v1/entities/OrdresIntervention", tags=["OrdresIntervention"]
+    prefix="/api/v1/entities/ordres_intervention", tags=["OrdresIntervention"]
 )
 logger = logging.getLogger(__name__)
 

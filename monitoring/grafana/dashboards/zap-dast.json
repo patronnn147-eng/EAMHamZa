@@ -1,0 +1,526 @@
+{
+  "id": null,
+  "uid": "zap-dast-eam",
+  "title": "EAM — DAST (OWASP ZAP)",
+  "description": "Full active scan findings dashboard — powered by ZAP + Prometheus",
+  "tags": ["security", "zap", "dast", "devsecops"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "5m",
+  "time": { "from": "now-7d", "to": "now" },
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "HIGH",
+      "description": "Total HIGH-risk alerts across all sites",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(zap_site_alerts{severity=\"HIGH\"})",
+          "legendFormat": "HIGH",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "MEDIUM",
+      "description": "Total MEDIUM-risk alerts across all sites",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(zap_site_alerts{severity=\"MEDIUM\"})",
+          "legendFormat": "MEDIUM",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "orange" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "orange", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "LOW",
+      "description": "Total LOW-risk alerts across all sites",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(zap_site_alerts{severity=\"LOW\"})",
+          "legendFormat": "LOW",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "yellow" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "yellow", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "INFORMATIONAL",
+      "description": "Total informational findings across all sites",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(zap_site_alerts{severity=\"UNKNOWN\"})",
+          "legendFormat": "INFO",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "blue" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "blue", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Sites Scanned",
+      "description": "Number of distinct sites/services tracked",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "count(zap_scan_timestamp_seconds)",
+          "legendFormat": "Sites",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "green" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Total Alerts",
+      "description": "Total alerts across all sites and severities",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum(zap_site_alerts_total)",
+          "legendFormat": "Total",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "purple" },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "purple", "value": null }] },
+          "mappings": []
+        }
+      }
+    },
+
+    {
+      "id": 7,
+      "type": "piechart",
+      "title": "Alert Distribution by Severity",
+      "description": "Proportion of alerts by severity level across all sites",
+      "gridPos": { "h": 9, "w": 10, "x": 0, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(severity) (zap_site_alerts)",
+          "legendFormat": "{{severity}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "pieType": "pie",
+        "displayLabels": ["name", "percent"],
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "tooltip": { "mode": "single", "sort": "none" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "HIGH" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "MEDIUM" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "LOW" },      "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "UNKNOWN" },  "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Alerts per Site (HIGH + MEDIUM)",
+      "description": "Stacked bar chart showing HIGH and MEDIUM alert counts per scanned site",
+      "gridPos": { "h": 9, "w": 14, "x": 10, "y": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(site, severity) (zap_site_alerts{severity=~\"HIGH|MEDIUM\"})",
+          "legendFormat": "{{site}} — {{severity}}",
+          "refId": "A",
+          "instant": true
+        }
+      ],
+      "transformations": [
+        { "id": "labelsToFields", "options": { "mode": "columns", "keepLabels": ["site", "severity"] } },
+        { "id": "groupBy", "options": {
+            "fields": {
+              "site":     { "aggregations": [], "operation": "groupby" },
+              "severity": { "aggregations": [], "operation": "groupby" },
+              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
+            }
+          }
+        }
+      ],
+      "options": {
+        "barWidth": 0.7,
+        "groupWidth": 0.7,
+        "stacking": "normal",
+        "orientation": "auto",
+        "xTickLabelRotation": -20,
+        "xTickLabelSpacing": 0,
+        "fillOpacity": 85,
+        "gradientMode": "none",
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "HIGH" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "MEDIUM" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Alert Trend Over Time",
+      "description": "Historical evolution of HIGH/MEDIUM/LOW alert counts across all sites, one point per scan run",
+      "gridPos": { "h": 9, "w": 24, "x": 0, "y": 13 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sum by(severity) (zap_site_alerts{severity=\"HIGH\"})",
+          "legendFormat": "HIGH",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by(severity) (zap_site_alerts{severity=\"MEDIUM\"})",
+          "legendFormat": "MEDIUM",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by(severity) (zap_site_alerts{severity=\"LOW\"})",
+          "legendFormat": "LOW",
+          "refId": "C"
+        },
+        {
+          "expr": "sum by(severity) (zap_site_alerts{severity=\"UNKNOWN\"})",
+          "legendFormat": "INFO",
+          "refId": "D"
+        }
+      ],
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["lastNotNull", "max"] },
+        "fillOpacity": 15,
+        "gradientMode": "opacity",
+        "lineWidth": 2,
+        "pointSize": 5,
+        "showPoints": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "HIGH" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }] },
+          { "matcher": { "id": "byName", "options": "MEDIUM" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] },
+          { "matcher": { "id": "byName", "options": "LOW" },    "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "INFO" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "blue" } }] }
+        ]
+      }
+    },
+
+    {
+      "id": 10,
+      "type": "table",
+      "title": "HIGH / MEDIUM / LOW Alert Details",
+      "description": "Individual alert details for actionable severities (informational excluded)",
+      "gridPos": { "h": 11, "w": 16, "x": 0, "y": 22 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "sort_desc(zap_alert_info == 1)",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": {
+            "include": {
+              "names": ["site", "severity", "plugin_id", "alert_name", "cwe_id", "Value"]
+            }
+          }
+        },
+        { "id": "organize", "options": {
+            "excludeByName": { "Value": true, "Time": true },
+            "renameByName": {
+              "plugin_id": "Plugin ID",
+              "alert_name": "Alert",
+              "cwe_id": "CWE",
+              "severity": "Severity",
+              "site": "Site"
+            },
+            "indexByName": {
+              "severity": 0,
+              "site": 1,
+              "alert_name": 2,
+              "plugin_id": 3,
+              "cwe_id": 4
+            }
+          }
+        },
+        { "id": "sortBy", "options": {
+            "fields": [
+              { "desc": true, "displayName": "Severity" }
+            ]
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": { "show": false },
+        "sortBy": [{ "displayName": "Severity", "desc": true }]
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "thresholds", "value": {
+                  "mode": "absolute",
+                  "steps": [{ "color": "green", "value": null }]
+                }
+              },
+              { "id": "mappings", "value": [
+                  { "type": "value", "options": { "HIGH": { "color": "red", "index": 0 } } },
+                  { "type": "value", "options": { "MEDIUM": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "LOW": { "color": "yellow", "index": 2 } } }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+
+    {
+      "id": 11,
+      "type": "alertlist",
+      "title": "Active Security Alerts",
+      "description": "Firing Grafana alerts from ZAP DAST rules",
+      "gridPos": { "h": 11, "w": 8, "x": 16, "y": 22 },
+      "options": {
+        "maxItems": 20,
+        "sortOrder": 1,
+        "dashboardAlerts": false,
+        "alertInstanceLabelFilter": "type=dast-alert",
+        "groupMode": "tags",
+        "groupBy": ["alertname"],
+        "stateFilter": {
+          "firing": true,
+          "pending": true,
+          "recovering": false,
+          "noData": false,
+          "normal": false,
+          "error": true
+        },
+        "folder": { "id": 0, "title": "" }
+      }
+    },
+
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Per-Site Alert Breakdown",
+      "description": "Complete alert count breakdown per site and severity",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 33 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        {
+          "expr": "zap_site_alerts",
+          "legendFormat": "",
+          "refId": "A",
+          "instant": true,
+          "format": "table"
+        },
+        {
+          "expr": "zap_scan_timestamp_seconds",
+          "legendFormat": "",
+          "refId": "B",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        { "id": "filterFieldsByName", "options": {
+            "include": { "names": ["site", "severity", "Value"] }
+          }
+        },
+        { "id": "groupBy", "options": {
+            "fields": {
+              "site":     { "aggregations": [], "operation": "groupby" },
+              "severity": { "aggregations": [], "operation": "groupby" },
+              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
+            }
+          }
+        },
+        { "id": "organize", "options": {
+            "renameByName": { "Value (sum)": "Count", "site": "Site", "severity": "Severity" }
+          }
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "footer": { "show": true, "reducer": ["sum"], "fields": ["Count"] }
+      },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto", "displayMode": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Severity" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "color-background" },
+              { "id": "mappings", "value": [
+                  { "type": "value", "options": { "HIGH": { "color": "red", "index": 0 } } },
+                  { "type": "value", "options": { "MEDIUM": { "color": "orange", "index": 1 } } },
+                  { "type": "value", "options": { "LOW": { "color": "yellow", "index": 2 } } },
+                  { "type": "value", "options": { "UNKNOWN": { "color": "blue", "index": 3 } } }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Count" },
+            "properties": [
+              { "id": "custom.displayMode", "value": "lcd-gauge" },
+              { "id": "color", "value": { "mode": "thresholds" } },
+              { "id": "thresholds", "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 2 },
+                    { "color": "orange", "value": 5 },
+                    { "color": "red", "value": 10 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+
+  ]
+}

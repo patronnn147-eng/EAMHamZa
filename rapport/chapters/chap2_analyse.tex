@@ -2,55 +2,263 @@
 
 \section{Identification des acteurs}
 
-La plateforme EAM distingue trois rôles principaux :
+La plateforme EAM distingue quatre rôles principaux :
 \begin{itemize}
-\item \textbf{Administrateur} : gère les utilisateurs, les machines, les documents de la base documentaire, et dispose d'une vue d'ensemble de la plateforme ;
+\item \textbf{Administrateur (Admin)} : gère les utilisateurs, les machines, les documents de la base documentaire, et dispose d'une vue d'ensemble de la plateforme ;
+\item \textbf{Chef Opérationnel (ChefOp)} : consultation et vue d'ensemble des étiquettes et statuts ;
 \item \textbf{Chef Technicien (ChefTech)} : planifie les interventions, supervise les ordres de travail, arbitre les priorités et consulte les tableaux de bord de fiabilité ;
-\item \textbf{Technicien} : exécute les ordres d'intervention, consulte l'état de santé des machines qui lui sont assignées, et interagit avec l'assistant conversationnel pour obtenir de l'aide sur le terrain.
+\item \textbf{Technicien (Thech)} : exécute les ordres d'intervention, consulte l'état de santé des machines qui lui sont assignées, et interagit avec l'assistant conversationnel pour obtenir de l'aide sur le terrain.
 \end{itemize}
+
+\noindent
+La figure~\ref{fig:use-case-diagram} présente le diagramme de cas d'utilisation détaillé, montrant les interactions entre les quatre rôles et l'ensemble des fonctionnalités du système.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.74,
+  uc/.style={ellipse, draw, align=center, font=\footnotesize,
+             text width=2.8cm, inner sep=3pt},
+  uca/.style={ellipse, draw, align=center, font=\scriptsize,
+              text width=2.0cm, inner sep=2pt},
+  inc/.style={dashed, -{Latex}},
+  ext/.style={dashed, -{Latex}},
+]
+
+%% ---- SYSTEM BOUNDARY ----
+\draw[thick] (3.5,-2.2) rectangle (19.0,22.5);
+\node[above, font=\small\bfseries] at (11.25,22.5) {APP EAM};
+
+%% ---- ACTOR: Chefop (centré sur y≈20.8) ----
+\draw (1.5,21.4) circle (0.32);
+\draw (1.5,21.08) -- (1.5,20.35);
+\draw (1.1,20.72) -- (1.9,20.72);
+\draw (1.5,20.35) -- (1.2,19.75) (1.5,20.35) -- (1.8,19.75);
+\node[below, font=\footnotesize] at (1.5,19.75) {Chefop};
+
+%% ---- ACTOR: Thech (centré sur y≈13.5) ----
+\draw (1.5,14.1) circle (0.32);
+\draw (1.5,13.78) -- (1.5,13.05);
+\draw (1.1,13.42) -- (1.9,13.42);
+\draw (1.5,13.05) -- (1.2,12.45) (1.5,13.05) -- (1.8,12.45);
+\node[below, font=\footnotesize] at (1.5,12.45) {Thech};
+
+%% ---- ACTOR: ChefTech (centré sur y≈6.5) ----
+\draw (1.5,7.1) circle (0.32);
+\draw (1.5,6.78) -- (1.5,6.05);
+\draw (1.1,6.42) -- (1.9,6.42);
+\draw (1.5,6.05) -- (1.2,5.45) (1.5,6.05) -- (1.8,5.45);
+\node[below, font=\footnotesize] at (1.5,5.45) {ChefTech};
+
+%% ---- ACTOR: Admin (centré sur y≈0.5) ----
+\draw (1.5,1.1) circle (0.32);
+\draw (1.5,0.78) -- (1.5,0.05);
+\draw (1.1,0.42) -- (1.9,0.42);
+\draw (1.5,0.05) -- (1.2,-0.55) (1.5,0.05) -- (1.8,-0.55);
+\node[below, font=\footnotesize] at (1.5,-0.55) {Admin};
+
+%% ---- USE CASES (colonne principale x=8.5) ----
+\node[uc] (eth)    at (8.5, 21.5) {gerer\\ethiquettes};
+\node[uc] (stat)   at (8.5, 19.6) {consulter status\\machine};
+\node[uc] (bt)     at (8.5, 17.6) {gerer BT};
+\node[uc] (plan)   at (8.5, 15.6) {consulter\\planning};
+  \node[uca] (jr)   at (5.5, 13.4) {par jour};
+  \node[uca] (sem)  at (8.5, 13.4) {par semaine};
+  \node[uca] (mois) at (11.5,13.4) {par moins};
+\node[uc] (rap)    at (8.5, 11.5) {consulter\\rapports};
+\node[uc] (arch)   at (8.5,  9.7) {gerer archive};
+\node[uc] (ot)     at (8.5,  7.8) {gerer les\\taches OT};
+\node[uc] (alerte) at (8.5,  5.9) {gerer les\\alertes};
+  \node[uca] (prio) at (5.5,  4.0) {par priorite};
+\node[uc] (gplan)  at (8.5,  2.3) {gere le\\planning};
+\node[uc] (roles)  at (8.5,  0.5) {gerer les\\roles/users};
+
+%% ---- AUTHENTIFICATION (droite, grande ellipse) ----
+\node[uc, text width=3.2cm, minimum height=3.2cm]
+  (auth) at (16.0, 11.0) {authentification};
+
+%% ---- ASSOCIATIONS acteur → cas d'utilisation ----
+\draw (1.5,21.4) -- (eth);
+\draw (1.5,21.4) -- (stat);
+\draw (1.5,14.1) -- (bt);
+\draw (1.5,14.1) -- (plan);
+\draw (1.5,14.1) -- (rap);
+\draw (1.5,14.1) -- (arch);
+\draw (1.5,7.1)  -- (ot);
+\draw (1.5,7.1)  -- (alerte);
+\draw (1.5,1.1)  -- (gplan);
+\draw (1.5,1.1)  -- (roles);
+
+%% ---- RELATIONS <<extends>> ----
+\draw[ext] (plan) -- node[midway, above left,  font=\tiny]{<<extends>>} (jr);
+\draw[ext] (plan) -- node[midway, right,        font=\tiny]{<<extends>>} (sem);
+\draw[ext] (plan) -- node[midway, above right,  font=\tiny]{<<extends>>} (mois);
+\draw[ext] (alerte) -- node[midway, left, font=\tiny]{<<extends>>} (prio);
+
+%% ---- RELATIONS <<includes>> vers authentification ----
+%% Une seule étiquette sur la flèche du milieu pour lisibilité
+\draw[inc] (eth)    -- (auth);
+\draw[inc] (stat)   -- (auth);
+\draw[inc] (bt)     -- (auth);
+\draw[inc] (plan)   -- node[midway, above, sloped, font=\tiny]{<<includes>>} (auth);
+\draw[inc] (rap)    -- (auth);
+\draw[inc] (arch)   -- (auth);
+\draw[inc] (ot)     -- (auth);
+\draw[inc] (alerte) -- (auth);
+\draw[inc] (gplan)  -- (auth);
+\draw[inc] (roles)  -- (auth);
+
+\end{tikzpicture}
+\caption{Diagramme de cas d'utilisation de la plateforme EAM}
+\label{fig:use-case-diagram}
+\end{figure}
 
 \section{Besoins fonctionnels}
 
-\subsection{Gestion des actifs}
+\subsection{Authentification et gestion des accès}
 
-Le système doit permettre la gestion des utilisateurs, des machines et de leurs caractéristiques techniques, ainsi que le suivi de leur historique de maintenance.
+Le système doit imposer une authentification par identifiant et mot de passe avant tout accès à la plateforme.
+Chaque utilisateur se voit attribuer un rôle unique (Administrateur, Chef Opérationnel, Chef Technicien, Technicien) qui détermine l'ensemble des fonctionnalités et des données accessibles.
+Toute tentative d'accès à une ressource non autorisée doit être rejetée par le serveur, indépendamment du contrôle côté interface.
 
-\subsection{Gestion des ordres de travail et d'intervention}
+\subsection{Gestion des utilisateurs et des rôles}
 
-Le système doit permettre la création, l'assignation, le suivi et la clôture des ordres de travail et des ordres d'intervention, avec un historique consultable.
+L'administrateur doit pouvoir créer, modifier, désactiver et supprimer des comptes utilisateurs, et leur assigner un rôle.
+Le système doit garantir qu'un compte désactivé ne peut plus s'authentifier, sans pour autant supprimer son historique d'actions associé.
 
-\subsection{Planification}
+\subsection{Gestion des actifs machines}
 
-Le système doit permettre la planification des interventions par le Chef Technicien, avec assignation des techniciens et des créneaux.
+Le système doit permettre l'enregistrement des machines avec leurs caractéristiques techniques (identifiant, catégorie, localisation, date de mise en service).
+Chaque machine dispose d'une fiche détaillée consultable, regroupant son état de santé actuel, son historique de maintenance, ses alertes actives et ses prédictions en cours.
+L'administrateur peut ajouter, modifier ou archiver une machine sans affecter les ordres de travail existants qui lui sont rattachés.
 
-\subsection{Alertes et remontées}
+\subsection{Étiquetage des machines}
 
-Le système doit générer automatiquement des alertes lorsque les modèles prédictifs détectent un risque de panne, une anomalie de comportement, ou une rupture de stock de pièces de rechange prévisible.
+Le Chef Opérationnel doit pouvoir associer des étiquettes descriptives à chaque machine afin de faciliter leur classification et leur recherche.
+Le système doit permettre la création, la modification et la suppression d'étiquettes, ainsi que leur affectation à plusieurs machines simultanément.
 
-\subsection{Tableaux de bord}
+\subsection{Gestion des ordres de travail}
 
-Chaque rôle dispose d'un tableau de bord adapté à ses besoins : vue globale pour l'administrateur, vue de pilotage pour le Chef Technicien, vue opérationnelle pour le Technicien.
+Le système doit permettre la création d'un ordre de travail (OT) en précisant la machine concernée, la nature de l'intervention, la priorité et la date souhaitée.
+Un OT suit un cycle de vie défini : en attente, assigné, en cours, terminé ou annulé. Toute transition doit être tracée avec l'identité de l'utilisateur et l'horodatage.
+Le Chef Technicien peut consulter l'ensemble des OT, les filtrer par statut ou par priorité, et les réassigner en cas d'indisponibilité d'un technicien.
+
+\subsection{Gestion des ordres d'intervention}
+
+Un ordre d'intervention (BT) est créé à partir d'un OT et assigné à un technicien spécifique avec un créneau horaire.
+Le technicien doit pouvoir consulter ses BT assignés, renseigner les actions effectuées, les pièces remplacées et clôturer l'intervention.
+À la clôture d'une intervention, le système doit déclencher automatiquement la mise à jour du score de santé de la machine et l'évaluation rétroactive des prédictions antérieures.
+
+\subsection{Planification des interventions}
+
+Le système doit offrir une vue calendaire des interventions planifiées, navigable par jour, par semaine et par mois.
+Le Chef Technicien doit pouvoir planifier une nouvelle intervention, modifier un créneau existant et vérifier la disponibilité des techniciens avant toute assignation.
+Le planning doit signaler visuellement les conflits d'assignation (technicien déjà occupé sur le même créneau).
+
+\subsection{Collecte et suivi des données télémétriques}
+
+Le système doit enregistrer les relevés de capteurs de chaque machine : température d'air, température de process, vitesse de rotation, couple et usure de l'outil.
+Ces données constituent la source primaire des modèles de prédiction et doivent être consultables sous forme d'historique horodaté par machine.
+En l'absence de données télémétriques réelles pour une machine, le système doit signaler explicitement l'indisponibilité des prédictions plutôt que de substituer des valeurs par défaut.
 
 \subsection{Prédictions par apprentissage automatique}
 
-Le système doit exposer, pour chaque machine, une estimation de la probabilité de panne, du type de panne probable, de la durée de vie résiduelle, un score d'anomalie comportementale, une priorité de traitement et une proposition de planning de maintenance.
+Le système doit exposer, pour chaque machine disposant de données télémétriques, six indicateurs prédictifs calculés par des modèles d'apprentissage automatique :
+\begin{itemize}
+  \item \textbf{Probabilité de panne (P1)} : estimation du risque de défaillance à court terme ;
+  \item \textbf{Type de panne probable (P2)} : classification parmi les modes de défaillance connus ;
+  \item \textbf{Durée de vie résiduelle — RUL (P3)} : estimation en jours avant la prochaine intervention nécessaire, accompagnée d'un intervalle de confiance ;
+  \item \textbf{Score d'anomalie comportementale (P4)} : détection d'un comportement anormal des capteurs via un ensemble de quatre méthodes (Isolation Forest, Z-score, déviation de cluster, autoencodeur) ;
+  \item \textbf{Priorité de traitement (P5)} : niveau de priorité recommandé pour l'ordre de travail associé ;
+  \item \textbf{Planning de maintenance (P6)} : proposition de date optimale pour la prochaine intervention préventive.
+\end{itemize}
+Chaque prédiction doit être accompagnée d'une explication en langage naturel, sans jargon technique, accessible à un utilisateur non spécialiste.
+
+\subsection{Alertes et notifications}
+
+Le système doit générer automatiquement des alertes lorsqu'un modèle détecte un risque de panne élevé, une anomalie comportementale ou une rupture de stock de pièces prévisible.
+Les alertes doivent être classées par niveau de criticité et consultables par le Chef Technicien avec possibilité de filtrage par priorité.
+Une alerte déjà traitée (liée à un OT clôturé) doit être automatiquement archivée et ne plus apparaître dans la liste active.
 
 \subsection{Coordination des pièces de rechange}
 
-Le système doit anticiper les besoins en pièces de rechange à partir des prédictions de panne, et proposer un provisionnement guidé (jamais automatique sans validation humaine).
+À partir des prédictions de panne, le système doit estimer les besoins futurs en pièces de rechange par machine et générer des propositions de provisionnement.
+Ces propositions prennent la forme de brouillons d'ordres d'achat soumis à validation humaine explicite : aucune commande ne peut être émise automatiquement sans approbation du Chef Technicien.
+Le système expose également un score de disponibilité opérationnelle (readiness) par machine, combinant l'état de santé, le niveau de stock et la proximité de la prochaine intervention.
 
-\subsection{Assistant conversationnel}
+\subsection{Base documentaire et assistant conversationnel}
 
-Le système doit permettre à un technicien de poser une question en langage naturel et d'obtenir une réponse combinant la documentation de maintenance et l'état de santé en temps réel de la machine concernée.
+L'administrateur doit pouvoir importer des documents de maintenance (manuels, fiches techniques, procédures) dans la base documentaire de la plateforme.
+Le système doit permettre à tout utilisateur authentifié d'interroger cette base en langage naturel via un assistant conversationnel.
+Les réponses de l'assistant doivent combiner les informations extraites des documents pertinents et l'état de santé en temps réel de la machine concernée, afin de fournir un conseil contextualisé au technicien sur le terrain.
+
+\subsection{Tableaux de bord et rapports}
+
+Chaque rôle dispose d'un tableau de bord personnalisé : vue globale de la flotte pour l'Administrateur et le Chef Opérationnel, vue de pilotage des interventions et des alertes pour le Chef Technicien, vue des tâches assignées pour le Technicien.
+Le système doit permettre la consultation de rapports synthétiques sur l'activité de maintenance, les performances des machines et l'évolution des indicateurs prédictifs.
+
+\subsection{Archivage et traçabilité}
+
+Toute action réalisée sur un OT, un BT ou une alerte doit être consignée dans un journal d'audit avec l'identité de l'auteur, la date et la nature de l'action.
+Les interventions clôturées et les alertes traitées doivent être conservées dans un historique consultable et non modifiable, servant de base à l'évaluation continue des modèles prédictifs.
 
 \section{Besoins non fonctionnels}
 
+\subsection{Sécurité applicative}
+
+L'accès à la plateforme doit être protégé par une authentification par jeton (JWT), renouvelé à chaque session.
+Le contrôle des autorisations doit être appliqué côté serveur sur chaque endpoint de l'API, indépendamment de l'interface utilisateur : aucune donnée sensible ne doit être accessible par simple manipulation de l'URL ou de la requête HTTP.
+Les mots de passe doivent être stockés sous forme hachée ; les secrets applicatifs (clés d'API, paramètres de connexion) doivent être isolés dans des variables d'environnement et ne jamais apparaître dans le code source.
+Toute action significative (création, modification, clôture d'un OT ou d'un BT, validation d'une alerte) doit être consignée dans un journal d'audit non modifiable.
+
+\subsection{Pipeline DevSecOps}
+
+La sécurité doit être intégrée au processus de développement via un pipeline GitLab CI/CD dédié, couvrant l'ensemble des phases de la chaîne d'approvisionnement logicielle.
+Le pipeline comporte les étapes suivantes, exécutées automatiquement à chaque poussée de code :
+
 \begin{itemize}
-\item \textbf{Sécurité} : authentification obligatoire, contrôle d'accès strict par rôle sur chaque fonctionnalité et chaque donnée ;
-\item \textbf{Performance} : temps de réponse compatible avec un usage interactif sur le terrain ;
-\item \textbf{Explicabilité} : toute prédiction ou alerte doit pouvoir être expliquée en langage clair, sans jargon technique, pour un utilisateur non spécialiste du Machine Learning ;
-\item \textbf{Disponibilité} : les fonctionnalités de gestion classique (ordres de travail, planification) doivent rester utilisables même si un composant de Machine Learning est indisponible.
+  \item \textbf{Analyse des secrets (Gitleaks)} : détection de tout secret ou identifiant sensible accidentellement présent dans le code source ou l'historique Git ;
+  \item \textbf{Analyse des dépendances (SCA)} : audit des dépendances Python (\textit{pip-audit}) et JavaScript (\textit{pnpm audit}) pour identifier les vulnérabilités connues (CVE) et les licences non conformes ;
+  \item \textbf{Analyse statique du code (SAST)} : inspection du code source par SonarQube Community Edition (instance auto-hébergée), couvrant les vulnérabilités de type injection, gestion des erreurs, qualité cryptographique et exposition de données ;
+  \item \textbf{Analyse des images Docker et de l'infrastructure (Trivy)} : scan des cinq images Docker produites par le build ainsi que des fichiers Docker Compose, à la recherche de CVE dans les couches système et de mauvaises configurations d'infrastructure ;
+  \item \textbf{Analyse dynamique (DAST — OWASP ZAP)} : scan actif de l'application en cours d'exécution via le framework d'automatisation ZAP, couvrant les contextes authentifiés (quatre rôles : Administrateur, Chef Technicien, Chef Opérationnel, Technicien) et les services non authentifiés (microservice ML, service RAG, frontend), ciblant les vulnérabilités OWASP Top 10 telles que l'injection SQL, le XSS, la mauvaise configuration des en-têtes HTTP et les failles d'authentification.
 \end{itemize}
+
+Les résultats de chaque scanner sont consolidés par un script de reporting centralisé (\texttt{security\_report.py}) qui produit un rapport terminal structuré à chaque exécution du pipeline.
+Toutes les étapes de sécurité sont configurées en mode non bloquant (\textit{allow\_failure: true}), permettant une visibilité immédiate des résultats sans bloquer la livraison, tout en conservant les findings dans un rapport consultable à chaque exécution.
+
+\subsection{Performance}
+
+Le temps de réponse des opérations courantes (consultation d'une fiche machine, liste des OT, mise à jour de statut) doit rester inférieur à deux secondes dans des conditions normales d'utilisation.
+Les inférences des modèles d'apprentissage automatique, qui impliquent plusieurs pipelines de calcul, doivent être réalisées en moins de cinq secondes pour l'ensemble des six indicateurs d'une machine.
+L'interface doit rester réactive pendant les appels asynchrones au microservice ML, en affichant un indicateur de chargement plutôt qu'en bloquant l'utilisateur.
+
+\subsection{Disponibilité et résilience}
+
+Les fonctionnalités de gestion classique — ordres de travail, ordres d'intervention, planification — doivent rester pleinement opérationnelles même si le microservice de Machine Learning est indisponible.
+En cas d'absence de données télémétriques pour une machine, le système doit le signaler explicitement et fournir un score de santé calculé à partir de l'historique de maintenance, sans substituer de valeurs fictives.
+Les différents services de la plateforme (backend, microservice ML, service RAG, stockage objet) doivent être déployés comme des conteneurs indépendants, permettant le redémarrage ou la mise à jour de l'un sans interruption des autres.
+
+\subsection{Maintenabilité et extensibilité}
+
+L'architecture doit séparer clairement les responsabilités entre les couches présentation, logique métier et accès aux données, afin de faciliter l'ajout de nouveaux modèles prédictifs ou de nouveaux rôles sans refonte globale.
+Les migrations de base de données doivent être versionnées et appliquées de manière incrémentale via un outil dédié (Alembic), garantissant la traçabilité de l'évolution du schéma.
+Le code des modèles ML doit être organisé de façon à permettre le remplacement ou la mise à jour d'un modèle individuel sans affecter les autres pipelines de prédiction.
+
+\subsection{Portabilité et déploiement}
+
+L'ensemble de la plateforme doit pouvoir être démarré sur n'importe quel environnement disposant de Docker et Docker Compose, sans installation manuelle de dépendances.
+La configuration spécifique à l'environnement (URLs, clés, paramètres de connexion) doit être centralisée dans un fichier \texttt{.env} unique, séparé du code source.
+
+\subsection{Ergonomie et utilisabilité}
+
+L'interface doit adapter ses menus, ses tableaux de bord et ses actions disponibles au rôle de l'utilisateur connecté, sans exposer de fonctionnalités hors de sa portée.
+Les informations issues des modèles prédictifs doivent être présentées en langage métier — probabilité de panne, durée de vie résiduelle, besoin en pièces — sans terminologie algorithmique (noms de modèles, métriques statistiques brutes).
+L'interface doit être utilisable depuis un poste de travail de bureau comme depuis une tablette utilisée sur le terrain, avec une mise en page adaptée à chaque format d'écran.
+
+\subsection{Intégrité et confidentialité des données}
+
+Les données de chaque machine ne doivent être accessibles qu'aux utilisateurs dont le rôle l'autorise explicitement ; un technicien ne doit pas pouvoir consulter les données d'une machine qui ne lui est pas assignée.
+L'historique des interventions, des alertes et des prédictions doit être conservé de manière intègre : aucune modification rétroactive n'est permise après clôture d'un ordre ou d'une alerte.
 
 \section{Diagramme de cas d'utilisation}
 

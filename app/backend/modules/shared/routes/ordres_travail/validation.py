@@ -18,7 +18,7 @@ from .schemas import (
 )
 from typing import Annotated
 
-router = APIRouter(prefix="/api/v1/entities/OrdresTravail", tags=["OrdresTravail"])
+router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["OrdresTravail"])
 logger = logging.getLogger(__name__)
 
 

@@ -418,9 +418,8 @@ export const PDCACanbanBoard = () => {
             if (item.type === 'INTERVENTION') {
                 const id = item.id.toString().replace('int-check-', '');
                 await client.apiCall.invoke({
-                    url: `/api/v1/entities/ordres_intervention/${id}/validate`,
+                    url: `/api/v1/entities/ordres_intervention/${id}/complete-validation`,
                     method: 'POST',
-                    data: { action: 'APPROVE' },
                 });
                 toast({
                     title: 'Intervention validated',

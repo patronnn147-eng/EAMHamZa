@@ -18,7 +18,7 @@ from .schemas import (
 from typing import Annotated
 
 router = APIRouter(
-    prefix="/api/v1/entities/OrdresIntervention", tags=["OrdresIntervention"]
+    prefix="/api/v1/entities/ordres_intervention", tags=["OrdresIntervention"]
 )
 logger = logging.getLogger(__name__)
 
@@ -115,5 +115,61 @@ async def validate_OrdresIntervention(
         )
     except Exception:
         logger.warning("Audit log failed for validate intervention %s", id)
+
+    return result
+
+
+@router.post(
+    "/{id}/complete-validation",
+    response_model=OrdresInterventionResponse,
+    responses={
+        400: {"description": "Intervention must be completed with a root-cause diagnosis before validation"},
+        404: {"description": "OrdresIntervention not found"},
+    },
+)
+async def complete_validation_OrdresIntervention(
+    id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],
+):
+    """Mark a completed, diagnosed intervention as VALIDATED (PDCA CHECK -> ACT).
+
+    Distinct from POST /{id}/validate, which approves a technician's *request*
+    for a new intervention and creates a linked Work Order — that endpoint is
+    for the pre-work approval workflow, not for closing out finished work.
+    """
+    service = OrdresInterventionService(db)
+
+    intervention = await service.get_by_id(id)
+    if not intervention:
+        raise HTTPException(status_code=404, detail="OrdresIntervention not found")
+
+    if intervention.statut != "TERMINÉ" or not intervention.actual_failure_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Intervention must be completed with a root-cause diagnosis before validation",
+        )
+
+    old_statut = intervention.statut
+    result = await service.update(
+        id,
+        {
+            "statut": "VALIDATED",
+            "approved_by": current_user.id,
+            "approved_at": datetime.now(),
+        },
+    )
+
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.INTERVENTION,
+            entity_id=id,
+            old_values={"statut": old_statut},
+            new_values={"statut": "VALIDATED"},
+            user_id=current_user.id,
+            user_name=current_user.nom,
+        )
+    except Exception:
+        logger.warning("Audit log failed for complete-validation intervention %s", id)
 
     return result

@@ -39,20 +39,54 @@ Le développement a suivi une démarche itérative : chaque fonctionnalité fait
 
 \section{Planning du stage}
 
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{lX}
-\toprule
-\textbf{Période} & \textbf{Activité principale} \\
-\midrule
-Mois 1 & Prise en main du contexte industriel, analyse des besoins, spécification de l'architecture générale \\
-Mois 2 & Conception et réalisation du backend et du frontend (gestion des utilisateurs, machines, ordres de travail et d'intervention) \\
-Mois 3 & Conception et entraînement des modèles de maintenance prédictive P1 à P6 \\
-Mois 4 & Intégration du service RAG, mise en place du pont ML-RAG, module d'explicabilité \\
-Mois 5 & Réalisation du module P7 de coordination des pièces de rechange, tableaux de bord de fiabilité \\
-Mois 6 & Tests, évaluation des modèles, corrections, rédaction du rapport \\
-\bottomrule
-\end{tabularx}
+\definecolor{gantt1}{HTML}{274472}
+\definecolor{gantt2}{HTML}{34507B}
+\definecolor{gantt3}{HTML}{415C85}
+\definecolor{gantt4}{HTML}{4E688E}
+\definecolor{gantt5}{HTML}{5B7498}
+\definecolor{gantt6}{HTML}{6880A1}
+\definecolor{gantt7}{HTML}{758CAA}
+\definecolor{gantt8}{HTML}{8298B4}
+\definecolor{gantt9}{HTML}{8EA4BD}
+\definecolor{gantt10}{HTML}{9BB0C7}
+\definecolor{gantt11}{HTML}{A8BCD0}
+\definecolor{gantt12}{HTML}{B5C8D9}
+\definecolor{gantt13}{HTML}{C2D4E3}
+\definecolor{gantt14}{HTML}{CFE0EC}
+
+\begin{figure}[p]
+\noindent\makebox[\textwidth][c]{%
+\begin{ganttchart}[
+    vgrid,
+    hgrid,
+    x unit=1.35cm,
+    y unit title=1.1cm,
+    y unit chart=1.05cm,
+    title height=1,
+    bar height=0.6,
+    bar label font=\small,
+    bar label node/.append style={text width=4.6cm, align=right},
+    title label font=\bfseries\normalsize,
+    title/.style={draw=none, fill=black!10},
+]{1}{7}
+\gantttitle{Planning du stage (mois)}{7} \\
+\gantttitlelist{1,...,7}{1} \\
+\ganttbar[bar/.append style={fill=gantt1}]{Analyse \& architecture}{1.0}{1.4} \\
+\ganttbar[bar/.append style={fill=gantt2}]{Backend (utilisateurs/machines)}{1.1}{1.9} \\
+\ganttbar[bar/.append style={fill=gantt3}]{Backend (ordres travail/interv.)}{1.6}{2.3} \\
+\ganttbar[bar/.append style={fill=gantt4}]{Frontend (dashboards)}{1.8}{2.5} \\
+\ganttbar[bar/.append style={fill=gantt5}]{ML P1 à P3}{2.2}{3.2} \\
+\ganttbar[bar/.append style={fill=gantt6}]{ML P4 à P6}{2.8}{3.7} \\
+\ganttbar[bar/.append style={fill=gantt7}]{Fusion DST (Wave 2)}{3.3}{3.9} \\
+\ganttbar[bar/.append style={fill=gantt8}]{RAG (ingestion/S3)}{3.5}{4.2} \\
+\ganttbar[bar/.append style={fill=gantt9}]{Pont ML-RAG}{3.9}{4.6} \\
+\ganttbar[bar/.append style={fill=gantt10}]{P7 (pièces de rechange)}{4.2}{5.1} \\
+\ganttbar[bar/.append style={fill=gantt11}]{Explicabilité \& alertes}{4.8}{5.6} \\
+\ganttbar[bar/.append style={fill=gantt12}]{Phase 4 (redesign modèles)}{5.4}{6.4} \\
+\ganttbar[bar/.append style={fill=gantt13}]{Tests \& corrections}{6.0}{6.8} \\
+\ganttbar[bar/.append style={fill=gantt14}]{Rédaction du rapport}{6.5}{7.0}
+\end{ganttchart}%
+}
 \caption{Planning du stage de projet de fin d'études}
 \label{fig:planning}
-\end{table}
+\end{figure}
