@@ -60,9 +60,13 @@ Pick a High or Medium one first — those are worth acting on. Low/Informational
 make dast
 ```
 
+Run from **Git Bash** (the default terminal in this project). The Makefile sets `MSYS_NO_PATHCONV=1` automatically, so you don't need to set anything extra.
+
 This runs the exact same `security/zap/zap-automation.yaml` file, headless, via Docker — no window opens. When it finishes, open `security/zap/zap-report.html` in a browser — it's the same findings you just watched appear live in the GUI, just as a static report instead of an interactive session.
 
 This is also exactly what the `dast-scan` job in `.gitlab-ci.yml` runs on every pipeline — the only difference is *where* it runs (your machine vs. the CI runner) and that CI never opens a window, it just produces the report file as a downloadable pipeline artifact.
+
+> **Windows path note:** If you run Docker commands directly (not via `make dast`) from Git Bash, add `MSYS_NO_PATHCONV=1` before the `docker run` command, or use `//zap/wrk/...` (double leading slash) for the `-autorun` argument. Otherwise Git Bash silently converts `/zap/wrk/...` to a Git installation path and ZAP can't find the plan file.
 
 ## Safety note
 

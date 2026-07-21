@@ -78,7 +78,7 @@ db:
 # plan the CI dast-scan job uses. Requires `make up` running first.
 dast:
 	@echo "Running OWASP ZAP full active scan against the local stack..."
-	docker run --rm \
+	MSYS_NO_PATHCONV=1 docker run --rm \
 		--network eamsagemcom_asset_management_network \
 		--env-file .env \
 		-v "$(CURDIR)/security/zap:/zap/wrk:rw" \

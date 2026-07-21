@@ -80,3 +80,6 @@ mark_safe.py
 sonar-issues.json
 tmp_sonar_meta.py
 tmp_sonar_query.py
+# ZAP DAST scan output (generated, not source)
+security/zap/zap-report.*
+security/zap/*.session
