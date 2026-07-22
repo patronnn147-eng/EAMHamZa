@@ -252,19 +252,12 @@
           "expr": "sum by(site, severity) (zap_site_alerts{severity=~\"HIGH|MEDIUM\"})",
           "legendFormat": "{{site}} — {{severity}}",
           "refId": "A",
-          "instant": true
+          "instant": true,
+          "format": "table"
         }
       ],
       "transformations": [
-        { "id": "labelsToFields", "options": { "mode": "columns", "keepLabels": ["site", "severity"] } },
-        { "id": "groupBy", "options": {
-            "fields": {
-              "site":     { "aggregations": [], "operation": "groupby" },
-              "severity": { "aggregations": [], "operation": "groupby" },
-              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
-            }
-          }
-        }
+        { "id": "labelsToFields", "options": { "valueLabel": "severity" } }
       ],
       "options": {
         "barWidth": 0.7,
