@@ -1,0 +1,12 @@
+zap_push_metrics --contains[EXTRACTED]--> zap_push_metrics_label
+zap_push_metrics --contains[EXTRACTED]--> zap_push_metrics_map_severity
+zap_push_metrics --contains[EXTRACTED]--> zap_push_metrics_build_metrics
+zap_push_metrics --contains[EXTRACTED]--> zap_push_metrics_push
+zap_push_metrics --contains[EXTRACTED]--> zap_push_metrics_main
+zap_push_metrics_label --calls[EXTRACTED]--> zap_push_metrics_build_metrics
+zap_push_metrics_label --rationale_for[EXTRACTED]--> zap_push_metrics_rationale_33
+zap_push_metrics_map_severity --calls[EXTRACTED]--> zap_push_metrics_build_metrics
+zap_push_metrics_build_metrics --calls[EXTRACTED]--> zap_push_metrics_main
+zap_push_metrics_build_metrics --rationale_for[EXTRACTED]--> zap_push_metrics_rationale_49
+zap_push_metrics_push --calls[EXTRACTED]--> zap_push_metrics_main
+zap_push_metrics_push --rationale_for[EXTRACTED]--> zap_push_metrics_rationale_124
