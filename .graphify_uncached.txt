@@ -1,2 +1,0 @@
-graphify-out/converted/machines_import_template_4ba12002.md
-graphify-out/converted/template_check_eda32726.md
