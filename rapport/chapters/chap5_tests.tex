@@ -1,39 +1,39 @@
-\chapter{Tests et résultats}
+\chapter{Testing and Results}
 
-\section{Stratégie de test}
+\section{Test strategy}
 
-La validation du système repose sur deux niveaux de tests : des tests unitaires vérifiant le comportement isolé de chaque service métier, et des tests d'intégration vérifiant le comportement de bout en bout des principaux parcours utilisateurs (création d'un ordre de travail, remontée d'une alerte, réponse de l'assistant conversationnel).
+System validation relies on two levels of testing: unit tests verifying the isolated behavior of each business service, and integration tests verifying the end-to-end behavior of the main user journeys (creating a work order, raising an alert, the conversational assistant's response).
 
-\section{Évaluation des modèles de Machine Learning}
+\section{Machine Learning model evaluation}
 
-Chaque modèle est évalué par rapport à une référence naïve (« baseline ») avant d'être mis en production :
+Each model is evaluated against a naive baseline before being deployed to production:
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\textwidth}{lXX}
 \toprule
-\textbf{Modèle} & \textbf{Métrique} & \textbf{Résultat} \\
+\textbf{Model} & \textbf{Metric} & \textbf{Result} \\
 \midrule
-P3 (durée de vie résiduelle) & Erreur absolue moyenne (MAE) & 14,95 cycles \\
-P3 (durée de vie résiduelle) & Indice de concordance (C-index) & 0,620 \\
-P4 (détection d'anomalies) & Aire sous la courbe ROC & 0,83 (référence) \\
+P3 (remaining useful life) & Mean absolute error (MAE) & 14.95 cycles \\
+P3 (remaining useful life) & Concordance index (C-index) & 0.620 \\
+P4 (anomaly detection) & Area under the ROC curve & 0.83 (baseline) \\
 \bottomrule
 \end{tabularx}
-\caption{Synthèse des métriques d'évaluation des modèles}
+\caption{Summary of model evaluation metrics}
 \label{tab:metriques-ml}
 \end{table}
 
-Un modèle n'est promu en production que s'il dépasse significativement la référence naïve sur l'ensemble de ses critères d'évaluation.
+A model is only promoted to production if it significantly outperforms the naive baseline across all of its evaluation criteria.
 
-\section{Démonstration des cas d'usage}
+\section{Use case demonstrations}
 
-Trois scénarios illustrent le fonctionnement de bout en bout de la plateforme :
+Three scenarios illustrate the end-to-end operation of the platform:
 \begin{itemize}
-\item \textbf{Création et suivi d'un ordre d'intervention} : un technicien reçoit un ordre d'intervention assigné par le Chef Technicien, le consulte depuis son espace, puis le clôture après réalisation, ce qui met à jour l'historique de la machine concernée ;
-\item \textbf{Réception d'une alerte de rupture de stock} : lorsque le module P7 détecte qu'une pièce nécessaire à une intervention prévue sera bientôt indisponible, une alerte est automatiquement générée et présentée au Chef Technicien avec une proposition de commande à valider ;
-\item \textbf{Consultation de l'assistant conversationnel} : un technicien interroge l'assistant sur la procédure de dépannage d'une machine précise ; la réponse combine la documentation technique et l'état de santé en temps réel de la machine.
+\item \textbf{Creating and tracking an intervention order}: a technician receives an intervention order assigned by the Head Technician, views it from their space, and then closes it once completed, which updates the history of the machine concerned;
+\item \textbf{Receiving a stock shortage alert}: when the P7 module detects that a part needed for a planned intervention will soon be unavailable, an alert is automatically generated and presented to the Head Technician along with an order proposal for validation;
+\item \textbf{Querying the conversational assistant}: a technician asks the assistant about the troubleshooting procedure for a specific machine; the response combines the technical documentation with the machine's real-time health status.
 \end{itemize}
 
-\section{Difficultés rencontrées durant la réalisation}
+\section{Difficulties encountered during testing}
 
-La phase de test a mis en évidence l'importance de la représentativité des données d'entraînement : les modèles ont été validés sur un jeu de données historiques simulant plusieurs dizaines de cycles complets de maintenance, afin de couvrir une diversité suffisante de scénarios de panne. Le temps de calcul de certains modèles (en particulier le modèle hybride de durée de vie résiduelle) a également nécessité une optimisation du chargement des modèles, mise en cache pour éviter un rechargement à chaque requête.
+The testing phase highlighted the importance of training data representativeness: the models were validated on a historical dataset simulating several dozen complete maintenance cycles, in order to cover a sufficient diversity of failure scenarios. The computation time of certain models (in particular the hybrid remaining-useful-life model) also required optimizing model loading, which was cached to avoid reloading on every request.

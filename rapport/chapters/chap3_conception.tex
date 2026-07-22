@@ -1,24 +1,24 @@
-\chapter{Conception}
+\chapter{Design}
 
-\section{Architecture générale}
+\section{General architecture}
 
-La plateforme est organisée en quatre composants principaux, communiquant par API HTTP :
+The platform is organized into four main components, communicating over HTTP APIs:
 \begin{itemize}
-\item un \textbf{frontend} en Next.js, offrant trois espaces distincts selon le rôle (Administrateur, Chef Technicien, Technicien) ;
-\item un \textbf{backend} en FastAPI, responsable de la logique métier, de la persistance des données (PostgreSQL) et de la sécurité (authentification, contrôle d'accès) ;
-\item un \textbf{microservice de Machine Learning} en Flask, chargé de servir les modèles prédictifs (P1 à P7) ;
-\item un \textbf{service RAG}, chargé de l'ingestion documentaire et de la génération de réponses conversationnelles enrichies par le contexte ML en temps réel.
+\item a \textbf{frontend} built with Next.js, offering three distinct spaces depending on the role (Administrator, Head Technician, Technician);
+\item a \textbf{backend} built with FastAPI, responsible for business logic, data persistence (PostgreSQL), and security (authentication, access control);
+\item a \textbf{Machine Learning microservice} built with Flask, in charge of serving the predictive models (P1 to P7);
+\item a \textbf{RAG service}, in charge of document ingestion and generating conversational responses enriched with real-time ML context.
 \end{itemize}
 
-L'ensemble est orchestré par Docker, avec un stockage objet (MinIO) pour les documents et les fichiers joints.
+The whole system is orchestrated by Docker, with object storage (MinIO) for documents and attachments.
 
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance=1.3cm, box/.style={draw, rectangle, minimum width=3.2cm, minimum height=1cm, align=center}]
 \node[box] (front) {Frontend\\Next.js};
 \node[box, below=of front] (back) {Backend\\FastAPI};
-\node[box, below left=1cm and 0.5cm of back] (ml) {Microservice ML\\Flask};
-\node[box, below right=1cm and 0.5cm of back] (rag) {Service RAG};
+\node[box, below left=1cm and 0.5cm of back] (ml) {ML Microservice\\Flask};
+\node[box, below right=1cm and 0.5cm of back] (rag) {RAG Service};
 \node[box, below=2.6cm of back] (db) {PostgreSQL / MinIO};
 \draw[->] (front) -- (back);
 \draw[->] (back) -- (ml);
@@ -27,30 +27,43 @@ L'ensemble est orchestré par Docker, avec un stockage objet (MinIO) pour les do
 \draw[->] (rag) -- (db);
 \draw[->] (back) -- (db);
 \end{tikzpicture}
-\caption{Architecture générale de la plateforme}
+\caption{General architecture of the platform}
 \label{fig:architecture}
 \end{figure}
 
-\section{Modèle de données}
+\section{Global business process flow}
 
-Le modèle de données s'articule autour de quatre entités centrales, identifiées comme les plus fortement connectées lors de l'analyse du domaine :
+Beyond the component-level architecture above, it is useful to see how a single business event travels through the whole system. An intervention request follows one validation gate before becoming a work order, while machine telemetry is analyzed continuously by the ML engine, whose predictions feed directly into that same validation step as supporting evidence for the Head Technician.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/global.png}
+\caption{Global flow of an intervention request}
+\label{fig:flux-global}
+\end{figure}
+
+Rejecting a request (dashed box in Figure~\ref{fig:flux-global}) automatically releases any parts reservation already made for it; approving one creates a linked work order and moves execution forward until a second, final validation closes the diagnostic loop before an Administrator can close the order.
+
+\section{Data model}
+
+The data model is built around four central entities, identified as the most strongly connected during the domain analysis:
 \begin{itemize}
-\item \textbf{Utilisateur} : porte le rôle (Administrateur, ChefTech, Technicien) et les droits d'accès ;
-\item \textbf{Machine} : représente un équipement de production, avec ses caractéristiques et son historique ;
-\item \textbf{OrdreTravail} : demande de travail associée à une ou plusieurs machines ;
-\item \textbf{OrdreIntervention} : intervention concrète réalisée par un technicien sur une machine, rattachée à un ordre de travail.
+\item \textbf{User}: carries the role (Administrator, ChefTech, Technician) and access rights;
+\item \textbf{Machine}: represents a piece of production equipment, with its characteristics and history;
+\item \textbf{WorkOrder}: a work request associated with one or more machines;
+\item \textbf{InterventionOrder}: a concrete intervention carried out by a technician on a machine, linked to a work order.
 \end{itemize}
 
-Une entité \textbf{Alerte} relie ces objets aux prédictions du microservice ML.
+An \textbf{Alert} entity connects these objects to the ML microservice's predictions.
 
 \begin{figure}[h]
 \centering
 \begin{tikzpicture}[node distance=1.5cm, box/.style={draw, rectangle, minimum width=3cm, minimum height=1cm, align=center}]
-\node[box] (user) {Utilisateur};
+\node[box] (user) {User};
 \node[box, right=2.5cm of user] (machine) {Machine};
-\node[box, below=of user] (ot) {OrdreTravail};
-\node[box, below=of machine] (oi) {OrdreIntervention};
-\node[box, below right=1.2cm and -0.5cm of ot] (alerte) {Alerte};
+\node[box, below=of user] (ot) {WorkOrder};
+\node[box, below=of machine] (oi) {InterventionOrder};
+\node[box, below right=1.2cm and -0.5cm of ot] (alerte) {Alert};
 \draw (user) -- (ot);
 \draw (machine) -- (ot);
 \draw (ot) -- (oi);
@@ -58,37 +71,69 @@ Une entité \textbf{Alerte} relie ces objets aux prédictions du microservice ML
 \draw (oi) -- (alerte);
 \draw (machine) -- (alerte);
 \end{tikzpicture}
-\caption{Modèle de données simplifié}
+\caption{Simplified data model}
 \label{fig:modele-donnees}
 \end{figure}
 
-\section{Architecture du pipeline de Machine Learning}
+\section{Machine Learning pipeline architecture}
 
-Le pipeline prédictif est structuré en modèles spécialisés :
+The prediction pipeline is structured into specialized models:
 \begin{itemize}
-\item \textbf{P1} : probabilité de panne ;
-\item \textbf{P2} : classification du type de panne ;
-\item \textbf{P3} : estimation de la durée de vie résiduelle (RUL), par un modèle hybride combinant réseau récurrent et arbre de décision boosté ;
-\item \textbf{P4} : détection d'anomalies comportementales, par un ensemble de quatre méthodes combinées (forêt d'isolement, score-Z, déviation par grappe, auto-encodeur) ;
-\item \textbf{P5} : priorisation des ordres de travail ;
-\item \textbf{P6} : planification de la maintenance.
+\item \textbf{P1}: failure probability;
+\item \textbf{P2}: failure type classification;
+\item \textbf{P3}: remaining useful life (RUL) estimation, using a hybrid model combining a recurrent network and a boosted decision tree;
+\item \textbf{P4}: behavioral anomaly detection, using an ensemble of four combined methods (isolation forest, Z-score, cluster deviation, autoencoder);
+\item \textbf{P5}: work order prioritization;
+\item \textbf{P6}: maintenance scheduling.
 \end{itemize}
 
-Une seconde vague de modèles (dite « Wave 2 ») combine plusieurs signaux avancés (détection de rupture CUSUM, filtre de Kalman, modèle de survie, indice de santé de Mahalanobis) par fusion selon la théorie de Dempster-Shafer, produisant un score de santé unifié et un verdict global.
+These seven models are trained independently and never consume one another's output: each reads the same shared telemetry feature set and returns its own field in the API response, as shown in Figure~\ref{fig:p1-p7}.
 
-Un dernier module, \textbf{P7}, exploite les prédictions de panne pour anticiper la demande en pièces de rechange (par modélisation de survie combinée à une méthode de prévision de demande intermittente), et proposer un provisionnement guidé, jamais automatique.
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/p1p7.png}
+\caption{The seven independent P1--P7 prediction models}
+\label{fig:p1-p7}
+\end{figure}
 
-\section{Architecture du service RAG et du pont ML}
+A second, separate pipeline (referred to as ``Wave 2'') reads each machine's telemetry \emph{history} through four signal-processing models: a physics-informed RUL estimator, a Cox proportional-hazards survival model, a Mahalanobis health index, and a CUSUM anomaly detector smoothed by a Kalman filter. Their outputs are converted into probability assignments over four hypotheses (Healthy, Degrading, Critical, Unknown) and combined through Dempster-Shafer theory fusion --- falling back to the more conservative Yager's rule when the models disagree strongly --- producing the single \emph{unified health score} shown to users, together with an overall verdict. This score, not the P1--P7 outputs, is what downstream readiness and alerting logic consumes, as shown in Figure~\ref{fig:dst-fusion}.
 
-Le service RAG ingère la documentation technique (manuels de maintenance, procédures de sécurité, fiches machines) et la découpe en fragments indexés pour la recherche sémantique. Lorsqu'un technicien pose une question relative à une machine précise, le backend interroge en parallèle le service RAG (documentation) et le microservice ML (état de santé en temps réel de la machine), puis fusionne les deux contextes avant de les transmettre au modèle de langage pour générer une réponse. Ce mécanisme garantit que l'assistant répond toujours, même si un des deux services est indisponible.
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/dst.png}
+\caption{Wave 2 signal fusion into the DST health score}
+\label{fig:dst-fusion}
+\end{figure}
 
-\section{Choix technologiques}
+The readiness score blends the unified health score (40\%) with inventory coverage (30\%), procurement risk (20\%), and maintenance recency (10\%). Alerts aggregate signals from both pipelines --- an anomaly flag from P4, a parts shortage from P7, or a model-disagreement flag from the fusion step itself --- and a detected parts shortage is what triggers the purchase draft, as shown in Figure~\ref{fig:downstream}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/downstream.png}
+\caption{From ML outputs to readiness, alerts, and purchase drafts}
+\label{fig:downstream}
+\end{figure}
+
+A final module, \textbf{P7}, uses failure predictions to anticipate spare parts demand (through survival modeling combined with an intermittent demand forecasting method), and proposes guided --- never automatic --- provisioning: every draft still requires explicit human approval before anything is ordered.
+
+\section{RAG service and ML bridge architecture}
+
+The RAG service ingests technical documentation (maintenance manuals, safety procedures, machine data sheets) and splits it into indexed fragments for semantic search. When a technician asks a question about a specific machine, the backend queries the RAG service (documentation) and the ML microservice (the machine's real-time health status) in parallel, then merges the two contexts before passing them to the language model to generate a response, as shown in Figure~\ref{fig:rag-bridge}. This mechanism ensures the assistant always responds, even if one of the two services is unavailable.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/rag.png}
+\caption{RAG service and ML bridge}
+\label{fig:rag-bridge}
+\end{figure}
+
+\section{Technology choices}
 
 \begin{itemize}
-\item \textbf{Next.js} : rendu hybride, écosystème React mature, adapté à des interfaces riches par rôle ;
-\item \textbf{FastAPI} : performances élevées, validation de schémas native, documentation d'API générée automatiquement ;
-\item \textbf{Flask} : léger, adapté à un microservice de service de modèles ;
-\item \textbf{PostgreSQL} : robustesse transactionnelle, requêtes relationnelles adaptées au modèle de données ;
-\item \textbf{Docker} : isolation et reproductibilité des environnements de développement et de déploiement ;
-\item \textbf{MinIO} : stockage objet compatible S3, auto-hébergeable.
+\item \textbf{Next.js}: hybrid rendering, mature React ecosystem, well suited to rich, role-based interfaces;
+\item \textbf{FastAPI}: high performance, native schema validation, automatically generated API documentation;
+\item \textbf{Flask}: lightweight, well suited to a model-serving microservice;
+\item \textbf{PostgreSQL}: transactional robustness, relational queries well suited to the data model;
+\item \textbf{Docker}: isolation and reproducibility of development and deployment environments;
+\item \textbf{MinIO}: S3-compatible, self-hostable object storage.
 \end{itemize}

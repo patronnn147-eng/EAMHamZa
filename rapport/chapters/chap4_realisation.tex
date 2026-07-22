@@ -1,22 +1,66 @@
-\chapter{Réalisation}
+\chapter{Implementation}
 
-\section{Réalisation du backend}
+\section{Backend implementation}
 
-Le backend est organisé en modules par domaine métier (utilisateurs, machines, ordres de travail, ordres d'intervention, alertes, planification, Machine Learning). Chaque module expose ses routes API, ses schémas de validation et ses services métier séparément, ce qui facilite la maintenance et les évolutions ultérieures. Le contrôle d'accès par rôle est appliqué de façon centralisée sur chaque route.
+The backend is organized into modules by business domain (users, machines, work orders, intervention orders, alerts, scheduling, Machine Learning). Each module exposes its API routes, validation schemas, and business services separately, which facilitates maintenance and future changes. Role-based access control is applied centrally on every route. The four workflows below --- maintenance planning, intervention requests, work orders, and inventory reservations --- illustrate this modular organization at the business-logic level.
 
-\section{Réalisation du frontend}
+\subsection{Maintenance planning workflow}
 
-Le frontend propose trois espaces applicatifs distincts, chacun adapté aux besoins du rôle correspondant : un espace Administrateur pour la gestion globale, un espace Chef Technicien pour le pilotage et la planification, et un espace Technicien pour l'exécution des interventions sur le terrain. Un système de design cohérent (palette de couleurs, composants réutilisables) garantit une expérience homogène entre les trois espaces.
+An Administrator opens a planning window in \emph{draft} status; the Head Technician then breaks it down into per-machine diagnostic or correction tasks and submits it for approval. Only once an Administrator approves the planning are the assigned technicians notified, by both an in-app alert and an email.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/planning.png}
+\caption{Maintenance planning workflow}
+\label{fig:planning-workflow}
+\end{figure}
+
+\subsection{Intervention request workflow}
+
+A field technician's request passes through a single Head Technician validation gate with two distinct outcomes: approval requires an associated machine and automatically creates a linked work order, while rejection requires a reason and releases any parts reservation already made. Closing the loop later, once the work is done, still requires a root-cause diagnosis before the intervention can be marked validated.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/intervention.png}
+\caption{Intervention request workflow}
+\label{fig:intervention-workflow}
+\end{figure}
+
+\subsection{Work order lifecycle}
+
+A work order moves through a sequential ten-state lifecycle. It can be rejected at the approval step, releasing any linked stock reservation, and it can only be closed by an Administrator once it has reached the \emph{validated} state.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/workorder.png}
+\caption{Work order lifecycle}
+\label{fig:wo-lifecycle}
+\end{figure}
+
+\subsection{Inventory reservation system}
+
+A single service owns every mutation of stock quantities for the intervention/work-order workflow. Four independent triggers --- approval, rejection, a daily scheduled task, and technician completion --- each invoke a dedicated process, all reading and writing the same reservation records; approval handlers never touch stock tables directly.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=\textwidth]{figures/inventory.png}
+\caption{Inventory reservation data flow}
+\label{fig:inventory-flow}
+\end{figure}
+
+\section{Frontend implementation}
+
+The frontend offers three distinct application spaces, each tailored to the needs of the corresponding role: an Administrator space for global management, a Head Technician space for oversight and scheduling, and a Technician space for carrying out interventions in the field. A consistent design system (color palette, reusable components) ensures a uniform experience across the three spaces.
 
 \begin{figure}[h]
 \centering
 \fbox{\begin{minipage}{0.85\textwidth}
 \centering
 \vspace{1cm}
-\textit{Tableau de bord Administrateur : vue d'ensemble du parc de machines, liste des utilisateurs, indicateurs globaux de fiabilité, accès à la base documentaire.}
+\textit{Administrator dashboard: fleet-wide machine overview, user list, global reliability indicators, access to the knowledge base.}
 \vspace{1cm}
 \end{minipage}}
-\caption{Tableau de bord Administrateur}
+\caption{Administrator dashboard}
 \label{fig:dashboard-admin}
 \end{figure}
 
@@ -25,39 +69,39 @@ Le frontend propose trois espaces applicatifs distincts, chacun adapté aux beso
 \fbox{\begin{minipage}{0.85\textwidth}
 \centering
 \vspace{1cm}
-\textit{Tableau de bord Chef Technicien : file des ordres de travail par priorité, planning des interventions, alertes de rupture de stock, cartes KPI de fiabilité.}
+\textit{Head Technician dashboard: work order queue by priority, intervention schedule, stock shortage alerts, reliability KPI cards.}
 \vspace{1cm}
 \end{minipage}}
-\caption{Tableau de bord Chef Technicien}
+\caption{Head Technician dashboard}
 \label{fig:dashboard-cheftech}
 \end{figure}
 
-\section{Réalisation du pipeline de Machine Learning}
+\section{Machine Learning pipeline implementation}
 
-Chaque modèle prédictif (P1 à P6) a été entraîné puis intégré au microservice de service de modèles, avec un chargement paresseux et mis en cache pour limiter les temps de réponse. Une couche d'explicabilité (« Pourquoi ? ») a été ajoutée transversalement : chaque prédiction, alerte ou recommandation peut être détaillée en langage clair, sans terminologie de Machine Learning, pour rester compréhensible par les techniciens de terrain.
+Each predictive model (P1 to P6) was trained and then integrated into the model-serving microservice, with lazy, cached loading to limit response times. An explainability layer (``Why?'') was added across the board: every prediction, alert, or recommendation can be expanded into a plain-language explanation, free of Machine Learning terminology, so it remains understandable to field technicians.
 
-Le module P7 de coordination des pièces de rechange a été réalisé en six étapes progressives : moteur de prévision de la demande, routage des alertes de rupture de stock, adaptation de l'interface par rôle, préparation guidée des commandes (jamais automatique), calcul d'un score de disponibilité opérationnelle avec chronologie des événements, et boucle de retour comparant les prédictions aux pièces effectivement consommées.
+The P7 spare parts coordination module was built in six progressive steps: a demand forecasting engine, stock shortage alert routing, role-based interface adaptation, guided order preparation (never automatic), an operational readiness score with an event timeline, and a feedback loop comparing predictions against parts actually consumed.
 
 \begin{figure}[h]
 \centering
 \fbox{\begin{minipage}{0.85\textwidth}
 \centering
 \vspace{1cm}
-\textit{Panneau d'explicabilité : un panneau latéral s'ouvre au clic sur « Pourquoi ? » et détaille, en langage clair, la raison de l'alerte, les capteurs concernés, l'action recommandée et les personnes à impliquer.}
+\textit{Explainability panel: a side panel opens when clicking ``Why?'' and details, in plain language, the reason for the alert, the sensors involved, the recommended action, and who should be involved.}
 \vspace{1cm}
 \end{minipage}}
-\caption{Panneau d'explicabilité d'une prédiction}
+\caption{Prediction explainability panel}
 \label{fig:explicabilite}
 \end{figure}
 
-\section{Réalisation du service RAG et du pont conversationnel}
+\section{RAG service and conversational bridge implementation}
 
-Le service RAG permet l'import de documents techniques (manuels, procédures) avec gestion des versions et suppression en cascade. Le pont entre le service RAG et le microservice ML a été conçu pour ne jamais faire échouer une conversation : si le microservice ML est indisponible, une estimation de secours fondée sur des règles simples est utilisée à la place, de façon transparente pour l'utilisateur.
+The RAG service supports importing technical documents (manuals, procedures) with version management and cascading deletion. The bridge between the RAG service and the ML microservice was designed to never let a conversation fail: if the ML microservice is unavailable, a fallback estimate based on simple rules is used instead, transparently to the user.
 
-\section{Difficultés techniques rencontrées}
+\section{Technical difficulties encountered}
 
-Plusieurs difficultés ont été rencontrées durant la réalisation. La synchronisation des modèles entraînés entre l'environnement de recherche (notebooks) et l'environnement de production (microservice) a nécessité la mise en place d'une procédure stricte de copie et de vérification du nombre de caractéristiques attendues par chaque modèle, afin d'éviter le chargement d'un modèle obsolète incompatible avec le format des données envoyées en production.
+Several difficulties were encountered during implementation. Synchronizing trained models between the research environment (notebooks) and the production environment (microservice) required setting up a strict procedure for copying and verifying the number of features expected by each model, in order to avoid loading a stale model incompatible with the data format sent in production.
 
-La disponibilité partielle des composants a également été un point d'attention : certaines bibliothèques de deep learning n'étant pas installées dans l'environnement de production, l'auto-encodeur du module d'anomalie a été rendu optionnel, avec renormalisation automatique des poids de l'ensemble de détection lorsque ce composant est absent. De même, le pont ML-RAG a été conçu pour basculer vers une estimation de secours fondée sur des règles simples si le microservice ML est indisponible, garantissant qu'une réponse reste toujours fournie à l'utilisateur.
+Partial component availability was also a point of attention: since certain deep learning libraries were not installed in the production environment, the anomaly module's autoencoder was made optional, with automatic renormalization of the detection ensemble's weights when this component is absent. Likewise, the ML-RAG bridge was designed to fall back to a simple rule-based estimate if the ML microservice is unavailable, ensuring a response is always provided to the user.
 
-Enfin, la cohérence des données de test à grande échelle (plusieurs milliers d'enregistrements simulés) a demandé une vérification systématique de la représentativité des scénarios de panne générés, afin que les métriques d'évaluation reflètent des cas réalistes.
+Finally, the consistency of large-scale test data (several thousand simulated records) required systematic verification of the representativeness of the generated failure scenarios, so that evaluation metrics would reflect realistic cases.

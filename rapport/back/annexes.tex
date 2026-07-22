@@ -1,9 +1,9 @@
 \appendix
-\chapter{Annexes}
+\chapter{Appendices}
 
-\section{Extraits de code significatifs}
+\section{Selected code excerpts}
 
-L'extrait ci-dessous illustre, de façon simplifiée, la logique de fusion des scores de l'ensemble de détection d'anomalies (module P4), avec renormalisation des poids lorsqu'un détecteur est indisponible :
+The excerpt below illustrates, in simplified form, the score fusion logic of the anomaly detection ensemble (P4 module), with weight renormalization when a detector is unavailable:
 
 \begin{verbatim}
 def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
@@ -14,7 +14,7 @@ def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
     return sum(scores[k] * weights[k] for k in available) / total_weight
 \end{verbatim}
 
-L'extrait suivant illustre le principe du calcul du score de disponibilité opérationnelle (module P7), combinant plusieurs signaux pondérés :
+The following excerpt illustrates the principle behind computing the operational readiness score (P7 module), combining several weighted signals:
 
 \begin{verbatim}
 def compute_readiness_score(health, inventory, shortage, recency):
@@ -26,27 +26,27 @@ def compute_readiness_score(health, inventory, shortage, recency):
     )
 \end{verbatim}
 
-\section{Diagrammes détaillés}
+\section{Detailed diagrams}
 
-Le diagramme de classes complet et le diagramme de séquence du pont ML-RAG (invocation parallèle du service RAG et du microservice ML, fusion des contextes avant génération de la réponse) sont disponibles dans les spécifications techniques du projet.
+The complete class diagram and the sequence diagram of the ML-RAG bridge (parallel invocation of the RAG service and the ML microservice, context fusion before generating the response) are available in the project's technical specifications.
 
-\section{Tables de métriques complètes}
+\section{Complete metrics tables}
 
 \begin{table}[h]
 \centering
 \begin{tabularx}{\textwidth}{lX}
 \toprule
-\textbf{Modèle} & \textbf{Description} \\
+\textbf{Model} & \textbf{Description} \\
 \midrule
-P1 & Probabilité de panne (classification binaire) \\
-P2 & Classification du type de panne \\
-P3 & Estimation de la durée de vie résiduelle (MAE = 14,95 cycles, C-index = 0,620) \\
-P4 & Détection d'anomalies comportementales (ROC-AUC de référence = 0,83) \\
-P5 & Priorisation des ordres de travail \\
-P6 & Planification de la maintenance \\
-P7 & Coordination des pièces de rechange (prévision de la demande, alertes, provisionnement guidé) \\
+P1 & Failure probability (binary classification) \\
+P2 & Failure type classification \\
+P3 & Remaining useful life estimation (MAE = 14.95 cycles, C-index = 0.620) \\
+P4 & Behavioral anomaly detection (baseline ROC-AUC = 0.83) \\
+P5 & Work order prioritization \\
+P6 & Maintenance scheduling \\
+P7 & Spare parts coordination (demand forecasting, alerts, guided provisioning) \\
 \bottomrule
 \end{tabularx}
-\caption{Synthèse des modèles du pipeline de Machine Learning}
+\caption{Summary of the Machine Learning pipeline models}
 \label{tab:metriques-completes}
 \end{table}
