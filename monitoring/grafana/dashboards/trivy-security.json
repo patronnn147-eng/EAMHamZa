@@ -252,19 +252,12 @@
           "expr": "sum by(image, severity) (trivy_image_vulnerabilities{severity=~\"CRITICAL|HIGH\"})",
           "legendFormat": "{{image}} — {{severity}}",
           "refId": "A",
-          "instant": true
+          "instant": true,
+          "format": "table"
         }
       ],
       "transformations": [
-        { "id": "labelsToFields", "options": { "mode": "columns", "keepLabels": ["image", "severity"] } },
-        { "id": "groupBy", "options": {
-            "fields": {
-              "image":    { "aggregations": [], "operation": "groupby" },
-              "severity": { "aggregations": [], "operation": "groupby" },
-              "Value":    { "aggregations": ["sum"], "operation": "aggregate" }
-            }
-          }
-        }
+        { "id": "labelsToFields", "options": { "valueLabel": "severity" } }
       ],
       "options": {
         "barWidth": 0.7,
