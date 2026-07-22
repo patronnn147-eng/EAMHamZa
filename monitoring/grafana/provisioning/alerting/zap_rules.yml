@@ -1,0 +1,141 @@
+# Grafana Unified Alerting rules (Grafana 10+)
+# These mirror monitoring/prometheus/rules/zap_alerts.yml and surface alerts
+# inside Grafana UI (feeds the "Active Security Alerts" panel on the ZAP DAST
+# dashboard via the type=dast-alert label).
+# Contact points must be configured manually in Grafana → Alerting → Contact points
+# or provisioned via monitoring/grafana/provisioning/alerting/contact_points.yml
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: zap-dast-alerts
+    folder: Security Alerts
+    interval: 1m
+    rules:
+
+      - uid: zap-high-risk-001
+        title: "HIGH-Risk DAST Finding Detected"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'zap_site_alerts{severity="HIGH"} > 0'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "HIGH-risk DAST finding on {{ $labels.site }}"
+          description: "{{ $value }} HIGH-risk findings detected. Immediate review required."
+        labels:
+          severity: critical
+          type: dast-alert
+
+      - uid: zap-medium-threshold-001
+        title: "MEDIUM Alert Threshold Exceeded"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: 'zap_site_alerts{severity="MEDIUM"} > 5'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: "MEDIUM alert threshold exceeded on {{ $labels.site }}"
+          description: "{{ $value }} MEDIUM findings detected (threshold: 5)."
+        labels:
+          severity: warning
+          type: dast-alert
+
+      - uid: zap-alert-spike-001
+        title: "DAST Alert Count Spiked After Deployment"
+        condition: threshold
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 3600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: '(zap_site_alerts_total - zap_site_alerts_total offset 1h) > 3'
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: threshold
+            datasourceUid: __expr__
+            model:
+              type: threshold
+              refId: threshold
+              expression: A
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    type: last
+                  type: query
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "DAST alert spike on {{ $labels.site }}"
+          description: "{{ $value }} new alerts appeared in the last hour — possible deployment regression."
+        labels:
+          severity: warning
+          type: dast-alert

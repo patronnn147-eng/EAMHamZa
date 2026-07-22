@@ -1,0 +1,67 @@
+groups:
+  - name: zap_dast_alerts
+    interval: 1m
+    rules:
+
+      # ── HIGH-risk alert present ──────────────────────────────────────────────
+      # Fires immediately when any HIGH-risk finding is detected on any site.
+      # ZAP's ceiling severity is HIGH (no CRITICAL) — treated the same way
+      # Trivy treats CRITICAL: fire on any occurrence, no threshold.
+      - alert: ZapHighRiskAlert
+        expr: zap_site_alerts{severity="HIGH"} > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: security
+        annotations:
+          summary: "HIGH-risk DAST finding on '{{ $labels.site }}'"
+          description: >
+            Site '{{ $labels.site }}' has {{ $value | humanize }} HIGH-risk
+            findings from the last active scan. Immediate review required.
+
+      # ── MEDIUM alert threshold exceeded ─────────────────────────────────────
+      # Fires when MEDIUM count exceeds threshold (5 — DAST surface here is
+      # small; a real full scan of this app produced 3 MEDIUM total).
+      - alert: ZapMediumAlertThreshold
+        expr: zap_site_alerts{severity="MEDIUM"} > 5
+        for: 10m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "MEDIUM alert threshold exceeded on '{{ $labels.site }}'"
+          description: >
+            Site '{{ $labels.site }}' has {{ $value }} MEDIUM findings
+            (threshold: 5). Schedule a remediation pass.
+
+      # ── Alert count spike after deployment ──────────────────────────────────
+      # Detects regression: total alert count increased by >3 in 1 hour.
+      - alert: ZapAlertSpikePostDeploy
+        expr: >
+          (zap_site_alerts_total
+           - zap_site_alerts_total offset 1h) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "DAST alert spike on '{{ $labels.site }}' after deployment"
+          description: >
+            Site '{{ $labels.site }}' gained {{ $value }} new alerts in the
+            last hour — possible regression after a deployment.
+
+      # ── Scan staleness ──────────────────────────────────────────────────────
+      # Fires when a site has not been scanned for >24h (dast-scan job may
+      # be failing, disabled, or the CI schedule stopped triggering it).
+      - alert: ZapScanStale
+        expr: (time() - zap_scan_timestamp_seconds) > 86400
+        for: 5m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "ZAP scan stale for '{{ $labels.site }}'"
+          description: >
+            Site '{{ $labels.site }}' was last scanned
+            {{ $value | humanizeDuration }} ago. The dast-scan CI job may
+            be failing or not running.
