@@ -29,6 +29,10 @@ coverage/
 build/
 dist/
 
+# Test coverage reports (CI regenerates these fresh each run)
+.coverage
+coverage.xml
+
 # Logs
 logs/
 *.log

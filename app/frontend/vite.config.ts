@@ -16,6 +16,16 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    include: ['src/**/*.test.{ts,tsx}'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov'],
+      reportsDirectory: 'coverage',
+    },
+  },
   server: {
     host: '0.0.0.0', // 监听所有网络接口
     port: Number.parseInt(process.env.VITE_PORT || '3000'),

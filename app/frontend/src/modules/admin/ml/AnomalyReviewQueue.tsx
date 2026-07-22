@@ -52,7 +52,7 @@ export function AnomalyReviewQueue() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token()}` },
         body: JSON.stringify({ verdict }),
       });
-      if (!r.ok) throw new Error();
+      if (!r.ok) throw new Error('Failed to update anomaly review status');
       toast.success('Anomalie évaluée, merci.');
       setQ((prev) => prev ? { pending_count: prev.pending_count - 1, items: prev.items.filter((i) => i.id !== id) } : prev);
     } catch {

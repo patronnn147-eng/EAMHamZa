@@ -39,11 +39,12 @@ from models.ml_prediction_log import MlPredictionLog
 from models.ordres_intervention import OrdresIntervention
 from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.planning_machines import PlanningMachines
-from models.planning_OrdresTravail import PlanningOrdresTravail
+from models.planning_ordres_travail import PlanningOrdresTravail
 from models.planning_taches import PlanningTaches, TaskType
 from models.planning_utilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings, PlanningStatut, PlanningType
 from models.utilisateurs import UserRole, UserStatus, Utilisateurs
+from seed_common import _lerp, _risk_level
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -58,10 +59,6 @@ CLEAN_MODE = "--clean" in sys.argv
 
 
 # ── Degradation helpers ─────────────────────────────────────────────────────────
-
-
-def _lerp(start: float, end: float, t: float) -> float:
-    return start + t * (end - start)
 
 
 def _noise(sigma: float) -> float:
@@ -195,16 +192,6 @@ def _failure_prob(tool_wear: float) -> float:
     if tool_wear < 80:
         return 0.0
     return min(95.0, (tool_wear - 80.0) / 160.0 * 95.0)
-
-
-def _risk_level(prob: float) -> str:
-    if prob >= 70:
-        return "CRITICAL"
-    if prob >= 50:
-        return "HIGH"
-    if prob >= 30:
-        return "MEDIUM"
-    return "LOW"
 
 
 # ── Clean helper ────────────────────────────────────────────────────────────────

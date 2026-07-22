@@ -236,60 +236,83 @@ class RULCalculator:
 
         risk_level = RULCalculator._compute_risk_level(ml_probability, rul_days)
         rul_confidence_interval = RULCalculator._scale_rul_interval(rul_interval_raw, rul_days)
+        predicted_priority = RULCalculator._derive_predicted_priority(
+            predicted_priority_ml, interventions, risk_level
+        )
 
+        return RULCalculator._build_rul_response(
+            machine=machine, interventions=interventions, entries=entries, now=now,
+            rul_days=rul_days, rul_confidence_interval=rul_confidence_interval,
+            risk_level=risk_level, ml_probability=ml_probability,
+            fusion_result=fusion_result, predicted_priority=predicted_priority,
+            is_anomaly=is_anomaly, anomaly_score=anomaly_score, shap_exps=shap_exps,
+            ml_health_score=ml_health_score, score_source=score_source, dst_verdict=dst_verdict,
+            conflict_k=conflict_k, maint_ded=maint_ded, overdue_ded=overdue_ded,
+            status_ded=status_ded, wo_ded=wo_ded, ri_ded=ri_ded, days_since_maint=days_since_maint,
+            open_work_orders=open_work_orders, recent_interventions=recent_interventions,
+            deg_air=deg_air, deg_wear=deg_wear, deg_magnitude=deg_magnitude,
+            ml_reliability_score=ml_reliability_score, ml_mtbf_hours=ml_mtbf_hours,
+            ml_mttr_hours=ml_mttr_hours, ml_availability_pct=ml_availability_pct,
+            air_temp=air_temp, process_temp=process_temp, rpm=rpm, torque=torque, tool_wear=tool_wear,
+        )
+
+    @staticmethod
+    def _derive_predicted_priority(predicted_priority_ml, interventions: List[OrdresIntervention], risk_level: str) -> str:
         if predicted_priority_ml:
-            predicted_priority = str(predicted_priority_ml)
-        elif not interventions:
-            predicted_priority = "Normal"
-        else:
-            predicted_priority = risk_level.title()
+            return str(predicted_priority_ml)
+        if not interventions:
+            return "Normal"
+        return risk_level.title()
 
+    @staticmethod
+    def _build_rul_response(**f) -> Dict:
+        """Assemble the calculate_rul response dict from its computed fields (see calculate_rul's call site for `f`'s keys)."""
         response = {
-            "machine_id": machine.id,
-            "machine_name": machine.nom,
-            "rul_days": round(float(max(0, rul_days)), 1),
-            "rul_confidence_interval": rul_confidence_interval,
-            "risk_level": risk_level,
-            "failure_probability": float(ml_probability),
-            "predicted_failure_date": (now + timedelta(days=max(0, rul_days))).isoformat(),
-            "data_points": len(interventions),
-            "ml_model_used": fusion_result is not None,
-            "predicted_priority": predicted_priority,
-            "is_anomaly": bool(is_anomaly),
-            "anomaly_score": round(float(anomaly_score), 4),
-            "explanations": RULCalculator._map_shap(shap_exps),
-            "health_score": round(float(ml_health_score), 1) if ml_health_score is not None else None,
+            "machine_id": f["machine"].id,
+            "machine_name": f["machine"].nom,
+            "rul_days": round(float(max(0, f["rul_days"])), 1),
+            "rul_confidence_interval": f["rul_confidence_interval"],
+            "risk_level": f["risk_level"],
+            "failure_probability": float(f["ml_probability"]),
+            "predicted_failure_date": (f["now"] + timedelta(days=max(0, f["rul_days"]))).isoformat(),
+            "data_points": len(f["interventions"]),
+            "ml_model_used": f["fusion_result"] is not None,
+            "predicted_priority": f["predicted_priority"],
+            "is_anomaly": bool(f["is_anomaly"]),
+            "anomaly_score": round(float(f["anomaly_score"]), 4),
+            "explanations": RULCalculator._map_shap(f["shap_exps"]),
+            "health_score": round(float(f["ml_health_score"]), 1) if f["ml_health_score"] is not None else None,
             "health_breakdown": {
-                "predictive_risk": round(float(ml_probability), 1),
-                "score_source": score_source,
-                "dst_verdict": dst_verdict,
-                "conflict_factor_K": round(float(conflict_k), 4) if conflict_k is not None else None,
-                "maintenance_deduction": round(float(maint_ded), 1),
-                "overdue_deduction": round(float(overdue_ded), 1),
-                "status_deduction": round(float(status_ded), 1),
-                "work_order_deduction": round(float(wo_ded), 1),
-                "intervention_deduction": round(float(ri_ded), 1),
-                "days_since_maintenance": days_since_maint,
-                "open_work_orders": open_work_orders,
-                "recent_interventions": recent_interventions,
-                "degradation_rate_air": round(float(deg_air), 4),
-                "degradation_rate_wear": round(float(deg_wear), 4),
-                "degradation_magnitude": round(float(deg_magnitude), 4),
+                "predictive_risk": round(float(f["ml_probability"]), 1),
+                "score_source": f["score_source"],
+                "dst_verdict": f["dst_verdict"],
+                "conflict_factor_K": round(float(f["conflict_k"]), 4) if f["conflict_k"] is not None else None,
+                "maintenance_deduction": round(float(f["maint_ded"]), 1),
+                "overdue_deduction": round(float(f["overdue_ded"]), 1),
+                "status_deduction": round(float(f["status_ded"]), 1),
+                "work_order_deduction": round(float(f["wo_ded"]), 1),
+                "intervention_deduction": round(float(f["ri_ded"]), 1),
+                "days_since_maintenance": f["days_since_maint"],
+                "open_work_orders": f["open_work_orders"],
+                "recent_interventions": f["recent_interventions"],
+                "degradation_rate_air": round(float(f["deg_air"]), 4),
+                "degradation_rate_wear": round(float(f["deg_wear"]), 4),
+                "degradation_magnitude": round(float(f["deg_magnitude"]), 4),
             },
-            "reliability_score": round(float(ml_reliability_score), 1) if ml_reliability_score is not None else 0.0,
-            "mtbf_pred": round(float(ml_mtbf_hours), 1),
-            "mttr_pred": round(float(ml_mttr_hours), 1),
-            "availability_pred": round(float(ml_availability_pct), 1) if ml_availability_pct is not None else 0.0,
-            "air_temperature": round(float(air_temp), 2) if air_temp is not None else None,
-            "process_temperature": round(float(process_temp), 2) if process_temp is not None else None,
-            "rotational_speed": int(rpm) if rpm is not None else None,
-            "torque": round(float(torque), 2) if torque is not None else None,
-            "tool_wear": round(float(tool_wear), 2) if tool_wear is not None else None,
-            "telemetry_data_points": len(entries),
-            "telemetry_available": len(entries) > 0,
+            "reliability_score": round(float(f["ml_reliability_score"]), 1) if f["ml_reliability_score"] is not None else 0.0,
+            "mtbf_pred": round(float(f["ml_mtbf_hours"]), 1),
+            "mttr_pred": round(float(f["ml_mttr_hours"]), 1),
+            "availability_pred": round(float(f["ml_availability_pct"]), 1) if f["ml_availability_pct"] is not None else 0.0,
+            "air_temperature": round(float(f["air_temp"]), 2) if f["air_temp"] is not None else None,
+            "process_temperature": round(float(f["process_temp"]), 2) if f["process_temp"] is not None else None,
+            "rotational_speed": int(f["rpm"]) if f["rpm"] is not None else None,
+            "torque": round(float(f["torque"]), 2) if f["torque"] is not None else None,
+            "tool_wear": round(float(f["tool_wear"]), 2) if f["tool_wear"] is not None else None,
+            "telemetry_data_points": len(f["entries"]),
+            "telemetry_available": len(f["entries"]) > 0,
         }
 
-        if not fusion_result:
+        if not f["fusion_result"]:
             response["model_unavailable"] = True
 
         return response

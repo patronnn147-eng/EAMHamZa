@@ -133,37 +133,42 @@ async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSess
     horizon = parts_demand.get("horizon_days") or 30
 
     for item in items:
-        meta = real_stock.get(item["piece_id"])
-        if not meta:
-            continue  # piece no longer catalogued — leave the pkl's stale numbers as-is
-        expected = item.get("expected_qty", 0.0)
-        on_hand = meta["on_hand"]
-        min_stock = meta["min_stock"]
-        shortfall = max(0.0, expected - on_hand)
-        order = max(shortfall, min_stock - on_hand, 0.0)
-        # Mirrors p7_parts_demand.py build_parts_demand()/stock_coverage_days
-        # exactly — this function re-prices items after the ml-microservice
-        # call. stock_coverage_days is display-only (see the NOTE in that
-        # file): algebraically identical to shortfall/expected whenever
-        # shortfall>0, so it's computed here purely for display consistency,
-        # not used to adjust urgency_score.
-        daily_burn = expected / horizon if horizon else 0.0
-        coverage = (on_hand / daily_burn) if daily_burn > 0 else None
-        urgency = round(min(1.0, (shortfall / expected) if expected else 0.0), 4)
-        item["on_hand"] = on_hand
-        item["min_stock"] = int(min_stock)
-        item["shortfall"] = round(shortfall, 3)
-        item["recommended_order_qty"] = round(order, 3)
-        item["stock_coverage_days"] = round(coverage, 1) if coverage is not None else None
-        item["urgency_score"] = urgency
-        if meta["name"]:
-            item["name"] = meta["name"]
-        if meta["reference"]:
-            item["reference"] = meta["reference"]
+        _reprice_part_item(item, real_stock, horizon)
 
     items.sort(key=lambda i: (-i["urgency_score"], -i["shortfall"]))
     parts_demand["items"] = items
     return parts_demand
+
+
+def _reprice_part_item(item: Dict, real_stock: Dict, horizon: float) -> None:
+    """Re-price one parts_demand item against real Stock/Piece data (mutates item in place)."""
+    meta = real_stock.get(item["piece_id"])
+    if not meta:
+        return  # piece no longer catalogued — leave the pkl's stale numbers as-is
+    expected = item.get("expected_qty", 0.0)
+    on_hand = meta["on_hand"]
+    min_stock = meta["min_stock"]
+    shortfall = max(0.0, expected - on_hand)
+    order = max(shortfall, min_stock - on_hand, 0.0)
+    # Mirrors p7_parts_demand.py build_parts_demand()/stock_coverage_days
+    # exactly — this function re-prices items after the ml-microservice
+    # call. stock_coverage_days is display-only (see the NOTE in that
+    # file): algebraically identical to shortfall/expected whenever
+    # shortfall>0, so it's computed here purely for display consistency,
+    # not used to adjust urgency_score.
+    daily_burn = expected / horizon if horizon else 0.0
+    coverage = (on_hand / daily_burn) if daily_burn > 0 else None
+    urgency = round(min(1.0, (shortfall / expected) if expected else 0.0), 4)
+    item["on_hand"] = on_hand
+    item["min_stock"] = int(min_stock)
+    item["shortfall"] = round(shortfall, 3)
+    item["recommended_order_qty"] = round(order, 3)
+    item["stock_coverage_days"] = round(coverage, 1) if coverage is not None else None
+    item["urgency_score"] = urgency
+    if meta["name"]:
+        item["name"] = meta["name"]
+    if meta["reference"]:
+        item["reference"] = meta["reference"]
 
 
 @router.get("/machines/{machine_id}/unified-health", responses={404: {"description": "Machine non trouvée"}})
@@ -188,27 +193,14 @@ async def get_unified_health(
         rul_days, failure_probability, risk_level â standard prediction fields
         maintenance_event: bool â true when tool_wear reset detected (Mahal excluded from DST)
     """
-    result = await db.execute(select(Machines).where(Machines.id == machine_id))
-    machine = result.scalar_one_or_none()
-    if not machine:
-        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
+    machine = await _fetch_machine_or_404(machine_id, db)
 
     execute_result = await db.execute(
         select(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
     )
     interventions = list(execute_result.scalars().all())
 
-    from sqlalchemy import func as sa_func
-
-    wo_result = await db.execute(
-        select(sa_func.count(OrdresTravail.id)).where(
-            OrdresTravail.machine_id == machine_id,
-            cast(OrdresTravail.statut, String).notin_(
-                ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
-            ),
-        )
-    )
-    open_wo_count = wo_result.scalar() or 0
+    open_wo_count = await _count_open_work_orders(machine_id, db)
 
     now_dt = datetime.now(timezone.utc)
     recent_count = _count_recent_interventions(interventions, now_dt - timedelta(days=30))
@@ -219,23 +211,8 @@ async def get_unified_health(
     # readings: fabricated inputs produce identical, meaningless predictions
     # for every machine while looking like a healthy pipeline.
     sensors = _latest_sensors(telemetry_entries)
-    _air, _proc, _rpm, _torq, _wear = sensors
 
-    fusion_result: Optional[Dict] = None
-    try:
-        if telemetry_entries and await is_ml_service_available():
-            fusion_result = await ml_client.predict_all(
-                air_temperature=_air,
-                process_temperature=_proc,
-                rotational_speed=_rpm,
-                torque=_torq,
-                tool_wear=int(_wear),
-                machine_id=machine_id,
-                telemetry_logs=telemetry_logs,
-                include_shap=True,
-            )
-    except Exception:
-        pass
+    fusion_result = await _run_ml_fusion(telemetry_entries, telemetry_logs, sensors, machine_id)
 
     prediction = RULCalculator.calculate_rul(
         machine,
@@ -251,6 +228,57 @@ async def get_unified_health(
         telemetry_points=len(telemetry_entries),
     )
 
+    await _attach_parts_and_schedule(response, machine, fusion_result, machine_id, db)
+    await _attach_recovery(response, machine_id, db)
+    _attach_sensor_status(response, machine)
+
+    return response
+
+
+async def _fetch_machine_or_404(machine_id: int, db: AsyncSession) -> Machines:
+    result = await db.execute(select(Machines).where(Machines.id == machine_id))
+    machine = result.scalar_one_or_none()
+    if not machine:
+        raise HTTPException(status_code=404, detail=_MACHINE_NOT_FOUND_MSG)
+    return machine
+
+
+async def _count_open_work_orders(machine_id: int, db: AsyncSession) -> int:
+    from sqlalchemy import func as sa_func
+
+    wo_result = await db.execute(
+        select(sa_func.count(OrdresTravail.id)).where(
+            OrdresTravail.machine_id == machine_id,
+            cast(OrdresTravail.statut, String).notin_(
+                ["CLOSED", "VALIDATED", "REJECTED", "ANNULÉ"]
+            ),
+        )
+    )
+    return wo_result.scalar() or 0
+
+
+async def _run_ml_fusion(telemetry_entries, telemetry_logs, sensors: tuple, machine_id: int) -> Optional[Dict]:
+    _air, _proc, _rpm, _torq, _wear = sensors
+    try:
+        if telemetry_entries and await is_ml_service_available():
+            return await ml_client.predict_all(
+                air_temperature=_air,
+                process_temperature=_proc,
+                rotational_speed=_rpm,
+                torque=_torq,
+                tool_wear=int(_wear),
+                machine_id=machine_id,
+                telemetry_logs=telemetry_logs,
+                include_shap=True,
+            )
+    except Exception:
+        pass
+    return None
+
+
+async def _attach_parts_and_schedule(
+    response: Dict, machine, fusion_result: Optional[Dict], machine_id: int, db: AsyncSession
+) -> None:
     try:
         parts_readiness = await get_machine_parts_readiness(machine_id, db)
     except Exception:
@@ -274,6 +302,8 @@ async def get_unified_health(
     except Exception:
         pass
 
+
+async def _attach_recovery(response: Dict, machine_id: int, db: AsyncSession) -> None:
     try:
         from services.ml.recovery import PostMaintenanceRecoveryService
 
@@ -285,6 +315,8 @@ async def get_unified_health(
     except Exception:
         response["recovery"] = None
 
+
+def _attach_sensor_status(response: Dict, machine) -> None:
     try:
         if not response["telemetry_available"]:
             raise ValueError("no telemetry")  # no readings => no per-sensor status
@@ -301,8 +333,6 @@ async def get_unified_health(
         )
     except Exception:
         response["sensor_status"] = []
-
-    return response
 
 
 @router.patch("/machines/{machine_id}/telemetry", responses={404: {"description": "Machine non trouvée"}})

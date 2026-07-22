@@ -16,6 +16,7 @@
 stages:
   - secret-scan
   - sca-deps
+  - test
   - sast
   - build
   - image-scan
@@ -122,6 +123,47 @@ audit-frontend:
   timeout: 10 minutes
   allow_failure: true
 
+# ─── Stage: Test + Coverage ──────────────────────────────────────────────────
+# Runs the existing test suites with coverage instrumentation so sonarqube-scan
+# has real new_coverage data instead of reporting 0% (no coverage tooling was
+# ever wired up before). Non-blocking: a coverage regression is visible in the
+# Sonar gate report, it doesn't need to also fail this job.
+
+test-backend:
+  stage: test
+  needs: [scan-secrets]
+  image: python:3.11-slim
+  before_script:
+    - pip install --quiet -r app/backend/requirements.txt -r app/ml-microservice/requirements.txt
+  script:
+    - python -m pytest tests/ --ignore=tests/backend/fleet_dashboard_cache.test.py --continue-on-collection-errors -q --cov=app/backend --cov=app/ml-microservice/src --cov-report=xml:coverage.xml --cov-report=term || true
+  artifacts:
+    paths:
+      - coverage.xml
+    expire_in: 1 week
+    when: always
+  rules: *branch-rules
+  timeout: 15 minutes
+  allow_failure: true
+
+test-frontend:
+  stage: test
+  needs: [scan-secrets]
+  image: node:18-alpine
+  before_script:
+    - npm install -g pnpm --quiet
+    - cd app/frontend && pnpm install --frozen-lockfile
+  script:
+    - cd app/frontend && pnpm test:coverage || true
+  artifacts:
+    paths:
+      - app/frontend/coverage/lcov.info
+    expire_in: 1 week
+    when: always
+  rules: *branch-rules
+  timeout: 10 minutes
+  allow_failure: true
+
 license-scan-backend:
   stage: sca-deps
   needs: [scan-secrets]
@@ -181,7 +223,7 @@ license-scan-frontend:
 
 sonarqube-scan:
   stage: sast
-  needs: [audit-backend, audit-frontend]
+  needs: [audit-backend, audit-frontend, test-backend, test-frontend]
   tags: [local]
   image: sonarsource/sonar-scanner-cli:latest
   variables:
@@ -196,7 +238,10 @@ sonarqube-scan:
         -Dsonar.projectKey=$SONAR_PROJECT_KEY \
         -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)" \
         -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service \
-        -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/** \
+        -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/**,app/ml-microservice/ml_research/retrain_pipeline_debug_log.ipynb \
+        -Dsonar.coverage.exclusions=app/backend/seed_ml_data*.py,app/ml-microservice/ml_research/** \
+        -Dsonar.python.coverage.reportPaths=coverage.xml \
+        -Dsonar.javascript.lcov.reportPaths=app/frontend/coverage/lcov.info \
         -Dsonar.issue.ignore.multicriteria=r3f \
         -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747 \
         -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx \

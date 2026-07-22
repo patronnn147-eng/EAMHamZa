@@ -127,7 +127,7 @@ async def validate_OrdresIntervention(
         404: {"description": "OrdresIntervention not found"},
     },
 )
-async def complete_validation_OrdresIntervention(
+async def complete_validation_ordres_intervention(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],

@@ -59,7 +59,7 @@ def add_rul(train: pd.DataFrame) -> pd.DataFrame:
     return train
 
 
-def drop_constant_sensors(train: pd.DataFrame, test: pd.DataFrame, feature_cols: list) -> list:
+def drop_constant_sensors(train: pd.DataFrame, feature_cols: list) -> list:
     std = train[feature_cols].std()
     keep = [c for c in feature_cols if std[c] > 1e-6]
     dropped = [c for c in feature_cols if c not in keep]
@@ -77,7 +77,7 @@ def main():
 
     train = add_rul(train)
     feature_cols = ["setting1", "setting2", "setting3"] + [f"sensor{i}" for i in range(1, 22)]
-    feature_cols = drop_constant_sensors(train, test, feature_cols)
+    feature_cols = drop_constant_sensors(train, feature_cols)
 
     # Official test task: last row per engine = the observation point;
     # RUL_FD001.txt's i-th value is that engine's true remaining life then.

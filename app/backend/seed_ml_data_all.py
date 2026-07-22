@@ -30,13 +30,21 @@ from models.machine_telemetry import MachineTelemetry
 from models.machines import Machines
 from models.ml_prediction_log import MlPredictionLog
 from models.ordres_intervention import OrdresIntervention
-from models.ordres_travail import OrdresTravail, OrdreStatut
+from models.ordres_travail import OrdresTravail
 from models.planning_machines import PlanningMachines
 from models.planning_ordres_travail import PlanningOrdresTravail
-from models.planning_taches import PlanningTaches, TaskType
+from models.planning_taches import PlanningTaches
 from models.planning_utilisateurs import PlanningUtilisateurs
-from models.plannings import Plannings, PlanningStatut, PlanningType
+from models.plannings import Plannings
 from models.utilisateurs import UserRole, UserStatus, Utilisateurs
+from seed_common import (
+    _failure_prob,
+    _lerp,
+    _noise,
+    _risk_level,
+    create_seed_cycle_records,
+    generate_cycle_telemetry,
+)
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -50,16 +58,11 @@ IDEMPOTENCY_THRESHOLD = 15  # existing telemetry rows → assume machine already
 # ── Degradation curve helpers ──────────────────────────────────────────────────
 
 
-def _lerp(start: float, end: float, t: float) -> float:
-    """Linear interpolation. t in [0, 1]."""
-    return start + t * (end - start)
-
-
 def _noise(rng: random.Random, sigma: float) -> float:
     return rng.gauss(0, sigma)
 
 
-def _cycle_params(rng: random.Random, cycle_idx: int, num_cycles: int, severity: float) -> dict:
+def _cycle_params(cycle_idx: int, num_cycles: int, severity: float) -> dict:
     """
     Return sensor ranges and metadata for cycle_idx (0-based).
     `severity` (0.7-1.3) scales how far the arc degrades, so different
@@ -215,7 +218,7 @@ async def _seed_machine(
 
     for cycle_idx in range(num_cycles):
         cycle_num = cycle_idx + 1
-        cfg = _cycle_params(rng, cycle_idx, num_cycles, severity)
+        cfg = _cycle_params(cycle_idx, num_cycles, severity)
 
         # Round-robin technician across the whole crew so every tech gets
         # planning tasks / ITVs / telemetry attributed to them.
@@ -231,183 +234,24 @@ async def _seed_machine(
             failure_type_counts.get(cfg["failure_type"], 0) + 1
         )
 
-        # ── Step 1: Planning ────────────────────────────────────────────────
-        planning = Plannings(
-            identifiant_planning=f"SEED-PLAN-C{cycle_num:02d}-M{machine_id}",
-            date_debut=c_start,
-            date_fin=c_end,
-            type=PlanningType.MAINTENANCE,
-            planning_statut=PlanningStatut.APPROVED,
-            chef_operation_id=chetop.id,
-            chef_technique_id=cheftech.id,
-            zone_travail="Zone-SEED",
-            created_at=c_start,
-        )
-        db.add(planning)
-        await db.flush()
-
-        # ── Step 2: Bridge records ──────────────────────────────────────────
-        db.add(
-            PlanningMachines(
-                planning_id=planning.id, machine_id=machine_id, created_at=c_start
-            )
-        )
-        db.add(
-            PlanningUtilisateurs(
-                planning_id=planning.id, utilisateur_id=technicien.id, created_at=c_start
-            )
-        )
-        db.add(
-            PlanningUtilisateurs(
-                planning_id=planning.id, utilisateur_id=cheftech.id, created_at=c_start
-            )
-        )
-
-        # ── Step 3: Planning taches ─────────────────────────────────────────
-        tache_diag = PlanningTaches(
-            planning_id=planning.id,
-            titre=f"Diagnostic C{cycle_num:02d}",
-            description=f"Diagnostic — cycle {cycle_num} ({cfg['failure_type']})",
-            technicien_id=technicien.id,
-            machine_id=machine_id,
-            task_type=TaskType.DIAGNOSTIC,
-            date_debut=c_start,
-            date_fin=c_mid,
-            statut="APPROVED",
-            created_by=cheftech.id,
-        )
-        tache_corr = PlanningTaches(
-            planning_id=planning.id,
-            titre=f"Correction C{cycle_num:02d}",
-            description=f"Correction — cycle {cycle_num} ({cfg['failure_type']})",
-            technicien_id=technicien.id,
-            machine_id=machine_id,
-            task_type=TaskType.CORRECTION,
-            date_debut=c_mid,
-            date_fin=c_end,
-            statut="APPROVED",
-            created_by=cheftech.id,
-        )
-        db.add(tache_diag)
-        db.add(tache_corr)
-        await db.flush()
-
-        # ── Step 4: ITV (ordre_travail_id=None — created BEFORE OT) ─────────
-        itv = OrdresIntervention(
-            machine_id=machine_id,
-            planning_id=planning.id,
-            planning_tache_id=tache_diag.id,
-            ordre_travail_id=None,
-            technician_id=technicien.id,
-            requested_by=chetop.id,
-            approved_by=chetop.id,
-            approved_at=c_start + timedelta(hours=12),
-            statut="TERMINEE",
-            date_intervention=c_end,
-            date_debut=c_start,
-            date_fin=c_end,
-            requested_at=itv_requested_at,
-            actual_failure_type=cfg["failure_type"],
-            ml_prediction_matched=False,
-            retrained=False,
-            is_synthetic=True,
-            intervention_type=cfg["itv_type"],
-            machine_status_after="OPERATIONNELLE",
-            priority=cfg["priority"],
-            problem_description=f"Seed cycle {cycle_num} — {cfg['failure_type']}",
-        )
-        db.add(itv)
-        await db.flush()
-
-        # ── Step 5: OT ───────────────────────────────────────────────────────
-        ot = OrdresTravail(
-            titre=f"OT-SEED-C{cycle_num:02d}-M{machine_id}",
-            description=f"OT seed cycle {cycle_num} — {cfg['failure_type']}",
-            priorite=cfg["priority"],
-            machine_id=machine_id,
-            utilisateur_id=cheftech.id,
-            statut=OrdreStatut.CLOSED,
-            created_by=chetop.id,
-            date_debut=c_start,
-            date_fin=c_end,
-        )
-        db.add(ot)
-        await db.flush()
-
-        # ── Step 6: Link ITV → OT ───────────────────────────────────────────
-        itv.ordre_travail_id = ot.id
-
-        # ── Step 7: Link Planning → OT ──────────────────────────────────────
-        db.add(
-            PlanningOrdresTravail(
-                planning_id=planning.id, ordre_travail_id=ot.id, created_at=c_start
-            )
+        # ── Steps 1-7: Planning → bridge rows → PlanningTaches → ITV → OT → links ──
+        _planning, itv, ot = await create_seed_cycle_records(
+            db, machine_id, cheftech, chetop, technicien, cycle_num,
+            c_start, c_mid, c_end, itv_requested_at, cfg,
+            diag_description=f"Diagnostic — cycle {cycle_num} ({cfg['failure_type']})",
+            corr_description=f"Correction — cycle {cycle_num} ({cfg['failure_type']})",
+            itv_problem_description=f"Seed cycle {cycle_num} — {cfg['failure_type']}",
+            ot_description=f"OT seed cycle {cycle_num} — {cfg['failure_type']}",
         )
 
         # ── Step 8: Telemetry + shadow logs ─────────────────────────────────
-        wear_start, wear_end = cfg["tool_wear"]
-        torque_start, torque_end = cfg["torque"]
-        rpm_start, rpm_end = cfg["rpm"]
-        air_start, air_end = cfg["air_temp"]
-
-        telemetry_span_secs = (c_end - c_start).total_seconds()
-        step_interval_secs = telemetry_span_secs / max(TELEMETRY_PER_CYCLE - 1, 1)
-
-        for step in range(TELEMETRY_PER_CYCLE):
-            frac = step / max(TELEMETRY_PER_CYCLE - 1, 1)
-
-            wear = _lerp(wear_start, wear_end, frac) + _noise(rng, 1.5)
-            torq = _lerp(torque_start, torque_end, frac) + _noise(rng, 0.5)
-            rpm = int(_lerp(rpm_start, rpm_end, frac)) + int(_noise(rng, 15))
-            air = _lerp(air_start, air_end, frac) + _noise(rng, 0.3)
-            proc = air + 10.0 + _noise(rng, 0.2)
-
-            wear = max(0.0, min(300.0, wear))
-            torq = max(1.0, min(100.0, torq))
-            rpm = max(500, min(3000, rpm))
-            air = max(290.0, min(320.0, air))
-            proc = max(295.0, min(330.0, proc))
-
-            recorded_at = c_start + timedelta(seconds=step * step_interval_secs)
-
-            telemetry = MachineTelemetry(
-                machine_id=machine_id,
-                work_order_id=ot.id,
-                technician_id=technicien.id,
-                air_temperature=round(air, 2),
-                process_temperature=round(proc, 2),
-                rotational_speed=rpm,
-                torque=round(torq, 2),
-                tool_wear=round(wear, 2),
-                recorded_at=recorded_at,
-                notes=f"Seed C{cycle_num:02d} step {step + 1}/{TELEMETRY_PER_CYCLE}",
-                is_synthetic=True,
-            )
-            db.add(telemetry)
-            await db.flush()
-
-            f_prob = _failure_prob(wear)
-            shadow = MlPredictionLog(
-                machine_id=machine_id,
-                machine_name=machine.nom,
-                risk_level=_risk_level(f_prob),
-                failure_probability=round(f_prob, 2),
-                rul_days=round(max(0.0, (230.0 - wear) / 2.0), 1),
-                predicted_priority="P1" if f_prob > 75 else "P2",
-                is_anomaly=wear > 180,
-                anomaly_score=round(max(0.0, (wear - 100.0) / 130.0), 4),
-                air_temperature=round(air, 2),
-                process_temperature=round(proc, 2),
-                rotational_speed=rpm,
-                torque=round(torq, 2),
-                tool_wear=int(wear),
-                ml_model_used=False,
-                created_at=recorded_at,
-                is_synthetic=True,
-            )
-            db.add(shadow)
-
-        await db.flush()
+        await generate_cycle_telemetry(
+            db, ot, machine, technicien, cfg, rng, cycle_num, TELEMETRY_PER_CYCLE,
+            c_start, c_end,
+            wear_clamp=(0.0, 300.0), torque_clamp=(1.0, 100.0), rpm_clamp=(500, 3000),
+            air_clamp=(290.0, 320.0), proc_clamp=(295.0, 330.0),
+            priority_fn=lambda f_prob: "P1" if f_prob > 75 else "P2",
+        )
 
     return failure_type_counts
 

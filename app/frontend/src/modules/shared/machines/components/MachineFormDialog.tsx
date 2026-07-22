@@ -37,7 +37,7 @@ const SUBZONE_SHORT: Record<string, string> = {
 const FILLER_WORDS = new Set(['MACHINE', 'POSTE', 'FOUR', 'DE', 'DU', 'DES', 'LA', 'LE', 'LES', 'AVEC']);
 
 const shortMachineName = (nom: string): string => {
-  const withoutParens = nom.replace(/\(.*?\)/g, '').trim();
+  const withoutParens = nom.replace(/\([^)]*\)/g, '').trim();
   const words = withoutParens.split(/\s+/).filter(Boolean);
   const remaining = words.filter(w => !FILLER_WORDS.has(w.toUpperCase()));
   if (remaining.length === 0) return withoutParens;
@@ -82,13 +82,16 @@ interface MachineFormDialogProps {
     zone: string;
     sous_zone: string;
     ordre: string;
-    statut: string;
+    statut?: string;
     date_derniere_maintenance: string;
     date_prochaine_maintenance: string;
     image_url: string;
   };
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   onSubmit: () => void;
+  /** Admin's dialog manages status via a separate workflow, not this form. */
+  showStatusField?: boolean;
+  imagePlaceholder?: string;
 }
 
 export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
@@ -98,6 +101,8 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
   formData,
   setFormData,
   onSubmit,
+  showStatusField = true,
+  imagePlaceholder = '/images/ImageUpload.jpg',
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -188,24 +193,26 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="statut">Status</Label>
-            <Select
-              value={formData.statut}
-              onValueChange={(value) => setFormData({ ...formData, statut: value })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {MACHINE_STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {showStatusField && (
+            <div className="grid gap-2">
+              <Label htmlFor="statut">Status</Label>
+              <Select
+                value={formData.statut}
+                onValueChange={(value) => setFormData({ ...formData, statut: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MACHINE_STATUS_OPTIONS.map((s) => (
+                    <SelectItem key={s.value} value={s.value}>
+                      {s.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid gap-2">
             <Label htmlFor="date_derniere_maintenance">Last Maintenance Date</Label>
             <Input
@@ -230,7 +237,7 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
               id="image_url"
               value={formData.image_url}
               onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder="/images/ImageUpload.jpg"
+              placeholder={imagePlaceholder}
             />
           </div>
         </div>

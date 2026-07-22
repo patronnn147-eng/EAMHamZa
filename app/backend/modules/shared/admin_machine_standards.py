@@ -4,6 +4,12 @@ import unicodedata
 ZONE_CMS1_NAME = "ZONE CMS1 - COMPONENT SURFACE MOUNTING"
 ZONE_CMS2_NAME = "ZONE CMS2 - TEST ZONE (Résumé des Machines Essentielles)"
 
+SUBZONE_CMS_LINE1_NAME = "CMS LINE 1 (e.g., BBS - Broadband Products)"
+SUBZONE_CMS_LINE2_NAME = "CMS LINE 2 (e.g., AVS - Audio Video Products)"
+SUBZONE_TEST_INSITU_NAME = "TEST IN-SITU (Test des Composants)"
+SUBZONE_TEST_FONCTIONNEL_NAME = "TEST FONCTIONNEL (Test de Fonctionnement)"
+SUBZONE_TEST_WIFI_NAME = "TEST WiFi (Test Sans Fil)"
+
 ZONE_OPTIONS = [
     ZONE_CMS1_NAME,
     ZONE_CMS2_NAME,
@@ -11,19 +17,19 @@ ZONE_OPTIONS = [
 
 SOUS_ZONE_OPTIONS_BY_ZONE = {
     ZONE_CMS1_NAME: [
-        "CMS LINE 1 (e.g., BBS - Broadband Products)",
-        "CMS LINE 2 (e.g., AVS - Audio Video Products)",
+        SUBZONE_CMS_LINE1_NAME,
+        SUBZONE_CMS_LINE2_NAME,
     ],
     ZONE_CMS2_NAME: [
-        "TEST IN-SITU (Test des Composants)",
-        "TEST FONCTIONNEL (Test de Fonctionnement)",
-        "TEST WiFi (Test Sans Fil)",
+        SUBZONE_TEST_INSITU_NAME,
+        SUBZONE_TEST_FONCTIONNEL_NAME,
+        SUBZONE_TEST_WIFI_NAME,
     ],
 }
 
 ORDRE_TEMPLATES = {
     ZONE_CMS1_NAME: {
-        "CMS LINE 1 (e.g., BBS - Broadband Products)": [
+        SUBZONE_CMS_LINE1_NAME: [
             {"ordre": 1, "nom": "Dépileur (Card Loader)"},
             {"ordre": 2, "nom": "Machine de Sérigraphie (DEK/MPM)"},
             {"ordre": 3, "nom": "Machine de Pose (Pick & Place)"},
@@ -34,7 +40,7 @@ ORDRE_TEMPLATES = {
             {"ordre": 8, "nom": "Poste Insertion Manuelle (Manual THT)"},
             {"ordre": 9, "nom": "Machine de Brassage à la Vague (Wave Soldering)"},
         ],
-        "CMS LINE 2 (e.g., AVS - Audio Video Products)": [
+        SUBZONE_CMS_LINE2_NAME: [
             {"ordre": 1, "nom": "Dépileur"},
             {"ordre": 2, "nom": "Machine de Sérigraphie"},
             {"ordre": 3, "nom": "Machine de Pose"},
@@ -47,17 +53,17 @@ ORDRE_TEMPLATES = {
         ],
     },
     ZONE_CMS2_NAME: {
-        "TEST IN-SITU (Test des Composants)": [
+        SUBZONE_TEST_INSITU_NAME: [
             {"ordre": 1, "nom": "Interface de Test (Bed of Nails)"},
             {"ordre": 2, "nom": "Testeur Marconi 4220"},
         ],
-        "TEST FONCTIONNEL (Test de Fonctionnement)": [
+        SUBZONE_TEST_FONCTIONNEL_NAME: [
             {"ordre": 1, "nom": "Banc TF"},
             {"ordre": 2, "nom": "BFE (Banc Front End)"},
             {"ordre": 3, "nom": "BAV (Banc Audio Video)"},
             {"ordre": 4, "nom": "Routeur"},
         ],
-        "TEST WiFi (Test Sans Fil)": [
+        SUBZONE_TEST_WIFI_NAME: [
             {"ordre": 1, "nom": "PC avec Logiciels de Test"},
             {"ordre": 2, "nom": "Caisson Faraday (Shielding Box)"},
             {"ordre": 3, "nom": "IQflex Analyzer"},
@@ -78,18 +84,18 @@ MACHINE_STATUS_OPTIONS = [
 
 
 SUBZONE_SHORT = {
-    "CMS LINE 1 (e.g., BBS - Broadband Products)": "L1",
-    "CMS LINE 2 (e.g., AVS - Audio Video Products)": "L2",
-    "TEST IN-SITU (Test des Composants)": "ISITU",
-    "TEST FONCTIONNEL (Test de Fonctionnement)": "TF",
-    "TEST WiFi (Test Sans Fil)": "WIFI",
+    SUBZONE_CMS_LINE1_NAME: "L1",
+    SUBZONE_CMS_LINE2_NAME: "L2",
+    SUBZONE_TEST_INSITU_NAME: "ISITU",
+    SUBZONE_TEST_FONCTIONNEL_NAME: "TF",
+    SUBZONE_TEST_WIFI_NAME: "WIFI",
 }
 
 FILLER_WORDS = {"MACHINE", "POSTE", "FOUR", "DE", "DU", "DES", "LA", "LE", "LES", "AVEC"}
 
 
 def _short_machine_name(nom: str) -> str:
-    without_parens = re.sub(r"\(.*?\)", "", nom).strip()
+    without_parens = re.sub(r"\([^)]*\)", "", nom).strip()
     words = without_parens.split()
     remaining = [w for w in words if w.upper() not in FILLER_WORDS]
     if not remaining:

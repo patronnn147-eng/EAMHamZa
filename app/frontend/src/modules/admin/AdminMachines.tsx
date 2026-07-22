@@ -65,6 +65,8 @@ export default function AdminMachines() {
         formData={formData}
         setFormData={setFormData}
         onSubmit={handleSubmit}
+        showStatusField={false}
+        imagePlaceholder="Enter image URL (optional)"
       />
 
       <MachineImportDialog

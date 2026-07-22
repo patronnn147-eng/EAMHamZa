@@ -49,7 +49,7 @@ async def get_machine_prediction(
     # 3. Fetch count of open work orders (Ordres de travail)
     now_dt = datetime.now(timezone.utc)
 
-    # Open = not TERMINÉ or ANNULÉ
+    # A work order counts as open when its status is neither TERMINÉ nor ANNULÉ.
     wo_query = select(func.count(OrdresTravail.id)).where(
         OrdresTravail.machine_id == machine_id,
         cast(OrdresTravail.statut, String).notin_(
