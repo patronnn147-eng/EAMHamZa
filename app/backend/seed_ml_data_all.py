@@ -22,7 +22,7 @@ import logging
 import random
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, select
 
 from core.database import db_manager
 from models.alertes import Alert  # noqa: F401 — registers Alert mapper
@@ -36,7 +36,6 @@ from models.planning_ordres_travail import PlanningOrdresTravail
 from models.planning_taches import PlanningTaches
 from models.planning_utilisateurs import PlanningUtilisateurs
 from models.plannings import Plannings
-from models.utilisateurs import UserRole, UserStatus, Utilisateurs
 from seed_common import (
     _failure_prob,
     _lerp,
@@ -44,6 +43,7 @@ from seed_common import (
     _risk_level,
     create_seed_cycle_records,
     generate_cycle_telemetry,
+    run_seed_driver,
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -56,10 +56,6 @@ IDEMPOTENCY_THRESHOLD = 15  # existing telemetry rows → assume machine already
 
 
 # ── Degradation curve helpers ──────────────────────────────────────────────────
-
-
-def _noise(rng: random.Random, sigma: float) -> float:
-    return rng.gauss(0, sigma)
 
 
 def _cycle_params(cycle_idx: int, num_cycles: int, severity: float) -> dict:
@@ -118,22 +114,6 @@ def _cycle_params(cycle_idx: int, num_cycles: int, severity: float) -> dict:
         "priority": priority,
         "itv_type": itv_type,
     }
-
-
-def _failure_prob(tool_wear: float) -> float:
-    if tool_wear < 100:
-        return 0.0
-    return min(95.0, (tool_wear - 100.0) / 130.0 * 95.0)
-
-
-def _risk_level(prob: float) -> str:
-    if prob >= 70:
-        return "CRITICAL"
-    if prob >= 50:
-        return "HIGH"
-    if prob >= 30:
-        return "MEDIUM"
-    return "LOW"
 
 
 # ── Cleanup ────────────────────────────────────────────────────────────────────
@@ -235,21 +215,25 @@ async def _seed_machine(
         )
 
         # ── Steps 1-7: Planning → bridge rows → PlanningTaches → ITV → OT → links ──
-        _planning, itv, ot = await create_seed_cycle_records(
+        _planning, _itv, ot = await create_seed_cycle_records(
             db, machine_id, cheftech, chetop, technicien, cycle_num,
             c_start, c_mid, c_end, itv_requested_at, cfg,
-            diag_description=f"Diagnostic — cycle {cycle_num} ({cfg['failure_type']})",
-            corr_description=f"Correction — cycle {cycle_num} ({cfg['failure_type']})",
-            itv_problem_description=f"Seed cycle {cycle_num} — {cfg['failure_type']}",
-            ot_description=f"OT seed cycle {cycle_num} — {cfg['failure_type']}",
+            descriptions={
+                "diag": f"Diagnostic — cycle {cycle_num} ({cfg['failure_type']})",
+                "corr": f"Correction — cycle {cycle_num} ({cfg['failure_type']})",
+                "itv_problem": f"Seed cycle {cycle_num} — {cfg['failure_type']}",
+                "ot": f"OT seed cycle {cycle_num} — {cfg['failure_type']}",
+            },
         )
 
         # ── Step 8: Telemetry + shadow logs ─────────────────────────────────
         await generate_cycle_telemetry(
             db, ot, machine, technicien, cfg, rng, cycle_num, TELEMETRY_PER_CYCLE,
             c_start, c_end,
-            wear_clamp=(0.0, 300.0), torque_clamp=(1.0, 100.0), rpm_clamp=(500, 3000),
-            air_clamp=(290.0, 320.0), proc_clamp=(295.0, 330.0),
+            clamps={
+                "wear": (0.0, 300.0), "torque": (1.0, 100.0), "rpm": (500, 3000),
+                "air": (290.0, 320.0), "proc": (295.0, 330.0),
+            },
             priority_fn=lambda f_prob: "P1" if f_prob > 75 else "P2",
         )
 
@@ -260,93 +244,18 @@ async def _seed_machine(
 
 
 async def seed(num_cycles: int, clean_mode: bool, machine_ids: list = None) -> None:
-    await db_manager.init_db()
+    summary = await run_seed_driver(
+        db_manager, num_cycles, clean_mode, machine_ids, IDEMPOTENCY_THRESHOLD,
+        _clean_seed_data, _seed_machine, cycles_label="cycles",
+    )
+    if summary is None:
+        return
 
-    async with db_manager.async_session_maker() as db:
-        # ── 1. Fetch every machine in the fleet (optionally filtered) ────────
-        query = select(Machines).order_by(Machines.id)
-        if machine_ids:
-            query = query.where(Machines.id.in_(machine_ids))
-        machines = (await db.execute(query)).scalars().all()
-        if not machines:
-            logger.error("No matching machines found in DB. Aborting.")
-            return
-
-        logger.info(f"Found {len(machines)} machine(s): {[m.id for m in machines]}")
-
-        # ── 2. Validate prerequisite users (shared across all machines) ─────
-        async def _get_users(role: UserRole):
-            result = await db.execute(
-                select(Utilisateurs).where(
-                    Utilisateurs.role == role,
-                    Utilisateurs.status == UserStatus.APPROVED,
-                )
-            )
-            return result.scalars().all()
-
-        techniciens = await _get_users(UserRole.TECHNICIEN)
-        cheftechs = await _get_users(UserRole.CHEFTECH)
-        chetops = await _get_users(UserRole.CHETOP)
-
-        missing = []
-        if not techniciens:
-            missing.append("TECHNICIEN (APPROVED)")
-        if not cheftechs:
-            missing.append("CHEFTECH (APPROVED)")
-        if not chetops:
-            missing.append("CHETOP (APPROVED)")
-        if missing:
-            logger.error(f"Missing required users: {', '.join(missing)}. Aborting.")
-            return
-
-        cheftech = cheftechs[0]
-        chetop = chetops[0]
-
-        logger.info(
-            f"Users — {len(techniciens)} TECH(s): "
-            f"{', '.join(f'{t.nom}(id={t.id})' for t in techniciens)} | "
-            f"CHEFTECH: {cheftech.nom} (id={cheftech.id}), "
-            f"CHETOP: {chetop.nom} (id={chetop.id})"
-        )
-
-        # ── 3. Seed each machine ─────────────────────────────────────────────
-        summary = {}
-        for machine in machines:
-            if clean_mode:
-                await _clean_seed_data(db, machine.id)
-                await db.commit()
-
-            count_result = await db.execute(
-                select(func.count(MachineTelemetry.id)).where(
-                    MachineTelemetry.machine_id == machine.id
-                )
-            )
-            existing_count = count_result.scalar() or 0
-            if existing_count >= IDEMPOTENCY_THRESHOLD and not clean_mode:
-                logger.info(
-                    f"machine_id={machine.id} already has {existing_count} telemetry rows. "
-                    "Skipping (use --clean to re-seed)."
-                )
-                continue
-
-            logger.info(f"── Seeding machine_id={machine.id} ({machine.nom}) — {num_cycles} cycles ──")
-            failure_counts = await _seed_machine(
-                db, machine, techniciens, cheftech, chetop, num_cycles
-            )
-            await db.commit()
-            summary[machine.id] = failure_counts
-            logger.info(f"machine_id={machine.id} done. Failure mix: {failure_counts}")
-
-        logger.info("")
-        logger.info("=" * 60)
-        logger.info(f"Done. Seeded {len(summary)}/{len(machines)} machine(s), {num_cycles} cycles each.")
-        for mid, counts in summary.items():
-            logger.info(f"  machine_id={mid}: {counts}")
-        logger.info("")
-        logger.info("Next steps:")
-        logger.info("  1. Open localhost:3000/machines/<id> → sensors + failure prob > 0%")
-        logger.info("  2. POST /api/v1/ml/retrain → models_retrained: [p1, p2, p3, p5]")
-        logger.info("=" * 60)
+    logger.info("")
+    logger.info("Next steps:")
+    logger.info("  1. Open localhost:3000/machines/<id> → sensors + failure prob > 0%")
+    logger.info("  2. POST /api/v1/ml/retrain → models_retrained: [p1, p2, p3, p5]")
+    logger.info("=" * 60)
 
 
 if __name__ == "__main__":
