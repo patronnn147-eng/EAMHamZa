@@ -483,6 +483,60 @@ footer {
   </div>
 </section>
 
+<!-- 4. HYBRID RETRIEVAL -->
+<section id="retrieval">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 04 — Hybrid Retrieval</div>
+      <h2>Two search engines racing, then merged</h2>
+      <p>A single query triggers a meaning-based search and a keyword-based search in parallel, fuses the two ranked lists, then re-scores the survivors with a slower, more accurate model.</p>
+    </div>
+
+    <div class="flow-steps" style="margin-bottom:36px">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <h3>Query embedding</h3>
+          <p>The question is embedded with the same <code>BAAI/bge-m3</code> model used at ingestion time. Identical questions asked twice skip recomputation via a 1-hour in-memory cache.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <h3>Vector branch</h3>
+          <p>Postgres computes cosine distance between the query embedding and every chunk's <code>vector(1024)</code> column via pgvector's <code>&lt;=&gt;</code> operator, gated by a similarity threshold, overfetching the top 30 candidates.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <h3>Keyword branch</h3>
+          <p>Postgres full-text search over two generated <code>tsvector</code> columns (French and English), ranked by <code>GREATEST(rank_fr, rank_en)</code>. This branch is deliberately <strong>fail-loud</strong>: a broken keyword index raises an error instead of silently falling back to vector-only.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body">
+          <h3>Reciprocal Rank Fusion</h3>
+          <p>The two ranked lists are merged: each chunk's fused score is the sum of <code>1 / (60 + rank)</code> across whichever list(s) it appears in. Duplicates are collapsed by chunk id, ties broken by vector similarity, and the merged list trimmed to 30.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body">
+          <h3>Cross-encoder rerank</h3>
+          <p><code>BAAI/bge-reranker-v2-m3</code> scores each (query, chunk) pair jointly — slower than the bi-encoder, but far more accurate, which is affordable because only the fused candidate set is scored. If the reranker itself fails, retrieval falls back gracefully to the pre-rerank fused order rather than erroring out.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h4>Where this started</h4>
+      <p><strong>2026-05-11</strong> — vector-only at birth. <strong>2026-06-06</strong> — hybrid retrieval and Reciprocal Rank Fusion added, so keyword-exact matches (part numbers, error codes) stopped losing to semantically-similar-but-wrong chunks. <strong>2026-06-12</strong> — the cross-encoder reranker arrived last, tightening the final ranking. Retrieval results themselves are cached for 5 minutes per (query, machine, top-k, threshold, hybrid-on) combination, and invalidated on every ingest or delete.</p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
