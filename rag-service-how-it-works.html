@@ -454,6 +454,35 @@ footer {
   </div>
 </section>
 
+<!-- 3. STORAGE & DOCUMENT LIFECYCLE -->
+<section id="storage">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 03 — Storage &amp; Document Lifecycle</div>
+      <h2>Where the files themselves live</h2>
+      <p>Chunks and embeddings live in Postgres, but the original files — the ones a technician might want to download and read in full — are stored separately.</p>
+    </div>
+
+    <div class="card-grid card-grid-2" style="margin-bottom:36px">
+      <div class="card">
+        <h4>Object storage</h4>
+        <h3 style="margin-bottom:8px">MinIO — <code>rag-docs</code> bucket</h3>
+        <p style="margin-bottom:16px">S3-compatible, self-hosted. Every uploaded file is stored here alongside its Postgres record. A two-way sync also picks up files dropped directly into the bucket and ingests them automatically.</p>
+      </div>
+      <div class="card">
+        <h4>Admin document management</h4>
+        <h3 style="margin-bottom:8px">Bulk import, replace, download</h3>
+        <p style="margin-bottom:16px">Up to 4 files uploaded concurrently, 50 per batch. Replacing a document increments its version and re-ingests it (old chunks deleted first). Downloads use presigned URLs. Write access is ADMIN-only; Head Technicians and Technicians have read-only access.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h4>Where this started</h4>
+      <p><strong>2026-05-12</strong> — the document-management page and a chat upload button shipped first, before S3 was even involved. <strong>2026-05-31</strong> — files moved into MinIO's <code>rag-docs</code> bucket, S3-backed, with two-way sync. <strong>2026-06-11</strong> — version increment on replace, so a re-uploaded document doesn't silently lose its history.</p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
