@@ -537,6 +537,35 @@ footer {
   </div>
 </section>
 
+<!-- 5. RELIABILITY POSTURES -->
+<section id="reliability">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 05 — Two Different Reliability Postures</div>
+      <h2>Fail loud here, fail soft there</h2>
+      <p>The same service behaves differently depending on how close the failure is to a human who can fix it versus a human who's just trying to get an answer.</p>
+    </div>
+
+    <div class="dst-grid" style="margin-bottom:24px">
+      <div class="card">
+        <h4 style="color:var(--crit)">Inside the RAG service</h4>
+        <h3 style="margin-bottom:8px">Fail loud</h3>
+        <p>If the keyword-search branch hits a SQL error, it propagates all the way to an HTTP 500 — there is no silent fallback to vector-only results. A broken full-text index needs to be visible in logs and alerts, not quietly masked by a degraded-but-passing response.</p>
+      </div>
+      <div class="card">
+        <h4 style="color:var(--ok)">From the chat's point of view</h4>
+        <h3 style="margin-bottom:8px">Fail soft</h3>
+        <p>If the whole RAG call fails, the chat bridge continues with an empty chunk list. If the ML microservice is down, the machine snapshot is simply <code>None</code>. Either way, the assistant still answers — just without that particular piece of context.</p>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <h4>This is not a contradiction</h4>
+      <p>Fail loud applies at the layer close to the bug, where an operator can act on it. Fail soft applies at the layer close to the user, where a documentation-search outage should never take down the whole conversational assistant.</p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
