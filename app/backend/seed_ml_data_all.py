@@ -22,25 +22,12 @@ import logging
 import random
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import delete, select
-
 from core.database import db_manager
 from models.alertes import Alert  # noqa: F401 — registers Alert mapper
-from models.machine_telemetry import MachineTelemetry
 from models.machines import Machines
-from models.ml_prediction_log import MlPredictionLog
-from models.ordres_intervention import OrdresIntervention
-from models.ordres_travail import OrdresTravail
-from models.planning_machines import PlanningMachines
-from models.planning_ordres_travail import PlanningOrdresTravail
-from models.planning_taches import PlanningTaches
-from models.planning_utilisateurs import PlanningUtilisateurs
-from models.plannings import Plannings
 from seed_common import (
-    _failure_prob,
     _lerp,
-    _noise,
-    _risk_level,
+    clean_seed_data,
     create_seed_cycle_records,
     generate_cycle_telemetry,
     run_seed_driver,
@@ -116,65 +103,6 @@ def _cycle_params(cycle_idx: int, num_cycles: int, severity: float) -> dict:
     }
 
 
-# ── Cleanup ────────────────────────────────────────────────────────────────────
-
-
-async def _clean_seed_data(db, machine_id: int) -> None:
-    """Delete all seed data for one machine. Safe to call multiple times."""
-    logger.info(f"Cleaning seed data for machine_id={machine_id}...")
-
-    seed_ot_rows = await db.execute(
-        select(OrdresTravail.id).where(
-            OrdresTravail.machine_id == machine_id,
-            OrdresTravail.titre.like("OT-SEED-%"),
-        )
-    )
-    seed_ot_ids = [r[0] for r in seed_ot_rows.all()]
-
-    seed_plan_rows = await db.execute(
-        select(Plannings.id).where(
-            Plannings.identifiant_planning.like(f"SEED-%-M{machine_id}")
-        )
-    )
-    seed_plan_ids = [r[0] for r in seed_plan_rows.all()]
-
-    await db.execute(
-        delete(MachineTelemetry).where(MachineTelemetry.machine_id == machine_id)
-    )
-    await db.execute(
-        delete(MlPredictionLog).where(MlPredictionLog.machine_id == machine_id)
-    )
-    await db.execute(
-        delete(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
-    )
-
-    if seed_ot_ids:
-        await db.execute(
-            delete(PlanningOrdresTravail).where(
-                PlanningOrdresTravail.ordre_travail_id.in_(seed_ot_ids)
-            )
-        )
-        await db.execute(delete(OrdresTravail).where(OrdresTravail.id.in_(seed_ot_ids)))
-
-    if seed_plan_ids:
-        await db.execute(
-            delete(PlanningTaches).where(PlanningTaches.planning_id.in_(seed_plan_ids))
-        )
-        await db.execute(
-            delete(PlanningMachines).where(
-                PlanningMachines.planning_id.in_(seed_plan_ids)
-            )
-        )
-        await db.execute(
-            delete(PlanningUtilisateurs).where(
-                PlanningUtilisateurs.planning_id.in_(seed_plan_ids)
-            )
-        )
-        await db.execute(delete(Plannings).where(Plannings.id.in_(seed_plan_ids)))
-
-    logger.info(f"Cleanup complete for machine_id={machine_id}.")
-
-
 # ── Per-machine seed ─────────────────────────────────────────────────────────
 
 
@@ -246,7 +174,7 @@ async def _seed_machine(
 async def seed(num_cycles: int, clean_mode: bool, machine_ids: list = None) -> None:
     summary = await run_seed_driver(
         db_manager, num_cycles, clean_mode, machine_ids, IDEMPOTENCY_THRESHOLD,
-        _clean_seed_data, _seed_machine, cycles_label="cycles",
+        clean_seed_data, _seed_machine, cycles_label="cycles",
     )
     if summary is None:
         return

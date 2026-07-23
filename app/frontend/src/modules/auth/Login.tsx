@@ -22,6 +22,16 @@ interface RegisterFormData {
   role: string;
 }
 
+const FieldError = ({ message }: { message?: string }) => {
+  if (!message) return null;
+  return (
+    <p className="text-sm text-red-500 flex items-center gap-1">
+      <AlertCircle className="h-4 w-4" />
+      {message}
+    </p>
+  );
+};
+
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -248,12 +258,7 @@ export default function Login() {
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     className={errors.email ? 'border-red-500' : ''}
                   />
-                  {errors.email && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.email}
-                    </p>
-                  )}
+                  <FieldError message={errors.email} />
                 </div>
 
                 <div className="space-y-2">
@@ -266,12 +271,7 @@ export default function Login() {
                     onChange={(e) => setLoginData({ ...loginData, mot_de_passe: e.target.value })}
                     className={errors.mot_de_passe ? 'border-red-500' : ''}
                   />
-                  {errors.mot_de_passe && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.mot_de_passe}
-                    </p>
-                  )}
+                  <FieldError message={errors.mot_de_passe} />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -292,12 +292,7 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                     className={errors.email ? 'border-red-500' : ''}
                   />
-                  {errors.email && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.email}
-                    </p>
-                  )}
+                  <FieldError message={errors.email} />
                 </div>
 
                 <div className="space-y-2">
@@ -310,12 +305,7 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, nom: e.target.value })}
                     className={errors.nom ? 'border-red-500' : ''}
                   />
-                  {errors.nom && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.nom}
-                    </p>
-                  )}
+                  <FieldError message={errors.nom} />
                 </div>
 
                 <div className="space-y-2">
@@ -331,12 +321,7 @@ export default function Login() {
                       <SelectItem value="ADMIN">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.role && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.role}
-                    </p>
-                  )}
+                  <FieldError message={errors.role} />
                 </div>
 
                 <div className="space-y-2">
@@ -349,12 +334,7 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, mot_de_passe: e.target.value })}
                     className={errors.mot_de_passe ? 'border-red-500' : ''}
                   />
-                  {errors.mot_de_passe && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.mot_de_passe}
-                    </p>
-                  )}
+                  <FieldError message={errors.mot_de_passe} />
                   <p className="text-xs text-blue-300">
                     Min. 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre
                   </p>
@@ -370,12 +350,7 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, confirm_password: e.target.value })}
                     className={errors.confirm_password ? 'border-red-500' : ''}
                   />
-                  {errors.confirm_password && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      <AlertCircle className="h-4 w-4" />
-                      {errors.confirm_password}
-                    </p>
-                  )}
+                  <FieldError message={errors.confirm_password} />
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>

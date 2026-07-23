@@ -11,7 +11,7 @@ import logging
 from datetime import timedelta
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from models.machine_telemetry import MachineTelemetry
 from models.machines import Machines
@@ -53,6 +53,62 @@ def _risk_level(prob: float) -> str:
     if prob >= 30:
         return "MEDIUM"
     return "LOW"
+
+
+async def clean_seed_data(db, machine_id: int) -> None:
+    """Delete all seed data for one machine. Safe to call multiple times."""
+    logger.info(f"Cleaning seed data for machine_id={machine_id}...")
+
+    seed_ot_rows = await db.execute(
+        select(OrdresTravail.id).where(
+            OrdresTravail.machine_id == machine_id,
+            OrdresTravail.titre.like("OT-SEED-%"),
+        )
+    )
+    seed_ot_ids = [r[0] for r in seed_ot_rows.all()]
+
+    seed_plan_rows = await db.execute(
+        select(Plannings.id).where(
+            Plannings.identifiant_planning.like(f"SEED-%-M{machine_id}")
+        )
+    )
+    seed_plan_ids = [r[0] for r in seed_plan_rows.all()]
+
+    await db.execute(
+        delete(MachineTelemetry).where(MachineTelemetry.machine_id == machine_id)
+    )
+    await db.execute(
+        delete(MlPredictionLog).where(MlPredictionLog.machine_id == machine_id)
+    )
+    await db.execute(
+        delete(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
+    )
+
+    if seed_ot_ids:
+        await db.execute(
+            delete(PlanningOrdresTravail).where(
+                PlanningOrdresTravail.ordre_travail_id.in_(seed_ot_ids)
+            )
+        )
+        await db.execute(delete(OrdresTravail).where(OrdresTravail.id.in_(seed_ot_ids)))
+
+    if seed_plan_ids:
+        await db.execute(
+            delete(PlanningTaches).where(PlanningTaches.planning_id.in_(seed_plan_ids))
+        )
+        await db.execute(
+            delete(PlanningMachines).where(
+                PlanningMachines.planning_id.in_(seed_plan_ids)
+            )
+        )
+        await db.execute(
+            delete(PlanningUtilisateurs).where(
+                PlanningUtilisateurs.planning_id.in_(seed_plan_ids)
+            )
+        )
+        await db.execute(delete(Plannings).where(Plannings.id.in_(seed_plan_ids)))
+
+    logger.info(f"Cleanup complete for machine_id={machine_id}.")
 
 
 async def create_seed_cycle_records(

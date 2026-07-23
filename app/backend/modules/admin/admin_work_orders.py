@@ -15,26 +15,12 @@ from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import OrdresTravail
 from models.machines import Machines
 from models.ordres_intervention import OrdresIntervention
+from modules.shared.work_order_export_utils import autofit_columns as _autofit_columns, itv_str as _itv_str
 from typing import Annotated
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/admin/work-orders", tags=["admin-work-orders"])
-
-
-def _itv_str(itv, attr, default="N/A"):
-    """Return attribute from intervention ORM, or default for falsy/absent values."""
-    return (getattr(itv, attr, None) or default) if itv else default
-
-
-def _autofit_columns(worksheet) -> None:
-    """Set each Excel column width to fit its longest value (max 60 chars)."""
-    for col_cells in worksheet.columns:
-        max_length = max(
-            (len(str(cell.value)) for cell in col_cells if cell.value),
-            default=0,
-        )
-        worksheet.column_dimensions[col_cells[0].column_letter].width = min(max_length + 4, 60)
 
 
 async def _fetch_consumed_summary(db, itv):

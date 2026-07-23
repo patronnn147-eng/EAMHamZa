@@ -7,6 +7,7 @@ from sqlalchemy.orm import selectinload
 
 from models.plannings import Plannings
 from models.planning_utilisateurs import PlanningUtilisateurs
+from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -51,31 +52,6 @@ class PlanningsService:
             logger.exception(f"Error fetching plannings {obj_id}: {str(e)}")
             raise
 
-    @staticmethod
-    def _apply_filters(query, count_query, model, query_dict):
-        """Apply equality filters from query_dict to both queries."""
-        if not query_dict:
-            return query, count_query
-        for field, value in query_dict.items():
-            if hasattr(model, field):
-                condition = getattr(model, field) == value
-                query = query.where(condition)
-                count_query = count_query.where(condition)
-        return query, count_query
-
-    @staticmethod
-    def _apply_sort(query, sort, model):
-        """Apply ordering to query; defaults to id.desc()."""
-        if not sort:
-            return query.order_by(model.id.desc())
-        if sort.startswith("-"):
-            field_name = sort[1:]
-            if hasattr(model, field_name):
-                return query.order_by(getattr(model, field_name).desc())
-        elif hasattr(model, sort):
-            return query.order_by(getattr(model, sort))
-        return query.order_by(model.id.desc())
-
     async def get_list(
         self,
         skip: int = 0,
@@ -89,9 +65,9 @@ class PlanningsService:
             base_count = select(func.count(Plannings.id)).where(
                 Plannings.archived_at.is_(None)
             )
-            query, count_query = self._apply_filters(base_q, base_count, Plannings, query_dict)
+            query, count_query = _apply_filters(base_q, base_count, Plannings, query_dict)
             total = (await self.db.execute(count_query)).scalar()
-            query = self._apply_sort(query, sort, Plannings)
+            query = _apply_sort(query, sort, Plannings)
             result = await self.db.execute(
                 query.options(
                     selectinload(Plannings.PlanningUtilisateurs).selectinload(

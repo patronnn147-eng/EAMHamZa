@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.pieces import Piece
 from models.piece_machine import piece_machine
 from models.stock import Stock
+from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -51,31 +52,6 @@ class PieceService:
             logger.exception(f"Error fetching piece {obj_id}: {str(e)}")
             raise
 
-    @staticmethod
-    def _apply_filters(query, count_query, model, query_dict):
-        """Apply equality filters from query_dict to both queries."""
-        if not query_dict:
-            return query, count_query
-        for field, value in query_dict.items():
-            if hasattr(model, field):
-                condition = getattr(model, field) == value
-                query = query.where(condition)
-                count_query = count_query.where(condition)
-        return query, count_query
-
-    @staticmethod
-    def _apply_sort(query, sort, model):
-        """Apply ordering to query; defaults to id.desc()."""
-        if not sort:
-            return query.order_by(model.id.desc())
-        if sort.startswith("-"):
-            field_name = sort[1:]
-            if hasattr(model, field_name):
-                return query.order_by(getattr(model, field_name).desc())
-        elif hasattr(model, sort):
-            return query.order_by(getattr(model, sort))
-        return query.order_by(model.id.desc())
-
     async def get_list(
         self,
         skip: int = 0,
@@ -84,14 +60,14 @@ class PieceService:
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
         try:
-            query, count_query = self._apply_filters(
+            query, count_query = _apply_filters(
                 select(Piece),
                 select(func.count(Piece.id)),
                 Piece,
                 query_dict,
             )
             total = (await self.db.execute(count_query)).scalar()
-            query = self._apply_sort(query, sort, Piece)
+            query = _apply_sort(query, sort, Piece)
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
             return {"items": items, "total": total, "skip": skip, "limit": limit}
