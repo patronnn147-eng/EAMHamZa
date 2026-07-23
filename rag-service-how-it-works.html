@@ -566,6 +566,48 @@ footer {
   </div>
 </section>
 
+<!-- 6. ML-RAG BRIDGE -->
+<section id="bridge">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 06 — ML-RAG Bridge</div>
+      <h2>Documentation and live machine state, merged before the LLM sees either</h2>
+      <p>When a chat message is scoped to a specific machine, the backend doesn't choose between "search the docs" and "check the sensors" — it does both, at the same time.</p>
+    </div>
+
+    <div class="flow-steps" style="margin-bottom:36px">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <h3>Parallel fetch</h3>
+          <p>RAG chunks (top 8, similarity threshold 0.30) and the machine's live ML snapshot are fetched concurrently with <code>asyncio.gather</code> — neither one waits for the other.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <h3>Two separate context turns</h3>
+          <p>Documentation and machine state are injected as two distinct user/assistant turn pairs, not merged into one blob — a <code>[BASE DOCUMENTAIRE]</code> turn for the retrieved passages, then a live-ML turn for the current sensor readings and health verdict.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <h3>Auditable response</h3>
+          <p>The chat response carries an <code>ml_context_used: bool</code> flag, so it's always possible to tell, after the fact, whether live machine data actually made it into a given answer.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout ok">
+      <h4>Reused, not rebuilt</h4>
+      <p>The ML snapshot is built by calling the exact same <code>get_unified_health</code> route function the frontend's ML Intelligence tab calls. One source of truth — the chat assistant and the dashboard can never disagree about a machine's health.</p>
+    </div>
+
+    <p style="margin-top:24px;font-size:0.9rem;color:var(--muted)"><strong>2026-06-12</strong> — shipped the same day as the cross-encoder reranker.</p>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
