@@ -393,6 +393,67 @@ footer {
   </div>
 </section>
 
+<!-- 2. INGESTION PIPELINE -->
+<section id="ingestion">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 02 — Document Ingestion</div>
+      <h2>From uploaded file to searchable vectors</h2>
+      <p>Every document — PDF, scanned image, Word doc, spreadsheet, or web page — goes through the same six-stage pipeline before a single question can retrieve it.</p>
+    </div>
+
+    <div class="flow-steps" style="margin-bottom:36px">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <h3>Format detection</h3>
+          <p>12 extensions accepted: <code>.pdf .txt .png .jpg .jpeg .tiff .tif .bmp .webp .docx .xlsx .html .htm</code>. Anything else is rejected before any processing starts (max 50MB per file).</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <h3>Text extraction, with OCR fallback</h3>
+          <p>PDFs try their native text layer first (fast, exact). Any page that yields 10 characters or fewer falls back to OCR — the page is rendered to an image at 3× zoom and read with Tesseract (French + English). Pure images and scanned PDFs go straight through OCR.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <h3>Duplicate detection</h3>
+          <p>A SHA-256 hash of the raw file bytes is checked against every previously ingested document <em>before</em> extraction runs. An exact repeat returns the existing document's id instead of re-processing — the API responds <code>409 Conflict</code>.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body">
+          <h3>Sentence-aware chunking</h3>
+          <p>Text is split on sentence boundaries first, then accumulated into chunks of up to 200 words. Each new chunk keeps the last 20 words of the previous one as overlap, so an idea split across a chunk boundary isn't lost. Fragments under 20 characters are discarded.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body">
+          <h3>Batch embedding</h3>
+          <p>Every chunk is embedded with <code>BAAI/bge-m3</code> (1024 dimensions, normalized), 32 chunks per batch, running in a thread-pool executor so it never blocks the async server.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-body">
+          <h3>pgvector storage</h3>
+          <p>Each chunk is inserted into <code>doc_chunks</code> with its embedding cast to <code>vector(1024)</code>, plus metadata (page number, filename, doc type, linked machine id) as JSON. The document's <code>chunk_count</code> is updated and the retrieval cache is invalidated.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h4>Where this started</h4>
+      <p><strong>2026-05-11</strong> — born supporting PDF and TXT only, no OCR, no dedup. <strong>2026-05-31</strong> — OCR fallback added, so scanned and image-only PDFs stopped silently producing zero chunks. <strong>2026-06-11</strong> — DOCX, XLSX, and HTML support, plus SHA-256 dedup and document versioning, arrived together.</p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
