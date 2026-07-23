@@ -359,6 +359,40 @@ footer {
   </div>
 </div>
 
+<!-- 1. THE PROBLEM -->
+<section id="problem">
+  <div class="page-wrap">
+    <div class="section-header">
+      <div class="step-tag">Step 01 — Problem Definition</div>
+      <h2>Why not just let the LLM answer from memory?</h2>
+      <p>A general-purpose language model has never read Sagemcom's maintenance manuals, safety procedures, or machine data sheets. Asked a specific technical question, it will either refuse or — worse — invent a plausible-sounding but wrong answer.</p>
+    </div>
+
+    <div class="card-grid card-grid-3" style="margin-bottom:36px">
+      <div class="card">
+        <h4>No grounding</h4>
+        <h3 style="color:var(--crit);font-family:var(--mono);font-size:1.5rem;margin-bottom:8px">Hallucinate</h3>
+        <p>The model answers from its training data alone. Confident-sounding, but nothing ties the answer to this plant's actual documentation.</p>
+      </div>
+      <div class="card">
+        <h4>Manual search only</h4>
+        <h3 style="color:var(--warn);font-family:var(--mono);font-size:1.5rem;margin-bottom:8px">Ctrl+F</h3>
+        <p>A technician opens a PDF and searches for keywords. Works if you know the exact term used in the manual — fails on paraphrased questions.</p>
+      </div>
+      <div class="card" style="border-color:var(--accent)">
+        <h4>Retrieval-Augmented Generation ← our goal</h4>
+        <h3 style="color:var(--accent);font-family:var(--mono);font-size:1.5rem;margin-bottom:8px">Retrieve, then generate</h3>
+        <p>Find the actual relevant passages first, hand them to the LLM as context, and let it answer from real text — not memory.</p>
+      </div>
+    </div>
+
+    <div class="callout">
+      <h4>The core question the RAG service answers</h4>
+      <p>Given a technician's question, <strong>what's the most relevant passage from real documentation, combined with what this specific machine is doing right now?</strong></p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div>EAM SagemCom — RAG Service Documentation &nbsp;·&nbsp; PFE 2025–2026</div>
   <div style="margin-top:6px;opacity:0.6">FastAPI · pgvector · Postgres FTS · BGE-M3 · BGE-Reranker-v2-M3 · MinIO · Groq</div>
