@@ -7,6 +7,8 @@ Norme: ESPRIT ("Rapport de stage — Note pédagogique", AZ2021)
 
 Rédiger le rapport de Projet de Fin d'Études (PFE) couvrant le stage de 6 mois réalisé chez SagemCom sur le projet EAM (plateforme de gestion et de maintenance prédictive d'actifs industriels). Le rapport doit respecter la norme ESPRIT : ~40 pages hors annexes, Times New Roman 12pt, interligne 1.15, marges 2,5cm, titres numérotés (1, 1.1, ...), pas de code dans le corps du texte (renvoyé en annexe), figures numérotées et légendées, bibliographie/netographie en fin de document.
 
+**Langue de rédaction : anglais** (décision explicite de l'étudiant, 2026-07-22 — dérogation à la langue française par défaut de la norme ESPRIT ; la mise en forme ESPRIT elle-même reste appliquée à l'identique).
+
 ## Périmètre
 
 Le rapport couvre l'ensemble de la plateforme EAM telle que construite durant le stage :
@@ -84,7 +86,7 @@ Extraits de code significatifs, diagrammes détaillés, tables de métriques com
 - Titres numérotés (1, 1.1, ...) en gras, taille décroissante selon la profondeur
 - Figures numérotées par type (Tab. 1, Fig. 1, Graph. 1) avec légende et référence dans le texte
 - Exemples en italique, définitions encadrées, éléments essentiels en gras
-- Citations courtes entre guillemets français (« »)
+- Citations courtes entre guillemets anglais (" ") — le rapport étant rédigé en anglais (cf. Objectif)
 - Numérotation des pages en bas à droite
 - Pas de lignes de code dans le corps du rapport — tout détail technique en annexe
 
@@ -92,4 +94,5 @@ Extraits de code significatifs, diagrammes détaillés, tables de métriques com
 
 - Les sections marquées « placeholder » (nom du service, encadrants, dates précises) seront à compléter par l'étudiant avant finalisation.
 - Le contenu technique s'appuie sur le changelog du projet (`CLAUDE.md`) et le graphe de connaissances généré (`graphify-out/`), qui confirment les entités centrales du modèle de données (Utilisateurs, Machines, Ordres_intervention, Ordres_travail comme nœuds les plus connectés).
-- Livrable final : document LaTeX (pdflatex, MiKTeX) compilé en PDF respectant strictement la mise en forme ESPRIT ci-dessus. Packages attendus : `inputenc`+`T1`+`lmodern`+`babel`(french)+`geometry`(marges 2,5cm)+`setspace`(interligne 1.15)+`titlesec`(titres numérotés)+`caption`(légendes figures/tableaux)+`fancyhdr`+`hyperref`. Ne pas utiliser xelatex/lualatex/fontspec (indisponibles sur ce système).
+- Livrable final : document LaTeX (pdflatex, MiKTeX) compilé en PDF respectant strictement la mise en forme ESPRIT ci-dessus. Packages attendus : `inputenc`+`T1`+`lmodern`+`babel`(english)+`geometry`(marges 2,5cm)+`setspace`(interligne 1.15)+`titlesec`(titres numérotés)+`caption`(légendes figures/tableaux)+`fancyhdr`+`hyperref`. Ne pas utiliser xelatex/lualatex/fontspec (indisponibles sur ce système).
+- Chapitre 3 (Conception) : 5 figures ajoutées (flux métier global, grille P1--P7, fusion DST, sortie readiness/alerts/purchase-draft, pont RAG↔ML), toutes en `rapport/figures/*.png` (captures des diagrammes SVG colorés, pas du TikZ monochrome). Chapitre 4 (Réalisation), section 4.1 : 4 figures ajoutées (planification, demande d'intervention, cycle de vie ordre de travail, flux de données réservation stock), même approche.

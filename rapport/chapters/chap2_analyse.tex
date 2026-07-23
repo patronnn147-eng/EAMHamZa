@@ -213,15 +213,163 @@ Every significant action (creating, editing, or closing a work order or interven
 \subsection{DevSecOps pipeline}
 
 Security must be built into the development process through a dedicated GitLab CI/CD pipeline, covering the entire software supply chain.
-The pipeline includes the following stages, run automatically on every code push:
+The pipeline includes five stages, run automatically on every code push, each illustrated below.
 
-\begin{itemize}
-  \item \textbf{Secret scanning (Gitleaks)}: detection of any secret or sensitive credential accidentally present in the source code or the Git history;
-  \item \textbf{Software composition analysis (SCA)}: audit of Python (\textit{pip-audit}) and JavaScript (\textit{pnpm audit}) dependencies to identify known vulnerabilities (CVEs) and non-compliant licenses;
-  \item \textbf{Static application security testing (SAST)}: source code inspection by SonarQube Community Edition (self-hosted instance), covering injection vulnerabilities, error handling, cryptographic quality, and data exposure;
-  \item \textbf{Docker image and infrastructure analysis (Trivy)}: scanning of the five Docker images produced by the build, as well as the Docker Compose files, looking for CVEs in system layers and infrastructure misconfigurations;
-  \item \textbf{Dynamic application security testing (DAST — OWASP ZAP)}: active scanning of the running application via the ZAP automation framework, covering authenticated contexts (four roles: Administrator, Head Technician, Operations Manager, Technician) and unauthenticated services (ML microservice, RAG service, frontend), targeting OWASP Top 10 vulnerabilities such as SQL injection, XSS, HTTP header misconfiguration, and authentication flaws.
-\end{itemize}
+\paragraph{Secret scanning (Gitleaks).}
+Detection of any secret or sensitive credential accidentally present in the source code or the Git history.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.35cm and 1.3cm,
+  inbox/.style={draw=orange!80!black, fill=orange!8, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.4cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=orange!80!black, fill=orange!25, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=1.9cm, align=center, font=\normalsize\bfseries, thick},
+  leaf/.style={draw=orange!70!black, fill=orange!12, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=0.65cm, align=center, font=\small},
+  outbox/.style={draw=orange!80!black, fill=orange!30, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.4cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[inbox] (src) {Source code\\+ Git history};
+\node[tool, right=of src] (tool) {Gitleaks\\\footnotesize regex + entropy scan};
+\node[leaf, right=2.1cm of tool, yshift=1.0cm] (l1) {API keys \& tokens};
+\node[leaf, right=2.1cm of tool, yshift=0cm]    (l2) {Passwords};
+\node[leaf, right=2.1cm of tool, yshift=-1.0cm] (l3) {Certificates \& keys};
+\node[outbox, right=2.4cm of l2] (rep) {Security\\report};
+\draw[->, thick, orange!80!black] (src) -- (tool);
+\foreach \l in {l1,l2,l3} { \draw[->, thick, orange!70!black] (tool.east) -| ++(0.6,0) |- (\l.west); }
+\foreach \l in {l1,l2,l3} { \draw[->, thick, orange!70!black] (\l.east) -| ++(0.6,0) |- (rep.west); }
+\end{tikzpicture}%
+}
+\caption{Secret scanning pipeline (Gitleaks)}
+\label{fig:sec-gitleaks}
+\end{figure}
+
+\paragraph{Software composition analysis (SCA), via pip-audit / pnpm audit.}
+Audit of Python (\textit{pip-audit}) and JavaScript (\textit{pnpm audit}) dependencies to identify known vulnerabilities (CVEs) and non-compliant licenses.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.35cm and 1.4cm,
+  py/.style={draw=blue!70!black, fill=blue!10, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.0cm, align=center, font=\normalsize, thick},
+  js/.style={draw=yellow!60!black, fill=yellow!18, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.0cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=teal!70!black, fill=teal!20, rectangle, rounded corners=3pt, minimum width=3.8cm, minimum height=2.4cm, align=center, font=\normalsize\bfseries, thick},
+  outbox/.style={draw=teal!70!black, fill=teal!32, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.8cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[py] (pyreq) {\textit{requirements.txt}\\(Python deps)};
+\node[js, below=1.1cm of pyreq] (jslock) {\textit{package.json}\\(JS deps)};
+\node[tool, right=1.5cm of pyreq, yshift=-0.65cm] (tool) {SCA scanners\\\footnotesize pip-audit + pnpm audit};
+\node[outbox, right=1.6cm of tool] (rep) {CVE report\\+ license\\compliance};
+\draw[->, thick, blue!70!black]   (pyreq.east)  -| ++(0.4,0) |- (tool.west);
+\draw[->, thick, yellow!60!black] (jslock.east) -| ++(0.4,0) |- (tool.west);
+\draw[->, thick, teal!70!black] (tool) -- (rep);
+\end{tikzpicture}%
+}
+\caption{Software composition analysis pipeline (pip-audit / pnpm audit)}
+\label{fig:sec-sca}
+\end{figure}
+
+\paragraph{Static application security testing (SAST), via SonarQube.}
+Source code inspection by SonarQube Community Edition (self-hosted instance), covering injection vulnerabilities, error handling, cryptographic quality, and data exposure.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.6cm,
+  inbox/.style={draw=blue!60!black, fill=blue!8, rectangle, rounded corners=3pt, minimum width=3.1cm, minimum height=1.6cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=blue!60!black, fill=blue!20, rectangle, rounded corners=3pt, minimum width=3.9cm, minimum height=4.6cm, align=center, font=\normalsize\bfseries, thick},
+  c1/.style={draw=violet!70!black, fill=violet!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c2/.style={draw=purple!70!black, fill=purple!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c3/.style={draw=magenta!70!black, fill=magenta!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c4/.style={draw=cyan!80!black, fill=cyan!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  outbox/.style={draw=blue!60!black, fill=blue!28, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=2.2cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[inbox] (src) {Backend +\\frontend\\source code};
+\node[tool, right=2.6cm of src] (tool) {SonarQube CE\\[4pt]\footnotesize self-hosted\\\footnotesize static analysis};
+\node[c1, right=3.1cm of tool, yshift=2.05cm]  (l1) {Injection flaws};
+\node[c2, right=3.1cm of tool, yshift=0.68cm]  (l2) {Error handling};
+\node[c3, right=3.1cm of tool, yshift=-0.68cm] (l3) {Cryptographic quality};
+\node[c4, right=3.1cm of tool, yshift=-2.05cm] (l4) {Data exposure};
+\node[outbox, right=2.0cm of l2, yshift=-0.68cm] (gate) {Quality\\gate};
+\draw[->, thick, blue!60!black] (src) -- (tool);
+\foreach \l in {l1,l2,l3,l4} { \draw[->, thick, blue!50!black] (tool.east) -| ++(0.8,0) |- (\l.west); }
+\foreach \l in {l1,l2,l3,l4} { \draw[->, thick, blue!50!black] (\l.east) -| ++(0.8,0) |- (gate.west); }
+\end{tikzpicture}%
+}
+\caption{Static application security testing pipeline (SonarQube)}
+\label{fig:sec-sast}
+\end{figure}
+
+\paragraph{Docker image and infrastructure analysis (Trivy).}
+Scanning of the five Docker images produced by the build, as well as the Docker Compose files, looking for CVEs in system layers and infrastructure misconfigurations.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.4cm and 1.4cm,
+  img/.style={draw=red!70!black, fill=red!10, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=0.7cm, align=center, font=\small},
+  cfg/.style={draw=red!70!black, fill=red!16, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=0.7cm, align=center, font=\small},
+  tool/.style={draw=red!70!black, fill=red!24, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=3.2cm, align=center, font=\normalsize\bfseries, thick},
+  outbox/.style={draw=red!70!black, fill=red!32, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.6cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[img] (i1) {Frontend image};
+\node[img, below=of i1] (i2) {Backend image};
+\node[img, below=of i2] (i3) {ML microservice image};
+\node[img, below=of i3] (i4) {RAG service image};
+\node[cfg, below=of i4] (i5) {Celery worker image\\+ Compose files};
+\node[tool, right=2.0cm of i3] (tool) {Trivy scanner\\\footnotesize OS layers + IaC config};
+\node[outbox, right=1.8cm of tool, yshift=0.9cm]  (cve) {CVEs in\\system layers};
+\node[outbox, right=1.8cm of tool, yshift=-0.9cm] (mis) {Infrastructure\\misconfigurations};
+\foreach \i in {i1,i2,i3,i4,i5} { \draw[->, thick, red!60!black] (\i.east) -| ++(0.6,0) |- (tool.west); }
+\draw[->, thick, red!70!black] (tool.east) -| ++(0.5,0) |- (cve.west);
+\draw[->, thick, red!70!black] (tool.east) -| ++(0.5,0) |- (mis.west);
+\end{tikzpicture}%
+}
+\caption{Docker image and infrastructure analysis pipeline (Trivy)}
+\label{fig:sec-trivy}
+\end{figure}
+
+\paragraph{Dynamic application security testing (DAST), via OWASP ZAP.}
+Active scanning of the running application via the ZAP automation framework, covering authenticated contexts (four roles: Administrator, Head Technician, Operations Manager, Technician) and unauthenticated services (ML microservice, RAG service, frontend), targeting OWASP Top 10 vulnerabilities such as SQL injection, XSS, HTTP header misconfiguration, and authentication flaws.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.45cm and 1.5cm,
+  app/.style={draw=violet!70!black, fill=violet!10, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.8cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=violet!70!black, fill=violet!22, rectangle, rounded corners=3pt, minimum width=3.9cm, minimum height=6.0cm, align=center, font=\normalsize\bfseries, thick},
+  role/.style={draw=teal!70!black, fill=teal!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.75cm, align=center, font=\normalsize},
+  svc/.style={draw=orange!70!black, fill=orange!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.75cm, align=center, font=\normalsize},
+  outbox/.style={draw=violet!70!black, fill=violet!30, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=6.0cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[app] (app) {Running\\application};
+\node[tool, right=2.6cm of app] (tool) {OWASP ZAP\\[4pt]\footnotesize automation\\\footnotesize framework};
+\node[role, right=3.2cm of tool, yshift=2.55cm]  (r1) {Auth: Administrator};
+\node[role, right=3.2cm of tool, yshift=1.70cm]  (r2) {Auth: Head Technician};
+\node[role, right=3.2cm of tool, yshift=0.85cm]  (r3) {Auth: Operations Manager};
+\node[role, right=3.2cm of tool, yshift=0cm]     (r4) {Auth: Technician};
+\node[svc,  right=3.2cm of tool, yshift=-0.85cm] (s1) {Unauth: ML microservice};
+\node[svc,  right=3.2cm of tool, yshift=-1.70cm] (s2) {Unauth: RAG service};
+\node[svc,  right=3.2cm of tool, yshift=-2.55cm] (s3) {Unauth: Frontend};
+\node[outbox, right=3.0cm of r4] (rep) {OWASP Top 10\\findings\\[6pt]\footnotesize SQLi, XSS, headers,\\\footnotesize auth flaws};
+\draw[->, thick, violet!70!black] (app) -- (tool);
+\foreach \r in {r1,r2,r3,r4} { \draw[->, thick, teal!60!black]   (tool.east) -| ++(0.8,0) |- (\r.west); }
+\foreach \s in {s1,s2,s3}     { \draw[->, thick, orange!70!black] (tool.east) -| ++(0.8,0) |- (\s.west); }
+\draw[->, thick, violet!50!black] (r1.east) -- ($(rep.west)+(0,2.55cm)$);
+\draw[->, thick, violet!50!black] (r2.east) -- ($(rep.west)+(0,1.70cm)$);
+\draw[->, thick, violet!50!black] (r3.east) -- ($(rep.west)+(0,0.85cm)$);
+\draw[->, thick, violet!50!black] (r4.east) -- ($(rep.west)+(0,0cm)$);
+\draw[->, thick, violet!50!black] (s1.east) -- ($(rep.west)+(0,-0.85cm)$);
+\draw[->, thick, violet!50!black] (s2.east) -- ($(rep.west)+(0,-1.70cm)$);
+\draw[->, thick, violet!50!black] (s3.east) -- ($(rep.west)+(0,-2.55cm)$);
+\end{tikzpicture}%
+}
+\caption{Dynamic application security testing pipeline (OWASP ZAP)}
+\label{fig:sec-zap}
+\end{figure}
 
 The results of each scanner are consolidated by a centralized reporting script (\texttt{security\_report.py}) that produces a structured terminal report on every pipeline run.
 All security stages are configured in non-blocking mode (\textit{allow\_failure: true}), providing immediate visibility into results without blocking delivery, while keeping the findings in a report available for review after every run.
@@ -269,7 +417,9 @@ The history of interventions, alerts, and predictions must be preserved with int
 \textbf{Actor} & \textbf{Main use cases} \\
 \midrule
 Administrator & Manage users, manage machines, manage the knowledge base, view global statistics \\
+\midrule
 Head Technician & Plan interventions, oversee work orders, arbitrate priorities, review reliability dashboards, validate provisioning proposals \\
+\midrule
 Technician & View assigned intervention orders, close an intervention, view a machine's health status, query the conversational assistant \\
 \bottomrule
 \end{tabularx}

@@ -34,8 +34,203 @@ The objectives assigned for this internship are:
 \end{itemize}
 
 \section{Working methodology}
+\label{sec:ml-methodology}
 
 Development followed an iterative approach: each feature was the subject of a written specification (requirements document), followed by a detailed implementation plan, before being built and verified. This methodology made it possible to maintain full traceability of design decisions (technical choices, alternatives considered, justifications) throughout the six months of the internship.
+
+For the six initially scoped Machine Learning problems specifically, this iterative approach took the concrete form of a structured, repeatable eight-step pipeline applied to each problem in turn, described below together with the original problem definitions that preceded any implementation work.
+
+\subsection{The six initial problem definitions}
+
+This subsection reproduces the six problem definitions exactly as originally specified for the project, before any implementation work began (emoji status markers from the original specification are rendered here as plain-text equivalents, since the document font does not support them).
+
+\paragraph{Problem 1: Predictive Maintenance (In Progress).}
+\emph{"Will this machine fail soon?"}
+
+\textbf{Type:} Binary Classification (0 = Healthy, 1 = Failed)
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{lX}
+\toprule
+\textbf{Pipeline Step} & \textbf{What We Do} \\
+\midrule
+Define the problem & Predict if a machine will fail based on sensor telemetry \\
+\midrule
+Collect data & \texttt{ai4i2020.csv}: 10,000 rows (Kaggle AI4I 2020 dataset) \\
+\midrule
+Prepare \& clean & Select 5 features: Air Temp, Process Temp, RPM, Torque, Tool Wear \\
+\midrule
+Split data & 80/20 train-test split with \texttt{stratify=y} \\
+\midrule
+Choose a model & \texttt{RandomForestClassifier} (handles non-linear sensor data) \\
+\midrule
+Train the model & \texttt{ml\_train\_basic.py} with SMOTE oversampling + GridSearchCV tuning \\
+\midrule
+Evaluate & Confusion matrix: 98\% accuracy, 63\% recall on failures \\
+\midrule
+Tune \& improve & \texttt{class\_weight='balanced'}, SMOTE, GridSearchCV (done) \\
+\midrule
+Save the model & \texttt{basic\_machine\_model.pkl} \\
+\midrule
+Deploy & \texttt{GET /api/v1/ml/machines/\{id\}/prediction} $\rightarrow$ displayed in \texttt{PredictivePanel.tsx} \\
+\bottomrule
+\end{tabularx}
+\caption{Problem 1 pipeline walkthrough}
+\label{tab:p1-walkthrough}
+\end{table}
+
+\paragraph{Problem 2: Failure Type Classification.}
+\emph{"What TYPE of failure is likely?"}
+
+\textbf{Type:} Multi-label Classification
+
+Your dataset includes 5 failure sub-labels:
+\begin{itemize}
+\item \texttt{TWF}: Tool Wear Failure
+\item \texttt{HDF}: Heat Dissipation Failure (\textbf{57\% correlation} with failure, the strongest predictor)
+\item \texttt{PWF}: Power Failure
+\item \texttt{OSF}: Overstrain Failure
+\item \texttt{RNF}: Random Failure
+\end{itemize}
+
+\textbf{Benefit for EAM:} Auto-suggest work order type (mechanical, electrical, thermal) so the ChefTech assigns the right technician.
+
+\paragraph{Problem 3: Remaining Useful Life (RUL) Estimation.}
+\emph{"How many days before this machine needs maintenance?"}
+
+\textbf{Type:} Regression (\texttt{RandomForestRegressor} or XGBoost)
+
+\begin{itemize}
+\item \textbf{Input:} Tool wear progression over time + intervention history
+\item \textbf{Output:} \texttt{rul\_days} $\leftarrow$ already displayed in \texttt{PredictivePanel.tsx}
+\item \textbf{Data source:} Real operational data from your PostgreSQL \texttt{interventions} table
+\end{itemize}
+
+\emph{Warning: The current \texttt{ml\_predictive.py} uses a hand-coded linear regression. This should be replaced with a trained regression model.}
+
+\paragraph{Problem 4: Anomaly Detection.}
+\emph{"Is this machine behaving abnormally right now?"}
+
+\textbf{Type:} Unsupervised Learning (no labels needed)
+
+\begin{itemize}
+\item \textbf{Model:} Isolation Forest or Autoencoder
+\item \textbf{Input:} Real-time telemetry (temperature, RPM, torque)
+\item \textbf{Benefit for EAM:} Trigger SSE alerts via \texttt{core/notifications.py} when anomaly is detected, even before a failure is predicted
+\item \textbf{Data source:} \texttt{ai4i2020.csv} for training, then applied on live machine data
+\end{itemize}
+
+\paragraph{Problem 5: Work Order Priority Prediction.}
+\emph{"How urgent should this work order be?"}
+
+\textbf{Type:} Multi-class Classification
+
+\begin{itemize}
+\item \textbf{Classes:} \texttt{LOW}, \texttt{MEDIUM}, \texttt{HIGH}, \texttt{CRITICAL}
+\item \textbf{Features:} Machine age, time since last maintenance, number of previous interventions, machine zone
+\item \textbf{Data source:} Your own PostgreSQL \texttt{work\_orders} and \texttt{interventions} tables
+\item \textbf{Benefit for EAM:} ChefTech gets auto-suggested priorities when creating work orders
+\end{itemize}
+
+\paragraph{Problem 6: Maintenance Schedule Optimization (Advanced).}
+\emph{"When is the BEST time to schedule maintenance for all machines?"}
+
+\textbf{Type:} Time-series Forecasting (ARIMA, Prophet, or LSTM)
+
+\begin{itemize}
+\item \textbf{Input:} Historical planning data + failure rates per machine
+\item \textbf{Benefit for EAM:} Fewer unexpected breakdowns, better technician allocation across zones (Sub-Zone, Order)
+\end{itemize}
+
+\paragraph{Summary.}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{clllX}
+\toprule
+\textbf{\#} & \textbf{Problem} & \textbf{ML Type} & \textbf{Priority} & \textbf{Data Source} \\
+\midrule
+1 & Binary failure prediction & Classification & Done & \texttt{ai4i2020.csv} \\
+\midrule
+2 & Failure type (TWF/HDF/PWF\ldots) & Multi-label & High & \texttt{ai4i2020.csv} \\
+\midrule
+3 & RUL estimation & Regression & High & PostgreSQL DB + Kaggle \\
+\midrule
+4 & Anomaly detection & Unsupervised & Medium & Sensor telemetry \\
+\midrule
+5 & Work order priority & Classification & Medium & PostgreSQL DB \\
+\midrule
+6 & Maintenance scheduling & Time-series & Advanced & Planning history \\
+\bottomrule
+\end{tabularx}
+\caption{Summary of the six initial ML problems}
+\label{tab:six-problems-summary}
+\end{table}
+
+\subsection{Eight-step model development pipeline}
+
+Each of the six initial problems (binary failure prediction, failure-type classification, remaining-useful-life estimation, anomaly detection, work-order priority, and maintenance scheduling) was carried through the same eight stages, summarized in Table~\ref{tab:pipeline-steps}.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{clX}
+\toprule
+\textbf{Step} & \textbf{Stage} & \textbf{Purpose} \\
+\midrule
+1 & Define the problem   & State the question each model answers and its learning type (classification, regression, unsupervised, time-series) \\
+\midrule
+2 & Collect data         & Identify the data source: the public AI4I~2020 benchmark, or internal PostgreSQL tables (interventions, work orders, plannings) \\
+\midrule
+3 & Prepare \& clean data & Select relevant features, drop leakage-prone columns, handle missing values, encode categorical fields \\
+\midrule
+4 & Split data           & Choose a splitting strategy matched to the problem: stratified for imbalanced classes, chronological for time-series, none for unsupervised training \\
+\midrule
+5 & Choose a model       & Compare 2--4 candidate algorithms on a validation metric appropriate to the problem \\
+\midrule
+6 & Train the model      & Fit the chosen algorithm with an explicit, justified configuration \\
+\midrule
+7 & Evaluate performance & Measure the model on an untouched test set using the metric that matches the business risk, not raw accuracy \\
+\midrule
+8 & Tune \& improve       & Close the gap between measured and target performance through hyperparameter search, threshold adjustment, or feature engineering \\
+\bottomrule
+\end{tabularx}
+\caption{Eight-step ML development pipeline}
+\label{tab:pipeline-steps}
+\end{table}
+
+At the data-preparation stage (step~3), a first, self-imposed warning was already recorded for the failure-prediction problem: the five failure sub-labels (TWF, HDF, PWF, OSF, RNF) are deterministic sub-causes of the overall failure flag and must not be used as input features, on pain of artificially inflating accuracy. This is the same class of issue (input features encoding the target) that the later, systematic label-leakage audit formally confirmed and tagged as \texttt{validation\_status: "leaked"} in production (Section~\ref{sec:validation}); it had already been anticipated qualitatively at this earlier stage of the project, but not yet proven or acted upon.
+
+Because the failure class represents only 3.39\% of the benchmark dataset, step~4 applied stratified splitting together with SMOTE oversampling (synthetic minority over-sampling, applied strictly after the split to avoid leaking test information into the synthetic samples) for the classification problems, while the maintenance-scheduling problem (being a time series) was split chronologically, since a random shuffle would let the model train on data from after the point it is tested on.
+
+Table~\ref{tab:initial-choices} summarizes the model initially selected for each problem at step~5, and the evaluation target fixed for it at step~7.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{lllX}
+\toprule
+\textbf{Problem} & \textbf{Initial model} & \textbf{Primary metric} & \textbf{Target} \\
+\midrule
+P1: Failure probability   & Random Forest (later XGBoost) & Recall on failures        & $> 80\%$, precision $> 65\%$ \\
+\midrule
+P2: Failure type          & MultiOutput Random Forest     & F1 per label              & HDF recall $> 75\%$ \\
+\midrule
+P3: RUL estimation        & XGBoost Regressor             & RMSE                       & $< 10$ days, $R^2 > 0.85$ \\
+\midrule
+P4: Anomaly detection     & Isolation Forest              & Recall on anomalies       & Catch obvious deviations \\
+\midrule
+P5: Work order priority   & XGBoost (multi-class)         & Macro F1                   & $> 70\%$ \\
+\midrule
+P6: Maintenance scheduling & Prophet                      & MAE                        & $< 5$ days \\
+\bottomrule
+\end{tabularx}
+\caption{Initial model choice and evaluation target per problem}
+\label{tab:initial-choices}
+\end{table}
+
+Step~8 (tune and improve) defined, for every problem, a concrete lever to close the gap between the measured and the target metric: hyperparameter search via \texttt{GridSearchCV}, classification-threshold adjustment to trade precision for recall, alternative resampling strategies (SMOTE, ADASYN, or undersampling), targeted feature engineering (for instance, a temperature-delta feature to strengthen the heat-dissipation-failure signal), class-weighting of rare priority levels, and early stopping to prevent overfitting on the boosted-tree models.
+
+Several of these initial choices were revised during productionisation, once the label-leakage and validation-methodology issues described in Chapter~5 were identified: Random Forest gave way to XGBoost with group-holdout validation for P1, and the scheduling problem was reworked away from a pure Prophet time-series forecast towards the classifier-based approach and the broader Wave~2 signal-fusion layer presented in Chapter~3. A seventh problem, spare-parts demand forecasting (P7), was added beyond this original six-problem scope once the platform's data model matured enough to support it.
 
 \section{Internship schedule}
 
