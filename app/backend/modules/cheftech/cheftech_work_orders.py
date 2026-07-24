@@ -40,7 +40,7 @@ def _calc_duration(wo, now: datetime):
     if wo.date_fin and wo.date_debut:
         return int((wo.date_fin - wo.date_debut).total_seconds() / 60), None
     if wo.date_debut:
-        return None, int((now - wo.date_debut.replace(tzinfo=None)).total_seconds())
+        return None, int((now.replace(tzinfo=None) - wo.date_debut.replace(tzinfo=None)).total_seconds())
     return None, None
 
 
