@@ -227,6 +227,8 @@ async def create_plannings(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"Plannings created successfully with id: {safe_id}")
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating plannings: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -157,6 +157,8 @@ async def create_machines(
             logger.warning("Audit log failed for create machine %s", safe_id)
 
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating machines: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

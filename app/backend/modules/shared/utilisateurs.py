@@ -211,6 +211,8 @@ async def create_utilisateurs(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"Utilisateurs created successfully with id: {safe_id}")
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating utilisateurs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -221,6 +221,8 @@ async def create_MaintenancesPlanifiees(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"MaintenancesPlanifiees created successfully with id: {safe_id}")
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating MaintenancesPlanifiees: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

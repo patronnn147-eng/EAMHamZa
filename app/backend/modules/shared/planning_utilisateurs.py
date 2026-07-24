@@ -215,6 +215,8 @@ async def create_PlanningUtilisateurs(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"PlanningUtilisateurs created successfully with id: {safe_id}")
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating PlanningUtilisateurs: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
