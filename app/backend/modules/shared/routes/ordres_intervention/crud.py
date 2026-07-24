@@ -168,6 +168,8 @@ async def create_OrdresIntervention(
             logger.warning("Audit log failed for create intervention %s", safe_id)
 
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating OrdresIntervention: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
