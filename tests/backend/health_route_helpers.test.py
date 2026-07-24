@@ -9,6 +9,7 @@ from fastapi import HTTPException
 
 import modules.ml.routes.health as health_mod
 from modules.ml.routes.health import (
+    TelemetryUpdate,
     _attach_parts_and_schedule,
     _attach_recovery,
     _attach_sensor_status,
@@ -19,6 +20,7 @@ from modules.ml.routes.health import (
     _reprice_part_item,
     _run_ml_fusion,
     _try_update_maintenance_schedule,
+    update_machine_telemetry,
 )
 
 
@@ -68,12 +70,19 @@ class FakeDb:
     def __init__(self, execute_results):
         self._results = list(execute_results)
         self.committed = 0
+        self.added = []
 
     async def execute(self, *_args, **_kwargs):
         return self._results.pop(0)
 
     async def commit(self):
         self.committed += 1
+
+    def add(self, obj):
+        self.added.append(obj)
+
+    async def refresh(self, _obj):
+        pass
 
 
 @pytest.mark.asyncio
@@ -318,3 +327,63 @@ async def test_attach_parts_and_schedule_inventory_error_falls_back(monkeypatch)
     db = FakeDb([])
     await _attach_parts_and_schedule(response, machine, None, machine_id=1, db=db)
     assert response["parts_readiness"] == {"status": "UNKNOWN", "error": "inventory_unavailable"}
+
+
+@pytest.mark.asyncio
+async def test_attach_parts_and_schedule_enriches_parts_demand_with_real_stock(monkeypatch):
+    monkeypatch.setattr(
+        health_mod, "get_machine_parts_readiness", AsyncMock(return_value={"status": "OK"})
+    )
+    monkeypatch.setattr("modules.ml.services.parts_alerts.emit_shortfall_alert", AsyncMock())
+    enrich_mock = AsyncMock(return_value={"items": [{"piece_id": 1, "enriched": True}]})
+    monkeypatch.setattr(health_mod, "_enrich_parts_demand_with_real_stock", enrich_mock)
+
+    response = {}
+    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
+    fusion_result = {"p7_parts_demand": {"items": [{"piece_id": 1}]}, "p6_schedule_days": None}
+    db = FakeDb([])
+    await _attach_parts_and_schedule(response, machine, fusion_result, machine_id=1, db=db)
+
+    enrich_mock.assert_awaited_once()
+    assert response["parts_demand"] == {"items": [{"piece_id": 1, "enriched": True}]}
+
+
+# ── update_machine_telemetry ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_update_machine_telemetry_machine_not_found():
+    db = FakeDb([FakeScalarResult(None)])
+    with pytest.raises(HTTPException) as exc_info:
+        await update_machine_telemetry(1, TelemetryUpdate(), db)
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_machine_telemetry_applies_defaults_for_missing_fields():
+    machine = SimpleNamespace(id=1, nom="M1")
+    db = FakeDb([FakeScalarResult(machine)])
+    result = await update_machine_telemetry(1, TelemetryUpdate(), db)
+
+    assert result["telemetry"]["air_temperature"] == 300.0
+    assert result["telemetry"]["process_temperature"] == 310.0
+    assert result["telemetry"]["rotational_speed"] == 1500
+    assert result["telemetry"]["torque"] == 40.0
+    assert result["telemetry"]["tool_wear"] == 0.0
+    assert db.committed == 1
+    assert len(db.added) == 1
+
+
+@pytest.mark.asyncio
+async def test_update_machine_telemetry_uses_provided_values():
+    machine = SimpleNamespace(id=1, nom="M1")
+    db = FakeDb([FakeScalarResult(machine)])
+    data = TelemetryUpdate(
+        air_temperature=295.5, process_temperature=305.0,
+        rotational_speed=1800, torque=55.0, tool_wear=42,
+    )
+    result = await update_machine_telemetry(1, data, db)
+
+    assert result["telemetry"]["air_temperature"] == 295.5
+    assert result["telemetry"]["rotational_speed"] == 1800
+    assert result["telemetry"]["tool_wear"] == 42
+    assert result["machine_id"] == 1
