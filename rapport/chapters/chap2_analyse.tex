@@ -166,7 +166,7 @@ For each machine with telemetry data available, the system must expose six predi
 \begin{itemize}
   \item \textbf{Failure probability (P1)}: estimate of short-term failure risk;
   \item \textbf{Likely failure type (P2)}: classification among known failure modes;
-  \item \textbf{Remaining useful life — RUL (P3)}: estimate in days until the next required intervention, together with a confidence interval;
+  \item \textbf{Remaining useful life (RUL, P3)}: estimate in days until the next required intervention, together with a confidence interval;
   \item \textbf{Behavioral anomaly score (P4)}: detection of abnormal sensor behavior via an ensemble of four methods (Isolation Forest, Z-score, cluster deviation, autoencoder);
   \item \textbf{Processing priority (P5)}: recommended priority level for the associated work order;
   \item \textbf{Maintenance schedule (P6)}: proposed optimal date for the next preventive intervention.
@@ -382,7 +382,7 @@ The interface must remain responsive during asynchronous calls to the ML microse
 
 \subsection{Availability and resilience}
 
-Classic management features — work orders, intervention orders, scheduling — must remain fully operational even if the Machine Learning microservice is unavailable.
+Classic management features (work orders, intervention orders, scheduling) must remain fully operational even if the Machine Learning microservice is unavailable.
 If telemetry data is missing for a machine, the system must explicitly report it and provide a health score computed from maintenance history, without substituting fictitious values.
 The platform's various services (backend, ML microservice, RAG service, object storage) must be deployed as independent containers, allowing any one of them to be restarted or updated without interrupting the others.
 
@@ -400,7 +400,7 @@ Environment-specific configuration (URLs, keys, connection parameters) must be c
 \subsection{Ergonomics and usability}
 
 The interface must adapt its menus, dashboards, and available actions to the role of the logged-in user, without exposing features beyond their scope.
-Information derived from the predictive models must be presented in business language — failure probability, remaining useful life, parts needed — without algorithmic terminology (model names, raw statistical metrics).
+Information derived from the predictive models must be presented in business language (failure probability, remaining useful life, parts needed) without algorithmic terminology (model names, raw statistical metrics).
 The interface must be usable from a desktop workstation as well as from a tablet used in the field, with a layout adapted to each screen format.
 
 \subsection{Data integrity and confidentiality}
@@ -412,7 +412,7 @@ The history of interventions, alerts, and predictions must be preserved with int
 
 \begin{table}[h]
 \centering
-\begin{tabularx}{\textwidth}{lX}
+\begin{tabularx}{\textwidth}{|l|X|}
 \toprule
 \textbf{Actor} & \textbf{Main use cases} \\
 \midrule

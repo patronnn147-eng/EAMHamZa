@@ -23,7 +23,7 @@ Table~\ref{tab:validation-status} summarizes the validation status and productio
 
 \begin{table}[h]
 \centering
-\begin{tabularx}{\textwidth}{llXl}
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
 \toprule
 \textbf{Model} & \textbf{Algorithm} & \textbf{Production gate} & \textbf{Status} \\
 \midrule
@@ -52,7 +52,7 @@ For models with a reliable evaluation, Table~\ref{tab:metriques-ml} reports the 
 
 \begin{table}[h]
 \centering
-\begin{tabularx}{\textwidth}{llXl}
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
 \toprule
 \textbf{Model} & \textbf{Metric} & \textbf{Result} & \textbf{Gate} \\
 \midrule
@@ -114,6 +114,12 @@ Three scenarios illustrate the end-to-end operation of the platform:
 \item \textbf{Receiving a stock shortage alert}: when the P7 module detects that a part needed for a planned intervention will soon be unavailable, an alert is automatically generated and presented to the Head Technician along with an order proposal for validation;
 \item \textbf{Querying the conversational assistant}: a technician asks the assistant about the troubleshooting procedure for a specific machine; the response combines the technical documentation with the machine's real-time health status.
 \end{itemize}
+
+\screenshotph{fig:ss-uc-intervention}{End-to-end: intervention order creation and closure}{Sequence of screens: technician's intervention request, Head Technician's approval creating the linked work order, and the technician's close-out form recording the root cause.}
+
+\screenshotph{fig:ss-uc-shortage}{End-to-end: stock shortage alert and order proposal}{Sequence of screens: the parts-shortage alert as it appears to the Head Technician, and the resulting draft procurement order awaiting approval.}
+
+\screenshotph{fig:ss-uc-chat}{End-to-end: conversational assistant query}{Sequence of screens: a technician's question in the Assistant IA screen and the resulting answer, with the underlying retrieved document excerpt and ML snapshot shown side by side.}
 
 \section{Difficulties encountered during testing}
 

@@ -614,7 +614,52 @@ footer {
     <div class="section-header">
       <div class="step-tag">Step 07 — Full Architecture</div>
       <h2>Everything, in one picture: upload to answer</h2>
-      <p>One flow: a technician's question (or an uploaded document) passes through the backend to the RAG microservice, which reads and writes the storage layer, and finally reaches the language model that generates the answer.</p>
+      <p>Every box and every arrow below is walked through in order, left to right, top to bottom.</p>
+    </div>
+
+    <div class="flow-steps" style="margin-bottom:36px">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-body">
+          <h3>User → Backend</h3>
+          <p>A technician asks a question in the chat, or an admin uploads a document. Either way, it lands on the FastAPI backend first.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-body">
+          <h3>Backend → RAG Service</h3>
+          <p>The backend forwards the request to the RAG microservice: an upload becomes an ingest call, a question becomes a retrieve call.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-body">
+          <h3>RAG Service ↔ Postgres</h3>
+          <p>The RAG microservice does its ingest/embed or retrieve/rerank work directly against Postgres + pgvector — writing new chunks and vectors on ingest, reading and ranking them on retrieve.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-body">
+          <h3>RAG Service ↔ MinIO</h3>
+          <p>In parallel, the RAG microservice stores the original uploaded file in MinIO, or reads it back for a download.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-body">
+          <h3>Backend → Groq LLM</h3>
+          <p>For a question, the backend takes the retrieved context back from the RAG Service and hands it to Groq.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-body">
+          <h3>Groq LLM → User</h3>
+          <p>Groq generates the answer from that context, and the backend returns it to the user.</p>
+        </div>
+      </div>
     </div>
 
     <div class="arch-wrap">

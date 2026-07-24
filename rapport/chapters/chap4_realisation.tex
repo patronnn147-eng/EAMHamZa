@@ -15,6 +15,8 @@ An Administrator opens a planning window in \emph{draft} status; the Head Techni
 \label{fig:planning-workflow}
 \end{figure}
 
+\screenshotph{fig:ss-planning}{Planning screen (Administrator)}{Planning screen: list of planning windows by status (draft, submitted, approved), with the per-machine task breakdown expanded for one window.}
+
 \subsection{Intervention request workflow}
 
 A field technician's request passes through a single Head Technician validation gate with two distinct outcomes: approval requires an associated machine and automatically creates a linked work order, while rejection requires a reason and releases any parts reservation already made. Closing the loop later, once the work is done, still requires a root-cause diagnosis before the intervention can be marked validated.
@@ -25,6 +27,8 @@ A field technician's request passes through a single Head Technician validation 
 \caption{Intervention request workflow}
 \label{fig:intervention-workflow}
 \end{figure}
+
+\screenshotph{fig:ss-intervention}{Intervention orders screen}{Intervention orders screen: list of requests with status badges (pending, approved, rejected), and the approval/rejection panel with the reason field.}
 
 \subsection{Work order lifecycle}
 
@@ -37,6 +41,8 @@ A work order moves through a sequential ten-state lifecycle. It can be rejected 
 \label{fig:wo-lifecycle}
 \end{figure}
 
+\screenshotph{fig:ss-workorder}{Work order management screen}{Gestion des OT screen: work order list with current lifecycle state per row, and the detail view of one work order showing its state history.}
+
 \subsection{Inventory reservation system}
 
 A single service owns every mutation of stock quantities for the intervention/work-order workflow. Four independent triggers (approval, rejection, a daily scheduled task, and technician completion) each invoke a dedicated process, all reading and writing the same reservation records; approval handlers never touch stock tables directly.
@@ -48,9 +54,13 @@ A single service owns every mutation of stock quantities for the intervention/wo
 \label{fig:inventory-flow}
 \end{figure}
 
+\screenshotph{fig:ss-stock}{Spare parts inventory screen}{Stocks / Pièces screen: parts list with on-hand and reserved quantities, plus the separate queue for uncategorized parts pending classification.}
+
 \section{Frontend implementation}
 
 The frontend offers three distinct application spaces, each tailored to the needs of the corresponding role: an Administrator space for global management, a Head Technician space for oversight and scheduling, and a Technician space for carrying out interventions in the field. A consistent design system (color palette, reusable components) ensures a uniform experience across the three spaces.
+
+\screenshotph{fig:ss-login}{Login screen}{Login screen: single email/password form; the same form routes every role (Administrator, Head Technician, Technician) to its own space after authentication.}
 
 \begin{figure}[h]
 \centering
@@ -64,6 +74,8 @@ The frontend offers three distinct application spaces, each tailored to the need
 \label{fig:dashboard-admin}
 \end{figure}
 
+\screenshotph{fig:ss-approvals}{User and intervention approval screens}{Approbations Users and Approbations ITV screens: pending-account queue with role assignment, and pending-intervention queue with the approve/reject action.}
+
 \begin{figure}[h]
 \centering
 \fbox{\begin{minipage}{0.85\textwidth}
@@ -76,11 +88,21 @@ The frontend offers three distinct application spaces, each tailored to the need
 \label{fig:dashboard-cheftech}
 \end{figure}
 
+\screenshotph{fig:ss-technicien}{Technician dashboard}{Technician dashboard: assigned intervention orders for the day, a machine's current status, and the close-out form used to record the root cause on completion.}
+
 \section{Machine Learning pipeline implementation}
 
 Each predictive model (P1 to P6) was trained and then integrated into the model-serving microservice, with lazy, cached loading to limit response times. An explainability layer (``Why?'') was added across the board: every prediction, alert, or recommendation can be expanded into a plain-language explanation, free of Machine Learning terminology, so it remains understandable to field technicians.
 
+\screenshotph{fig:ss-ml-dashboard}{ML predictions screen}{ML \& Predictions screen: per-machine cards for failure probability, RUL estimate, behavioral anomaly score, and maintenance schedule, each with a ``Why?'' button.}
+
+\screenshotph{fig:ss-iot}{IoT telemetry dashboard}{IoT Dashboard screen: live sensor readings per machine (air/process temperature, rotational speed, torque, tool wear), with out-of-range values highlighted.}
+
+\screenshotph{fig:ss-alerts}{Predictive alerts screen}{Alertes Prédictives screen: alert list by severity and machine, including the parts-shortage alert type raised by the P7 module.}
+
 The P7 spare parts coordination module was built in six progressive steps: a demand forecasting engine, stock shortage alert routing, role-based interface adaptation, guided order preparation (never automatic), an operational readiness score with an event timeline, and a feedback loop comparing predictions against parts actually consumed.
+
+\screenshotph{fig:ss-procurement}{Guided procurement screen}{Procurement recommendation modal: the five-step guided flow the Head Technician walks through to review and approve a draft purchase order, with nothing committed automatically.}
 
 \begin{figure}[h]
 \centering
@@ -97,6 +119,10 @@ The P7 spare parts coordination module was built in six progressive steps: a dem
 \section{RAG service and conversational bridge implementation}
 
 The RAG service supports importing technical documents (manuals, procedures) with version management and cascading deletion. The bridge between the RAG service and the ML microservice was designed to never let a conversation fail: if the ML microservice is unavailable, a fallback estimate based on simple rules is used instead, transparently to the user.
+
+\screenshotph{fig:ss-ragdocs}{Knowledge base document management screen}{RAG Documents screen (Administrator): document list with type and version, drag-and-drop bulk import, and the replace/download actions.}
+
+\screenshotph{fig:ss-chat}{Conversational assistant screen}{Assistant IA screen: a technician's question alongside the generated answer, drawing on both the retrieved documentation and the machine's real-time ML context.}
 
 \section{Pilot rollout plan (PDCA)}
 

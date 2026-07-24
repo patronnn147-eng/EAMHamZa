@@ -92,7 +92,7 @@ Each cycle is described by five sensor readings and two derived features:
 
 \begin{table}[h]
 \centering
-\begin{tabularx}{\textwidth}{llX}
+\begin{tabularx}{\textwidth}{|X|X|X|}
 \toprule
 \textbf{Feature} & \textbf{Typical range} & \textbf{Physical meaning} \\
 \midrule
@@ -283,11 +283,76 @@ P7 acts as a smart shopping list rather than an automated buyer. Every spare par
 
 The RAG service ingests technical documentation (maintenance manuals, safety procedures, machine data sheets) and splits it into indexed fragments for semantic search. When a technician asks a question about a specific machine, the backend queries the RAG service (documentation) and the ML microservice (the machine's real-time health status) in parallel, then merges the two contexts before passing them to the language model to generate a response, as shown in Figure~\ref{fig:rag-bridge}. This mechanism ensures the assistant always responds, even if one of the two services is unavailable.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/rag.png}
+\begin{tikzpicture}[
+  node distance=1.1cm and 1.3cm,
+  box/.style={draw, rectangle, rounded corners, minimum width=4.6cm, minimum height=1.2cm, align=center, font=\small},
+  docbox/.style={box, fill=gray!12, draw=gray!70},
+  ragbox/.style={box, fill=blue!8, draw=blue!60!black},
+  qbox/.style={box, fill=orange!12, draw=orange!70!black, minimum width=6.8cm},
+  abox/.style={box, fill=green!10, draw=green!50!black}
+]
+\node[docbox] (docs) {\textbf{Documents}\\{\scriptsize (manuals, procedures) --- stored in MinIO}};
+\node[ragbox, below=of docs] (ragin) {\textbf{RAG ingestion}\\{\scriptsize chunks + embeddings}};
+\node[ragbox, right=2.6cm of docs] (mlctx) {\textbf{Real-time ML snapshot}\\{\scriptsize health, alerts, parts for the machine}};
+\node[qbox, below=1.6cm of $(ragin)!0.5!(mlctx)$] (question) {\textbf{Question from technician / CHEFTECH}\\{\scriptsize both sources fetched in parallel}};
+\node[abox, below=of question] (answer) {\textbf{Contextualized answer}\\{\scriptsize works even if ML is offline}};
+
+\draw[->, thick] (docs) -- (ragin);
+\draw[->, thick] (ragin.south) -- (question.north west);
+\draw[->, thick] (mlctx.south) -- (question.north east);
+\draw[->, thick] (question) -- (answer);
+\end{tikzpicture}
 \caption{RAG service and ML bridge}
 \label{fig:rag-bridge}
+\end{figure}
+
+\section{Document ingestion pipeline}
+
+Every document submitted to the RAG service (PDF, scanned image, Word document, spreadsheet, or web page) goes through the same six-stage pipeline before it becomes searchable. Table~\ref{tab:ingestion} summarizes the stages.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Stage} & \textbf{Name} & \textbf{Description} \\
+\hline
+1 & Format detection & Twelve extensions accepted (PDF, TXT, images, DOCX, XLSX, HTML); other files rejected up front, 50~MB max. \\
+\hline
+2 & Text extraction with OCR fallback & Native PDF text layer read first; sparse pages fall back to Tesseract OCR (French/English) on a 3$\times$ zoomed render; scans and images go straight to OCR. \\
+\hline
+3 & Duplicate detection & SHA-256 hash of the file checked against prior uploads before extraction; an exact repeat returns the existing document's id with a conflict status. \\
+\hline
+4 & Sentence-aware chunking & Text split on sentence boundaries into $\leq$200-word chunks with a 20-word overlap between consecutive chunks; sub-20-character fragments discarded. \\
+\hline
+5 & Batch embedding & Chunks embedded with BAAI/bge-m3 (1024 dimensions, normalized) in batches of 32, via a thread-pool executor. \\
+\hline
+6 & pgvector storage & Each chunk stored with its vector and metadata (page, filename, type, machine id); chunk count updated and retrieval cache invalidated. \\
+\hline
+\end{tabularx}
+\caption{Document ingestion pipeline stages}
+\label{tab:ingestion}
+\end{table}
+
+\section{End-to-end request flow}
+
+Figure~\ref{fig:architecture} shows the components involved; the sequence below walks through a single request, from the user's action to the answer returned, in order:
+
+\begin{enumerate}
+\item \textbf{User to Backend}: a technician asks a question in the chat, or an administrator uploads a document. Either way, the request first lands on the FastAPI backend.
+\item \textbf{Backend to RAG Service}: the backend forwards the request to the RAG microservice: an upload becomes an ingest call, a question becomes a retrieve call.
+\item \textbf{RAG Service to PostgreSQL}: the RAG microservice performs its ingest/embed or retrieve/rerank work directly against PostgreSQL with pgvector, writing new chunks and vectors on ingest, reading and ranking them on retrieve.
+\item \textbf{RAG Service to MinIO}: in parallel, the RAG microservice stores the original uploaded file in MinIO, or reads it back for a download.
+\item \textbf{Backend to Groq LLM}: for a question, the backend takes the retrieved context back from the RAG service and hands it to the Groq-hosted language model.
+\item \textbf{Groq LLM to User}: the language model generates the answer from that context, and the backend returns it to the user.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/rag_flow.png}
+\caption{End-to-end request flow}
+\label{fig:rag-flow}
 \end{figure}
 
 \section{Technology choices}

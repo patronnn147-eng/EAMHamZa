@@ -25,3 +25,18 @@
 \usepackage{pgfgantt}
 \usepackage[hidelinks]{hyperref}
 \setlength{\parindent}{0.5cm}
+
+% Screenshot placeholder box: #1 = label, #2 = caption, #3 = description of what to capture
+\newcommand{\screenshotph}[3]{%
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{1cm}
+\textit{#3}
+\vspace{1cm}
+\end{minipage}}
+\caption{#2}
+\label{#1}
+\end{figure}
+}
