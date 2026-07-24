@@ -97,7 +97,7 @@ async def create_intervention_from_planning(
         has_permission = True
     elif user_role == UserRole.CHEFTECH:
         has_permission = planning.chef_technique_id == current_user.id
-    elif user_role == UserRole.CHEFOP:
+    elif user_role == UserRole.CHETOP:
         has_permission = planning.chef_operation_id == current_user.id
     else:
         # Check if technician is assigned to planning
