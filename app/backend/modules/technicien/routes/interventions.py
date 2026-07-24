@@ -184,14 +184,13 @@ async def _propagate_wo_status(db: AsyncSession, ordre_id: int) -> None:
     # OrdresIntervention.statut uses a separate French vocabulary (EN_COURS/BLOQUÉ/TERMINÉ)
     # that must never be written here directly — no WO-level "blocked" status exists,
     # so a blocked intervention leaves the parent WO status untouched.
-    if blocked > 0:
-        pass
-    elif in_progress > 0:
-        ordre.statut = OrdreStatut.IN_PROGRESS
-    elif total > 0 and done == total:
-        ordre.statut = OrdreStatut.COMPLETED
-    elif total > 0:
-        ordre.statut = OrdreStatut.ASSIGNED
+    if blocked == 0:
+        if in_progress > 0:
+            ordre.statut = OrdreStatut.IN_PROGRESS
+        elif total > 0 and done == total:
+            ordre.statut = OrdreStatut.COMPLETED
+        elif total > 0:
+            ordre.statut = OrdreStatut.ASSIGNED
 
     await db.commit()
 
