@@ -15,7 +15,7 @@ from core.rabbitmq import (
     ROUTING_KEY_INT_STATUS_CHANGED,
 )
 from models.ordres_intervention import OrdresIntervention
-from models.ordres_travail import OrdresTravail
+from models.ordres_travail import OrdresTravail, OrdreStatut
 from models.planning_taches import PlanningTaches
 from models.utilisateurs import Utilisateurs, UserRole
 from core.security import verify_technicien
@@ -180,14 +180,18 @@ async def _propagate_wo_status(db: AsyncSession, ordre_id: int) -> None:
     in_progress = int((row.in_progress or 0) if row else 0)
     blocked = int((row.blocked or 0) if row else 0)
 
+    # OrdresTravail.statut is constrained to OrdreStatut (English enum values).
+    # OrdresIntervention.statut uses a separate French vocabulary (EN_COURS/BLOQUÉ/TERMINÉ)
+    # that must never be written here directly — no WO-level "blocked" status exists,
+    # so a blocked intervention leaves the parent WO status untouched.
     if blocked > 0:
-        ordre.statut = _STATUT_BLOQUE
+        pass
     elif in_progress > 0:
-        ordre.statut = "EN_COURS"
+        ordre.statut = OrdreStatut.IN_PROGRESS
     elif total > 0 and done == total:
-        ordre.statut = _STATUT_TERMINE
+        ordre.statut = OrdreStatut.COMPLETED
     elif total > 0:
-        ordre.statut = "ASSIGNÉ"
+        ordre.statut = OrdreStatut.ASSIGNED
 
     await db.commit()
 

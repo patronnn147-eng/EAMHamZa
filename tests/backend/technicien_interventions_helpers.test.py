@@ -6,11 +6,19 @@ from unittest.mock import AsyncMock
 import pytest
 from fastapi import HTTPException
 
+from models.alertes import Alert  # noqa: F401
+from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import OrdreStatut
 from modules.technicien.routes.interventions import (
+    InterventionRequestPayload,
+    InterventionStatusUpdate,
     _apply_intervention_dates,
     _notify_status_change,
     _propagate_wo_status,
     _validate_status_transition,
+    list_my_interventions,
+    request_intervention,
+    update_intervention_status,
 )
 
 
@@ -208,33 +216,258 @@ async def test_propagate_wo_status_no_ordre_is_noop():
 
 
 @pytest.mark.asyncio
-async def test_propagate_wo_status_blocked_wins():
-    ordre = SimpleNamespace(statut="EN_COURS")
+async def test_propagate_wo_status_blocked_leaves_wo_status_untouched():
+    # No WO-level "blocked" status exists in OrdreStatut, so a blocked
+    # intervention must not overwrite the parent work order's status.
+    ordre = SimpleNamespace(statut=OrdreStatut.IN_PROGRESS)
     db = FakeDb(scalars=[ordre], execute_results=[FakeStatsResult(_stats_row(total=3, done=1, in_progress=1, blocked=1))])
     await _propagate_wo_status(db, ordre_id=1)
-    assert ordre.statut == "BLOQUÉ"
+    assert ordre.statut == OrdreStatut.IN_PROGRESS
     assert db.committed == 1
 
 
 @pytest.mark.asyncio
-async def test_propagate_wo_status_all_done_marks_terminated():
-    ordre = SimpleNamespace(statut="EN_COURS")
+async def test_propagate_wo_status_all_done_marks_completed():
+    ordre = SimpleNamespace(statut=OrdreStatut.IN_PROGRESS)
     db = FakeDb(scalars=[ordre], execute_results=[FakeStatsResult(_stats_row(total=2, done=2))])
     await _propagate_wo_status(db, ordre_id=1)
-    assert ordre.statut == "TERMINÉ"
+    assert ordre.statut == OrdreStatut.COMPLETED
 
 
 @pytest.mark.asyncio
 async def test_propagate_wo_status_some_in_progress():
-    ordre = SimpleNamespace(statut="ASSIGNÉ")
+    ordre = SimpleNamespace(statut=OrdreStatut.ASSIGNED)
     db = FakeDb(scalars=[ordre], execute_results=[FakeStatsResult(_stats_row(total=3, done=1, in_progress=1))])
     await _propagate_wo_status(db, ordre_id=1)
-    assert ordre.statut == "EN_COURS"
+    assert ordre.statut == OrdreStatut.IN_PROGRESS
 
 
 @pytest.mark.asyncio
 async def test_propagate_wo_status_none_started_stays_assigned():
-    ordre = SimpleNamespace(statut="ASSIGNÉ")
+    ordre = SimpleNamespace(statut=OrdreStatut.ASSIGNED)
     db = FakeDb(scalars=[ordre], execute_results=[FakeStatsResult(_stats_row(total=2, done=0))])
     await _propagate_wo_status(db, ordre_id=1)
-    assert ordre.statut == "ASSIGNÉ"
+    assert ordre.statut == OrdreStatut.ASSIGNED
+
+
+@pytest.mark.asyncio
+async def test_propagate_wo_status_no_interventions_leaves_status_untouched():
+    ordre = SimpleNamespace(statut=OrdreStatut.DRAFT)
+    db = FakeDb(scalars=[ordre], execute_results=[FakeStatsResult(_stats_row(total=0, done=0))])
+    await _propagate_wo_status(db, ordre_id=1)
+    assert ordre.statut == OrdreStatut.DRAFT
+    assert db.committed == 1
+
+
+# ── route handlers ──────────────────────────────────────────────────────────
+
+class FakeQueryResult:
+    def __init__(self, scalar_value=None, scalars_list=None, rows_list=None):
+        self._scalar_value = scalar_value
+        self._scalars_list = scalars_list
+        self._rows_list = rows_list
+
+    def scalar(self):
+        return self._scalar_value
+
+    def scalars(self):
+        return FakeScalarsResult(self._scalars_list or [])
+
+    def all(self):
+        return self._rows_list or []
+
+
+class FakeSession(FakeDb):
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.refreshed = 0
+        self.flushed = 0
+        self.added = []
+
+    async def refresh(self, *_a, **_k):
+        self.refreshed += 1
+
+    async def flush(self):
+        self.flushed += 1
+
+    def add(self, obj):
+        self.added.append(obj)
+
+
+def _intervention_model(**overrides):
+    defaults = dict(
+        id=1, ordre_travail_id=None, statut="APPROVED",
+        date_intervention=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        technician_id=1, legacy_parts_text=None,
+    )
+    defaults.update(overrides)
+    return OrdresIntervention(**defaults)
+
+
+# -- list_my_interventions --
+
+@pytest.mark.asyncio
+async def test_list_my_interventions_empty():
+    user = SimpleNamespace(id=1)
+    db = FakeDb(execute_results=[
+        FakeQueryResult(scalar_value=0),
+        FakeQueryResult(scalars_list=[]),
+    ])
+    resp = await list_my_interventions(page=1, size=10, statut=None, _current_user=user, db=db)
+    assert resp.total == 0
+    assert resp.items == []
+
+
+@pytest.mark.asyncio
+async def test_list_my_interventions_marks_overdue_item():
+    user = SimpleNamespace(id=1)
+    past_due = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    item = _intervention_model(id=7, ordre_travail_id=9, statut="EN_COURS")
+    db = FakeDb(execute_results=[
+        FakeQueryResult(scalar_value=1),
+        FakeQueryResult(scalars_list=[item]),
+        FakeQueryResult(rows_list=[SimpleNamespace(id=9, date_echeance=past_due)]),
+    ])
+    resp = await list_my_interventions(page=1, size=10, statut=None, _current_user=user, db=db)
+    assert resp.total == 1
+    assert resp.items[0]["is_overdue"] is True
+
+
+@pytest.mark.asyncio
+async def test_list_my_interventions_done_item_not_overdue():
+    user = SimpleNamespace(id=1)
+    past_due = datetime(2020, 1, 1, tzinfo=timezone.utc)
+    item = _intervention_model(
+        id=8, ordre_travail_id=9, statut="TERMINÉ",
+        date_fin=datetime(2026, 1, 2, tzinfo=timezone.utc),
+    )
+    db = FakeDb(execute_results=[
+        FakeQueryResult(scalar_value=1),
+        FakeQueryResult(scalars_list=[item]),
+        FakeQueryResult(rows_list=[SimpleNamespace(id=9, date_echeance=past_due)]),
+    ])
+    resp = await list_my_interventions(page=1, size=10, statut="TERMINÉ", _current_user=user, db=db)
+    assert resp.items[0]["is_overdue"] is False
+
+
+# -- update_intervention_status --
+
+@pytest.mark.asyncio
+async def test_update_intervention_status_not_found_raises_404():
+    db = FakeSession(scalars=[None])
+    user = SimpleNamespace(id=1)
+    data = InterventionStatusUpdate(statut="EN_COURS")
+    with pytest.raises(HTTPException) as exc_info:
+        await update_intervention_status(intervention_id=99, data=data, current_user=user, db=db)
+    assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_intervention_status_invalid_transition_raises_400():
+    intervention = _intervention_model(statut="EN_ATTENTE")
+    db = FakeSession(scalars=[intervention])
+    user = SimpleNamespace(id=1)
+    data = InterventionStatusUpdate(statut="EN_COURS")
+    with pytest.raises(HTTPException) as exc_info:
+        await update_intervention_status(intervention_id=1, data=data, current_user=user, db=db)
+    assert exc_info.value.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_update_intervention_status_same_status_skips_notify_and_propagates(monkeypatch):
+    # statut unchanged (APPROVED -> APPROVED): no notify call needed, and no
+    # feedback hooks fire since APPROVED isn't a terminal status.
+    intervention = _intervention_model(statut="APPROVED", ordre_travail_id=5)
+    db = FakeSession(scalars=[intervention, None], execute_results=[])
+    user = SimpleNamespace(id=1)
+    data = InterventionStatusUpdate(statut="APPROVED")
+
+    result = await update_intervention_status(intervention_id=1, data=data, current_user=user, db=db)
+
+    assert result.statut == "APPROVED"
+    assert db.refreshed == 1
+    assert db.committed == 1  # only the main commit; _propagate_wo_status found no ordre
+
+
+@pytest.mark.asyncio
+async def test_update_intervention_status_completion_triggers_feedback_and_notify(monkeypatch):
+    fake_rmq = SimpleNamespace(publish_intervention_event=AsyncMock())
+    monkeypatch.setattr("modules.technicien.routes.interventions.get_rabbitmq", AsyncMock(return_value=fake_rmq))
+    monkeypatch.setattr(
+        "modules.technicien.routes.interventions.notify_intervention_status_changed",
+        SimpleNamespace(delay=lambda *a, **k: None),
+    )
+    monkeypatch.setattr("modules.ml.services.p7_feedback.record_p7_feedback", AsyncMock())
+    monkeypatch.setattr("modules.ml.services.p4_feedback.record_p4_feedback", AsyncMock())
+
+    intervention = _intervention_model(statut="EN_COURS", ordre_travail_id=None, legacy_parts_text="pump seal x1")
+    cheftech = SimpleNamespace(email="ct@x.com", nom="CT")
+    db = FakeSession(
+        scalars=[intervention, None],
+        execute_results=[FakeScalarsResult([cheftech])],
+    )
+    user = SimpleNamespace(id=1, nom="Bob", email="bob@x.com")
+    data = InterventionStatusUpdate(statut="TERMINÉ")
+
+    result = await update_intervention_status(intervention_id=1, data=data, current_user=user, db=db)
+
+    assert result.statut == "TERMINÉ"
+    assert result.date_fin is not None
+    fake_rmq.publish_intervention_event.assert_awaited_once()
+
+
+# -- request_intervention --
+
+@pytest.mark.asyncio
+async def test_request_intervention_creates_new_when_none_found(monkeypatch):
+    monkeypatch.setattr(
+        "modules.technicien.routes.interventions.get_rabbitmq",
+        AsyncMock(side_effect=RuntimeError("rmq down")),
+    )
+    # payload.ordre_travail_id is unset, so the existing-intervention lookup
+    # is never issued — the route goes straight to creating a new record.
+    db = FakeSession(execute_results=[FakeScalarsResult([])])
+    user = SimpleNamespace(id=1, nom="Bob", email="bob@x.com")
+    payload = InterventionRequestPayload(
+        machine_id=3, problem_description="noisy bearing", priority="ÉLEVÉE",
+    )
+
+    result = await request_intervention(payload=payload, current_user=user, db=db)
+
+    assert result.statut == "PENDING_APPROVAL"
+    assert result.technician_id == 1
+    assert db.flushed == 1
+    assert len(db.added) == 1
+
+
+@pytest.mark.asyncio
+async def test_request_intervention_re_requests_existing_declined(monkeypatch):
+    monkeypatch.setattr(
+        "modules.technicien.routes.interventions.get_rabbitmq",
+        AsyncMock(side_effect=RuntimeError("rmq down")),
+    )
+    existing = _intervention_model(id=4, statut="DECLINED", ordre_travail_id=5)
+    db = FakeSession(scalars=[existing], execute_results=[FakeScalarsResult([])])
+    user = SimpleNamespace(id=1, nom="Bob", email="bob@x.com")
+    payload = InterventionRequestPayload(
+        ordre_travail_id=5, machine_id=3, problem_description="still noisy", priority="ÉLEVÉE",
+    )
+
+    result = await request_intervention(payload=payload, current_user=user, db=db)
+
+    assert result.statut == "PENDING_APPROVAL"
+    assert result.rejection_reason is None
+
+
+@pytest.mark.asyncio
+async def test_request_intervention_rejects_when_already_in_flight(monkeypatch):
+    existing = _intervention_model(id=4, statut="EN_COURS", ordre_travail_id=5)
+    db = FakeSession(scalars=[existing])
+    user = SimpleNamespace(id=1, nom="Bob", email="bob@x.com")
+    payload = InterventionRequestPayload(
+        ordre_travail_id=5, machine_id=3, problem_description="still noisy", priority="ÉLEVÉE",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await request_intervention(payload=payload, current_user=user, db=db)
+    assert exc_info.value.status_code == 400
