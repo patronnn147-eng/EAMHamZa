@@ -155,7 +155,7 @@ async def create_planning_OrdresTravail(
             raise HTTPException(status_code=404, detail="Planning not found")
 
         has_access = False
-        if current_user.role == UserRole.CHEFOP:
+        if current_user.role == UserRole.CHETOP:
             has_access = planning.chef_operation_id == current_user.id
         elif current_user.role == UserRole.CHEFTECH:
             has_access = planning.chef_technique_id == current_user.id
