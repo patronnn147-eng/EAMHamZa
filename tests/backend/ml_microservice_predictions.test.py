@@ -9,6 +9,7 @@ loaded as a package.
 import sys
 import os
 import importlib
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -508,6 +509,278 @@ def test_run_shap_explanations_disabled_returns_empty():
 def test_run_shap_explanations_no_model_returns_empty(monkeypatch):
     monkeypatch.setattr(predictions, "load_p1", lambda: None)
     assert predictions._run_shap_explanations(True, [1] * 7) == []
+
+
+# ---------------------------------------------------------------------------
+# _run_model_c (Mahalanobis Health Index)
+# ---------------------------------------------------------------------------
+
+def test_run_model_c_no_model_short_history_returns_none():
+    assert predictions._run_model_c(None, [], [1] * 5) is None
+
+
+def test_run_model_c_uses_history_matrix_when_available():
+    fake = SimpleNamespace(_fitted=True, fit_and_score_history=lambda m: {"health_index": 60.0})
+    logs = [{"tool_wear": 1}, {"tool_wear": 2}]
+    result = predictions._run_model_c(fake, logs, [1] * 5)
+    assert result == {"health_index": 60.0}
+
+
+def test_run_model_c_scores_features_when_fitted_and_no_history():
+    fake = SimpleNamespace(_fitted=True, score=lambda f: {"health_index": 70.0})
+    result = predictions._run_model_c(fake, [], [1] * 5)
+    assert result == {"health_index": 70.0}
+
+
+def test_run_model_c_unfitted_and_no_history_returns_none():
+    fake = SimpleNamespace(_fitted=False)
+    assert predictions._run_model_c(fake, [], [1] * 5) is None
+
+
+# ---------------------------------------------------------------------------
+# _run_model_e (anomaly ensemble)
+# ---------------------------------------------------------------------------
+
+def test_run_model_e_no_model_returns_none():
+    assert predictions._run_model_e(None, [], [1] * 5) is None
+
+
+def test_run_model_e_unfitted_returns_none():
+    fake = SimpleNamespace(_fitted=False)
+    assert predictions._run_model_e(fake, [], [1] * 5) is None
+
+
+def test_run_model_e_fitted_builds_history_and_predicts():
+    captured = {}
+
+    def _predict_with_history(features, names, history):
+        captured["history_len"] = len(history)
+        return {"anomaly": True}
+
+    fake = SimpleNamespace(_fitted=True, predict_with_history=_predict_with_history)
+    logs = [{"tool_wear": 1}, {"tool_wear": 2}, {"tool_wear": 3}]
+    result = predictions._run_model_e(fake, logs, [1] * 5)
+    assert result == {"anomaly": True}
+    assert captured["history_len"] == 2  # logs[:-1]
+
+
+# ---------------------------------------------------------------------------
+# _run_model_b (survival model)
+# ---------------------------------------------------------------------------
+
+class _FakeSurvival:
+    def __init__(self, fit_raises=False, fits=True, predict_return=None):
+        self._fitted = False
+        self._fit_raises = fit_raises
+        self._fits = fits
+        self._predict_return = predict_return
+
+    def fit_from_logs(self, logs):
+        if self._fit_raises:
+            raise RuntimeError("fit failed")
+        self._fitted = self._fits
+
+    def predict(self, snapshot):
+        return self._predict_return
+
+
+def test_run_model_b_local_fit_success(monkeypatch):
+    fake = _FakeSurvival(predict_return={"health_index": 55.0})
+    monkeypatch.setattr(predictions, "SurvivalModel", lambda: fake)
+    result = predictions._run_model_b([{} for _ in range(10)], snapshot={})
+    assert result == {"health_index": 55.0}
+
+
+def test_run_model_b_local_fit_raises_returns_none(monkeypatch):
+    monkeypatch.setattr(predictions, "SurvivalModel", lambda: _FakeSurvival(fit_raises=True))
+    assert predictions._run_model_b([{} for _ in range(10)], snapshot={}) is None
+
+
+def test_run_model_b_local_fit_does_not_converge_returns_none(monkeypatch):
+    monkeypatch.setattr(predictions, "SurvivalModel", lambda: _FakeSurvival(fits=False))
+    assert predictions._run_model_b([{} for _ in range(10)], snapshot={}) is None
+
+
+def test_run_model_b_short_history_uses_global_model(monkeypatch):
+    fake_global = SimpleNamespace(_fitted=True, predict=lambda snap: {"health_index": 44.0})
+    monkeypatch.setattr(predictions, "get_survival_model", lambda: fake_global)
+    result = predictions._run_model_b([{} for _ in range(3)], snapshot={})
+    assert result == {"health_index": 44.0}
+
+
+def test_run_model_b_short_history_no_global_model_returns_none(monkeypatch):
+    monkeypatch.setattr(predictions, "get_survival_model", lambda: None)
+    assert predictions._run_model_b([], snapshot={}) is None
+
+
+# ---------------------------------------------------------------------------
+# _run_model_a (PINN RUL)
+# ---------------------------------------------------------------------------
+
+def test_run_model_a_pinn_unavailable(monkeypatch):
+    monkeypatch.setattr(predictions, "_PINN_AVAILABLE", False)
+    assert predictions._run_model_a([1, 2, 3]) is None
+
+
+def test_run_model_a_series_too_short(monkeypatch):
+    monkeypatch.setattr(predictions, "_PINN_AVAILABLE", True)
+    assert predictions._run_model_a([1, 2]) is None
+
+
+def test_run_model_a_not_fitted_returns_none(monkeypatch):
+    monkeypatch.setattr(predictions, "_PINN_AVAILABLE", True)
+    monkeypatch.setattr(predictions, "get_pinn_estimator", lambda: SimpleNamespace(_fitted=False))
+    assert predictions._run_model_a([1, 2, 3]) is None
+
+
+def test_run_model_a_success(monkeypatch):
+    fake_pinn = SimpleNamespace(_fitted=True, predict=lambda ts: {"rul": 10.0})
+    monkeypatch.setattr(predictions, "_PINN_AVAILABLE", True)
+    monkeypatch.setattr(predictions, "get_pinn_estimator", lambda: fake_pinn)
+    assert predictions._run_model_a([1, 2, 3]) == {"rul": 10.0}
+
+
+# ---------------------------------------------------------------------------
+# _build_kalman_state
+# ---------------------------------------------------------------------------
+
+class _FakeKalman:
+    def __init__(self):
+        self.update_calls = []
+        self.smooth_calls = []
+
+    def update(self, obs):
+        self.update_calls.append(obs)
+        return {"kalman_hi": "updated"}
+
+    def smooth_from_scores(self, history):
+        self.smooth_calls.append(history)
+        return {"kalman_hi": "smoothed"}
+
+
+def test_build_kalman_state_short_history_uses_update(monkeypatch):
+    fake = _FakeKalman()
+    monkeypatch.setattr(predictions, "KalmanStateEstimator", lambda: fake)
+    result = predictions._build_kalman_state([], None, None, rule_score=80.0)
+    assert result == {"kalman_hi": "updated"}
+    assert fake.update_calls[0]["rule_score"] == 80.0
+
+
+def test_build_kalman_state_long_history_with_timestamps_uses_smoothing(monkeypatch):
+    fake = _FakeKalman()
+    monkeypatch.setattr(predictions, "KalmanStateEstimator", lambda: fake)
+    logs = [
+        {"air_temperature": 300, "created_at": "2026-01-01T00:00:00Z"},
+        {"air_temperature": 302, "created_at": "2026-01-02T00:00:00Z"},
+        {"air_temperature": 305, "created_at": "2026-01-03T00:00:00Z"},
+    ]
+    result = predictions._build_kalman_state(logs, None, None, rule_score=70.0)
+    assert result == {"kalman_hi": "smoothed"}
+    assert len(fake.smooth_calls[0]) == len(logs)
+
+
+def test_build_kalman_state_long_history_missing_timestamps_falls_back(monkeypatch):
+    fake = _FakeKalman()
+    monkeypatch.setattr(predictions, "KalmanStateEstimator", lambda: fake)
+    logs = [{"air_temperature": 300}, {"air_temperature": 302}, {"air_temperature": 305}]
+    result = predictions._build_kalman_state(
+        logs, {"health_index": 60}, {"health_index": 55}, rule_score=70.0,
+    )
+    assert result == {"kalman_hi": "smoothed"}
+
+
+# ---------------------------------------------------------------------------
+# _p4_collect_components — optional AE + cluster branches
+# ---------------------------------------------------------------------------
+
+def test_p4_collect_components_includes_optional_ae_and_cluster():
+    class _FakeAE:
+        def predict(self, x, verbose=0):
+            return x  # zero reconstruction error
+
+    class _FakeScaler:
+        def transform(self, x):
+            return x
+
+    class _FakeFP:
+        def transform(self, df):
+            import pandas as pd
+            return pd.DataFrame({"cluster_distance": [0.42]})
+
+    class _FakeIF:
+        def decision_function(self, x):
+            return np.array([-0.5])
+
+    p4 = {
+        "model": _FakeIF(),
+        "weights": {},
+        "autoencoder": _FakeAE(),
+        "ae_scaler": _FakeScaler(),
+        "training_stats": {"mean": [300, 310, 1500, 40, 0], "std": [2, 1.5, 179, 10, 1]},
+        "feature_pipeline": _FakeFP(),
+    }
+    x5 = np.array([[300.0, 310.0, 1500.0, 40.0, 0.0]])
+    scores, weights = {}, {}
+    predictions._p4_collect_components(p4, x5, scores, weights)
+    assert set(scores.keys()) == {"if", "ae", "zscore", "cluster"}
+    assert scores["cluster"] == pytest.approx(0.42)
+    assert scores["ae"] == pytest.approx(0.0)
+
+
+def test_p4_collect_components_ae_failure_is_swallowed():
+    class _BrokenAE:
+        def predict(self, x, verbose=0):
+            raise RuntimeError("boom")
+
+    class _FakeScaler:
+        def transform(self, x):
+            return x
+
+    class _FakeIF:
+        def decision_function(self, x):
+            return np.array([-0.5])
+
+    p4 = {
+        "model": _FakeIF(), "weights": {}, "autoencoder": _BrokenAE(),
+        "ae_scaler": _FakeScaler(), "training_stats": {},
+    }
+    x5 = np.array([[300.0, 310.0, 1500.0, 40.0, 0.0]])
+    scores, weights = {}, {}
+    predictions._p4_collect_components(p4, x5, scores, weights)
+    assert "ae" not in scores
+    assert "if" in scores
+
+
+# ---------------------------------------------------------------------------
+# MachineLearningService.predict_maintenance_schedule — explicit tool_wear_sq
+# ---------------------------------------------------------------------------
+
+def test_predict_maintenance_schedule_uses_provided_tool_wear_sq(monkeypatch):
+    captured = {}
+
+    class _FakeP6:
+        def predict(self, X):
+            captured["X"] = X
+            return [5.0]
+
+    monkeypatch.setattr(predictions, "load_p6", lambda: _FakeP6())
+    features = [300.0, 310.0, 1500.0, 40.0, 5.0, 10.0, 60.0, 999.0]
+    MachineLearningService.predict_maintenance_schedule(features)
+    assert captured["X"][0][7] == 999.0
+
+
+# ---------------------------------------------------------------------------
+# _run_shap_explanations — success path
+# ---------------------------------------------------------------------------
+
+def test_run_shap_explanations_success(monkeypatch):
+    monkeypatch.setattr(predictions, "load_p1", lambda: object())
+    fake_xai_module = SimpleNamespace(
+        XAIService=SimpleNamespace(explain_prediction=lambda model, feats, names: [{"feature": "wear", "shap": 0.1}])
+    )
+    monkeypatch.setitem(sys.modules, "src.xai_service", fake_xai_module)
+    result = predictions._run_shap_explanations(True, [1] * 7)
+    assert result == [{"feature": "wear", "shap": 0.1}]
 
 
 # ---------------------------------------------------------------------------
