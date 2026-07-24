@@ -172,6 +172,8 @@ async def list_work_orders(
             )
 
         return PaginatedResponse.create(items=output, total=total, page=page, size=size)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Error listing admin work orders: {str(e)}")
         raise HTTPException(status_code=500, detail="Internal server error")
