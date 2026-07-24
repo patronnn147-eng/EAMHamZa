@@ -158,6 +158,8 @@ async def create_OrdresTravail(
             logger.warning("Audit log failed for create work order %s", safe_id)
 
         return result
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.exception(f"Validation error creating OrdresTravail: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
