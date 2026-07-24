@@ -489,18 +489,18 @@ function PartsDemandCard({
     );
 }
 
-function formatDeltaLabel(delta: number | null | undefined): string {
+export function formatDeltaLabel(delta: number | null | undefined): string {
     if (delta == null) return '—';
     const sign = delta > 0 ? '+' : '';
     return `${sign}${delta.toFixed(1)} pts`;
 }
 
-function formatDaysLabel(days: number | null | undefined): string | null {
+export function formatDaysLabel(days: number | null | undefined): string | null {
     if (days == null) return null;
     return `${days} day${days === 1 ? '' : 's'} ago`;
 }
 
-function formatWindowLabel(withinWindow: boolean, days: number | null | undefined): string {
+export function formatWindowLabel(withinWindow: boolean, days: number | null | undefined): string {
     if (withinWindow && days != null) {
         const remaining = Math.max(0, 7 - days);
         return `${remaining} day${remaining === 1 ? '' : 's'} remaining`;

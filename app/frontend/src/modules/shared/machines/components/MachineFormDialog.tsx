@@ -36,7 +36,7 @@ const SUBZONE_SHORT: Record<string, string> = {
 
 const FILLER_WORDS = new Set(['MACHINE', 'POSTE', 'FOUR', 'DE', 'DU', 'DES', 'LA', 'LE', 'LES', 'AVEC']);
 
-const shortMachineName = (nom: string): string => {
+export const shortMachineName = (nom: string): string => {
   const withoutParens = nom.replace(/\([^)]*\)/g, '').trim();
   const words = withoutParens.split(/\s+/).filter(Boolean);
   const remaining = words.filter(w => !FILLER_WORDS.has(w.toUpperCase()));
@@ -47,7 +47,7 @@ const shortMachineName = (nom: string): string => {
   return picked;
 };
 
-const generateMachineName = (zone: string, sous_zone: string, ordre: string, ordreTemplates: OrdreTemplate[]): string => {
+export const generateMachineName = (zone: string, sous_zone: string, ordre: string, ordreTemplates: OrdreTemplate[]): string => {
   if (!zone || !sous_zone || !ordre) return '';
 
   let cmsNumber = '';
@@ -68,7 +68,7 @@ const generateMachineName = (zone: string, sous_zone: string, ordre: string, ord
   return `CMS${cmsNumber}-${subzoneKey}-${orderName}`;
 };
 
-const getOrdreTemplates = (zone: string, sous_zone: string): OrdreTemplate[] => {
+export const getOrdreTemplates = (zone: string, sous_zone: string): OrdreTemplate[] => {
   if (!zone || !sous_zone) return [];
   return ORDRE_TEMPLATES[zone]?.[sous_zone] || [];
 };
