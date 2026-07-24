@@ -532,7 +532,7 @@ footer {
 
     <div class="callout">
       <h4>Where this started</h4>
-      <p><strong>2026-05-11</strong> — vector-only at birth. <strong>2026-06-06</strong> — hybrid retrieval and Reciprocal Rank Fusion added, so keyword-exact matches (part numbers, error codes) stopped losing to semantically-similar-but-wrong chunks. <strong>2026-06-12</strong> — the cross-encoder reranker arrived last, tightening the final ranking. Retrieval results themselves are cached for 5 minutes per (query, machine, top-k, threshold, hybrid-on) combination, and invalidated on every ingest or delete.</p>
+      <p><strong>2026-05-11</strong> — vector-only at birth. <strong>2026-06-01</strong> — the embedding model changed to <code>BAAI/bge-m3</code> and the first caching layer was added. <strong>2026-06-06</strong> — hybrid retrieval and Reciprocal Rank Fusion added, so keyword-exact matches (part numbers, error codes) stopped losing to semantically-similar-but-wrong chunks. <strong>2026-06-12</strong> — the cross-encoder reranker arrived last, tightening the final ranking. Retrieval results themselves are cached for 5 minutes per (query, machine, top-k, threshold, hybrid-on) combination, and invalidated on every ingest or delete.</p>
     </div>
   </div>
 </section>
