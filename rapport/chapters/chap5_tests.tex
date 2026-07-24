@@ -96,15 +96,9 @@ Second, \textbf{real run-to-failure sequences for P3}: tracking fifteen to twent
 
 Third, \textbf{vibration and motor current sensors}: the five sensor inputs currently available cannot capture bearing degradation, the most common industrial failure mode. Vibration RMS and kurtosis, together with motor current draw, are the signals that would make P1, P3, and P4 substantively more powerful, because they provide information that is genuinely independent of tool wear.
 
-\section{Pilot audit (PDCA Check/Act)}
+\subsection{Summary}
 
-Following the Plan and Do phases of the pilot rollout described in Chapter~4, the Check and Act phases close the PDCA cycle with a formal audit and a decision on how to proceed.
-
-\paragraph{Check.} The quantitative audit computed a confusion matrix on the failure-probability model, paying particular attention to false positives (an over-eager model that triggers unnecessary inspections erodes trust, \emph{alert fatigue}) and false negatives (undetected failures, which must be traced back through the telemetry to understand what the model missed), alongside the mean absolute error of the remaining-useful-life estimate. The qualitative audit consisted of structured debrief interviews with the pilot technicians on whether the predicted priorities matched their own judgement of urgency, and on the clarity of the dashboard.
-
-\paragraph{Act.} Two outcomes were planned for. If the models underperformed (excessive false positives or false negatives), the response was to collect the newly accumulated, technician-confirmed data, retrain on it, and simplify the interface if it had caused confusion, opening a new, shorter PDCA cycle. If the pilot met its targets, the response was to standardize the dashboard across every production zone, to let the system automatically generate a draft intervention order (pending human validation) whenever failure probability and anomaly score both cross a high-confidence threshold, and to update the formal maintenance procedure documentation accordingly.
-
-The guarded, human-in-the-loop automation envisioned in this last step (the system proposes, a person approves) is the same governing principle already applied to the production procurement-draft workflow (Chapter~3) and to the shadow prediction log used for auditing and retraining above: every automated suggestion in the platform stops short of an autonomous action.
+Of the seven models, only P3 (RUL) has evaluation figures that can be trusted: it is the one model trained and tested with proper group-holdout validation, achieving an MAE of 14.95 cycles and a C-index of 0.620 against its production gate. P1, P2, and P5 are formally flagged \texttt{"leaked"} because their labels are deterministic functions of an input feature, and the retraining strategy for every model is explicitly gated on accumulating real, technician-confirmed outcomes rather than more synthetic data.
 
 \section{Use case demonstrations}
 
@@ -115,11 +109,37 @@ Three scenarios illustrate the end-to-end operation of the platform:
 \item \textbf{Querying the conversational assistant}: a technician asks the assistant about the troubleshooting procedure for a specific machine; the response combines the technical documentation with the machine's real-time health status.
 \end{itemize}
 
-\screenshotph{fig:ss-uc-intervention}{End-to-end: intervention order creation and closure}{Sequence of screens: technician's intervention request, Head Technician's approval creating the linked work order, and the technician's close-out form recording the root cause.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_1_request.png}
+\caption{Step 1 --- technician submits the intervention request}
+\label{fig:ss-uc-intervention-1}
+\end{figure}
 
-\screenshotph{fig:ss-uc-shortage}{End-to-end: stock shortage alert and order proposal}{Sequence of screens: the parts-shortage alert as it appears to the Head Technician, and the resulting draft procurement order awaiting approval.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_2_approval.png}
+\caption{Step 2 --- Head Technician approves the request}
+\label{fig:ss-uc-intervention-2}
+\end{figure}
 
-\screenshotph{fig:ss-uc-chat}{End-to-end: conversational assistant query}{Sequence of screens: a technician's question in the Assistant IA screen and the resulting answer, with the underlying retrieved document excerpt and ML snapshot shown side by side.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_3_closure.png}
+\caption{Step 3 --- technician closes the work order}
+\label{fig:ss-uc-intervention-3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_shortage.png}
+\caption{End-to-end: stock shortage alert}
+\label{fig:ss-uc-shortage}
+\end{figure}
+
+\subsection{Summary}
+
+The intervention lifecycle (request, approval, closure), the stock-shortage-alert flow, and a conversational-assistant query were walked through end-to-end on the live platform: a request submitted by a technician reaches the Head Technician's queue with a linked work order, a projected shortage surfaces as an alert with a linked draft order, and a technician's question is answered using both documentation and the machine's real-time health --- exactly as specified in Chapter~2.
 
 \section{Difficulties encountered during testing}
 

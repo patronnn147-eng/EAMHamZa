@@ -8,129 +8,223 @@ The backend is organized into modules by business domain (users, machines, work 
 
 An Administrator opens a planning window in \emph{draft} status; the Head Technician then breaks it down into per-machine diagnostic or correction tasks and submits it for approval. Only once an Administrator approves the planning are the assigned technicians notified, by both an in-app alert and an email.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/planning.png}
+\includegraphics[width=\textwidth]{figures/planning.png}
 \caption{Maintenance planning workflow}
 \label{fig:planning-workflow}
 \end{figure}
 
-\screenshotph{fig:ss-planning}{Planning screen (Administrator)}{Planning screen: list of planning windows by status (draft, submitted, approved), with the per-machine task breakdown expanded for one window.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_planning.png}
+\caption{Planning screen (Administrator)}
+\label{fig:ss-planning}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_planning_2.png}
+\caption{Planning screen --- per-machine task breakdown}
+\label{fig:ss-planning-2}
+\end{figure}
 
 \subsection{Intervention request workflow}
 
 A field technician's request passes through a single Head Technician validation gate with two distinct outcomes: approval requires an associated machine and automatically creates a linked work order, while rejection requires a reason and releases any parts reservation already made. Closing the loop later, once the work is done, still requires a root-cause diagnosis before the intervention can be marked validated.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/intervention.png}
+\includegraphics[width=\textwidth]{figures/intervention.png}
 \caption{Intervention request workflow}
 \label{fig:intervention-workflow}
 \end{figure}
 
-\screenshotph{fig:ss-intervention}{Intervention orders screen}{Intervention orders screen: list of requests with status badges (pending, approved, rejected), and the approval/rejection panel with the reason field.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_intervention.png}
+\caption{Intervention orders screen}
+\label{fig:ss-intervention}
+\end{figure}
 
 \subsection{Work order lifecycle}
 
 A work order moves through a sequential ten-state lifecycle. It can be rejected at the approval step, releasing any linked stock reservation, and it can only be closed by an Administrator once it has reached the \emph{validated} state.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/workorder.png}
 \caption{Work order lifecycle}
 \label{fig:wo-lifecycle}
 \end{figure}
 
-\screenshotph{fig:ss-workorder}{Work order management screen}{Gestion des OT screen: work order list with current lifecycle state per row, and the detail view of one work order showing its state history.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_workorder.png}
+\caption{Work order management screen}
+\label{fig:ss-workorder}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_wo_closer.png}
+\caption{Work order close-out form (Technician)}
+\label{fig:ss-wo-closer}
+\end{figure}
 
 \subsection{Inventory reservation system}
 
 A single service owns every mutation of stock quantities for the intervention/work-order workflow. Four independent triggers (approval, rejection, a daily scheduled task, and technician completion) each invoke a dedicated process, all reading and writing the same reservation records; approval handlers never touch stock tables directly.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/inventory.png}
 \caption{Inventory reservation data flow}
 \label{fig:inventory-flow}
 \end{figure}
 
-\screenshotph{fig:ss-stock}{Spare parts inventory screen}{Stocks / Pièces screen: parts list with on-hand and reserved quantities, plus the separate queue for uncategorized parts pending classification.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_stock.png}
+\caption{Spare parts inventory screen}
+\label{fig:ss-stock}
+\end{figure}
+
+\subsection{Summary}
+
+The four core workflows --- planning, intervention requests, work orders, inventory reservations --- are each owned by a single dedicated service, keeping stock mutations, approval logic, and state transitions from leaking into unrelated modules. This domain-by-domain split is what lets a rule change in one workflow (for example, how stock is reserved) ship without touching the others.
 
 \section{Frontend implementation}
 
 The frontend offers three distinct application spaces, each tailored to the needs of the corresponding role: an Administrator space for global management, a Head Technician space for oversight and scheduling, and a Technician space for carrying out interventions in the field. A consistent design system (color palette, reusable components) ensures a uniform experience across the three spaces.
 
-\screenshotph{fig:ss-login}{Login screen}{Login screen: single email/password form; the same form routes every role (Administrator, Head Technician, Technician) to its own space after authentication.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_login.png}
+\caption{Login screen}
+\label{fig:ss-login}
+\end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\fbox{\begin{minipage}{0.85\textwidth}
-\centering
-\vspace{1cm}
-\textit{Administrator dashboard: fleet-wide machine overview, user list, global reliability indicators, access to the knowledge base.}
-\vspace{1cm}
-\end{minipage}}
+\includegraphics[width=\textwidth]{figures/ss_dashboard_admin.png}
 \caption{Administrator dashboard}
 \label{fig:dashboard-admin}
 \end{figure}
 
-\screenshotph{fig:ss-approvals}{User and intervention approval screens}{Approbations Users and Approbations ITV screens: pending-account queue with role assignment, and pending-intervention queue with the approve/reject action.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_approval_users.png}
+\caption{User approval screen (Administrator)}
+\label{fig:ss-approval-users}
+\end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\fbox{\begin{minipage}{0.85\textwidth}
+\includegraphics[width=\textwidth]{figures/ss_approval_itv.png}
+\caption{Intervention approval screen (Head Technician/administrator)}
+\label{fig:ss-approval-itv}
+\end{figure}
+
+\begin{figure}[H]
 \centering
-\vspace{1cm}
-\textit{Head Technician dashboard: work order queue by priority, intervention schedule, stock shortage alerts, reliability KPI cards.}
-\vspace{1cm}
-\end{minipage}}
+\includegraphics[width=\textwidth]{figures/ss_dashboard_cheftech.png}
 \caption{Head Technician dashboard}
 \label{fig:dashboard-cheftech}
 \end{figure}
 
-\screenshotph{fig:ss-technicien}{Technician dashboard}{Technician dashboard: assigned intervention orders for the day, a machine's current status, and the close-out form used to record the root cause on completion.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_technicien.png}
+\caption{Technician dashboard}
+\label{fig:ss-technicien}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_machine_detail.png}
+\caption{Machine detail and health screen}
+\label{fig:ss-machine-detail}
+\end{figure}
+
+\subsection{Summary}
+
+Three role-scoped spaces (Administrator, Head Technician, Technician) share one design system, from the shared login screen through to each role's dashboard, approval queues, and machine-detail views. Keeping the UI role-aware at the routing level, not just visually, is what enforces the access boundaries defined in Chapter~2 on the client side, on top of the server-side checks.
 
 \section{Machine Learning pipeline implementation}
 
 Each predictive model (P1 to P6) was trained and then integrated into the model-serving microservice, with lazy, cached loading to limit response times. An explainability layer (``Why?'') was added across the board: every prediction, alert, or recommendation can be expanded into a plain-language explanation, free of Machine Learning terminology, so it remains understandable to field technicians.
 
-\screenshotph{fig:ss-ml-dashboard}{ML predictions screen}{ML \& Predictions screen: per-machine cards for failure probability, RUL estimate, behavioral anomaly score, and maintenance schedule, each with a ``Why?'' button.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_ml_dashboard.png}
+\caption{ML predictions screen}
+\label{fig:ss-ml-dashboard}
+\end{figure}
 
-\screenshotph{fig:ss-iot}{IoT telemetry dashboard}{IoT Dashboard screen: live sensor readings per machine (air/process temperature, rotational speed, torque, tool wear), with out-of-range values highlighted.}
-
-\screenshotph{fig:ss-alerts}{Predictive alerts screen}{Alertes Prédictives screen: alert list by severity and machine, including the parts-shortage alert type raised by the P7 module.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_alerts.png}
+\caption{Predictive alerts screen}
+\label{fig:ss-alerts}
+\end{figure}
 
 The P7 spare parts coordination module was built in six progressive steps: a demand forecasting engine, stock shortage alert routing, role-based interface adaptation, guided order preparation (never automatic), an operational readiness score with an event timeline, and a feedback loop comparing predictions against parts actually consumed.
 
-\screenshotph{fig:ss-procurement}{Guided procurement screen}{Procurement recommendation modal: the five-step guided flow the Head Technician walks through to review and approve a draft purchase order, with nothing committed automatically.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_procurement.png}
+\caption{Guided procurement screen}
+\label{fig:ss-procurement}
+\end{figure}
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\fbox{\begin{minipage}{0.85\textwidth}
-\centering
-\vspace{1cm}
-\textit{Explainability panel: a side panel opens when clicking ``Why?'' and details, in plain language, the reason for the alert, the sensors involved, the recommended action, and who should be involved.}
-\vspace{1cm}
-\end{minipage}}
+\includegraphics[width=\textwidth]{figures/ss_explicabilite.png}
 \caption{Prediction explainability panel}
 \label{fig:explicabilite}
 \end{figure}
+
+\subsection{Summary}
+
+P1--P6 are served through a lazily loaded, cached model registry, with every prediction, alert, and recommendation expandable into a plain-language ``Why?'' explanation so field technicians never have to interpret raw model output. P7's guided procurement flow is the clearest expression of the platform's human-in-the-loop principle: the system forecasts and proposes, but never places an order on its own.
 
 \section{RAG service and conversational bridge implementation}
 
 The RAG service supports importing technical documents (manuals, procedures) with version management and cascading deletion. The bridge between the RAG service and the ML microservice was designed to never let a conversation fail: if the ML microservice is unavailable, a fallback estimate based on simple rules is used instead, transparently to the user.
 
-\screenshotph{fig:ss-ragdocs}{Knowledge base document management screen}{RAG Documents screen (Administrator): document list with type and version, drag-and-drop bulk import, and the replace/download actions.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_ragdocs.png}
+\caption{Knowledge base document management screen}
+\label{fig:ss-ragdocs}
+\end{figure}
 
-\screenshotph{fig:ss-chat}{Conversational assistant screen}{Assistant IA screen: a technician's question alongside the generated answer, drawing on both the retrieved documentation and the machine's real-time ML context.}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_chat.png}
+\caption{Conversational assistant screen}
+\label{fig:ss-chat}
+\end{figure}
+
+\subsection{Summary}
+
+Document management (versioning, cascading deletion) and the ML bridge were built together so the two failure modes stay independent: a bad document upload never breaks predictions, and a down ML microservice never breaks the chat, since the bridge falls back to a rule-based estimate instead of failing the conversation.
 
 \section{Pilot rollout plan (PDCA)}
 
-Deploying six new predictive models directly to every machine in the plant, with no feedback loop, would risk both poor predictions and loss of user trust. The rollout was therefore planned as a Plan-Do-Check-Act (PDCA) cycle: a controlled, measurable pilot, followed by a formal audit (Chapter~5), before any decision to generalize.
+Deploying six new predictive models directly to every machine in the plant, with no feedback loop, would risk both poor predictions and loss of user trust. The rollout was therefore planned as a Plan-Do-Check-Act (PDCA) cycle: a controlled, measurable pilot covering the Plan and Do phases below, before any decision to generalize.
 
 \paragraph{Plan.} The pilot targeted a single functional zone (surface-mount technology, a production bottleneck with high-frequency, reliable sensor data) for eight weeks, split into three weeks of \emph{shadow mode} (predictions computed and logged, but not shown to users) followed by five weeks of \emph{active mode}, where the dashboard is revealed to two maintenance managers and four senior technicians. Four quantitative success criteria were fixed in advance: at least 15\% reduction in unexpected downtime against a three-month historical baseline; at least 80\% of machines flagged \emph{critical} by the failure-probability model confirmed as a real issue on inspection; at least 75\% agreement between the predicted and the technician-confirmed failure type; and no more than 250\,ms of additional backend latency introduced by the inference calls.
 
 \paragraph{Do.} During shadow mode, every prediction was written to a dedicated log table and compared, at the end of the three weeks, against the intervention orders that managers actually created: a first check of whether the models would have caught what really happened. During active mode, managers were required to open an intervention order for every machine flagged \emph{critical}, and technicians were required, when closing a work order, to record the actual failure type observed. This technician-confirmed label capture is the direct precursor of the production feedback loop described in Chapter~5: real, technician-confirmed outcomes compared against past predictions, closing the loop between the field and the model.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pdca.png}
+\caption{Pilot rollout dashboard (PDCA tracking)}
+\label{fig:ss-pdca}
+\end{figure}
 
 \section{Technical difficulties encountered}
 

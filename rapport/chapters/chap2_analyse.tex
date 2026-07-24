@@ -112,6 +112,10 @@ Figure~\ref{fig:use-case-diagram} presents the detailed use case diagram, showin
 \label{fig:use-case-diagram}
 \end{figure}
 
+\subsection{Summary}
+
+The platform serves four roles --- Administrator, Operations Manager, Head Technician, Technician --- each scoped to a distinct slice of the system, from global user and document management down to field execution and the conversational assistant. The use case diagram formalizes these boundaries, tying every feature to the role(s) authorized to use it and routing all of them through a shared authentication gate.
+
 \section{Functional requirements}
 
 \subsection{Authentication and access management}
@@ -200,6 +204,10 @@ The system must support viewing summary reports on maintenance activity, machine
 
 Every action performed on a work order, an intervention order, or an alert must be logged in an audit trail with the identity of the author, the date, and the nature of the action.
 Closed interventions and handled alerts must be preserved in a viewable, non-modifiable history, serving as the basis for the continuous evaluation of the predictive models.
+
+\subsection{Summary}
+
+Twelve requirement areas were specified, spanning classic EAM operations (users, machines, work orders, interventions, scheduling) and the ML-driven layer built on top of them (six predictive indicators, alerts, spare-parts coordination, the conversational assistant). Two constraints recur across nearly all of them: every prediction must ship with a plain-language explanation, and the system must degrade honestly --- reporting missing telemetry rather than fabricating a plausible-looking answer.
 
 \section{Non-functional requirements}
 
@@ -407,6 +415,10 @@ The interface must be usable from a desktop workstation as well as from a tablet
 
 Data for each machine must be accessible only to users whose role explicitly authorizes it; a technician must not be able to view data for a machine that is not assigned to them.
 The history of interventions, alerts, and predictions must be preserved with integrity: no retroactive modification is allowed once an order or an alert has been closed.
+
+\subsection{Summary}
+
+Beyond features, the platform is bound by explicit quality constraints: server-side authorization on every route, a five-stage DevSecOps pipeline run on every push (secrets, dependencies, static analysis, container/IaC scanning, dynamic testing), sub-two-second response times, and graceful degradation of both ML and telemetry-dependent features when a dependency is unavailable. These constraints, not just the functional list, shaped several implementation decisions described in Chapter~4 (independent containers, non-blocking security gates, the health-score fallback path).
 
 \section{Use case diagram}
 

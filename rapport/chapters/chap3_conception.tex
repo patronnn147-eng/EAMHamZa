@@ -31,13 +31,17 @@ The whole system is orchestrated by Docker, with object storage (MinIO) for docu
 \label{fig:architecture}
 \end{figure}
 
+\subsection{Summary}
+
+The platform is a four-component system --- Next.js frontend, FastAPI backend, Flask ML microservice, RAG service --- communicating over HTTP, with PostgreSQL and MinIO as shared storage and Docker as the deployment substrate. The backend sits at the center, acting as the sole point of contact for the frontend and fanning out to the two specialist services as needed.
+
 \section{Global business process flow}
 
 Beyond the component-level architecture above, it is useful to see how a single business event travels through the whole system. An intervention request follows one validation gate before becoming a work order, while machine telemetry is analyzed continuously by the ML engine, whose predictions feed directly into that same validation step as supporting evidence for the Head Technician.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/global.png}
+\includegraphics[width=\textwidth]{figures/global.png}
 \caption{Global flow of an intervention request}
 \label{fig:flux-global}
 \end{figure}
@@ -74,6 +78,19 @@ An \textbf{Alert} entity connects these objects to the ML microservice's predict
 \caption{Simplified data model}
 \label{fig:modele-donnees}
 \end{figure}
+
+Figure~\ref{fig:class-diagram} details this model at the class level, with the full set of attributes, methods, enumerations, and cardinalities.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/class_diagram.png}
+\caption{Class diagram}
+\label{fig:class-diagram}
+\end{figure}
+
+\subsection{Summary}
+
+Four entities --- User, Machine, WorkOrder, InterventionOrder --- anchor the relational schema, with Alert bridging that operational core to the ML microservice's predictions. The full class diagram (Figure~\ref{fig:class-diagram}) expands this into the complete set of attributes, methods, enumerations, and cardinalities actually implemented.
 
 \section{Machine Learning pipeline architecture}
 \label{sec:ml-pipeline-architecture}
@@ -224,7 +241,7 @@ Each model converts its output into a \emph{Basic Probability Assignment} (BPA) 
 
 This mechanism is important for the platform's credibility. A system that always produces a confident-sounding answer, even when its own inputs contradict one another, will eventually be confidently wrong. The DST layer is designed to say ``not sure yet'' explicitly, rather than forcing a false consensus. The fused BPA yields the single \emph{unified health score} (0--100) and an overall verdict that downstream readiness and alerting logic consumes.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/dst.png}
 \caption{Wave 2 signal fusion into the DST health score}
@@ -235,7 +252,7 @@ For a non-specialist reader, Figure~\ref{fig:wave2-explainer} restates the same 
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.92\textwidth]{figures/wave2_benchmarks.png}
+\includegraphics[width=\textwidth]{figures/wave2_benchmarks.png}
 \caption{Wave 2 signals, benchmark, and fusion outcome}
 \label{fig:wave2-explainer}
 \end{figure}
@@ -270,14 +287,18 @@ When a user opens a machine detail page, the following sequence executes:
 
 The readiness score blends the unified health score (40\%) with inventory coverage (30\%), procurement risk (20\%), and maintenance recency (10\%). Alerts aggregate signals from both pipelines (an anomaly flag from P4, a parts shortage from P7, or a model-disagreement flag from the fusion step itself) and a detected parts shortage triggers the purchase draft, as shown in Figure~\ref{fig:downstream}.
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{figures/downstream.png}
+\includegraphics[width=\textwidth]{figures/downstream.png}
 \caption{From ML outputs to readiness, alerts, and purchase drafts}
 \label{fig:downstream}
 \end{figure}
 
 P7 acts as a smart shopping list rather than an automated buyer. Every spare part is consumed at its own pace (some wear steadily, others are only replaced in occasional bursts) and P7 learns that pace per part, per machine, then combines it with how likely each machine is to need work soon. From this it estimates how many units of a given part will be needed within the coming weeks, and compares that estimate against what is actually available in the warehouse. When the numbers do not add up, a shortage alert is raised well before a technician is left waiting for a part in the middle of a repair. The system never places an order autonomously; it only prepares the suggestion, and a human must review and approve it.
+
+\subsection{Summary}
+
+Seven independent models (P1--P7) each answer one question from a shared telemetry snapshot, feeding a second, history-aware pipeline (Wave~2: PINN, Cox PH, Mahalanobis, CUSUM/Kalman) whose outputs are reconciled through Dempster-Shafer evidence fusion into a single health score and verdict --- reporting genuine uncertainty rather than a false consensus when sources disagree. Three data-quality safeguards run ahead of every prediction (synthetic-data quarantine, null-telemetry handling, group-holdout validation), and the resulting health score, together with parts-demand forecasting, drives the readiness, alerting, and procurement logic described at the end of this section.
 
 \section{RAG service and ML bridge architecture}
 
@@ -308,6 +329,10 @@ The RAG service ingests technical documentation (maintenance manuals, safety pro
 \label{fig:rag-bridge}
 \end{figure}
 
+\subsection{Summary}
+
+Documentation retrieval and real-time machine health are fetched in parallel and merged before reaching the language model, so a technician's question is always answered from both sources at once rather than one after the other. Because the two fetches are independent, the assistant keeps responding --- from documentation alone --- even if the ML microservice is down.
+
 \section{Document ingestion pipeline}
 
 Every document submitted to the RAG service (PDF, scanned image, Word document, spreadsheet, or web page) goes through the same six-stage pipeline before it becomes searchable. Table~\ref{tab:ingestion} summarizes the stages.
@@ -334,6 +359,10 @@ Every document submitted to the RAG service (PDF, scanned image, Word document, 
 \caption{Document ingestion pipeline stages}
 \label{tab:ingestion}
 \end{table}
+
+\subsection{Summary}
+
+Every uploaded document passes through the same six deterministic stages --- format check, text extraction with OCR fallback, SHA-256 deduplication, sentence-aware chunking, batch embedding, and pgvector storage --- before it becomes searchable. OCR and deduplication in particular close two failure modes that existed in earlier iterations of the service: scanned PDFs producing zero chunks, and duplicate uploads being re-processed from scratch.
 
 \section{End-to-end request flow}
 

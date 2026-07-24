@@ -232,6 +232,10 @@ Step~8 (tune and improve) defined, for every problem, a concrete lever to close 
 
 Several of these initial choices were revised during productionisation, once the label-leakage and validation-methodology issues described in Chapter~5 were identified: Random Forest gave way to XGBoost with group-holdout validation for P1, and the scheduling problem was reworked away from a pure Prophet time-series forecast towards the classifier-based approach and the broader Wave~2 signal-fusion layer presented in Chapter~3. A seventh problem, spare-parts demand forecasting (P7), was added beyond this original six-problem scope once the platform's data model matured enough to support it.
 
+\subsection{Summary}
+
+Every feature followed the same disciplined loop: written specification, implementation plan, build, then verification. For the six originally scoped ML problems, this loop took the concrete shape of an eight-step pipeline (define, collect, prepare, split, choose, train, evaluate, tune) applied identically to each; two of the choices made at this early stage --- a random train/test split and features that were later found to leak the label --- were revised once productionisation surfaced the issue in Chapter~5. A seventh problem, spare-parts demand forecasting (P7), was added once the platform's data model matured enough to support it.
+
 \section{Internship schedule}
 
 \definecolor{gantt1}{HTML}{274472}
