@@ -69,8 +69,8 @@ class FakeAsyncSession:
         pass
 
 
-def _person(pid):
-    return SimpleNamespace(id=pid)
+def _person(pid, nom="P"):
+    return SimpleNamespace(id=pid, nom=nom)
 
 
 @pytest.mark.asyncio
@@ -174,3 +174,178 @@ async def test_clean_seed_data_no_seed_rows_skips_conditional_deletes():
 
     # 2 selects (both empty) + 3 unconditional deletes = 5, no conditional deletes fire
     assert db.call_count == 5
+
+
+# ── run_seed_driver ──────────────────────────────────────────────────────────
+
+class _ScalarsResult:
+    def __init__(self, rows):
+        self._rows = rows
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return self._rows
+
+
+class _ScalarResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar(self):
+        return self._value
+
+
+class FakeDriverSession:
+    """FIFO fake: each queued response is returned by the next db.execute()."""
+
+    def __init__(self, responses):
+        self._responses = list(responses)
+        self.commit_count = 0
+
+    async def execute(self, stmt):
+        return self._responses.pop(0)
+
+    async def commit(self):
+        self.commit_count += 1
+
+
+class FakeDbManager:
+    def __init__(self, session):
+        self._session = session
+        self.init_db_called = False
+
+    async def init_db(self):
+        self.init_db_called = True
+
+    def async_session_maker(self):
+        session = self._session
+
+        class _Ctx:
+            async def __aenter__(self):
+                return session
+
+            async def __aexit__(self, *exc):
+                return False
+
+        return _Ctx()
+
+
+def _machine(mid, nom="M"):
+    return SimpleNamespace(id=mid, nom=nom)
+
+
+@pytest.mark.asyncio
+async def test_run_seed_driver_aborts_when_no_machines_found():
+    session = FakeDriverSession([_ScalarsResult([])])
+    db_manager = FakeDbManager(session)
+
+    result = await sc.run_seed_driver(
+        db_manager, num_cycles=5, clean_mode=False, machine_ids=None,
+        idempotency_threshold=10, clean_seed_data_fn=None, seed_machine_fn=None,
+    )
+
+    assert result is None
+    assert db_manager.init_db_called is True
+
+
+@pytest.mark.asyncio
+async def test_run_seed_driver_aborts_when_required_users_missing():
+    session = FakeDriverSession([
+        _ScalarsResult([_machine(1)]),  # machines
+        _ScalarsResult([]),  # techniciens (missing)
+        _ScalarsResult([_person(2)]),  # cheftechs
+        _ScalarsResult([_person(3)]),  # chetops
+    ])
+    db_manager = FakeDbManager(session)
+
+    result = await sc.run_seed_driver(
+        db_manager, num_cycles=5, clean_mode=False, machine_ids=None,
+        idempotency_threshold=10, clean_seed_data_fn=None, seed_machine_fn=None,
+    )
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_run_seed_driver_skips_already_seeded_machine():
+    session = FakeDriverSession([
+        _ScalarsResult([_machine(1)]),  # machines
+        _ScalarsResult([_person(10)]),  # techniciens
+        _ScalarsResult([_person(20)]),  # cheftechs
+        _ScalarsResult([_person(30)]),  # chetops
+        _ScalarResult(50),  # existing telemetry count >= threshold
+    ])
+    db_manager = FakeDbManager(session)
+
+    async def seed_machine_fn(*args, **kwargs):
+        raise AssertionError("should not be called for an already-seeded machine")
+
+    result = await sc.run_seed_driver(
+        db_manager, num_cycles=5, clean_mode=False, machine_ids=None,
+        idempotency_threshold=10, clean_seed_data_fn=None, seed_machine_fn=seed_machine_fn,
+    )
+
+    assert result == {}
+
+
+@pytest.mark.asyncio
+async def test_run_seed_driver_seeds_machine_and_builds_summary():
+    session = FakeDriverSession([
+        _ScalarsResult([_machine(1, "M1"), _machine(2, "M2")]),  # machines
+        _ScalarsResult([_person(10)]),  # techniciens
+        _ScalarsResult([_person(20)]),  # cheftechs
+        _ScalarsResult([_person(30)]),  # chetops
+        _ScalarResult(0),  # machine 1: existing count below threshold
+        _ScalarResult(0),  # machine 2: existing count below threshold
+    ])
+    db_manager = FakeDbManager(session)
+
+    seeded_machines = []
+
+    async def seed_machine_fn(db, machine, techniciens, cheftech, chetop, num_cycles):
+        seeded_machines.append(machine.id)
+        return {"NONE": num_cycles}
+
+    result = await sc.run_seed_driver(
+        db_manager, num_cycles=7, clean_mode=False, machine_ids=None,
+        idempotency_threshold=10, clean_seed_data_fn=None, seed_machine_fn=seed_machine_fn,
+    )
+
+    assert seeded_machines == [1, 2]
+    assert result == {1: {"NONE": 7}, 2: {"NONE": 7}}
+    assert session.commit_count == 2
+
+
+@pytest.mark.asyncio
+async def test_run_seed_driver_clean_mode_reseeds_despite_high_existing_count():
+    session = FakeDriverSession([
+        _ScalarsResult([_machine(1)]),  # machines
+        _ScalarsResult([_person(10)]),  # techniciens
+        _ScalarsResult([_person(20)]),  # cheftechs
+        _ScalarsResult([_person(30)]),  # chetops
+        _ScalarResult(999),  # existing count is way above threshold
+    ])
+    db_manager = FakeDbManager(session)
+
+    clean_calls = []
+
+    async def clean_seed_data_fn(db, machine_id):
+        clean_calls.append(machine_id)
+
+    seeded_machines = []
+
+    async def seed_machine_fn(db, machine, techniciens, cheftech, chetop, num_cycles):
+        seeded_machines.append(machine.id)
+        return {"NONE": 1}
+
+    result = await sc.run_seed_driver(
+        db_manager, num_cycles=3, clean_mode=True, machine_ids=None,
+        idempotency_threshold=10, clean_seed_data_fn=clean_seed_data_fn,
+        seed_machine_fn=seed_machine_fn,
+    )
+
+    assert clean_calls == [1]
+    assert seeded_machines == [1]
+    assert result == {1: {"NONE": 1}}
