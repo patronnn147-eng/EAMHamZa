@@ -23,6 +23,67 @@ router = APIRouter(
 logger = logging.getLogger(__name__)
 
 
+async def _create_wo_for_approved_intervention(
+    db: AsyncSession, intervention, id: int, current_user: Utilisateurs
+) -> int:
+    """Create the linked Work Order for an APPROVE action. Returns the new WO id.
+    Raises HTTPException(400) if the intervention has no machine, or
+    HTTPException(500) if Work Order creation itself fails."""
+    from services.ordres_travail import OrdresTravailService
+
+    wo_service = OrdresTravailService(db)
+
+    if not intervention.machine_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot create Work Order: Intervention must be associated with a machine.",
+        )
+
+    try:
+        new_wo = await wo_service.create(
+            {
+                "titre": f"[Intervention Acceptée] Demande #{id}",
+                "description": intervention.problem_description
+                or "Demande d'intervention validée par le ChefTech",
+                "priorite": intervention.priority or "MOYENNE",
+                "statut": OrdreStatut.ASSIGNED,  # Use new enum
+                "machine_id": intervention.machine_id,
+                "utilisateur_id": intervention.technician_id,
+                "created_by": intervention.technician_id,
+                "validated_by": current_user.id,
+                "date_validation": datetime.now(),
+            }
+        )
+    except Exception as e:
+        safe_exc = str(e).replace("\r", "").replace("\n", "")
+        logger.error(
+            f"Failed to create linked Work Order for accepted intervention #{id}: {safe_exc}"
+        )
+        raise HTTPException(
+            status_code=500, detail="Failed to create linked Work Order."
+        )
+
+    safe_wo_id = str(new_wo.id).replace("\r", "").replace("\n", "")
+    logger.info(f"Created linked Work Order #{safe_wo_id} for Intervention #{id}")
+    return new_wo.id
+
+
+async def _log_intervention_audit(
+    db: AsyncSession, id: int, old_statut, new_values: dict, current_user: Utilisateurs, context: str
+) -> None:
+    try:
+        await AuditService(db).log_update(
+            entity_type=AuditEntityType.INTERVENTION,
+            entity_id=id,
+            old_values={"statut": old_statut},
+            new_values=new_values,
+            user_id=current_user.id,
+            user_name=current_user.nom,
+        )
+    except Exception:
+        logger.warning(f"Audit log failed for {context} intervention %s", id)
+
+
 @router.post("/{id}/validate", response_model=OrdresInterventionResponse, responses={400: {"description": "Cannot create Work Order: Intervention must be associated with a machine.; Invalid action"}, 404: {"description": "OrdresIntervention not found"}, 500: {"description": "Failed to create linked Work Order."}})
 async def validate_OrdresIntervention(
     id: int,
@@ -43,49 +104,9 @@ async def validate_OrdresIntervention(
         update_dict["statut"] = "APPROVED"
         update_dict["approved_by"] = current_user.id
         update_dict["approved_at"] = datetime.now()
-
-        try:
-            from services.ordres_travail import OrdresTravailService
-
-            wo_service = OrdresTravailService(db)
-
-            if not intervention.machine_id:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot create Work Order: Intervention must be associated with a machine.",
-                )
-
-            new_wo = await wo_service.create(
-                {
-                    "titre": f"[Intervention Acceptée] Demande #{id}",
-                    "description": intervention.problem_description
-                    or "Demande d'intervention validée par le ChefTech",
-                    "priorite": intervention.priority or "MOYENNE",
-                    "statut": OrdreStatut.ASSIGNED,  # Use new enum
-                    "machine_id": intervention.machine_id,
-                    "utilisateur_id": intervention.technician_id,
-                    "created_by": intervention.technician_id,
-                    "validated_by": current_user.id,
-                    "date_validation": datetime.now(),
-                }
-            )
-
-            update_dict["ordre_travail_id"] = new_wo.id
-            safe_wo_id = str(new_wo.id).replace("\r", "").replace("\n", "")
-            logger.info(
-                f"Created linked Work Order #{safe_wo_id} for Intervention #{id}"
-            )
-        except HTTPException:
-            raise
-        except Exception as e:
-            safe_exc = str(e).replace("\r", "").replace("\n", "")
-            logger.error(
-                f"Failed to create linked Work Order for accepted intervention #{id}: {safe_exc}"
-            )
-            raise HTTPException(
-                status_code=500, detail="Failed to create linked Work Order."
-            )
-
+        update_dict["ordre_travail_id"] = await _create_wo_for_approved_intervention(
+            db, intervention, id, current_user
+        )
     elif data.action == "REJECT":
         update_dict["statut"] = "DECLINED"
         update_dict["approved_by"] = current_user.id
@@ -106,17 +127,11 @@ async def validate_OrdresIntervention(
         except Exception as rls_exc:
             logger.warning(f"release_all on intervention reject failed: {rls_exc}")
 
-    try:
-        await AuditService(db).log_update(
-            entity_type=AuditEntityType.INTERVENTION,
-            entity_id=id,
-            old_values={"statut": old_statut},
-            new_values={"statut": update_dict.get("statut"), "action": data.action},
-            user_id=current_user.id,
-            user_name=current_user.nom,
-        )
-    except Exception:
-        logger.warning("Audit log failed for validate intervention %s", id)
+    await _log_intervention_audit(
+        db, id, old_statut,
+        {"statut": update_dict.get("statut"), "action": data.action},
+        current_user, "validate",
+    )
 
     return result
 
@@ -162,16 +177,8 @@ async def complete_validation_ordres_intervention(
         },
     )
 
-    try:
-        await AuditService(db).log_update(
-            entity_type=AuditEntityType.INTERVENTION,
-            entity_id=id,
-            old_values={"statut": old_statut},
-            new_values={"statut": "VALIDATED"},
-            user_id=current_user.id,
-            user_name=current_user.nom,
-        )
-    except Exception:
-        logger.warning("Audit log failed for complete-validation intervention %s", id)
+    await _log_intervention_audit(
+        db, id, old_statut, {"statut": "VALIDATED"}, current_user, "complete-validation"
+    )
 
     return result

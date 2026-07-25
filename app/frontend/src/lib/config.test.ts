@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 async function freshConfig() {
   vi.resetModules();
@@ -6,10 +6,10 @@ async function freshConfig() {
 }
 
 describe('config', () => {
-  const originalFetch = global.fetch;
+  const originalFetch = globalThis.fetch;
 
   afterEach(() => {
-    global.fetch = originalFetch;
+    globalThis.fetch = originalFetch;
     vi.unstubAllEnvs();
   });
 
@@ -20,11 +20,11 @@ describe('config', () => {
   });
 
   it('adopts the runtime config when /api/config returns JSON', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       headers: { get: () => 'application/json' },
       json: async () => ({ API_BASE_URL: 'https://runtime.example.com' }),
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
 
     const { loadRuntimeConfig, getConfig } = await freshConfig();
     await loadRuntimeConfig();
@@ -32,11 +32,11 @@ describe('config', () => {
   });
 
   it('ignores a non-JSON response and keeps the default after loading finishes', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       headers: { get: () => 'text/html' },
       json: async () => ({}),
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
 
     const { loadRuntimeConfig, getConfig } = await freshConfig();
     await loadRuntimeConfig();
@@ -44,7 +44,7 @@ describe('config', () => {
   });
 
   it('falls back to default when the config endpoint responds with an error status', async () => {
-    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue({ ok: false, status: 500 }) as typeof fetch;
 
     const { loadRuntimeConfig, getConfig } = await freshConfig();
     await loadRuntimeConfig();
@@ -52,7 +52,7 @@ describe('config', () => {
   });
 
   it('falls back to default when fetch throws', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('network down')) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network down')) as typeof fetch;
 
     const { loadRuntimeConfig, getConfig } = await freshConfig();
     await loadRuntimeConfig();
@@ -60,11 +60,11 @@ describe('config', () => {
   });
 
   it('config.API_BASE_URL getter reflects the current resolved config', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
+    globalThis.fetch = vi.fn().mockResolvedValue({
       ok: true,
       headers: { get: () => 'application/json' },
       json: async () => ({ API_BASE_URL: 'https://runtime.example.com' }),
-    }) as unknown as typeof fetch;
+    }) as typeof fetch;
 
     const { loadRuntimeConfig, config } = await freshConfig();
     await loadRuntimeConfig();

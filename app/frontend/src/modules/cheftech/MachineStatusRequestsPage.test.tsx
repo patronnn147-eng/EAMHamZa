@@ -25,8 +25,8 @@ function mkItem(overrides: Record<string, unknown> = {}) {
 
 function mockFetchSequence(...responses: Array<{ ok: boolean; json?: () => Promise<unknown> }>) {
   const fn = vi.fn();
-  for (const r of responses) fn.mockResolvedValueOnce(r as unknown as Response);
-  global.fetch = fn as unknown as typeof fetch;
+  for (const r of responses) fn.mockResolvedValueOnce(r as Response);
+  globalThis.fetch = fn as typeof fetch;
   return fn;
 }
 
@@ -73,7 +73,7 @@ describe('MachineStatusRequestsPage', () => {
   });
 
   it('shows the empty state when fetch throws', async () => {
-    global.fetch = vi.fn().mockRejectedValue(new Error('network')) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('network')) as typeof fetch;
     render(<MachineStatusRequestsPage />);
     expect(await screen.findByText('Aucune demande en attente')).toBeTruthy();
   });

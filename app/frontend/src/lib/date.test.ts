@@ -4,7 +4,7 @@ import { toDateInputValue, toDateTimeLocalInputValue } from './date';
 describe('toDateInputValue', () => {
   it('returns empty string for null/undefined', () => {
     expect(toDateInputValue(null)).toBe('');
-    expect(toDateInputValue(undefined)).toBe('');
+    expect(toDateInputValue()).toBe('');
     expect(toDateInputValue('')).toBe('');
   });
 
@@ -28,7 +28,7 @@ describe('toDateInputValue', () => {
 describe('toDateTimeLocalInputValue', () => {
   it('returns empty string for null/undefined', () => {
     expect(toDateTimeLocalInputValue(null)).toBe('');
-    expect(toDateTimeLocalInputValue(undefined)).toBe('');
+    expect(toDateTimeLocalInputValue()).toBe('');
     expect(toDateTimeLocalInputValue('')).toBe('');
   });
 

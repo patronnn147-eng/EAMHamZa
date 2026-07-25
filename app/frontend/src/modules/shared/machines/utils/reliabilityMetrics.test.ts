@@ -16,7 +16,7 @@ function mkIntervention(
   durationMinutes: number,
   overrides: Partial<Intervention> = {}
 ): Intervention {
-  const start = new Date(NOW - startOffsetHours * 3600_000);
+  const start = new Date(NOW - startOffsetHours * 3_600_000);
   const end = new Date(start.getTime() + durationMinutes * 60_000);
   return {
     id,
