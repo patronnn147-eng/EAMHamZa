@@ -239,7 +239,7 @@ sonarqube-scan:
         -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)" \
         -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service \
         -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/**,app/ml-microservice/ml_research/retrain_pipeline_debug_log.ipynb \
-        -Dsonar.coverage.exclusions=app/backend/seed_ml_data*.py,app/ml-microservice/ml_research/** \
+        -Dsonar.coverage.exclusions=app/backend/seed_ml_data*.py,app/ml-microservice/ml_research/**,app/frontend/src/**/*.test.ts,app/frontend/src/**/*.test.tsx \
         -Dsonar.python.coverage.reportPaths=coverage.xml \
         -Dsonar.javascript.lcov.reportPaths=app/frontend/coverage/lcov.info \
         -Dsonar.issue.ignore.multicriteria=r3f \
