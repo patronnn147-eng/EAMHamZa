@@ -186,7 +186,7 @@ async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
 
     wo_res = await db.execute(
         select(OrdresTravail)
-        .where(OrdresTravail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS]))
+        .where(OrdresTravail.statut.in_([OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]))
         .limit(100)
     )
     work_orders = [_wo_to_dict(wo) for wo in wo_res.scalars().all()]
