@@ -75,6 +75,8 @@ async def validate_OrdresIntervention(
             logger.info(
                 f"Created linked Work Order #{safe_wo_id} for Intervention #{id}"
             )
+        except HTTPException:
+            raise
         except Exception as e:
             safe_exc = str(e).replace("\r", "").replace("\n", "")
             logger.error(
