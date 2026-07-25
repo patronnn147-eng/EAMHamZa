@@ -39,10 +39,27 @@ services:
       retries: 3
       start_period: 30s
 
+  # prom/pushgateway's image runs as uid 65534 (nobody), but a freshly created
+  # named volume's root dir is owned by root:root — the image has no entrypoint
+  # wrapper to fix that itself, so every persistence write silently 403'd until
+  # this was added (2026-07-25: found via "permission denied" in its own logs,
+  # meaning --persistence.file had NEVER once succeeded since the volume was
+  # first created). This one-shot chown runs before pushgateway on every up,
+  # so a future `down -v` (fresh volume) self-heals instead of repeating the bug.
+  pushgateway-init:
+    image: alpine:latest
+    container_name: eam_pushgateway_init
+    command: ["chown", "-R", "65534:65534", "/data"]
+    volumes:
+      - pushgateway_data:/data
+
   pushgateway:
     image: prom/pushgateway:v1.8.0
     container_name: eam_pushgateway
     restart: unless-stopped
+    depends_on:
+      pushgateway-init:
+        condition: service_completed_successfully
     command:
       - '--persistence.file=/data/pushgateway.db'
       - '--persistence.interval=5m'
