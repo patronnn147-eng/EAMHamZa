@@ -25,7 +25,7 @@ function mkItem(overrides: Record<string, unknown> = {}) {
 
 function mockFetchSequence(...responses: Array<{ ok: boolean; json?: () => Promise<unknown> }>) {
   const fn = vi.fn();
-  for (const r of responses) fn.mockResolvedValueOnce(r as Response);
+  for (const r of responses) fn.mockResolvedValueOnce(r);
   globalThis.fetch = fn as typeof fetch;
   return fn;
 }
