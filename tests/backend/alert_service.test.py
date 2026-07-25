@@ -309,3 +309,148 @@ async def test_send_alert_email_swallows_failure(monkeypatch):
     svc = AlertService(_RaisingDb())
     result = await svc.send_alert_email(alert, config)
     assert result is False
+
+
+# ── _process_machine_alerts ──────────────────────────────────────────────────
+
+def _alert_config(**overrides):
+    base = dict(
+        enable_rul_alerts=True, rul_threshold_days=7.0,
+        enable_failure_alerts=True, failure_probability_threshold=0.7,
+    )
+    base.update(overrides)
+    return SimpleNamespace(**base)
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_emits_rul_warning(monkeypatch):
+    machine = SimpleNamespace(id=1, nom="M1")
+    monkeypatch.setattr(
+        "modules.ml.rul_calculator.RULCalculator.calculate_rul",
+        lambda *a, **k: {"rul_days": 2.0, "failure_probability": 10},
+    )
+    db = FakeDb([
+        FakeResult(scalars_list=[]),  # interventions
+        FakeResult(scalars_list=[]),  # telemetry
+        FakeResult(scalar_one_or_none=None),  # create_alert: no existing duplicate
+        FakeResult(scalar_one_or_none=machine),  # create_alert: machine lookup for notification
+    ])
+    svc = AlertService(db)
+    counts = await svc._process_machine_alerts(machine, _alert_config(), _ml_available=False)
+    assert counts == {"rul_warnings": 1, "failure_predicted": 0}
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_emits_failure_predicted(monkeypatch):
+    machine = SimpleNamespace(id=1, nom="M1")
+    monkeypatch.setattr(
+        "modules.ml.rul_calculator.RULCalculator.calculate_rul",
+        lambda *a, **k: {"rul_days": 100.0, "failure_probability": 90},
+    )
+    db = FakeDb([
+        FakeResult(scalars_list=[]),
+        FakeResult(scalars_list=[]),
+        FakeResult(scalar_one_or_none=None),
+        FakeResult(scalar_one_or_none=machine),
+    ])
+    svc = AlertService(db)
+    counts = await svc._process_machine_alerts(machine, _alert_config(), _ml_available=False)
+    assert counts == {"rul_warnings": 0, "failure_predicted": 1}
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_no_alerts_when_disabled(monkeypatch):
+    machine = SimpleNamespace(id=1, nom="M1")
+    monkeypatch.setattr(
+        "modules.ml.rul_calculator.RULCalculator.calculate_rul",
+        lambda *a, **k: {"rul_days": 0.5, "failure_probability": 99},
+    )
+    db = FakeDb([FakeResult(scalars_list=[]), FakeResult(scalars_list=[])])
+    svc = AlertService(db)
+    counts = await svc._process_machine_alerts(
+        machine, _alert_config(enable_rul_alerts=False, enable_failure_alerts=False), _ml_available=False
+    )
+    assert counts == {"rul_warnings": 0, "failure_predicted": 0}
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_calls_ml_client_when_available(monkeypatch):
+    machine = SimpleNamespace(id=1, nom="M1")
+    predict_mock = AsyncMock(return_value={"unified_health_score": 80.0})
+    monkeypatch.setattr("core.ml_client.ml_client.predict_all", predict_mock)
+    monkeypatch.setattr(
+        "modules.ml.rul_calculator.RULCalculator.calculate_rul",
+        lambda *a, **k: {"rul_days": 100.0, "failure_probability": 5},
+    )
+    latest = SimpleNamespace(
+        air_temperature=295.0, process_temperature=305.0, rotational_speed=1400,
+        torque=35.0, tool_wear=12,
+    )
+    db = FakeDb([FakeResult(scalars_list=[]), FakeResult(scalars_list=[latest])])
+    svc = AlertService(db)
+    counts = await svc._process_machine_alerts(machine, _alert_config(), _ml_available=True)
+    predict_mock.assert_awaited_once()
+    assert counts == {"rul_warnings": 0, "failure_predicted": 0}
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_swallows_ml_client_exception(monkeypatch):
+    machine = SimpleNamespace(id=1, nom="M1")
+    monkeypatch.setattr(
+        "core.ml_client.ml_client.predict_all", AsyncMock(side_effect=RuntimeError("ml down"))
+    )
+    monkeypatch.setattr(
+        "modules.ml.rul_calculator.RULCalculator.calculate_rul",
+        lambda *a, **k: {"rul_days": 100.0, "failure_probability": 5},
+    )
+    db = FakeDb([FakeResult(scalars_list=[]), FakeResult(scalars_list=[])])
+    svc = AlertService(db)
+    counts = await svc._process_machine_alerts(machine, _alert_config(), _ml_available=True)
+    assert counts == {"rul_warnings": 0, "failure_predicted": 0}
+
+
+@pytest.mark.asyncio
+async def test_process_machine_alerts_swallows_outer_exception():
+    machine = SimpleNamespace(id=1, nom="M1")
+
+    class _RaisingDb(FakeDb):
+        async def execute(self, *_a, **_k):
+            raise RuntimeError("db down")
+
+    svc = AlertService(_RaisingDb())
+    counts = await svc._process_machine_alerts(machine, _alert_config(), _ml_available=False)
+    assert counts == {"rul_warnings": 0, "failure_predicted": 0}
+
+
+# ── check_and_create_alerts ──────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_check_and_create_alerts_aggregates_per_machine_counts(monkeypatch):
+    m1 = SimpleNamespace(id=1, nom="M1")
+    m2 = SimpleNamespace(id=2, nom="M2")
+    config = _alert_config()
+    monkeypatch.setattr("core.ml_client.is_ml_service_available", AsyncMock(return_value=False))
+
+    db = FakeDb([
+        FakeResult(scalar_one_or_none=config),  # get_config
+        FakeResult(scalars_list=[m1, m2]),  # machines
+    ])
+    svc = AlertService(db)
+
+    call_counts = [{"rul_warnings": 1, "failure_predicted": 0}, {"rul_warnings": 0, "failure_predicted": 1}]
+    svc._process_machine_alerts = AsyncMock(side_effect=call_counts)
+
+    result = await svc.check_and_create_alerts()
+    assert result == {"rul_warnings": 1, "failure_predicted": 1, "anomaly_detected": 0}
+    assert svc._process_machine_alerts.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_check_and_create_alerts_reraises_on_error(monkeypatch):
+    class _RaisingDb(FakeDb):
+        async def execute(self, *_a, **_k):
+            raise RuntimeError("db down")
+
+    svc = AlertService(_RaisingDb())
+    with pytest.raises(RuntimeError):
+        await svc.check_and_create_alerts()
