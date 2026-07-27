@@ -1,0 +1,79 @@
+# Production overlay for the ~6-day Azure demo deployment.
+# Use with: docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d
+# Overrides local `build:` services to pull pre-built, pre-scanned registry
+# images instead, and removes host port publishing for every service except
+# Caddy — Caddy is the only public entry point (see Caddyfile). Everything
+# else is reachable only over the internal Docker network by service name.
+# This is defense-in-depth: the Azure NSG already blocks external access to
+# all of these ports, but not publishing them at all means a misconfigured
+# NSG rule can't accidentally expose Postgres/MinIO/RabbitMQ either.
+# pull_policy: always guarantees the `build:` block inherited from
+# docker-compose.yml is never used here. restart: always and healthcheck:
+# are already set on every service in the base docker-compose.yml — nothing
+# to add for that here, this overlay only changes image sourcing and port
+# exposure.
+services:
+  postgres:
+    ports: []
+
+  rabbitmq:
+    ports: []
+
+  minio:
+    ports: []
+
+  pgadmin:
+    ports: []
+
+  backend:
+    image: ${CI_REGISTRY_IMAGE}/backend:${IMAGE_TAG:-demo}
+    pull_policy: always
+    ports: []
+
+  celery_worker:
+    image: ${CI_REGISTRY_IMAGE}/backend:${IMAGE_TAG:-demo}
+    pull_policy: always
+
+  celery_beat:
+    image: ${CI_REGISTRY_IMAGE}/backend:${IMAGE_TAG:-demo}
+    pull_policy: always
+
+  rag-service:
+    image: ${CI_REGISTRY_IMAGE}/rag-service:${IMAGE_TAG:-demo}
+    pull_policy: always
+    ports: []
+
+  ml-service:
+    image: ${CI_REGISTRY_IMAGE}/ml-service:${IMAGE_TAG:-demo}
+    pull_policy: always
+    ports: []
+
+  frontend:
+    image: ${CI_REGISTRY_IMAGE}/frontend:${IMAGE_TAG:-demo}
+    pull_policy: always
+    ports: []
+
+  caddy:
+    image: caddy:2.8-alpine
+    container_name: eam_caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      AZURE_VM_HOST: ${AZURE_VM_HOST}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - asset_management_network
+
+volumes:
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
