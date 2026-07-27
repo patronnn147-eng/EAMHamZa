@@ -23,6 +23,9 @@ stages:
   - dast
   - lint
   - gate
+  - registry-push
+  - deploy
+  - verify
 
 variables:
   GIT_LFS_SKIP_SMUDGE: "1"
@@ -540,4 +543,75 @@ quality-gate:
       echo "and job artifacts (SARIF/JSON/HTML) above for full details."
   rules: *branch-rules
   timeout: 2 minutes
+  allow_failure: false
+
+# ─── Stage 8: Registry Push (Azure demo deployment, ~6-day window) ─────────
+# Reuses the :ci images build-images already built. Rebuilds only the
+# frontend, since Vite bakes VITE_API_BASE_URL in at build time and the
+# :ci frontend was built with a localhost URL — the demo needs the real
+# public HTTPS URL baked in instead.
+
+registry-push:
+  stage: registry-push
+  needs: [quality-gate]
+  tags: [local]
+  image: docker:24-cli
+  script:
+    - docker build --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} -t eam-frontend:demo ./app/frontend
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - |
+      for pair in "backend|eam-backend:ci" "frontend|eam-frontend:demo" "ml-service|eam-ml-microservice:ci" "rag-service|eam-rag-service:ci"; do
+        SVC="${pair%%|*}"
+        SRC="${pair#*|}"
+        docker tag "$SRC" "$CI_REGISTRY_IMAGE/${SVC}:demo"
+        docker push "$CI_REGISTRY_IMAGE/${SVC}:demo"
+        docker tag "$SRC" "$ACR_LOGIN_SERVER/${SVC}:demo"
+        docker push "$ACR_LOGIN_SERVER/${SVC}:demo"
+      done
+  rules: *branch-rules
+  timeout: 20 minutes
+  allow_failure: false
+
+# ─── Stage 9: Deploy (SSH to Azure demo VM) ─────────────────────────────────
+
+deploy:
+  stage: deploy
+  needs: [registry-push]
+  tags: [local]
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache openssh-client bash git
+  script:
+    - bash scripts/deploy-to-vm.sh
+  rules: *branch-rules
+  timeout: 15 minutes
+  allow_failure: false
+
+# ─── Stage 10: Verify (curl the live demo URL) ──────────────────────────────
+
+verify:
+  stage: verify
+  needs: [deploy]
+  tags: [local]
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      for i in $(seq 1 10); do
+        if curl -sf "https://${AZURE_VM_HOST}/api/v1/health"; then
+          echo "Backend healthy."
+          break
+        fi
+        echo "Attempt $i/10 failed, retrying in 10s..."
+        sleep 10
+        if [ "$i" -eq 10 ]; then
+          echo "FAIL: backend never became healthy at https://${AZURE_VM_HOST}/api/v1/health"
+          exit 1
+        fi
+      done
+      curl -sf "https://${AZURE_VM_HOST}/" -o /dev/null && echo "Frontend reachable at https://${AZURE_VM_HOST}/"
+  rules: *branch-rules
+  timeout: 5 minutes
   allow_failure: false
