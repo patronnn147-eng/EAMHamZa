@@ -20,6 +20,7 @@ Get the EAM app reachable at a public URL on Azure, driven by an automated GitLa
 - Deploying SonarQube to the cloud (stays local/CI-only).
 - Cost-optimized scale-to-zero architecture (Azure Container Apps was evaluated and rejected — see Alternatives Considered).
 - Automated rollback (acceptable to redeploy manually if a deploy fails, given the short/low-stakes window).
+- Autoscaling, high availability, multi-node/multi-replica resilience — single-node/single-VM by design, for demo purposes only.
 
 ## Two-phase plan
 
@@ -34,21 +35,26 @@ Goal: guarantee *something* is live and screenshottable early, before attempting
 - Free Azure DNS label enabled (e.g. `eam-demo.<region>.cloudapp.azure.com`) instead of a raw IP, for cleaner screenshots.
 - SSH key pair generated once; public key installed on the VM; private key stored as a masked/protected GitLab CI variable.
 - One Azure Container Registry (ACR) resource created — used for an extra "Azure resource" screenshot in phase 1, and becomes functionally load-bearing in phase 2 (AKS pulls from it directly).
+- **Caddy** added as a reverse proxy in front of the frontend/backend, config'd with the DNS label as its site address — Caddy issues and renews a Let's Encrypt HTTPS cert automatically with no manual certificate handling. Without this, the browser shows "Not Secure" on every screenshot, which is an avoidable, noticeable flaw for a jury demo.
 
 **CI pipeline additions (after the existing `gate` stage):**
 - `registry-push`: tag the already-built, already-scanned images; push to GitLab Container Registry (primary — zero new auth needed, already available via `CI_JOB_TOKEN`) and to ACR (bonus screenshot, becomes load-bearing in phase 2).
-- `deploy`: SSH into the VM using the stored key; write a `.env` file from masked GitLab CI variables (DB password, MinIO keys, JWT secret, etc.); run `docker compose pull && docker compose up -d`. This requires a deploy-specific compose file (e.g. `docker-compose.prod.yml`, kept in the repo) referencing the pushed registry image tags instead of the local `build:` directives that `docker-compose.yml` uses — the VM pulls pre-built, already-scanned images rather than rebuilding them. The VM holds a one-time `git clone` of the repo (for this compose file and any static config); `deploy` does a `git pull` before `compose pull`/`up -d` to pick up compose-file changes.
+- `deploy`: SSH into the VM using the stored key; write a `.env` file from masked GitLab CI variables (DB password, MinIO keys, JWT secret, etc.) — all such variables follow an `EAM_*` naming prefix in GitLab's CI/CD variable settings, so the deploy script can enumerate and write them without a hand-maintained list; run `docker compose pull && docker compose up -d`. This requires a deploy-specific compose file (e.g. `docker-compose.prod.yml`, kept in the repo) referencing the pushed registry image tags instead of the local `build:` directives that `docker-compose.yml` uses — the VM pulls pre-built, already-scanned images rather than rebuilding them. The VM holds a one-time `git clone` of the repo (for this compose file and any static config); `deploy` does a `git pull` before `compose pull`/`up -d` to pick up compose-file changes. `docker-compose.prod.yml` sets `restart: always` on every service and a basic `healthcheck:` (HTTP endpoint for backend/frontend, `pg_isready` for Postgres, etc.) — on a single VM with no redundancy, a crashed container should come back on its own rather than silently killing the demo.
 - `verify`: `curl` the public URL's health endpoint from CI; fail the pipeline if it doesn't respond. Gives an automated "deployment verified" pipeline screenshot, not just manual eyeballing.
 
-**Scope running on the VM:** core app (backend, frontend, ml-microservice, rag-service, Postgres, MinIO) + monitoring (Prometheus, Grafana, Pushgateway). SonarQube stays off the VM.
+**Scope running on the VM:** core app (backend, frontend, ml-microservice, rag-service, Postgres, MinIO) + monitoring (Prometheus, Grafana, Pushgateway). SonarQube stays off the VM. Monitoring is included primarily for demonstration value (a Grafana dashboard is a strong CV/report artifact), not because a 6-day demo has real operational monitoring needs.
+
+**Routing:** Caddy is the only public entry point (ports 80/443) and reverse-proxies to the frontend; the frontend calls the backend over the VM's internal Docker network (not separately exposed publicly); ml-microservice and rag-service are internal-only, reachable solely from the backend over the same Docker network; Postgres and MinIO are internal-only; Grafana is reverse-proxied through Caddy on a subpath (or separate DNS label) for screenshotting, Prometheus/Pushgateway stay internal.
 
 **Data flow:** `git push to Phase_2` → existing security/test/build/scan stages (unchanged) → `registry-push` → `deploy` (SSH + compose) → `verify` (curl) → developer browses the URL and takes screenshots (live app, Azure portal VM view, GitLab CI green pipeline).
 
 **Error handling:** minimal by design. If `deploy` fails, the pipeline goes red (clear signal); previously-running containers keep serving until fixed and re-pushed. No automated rollback for a 6-day demo.
 
-### Phase 2 — AKS (stretch goal, attempted after phase 1 is confirmed working)
+### Phase 2 — AKS (optional stretch goal, attempted after phase 1 is confirmed working)
 
-Goal: a more impressive, Kubernetes-based deployment for the report/CV, attempted with the remaining days once phase 1 has already produced guaranteed screenshots.
+**Phase 2 is explicitly optional. Phase 1 alone fully satisfies the Success Criteria below.** AKS is real-world known to be non-trivial for a first-timer — ingress/networking setup commonly costs a full day or two on its own, and PVC/storage issues are a common second time-sink. If phase 2 runs out of time or gets stuck, stop and ship phase 1 only: a clean VM + CI/CD pipeline + screenshots is a solid deliverable on its own and is strictly better than a broken or half-finished Kubernetes demo. Do not sacrifice phase 1 polish or time to chase phase 2.
+
+Goal (if attempted): a more impressive, Kubernetes-based deployment for the report/CV, attempted with the remaining days once phase 1 has already produced guaranteed screenshots.
 
 **One-time manual setup:**
 - One AKS cluster, single node pool, one node, Standard_D4s_v5 (4 vCPU / 16GB) — comparable sizing to the phase 1 VM. AKS control plane is free; only the node costs.
@@ -78,10 +84,26 @@ Goal: a more impressive, Kubernetes-based deployment for the report/CV, attempte
 
 ## Success criteria
 
-- GitLab CI pipeline runs green end-to-end on a push to `Phase_2`, including the new `registry-push`/`deploy`/`verify` (phase 1) and `deploy-aks`/`verify-aks` (phase 2) stages.
-- Live app reachable and screenshotted from both the VM's public DNS label and the AKS ingress URL.
-- Azure portal screenshots showing the VM, the ACR, and the AKS cluster with running workloads.
+**Required (phase 1 alone must deliver this):**
+- GitLab CI pipeline runs green end-to-end on a push to `Phase_2`, including the new `registry-push`/`deploy`/`verify` stages.
+- Live app reachable over HTTPS and screenshotted from the VM's public DNS label.
+- Azure portal screenshots showing the VM and the ACR.
 - All Azure resources deleted after the window closes, confirmed via the portal (no ongoing billing).
+
+**Bonus (only if phase 2 succeeds):**
+- Live app additionally reachable and screenshotted via the AKS ingress URL.
+- Azure portal screenshot showing the AKS cluster with running workloads.
+- `deploy-aks`/`verify-aks` stages also green in the pipeline.
+
+## Limitations
+
+Documented explicitly here (and worth stating plainly in the PFE report — it reads as engineering maturity, not a gap):
+
+- No autoscaling — fixed single VM / single AKS node.
+- No high availability — one instance of every service; a node failure takes the whole demo down.
+- No automated rollback — a bad deploy is fixed by pushing a corrected commit, not reverted automatically.
+- Single-node/single-VM deployment throughout — this is a demo/portfolio artifact, not a production architecture.
+- Designed for a ~6-day window only; not intended to run indefinitely.
 
 ## Alternatives considered
 
