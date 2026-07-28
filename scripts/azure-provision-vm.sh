@@ -21,12 +21,17 @@ else
   echo "Reusing existing key at $SSH_KEY_PATH"
 fi
 
-echo "== VM (Standard_B4ms, Ubuntu 22.04) =="
+echo "== VM (Standard_D4as_v7, Ubuntu 22.04) =="
+# Standard_B4ms is blocked on this Azure-for-Students subscription
+# (NotAvailableForSubscription capacity restriction — the subscription's
+# B-series access is limited to ARM64 "p" variants only). Standard_D4as_v7
+# is x86_64 (AMD), 4vCPU/16GB, and available on this subscription — keeps
+# parity with the amd64 images the CI pipeline builds.
 az vm create \
   --resource-group "$RESOURCE_GROUP" \
   --name "$VM_NAME" \
   --image Ubuntu2204 \
-  --size Standard_B4ms \
+  --size Standard_D4as_v7 \
   --admin-username azureuser \
   --ssh-key-values "${SSH_KEY_PATH}.pub" \
   --public-ip-sku Standard \

@@ -1,5 +1,13 @@
 # Azure VM Demo Deployment (Phase 1) Implementation Plan
 
+> **Correction discovered during execution (2026-07-28):** actual region is
+> `germanywestcentral` and actual VM size is `Standard_D4as_v7`, not
+> `westeurope`/`Standard_B4ms` as written below — this subscription's Azure
+> policy only allows 5 specific regions and restricts x86 B-series VMs
+> entirely. See the note at the top of the design spec for full detail.
+> `scripts/azure-provision-vm.sh` in the repo has the corrected values; the
+> task steps below are left as originally written (historical record).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Make the EAM app reachable over HTTPS at a public Azure URL, deployed automatically by GitLab CI on every push to `Phase_2`, for a ~6-day demo window — producing real screenshots for the PFE report and CV.

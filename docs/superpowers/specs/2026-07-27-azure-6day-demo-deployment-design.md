@@ -1,5 +1,17 @@
 # Azure 6-Day Demo Deployment — Design
 
+> **Correction discovered during execution (2026-07-28):** this ESPRIT-tenant
+> Azure for Students subscription is restricted by an "Allowed resource
+> deployment regions" policy to exactly 5 regions (`switzerlandnorth`,
+> `spaincentral`, `germanywestcentral`, `norwayeast`, `polandcentral`) — not
+> `westeurope` as originally planned. It further restricts the B-series VM
+> family to ARM64 ("p"-suffix) sizes only; the planned `Standard_B4ms` (x86)
+> is `NotAvailableForSubscription`. Actual deployment uses **region
+> `germanywestcentral`, VM size `Standard_D4as_v7`** (x86_64 AMD, 4vCPU/16GB
+> — same specs, different family, keeps parity with the amd64 CI images).
+> `scripts/azure-provision-vm.sh` reflects this; the plan doc's embedded
+> code blocks below still show the original values as a historical record.
+
 ## Purpose
 
 Get the EAM app reachable at a public URL on Azure, driven by an automated GitLab CI deploy stage, for a short (~6 day) window. Produce screenshots (live app, Azure portal, GitLab CI pipeline runs) for the PFE report and for the CV. Not a long-term production system — everything gets torn down after the window closes.
