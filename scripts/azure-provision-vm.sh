@@ -5,7 +5,7 @@
 set -euo pipefail
 
 RESOURCE_GROUP="eam-demo-rg"
-LOCATION="westeurope"
+LOCATION="uksouth"
 VM_NAME="eam-demo-vm"
 DNS_LABEL="eam-demo"
 ACR_NAME="eamdemoacr$(date +%s | tail -c 6)"   # ACR names: globally unique, alnum only
