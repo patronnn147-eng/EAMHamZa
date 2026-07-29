@@ -17,6 +17,7 @@ from sklearn.model_selection import TimeSeriesSplit
 
 
 # ── Ordinal MAE Scorer ────────────────────────────────────────────────────────
+# ── Ordinal MAE Scorer ────────────────────────────────────────────────────────
 
 def ordinal_mae(y_true, y_pred):
     """
