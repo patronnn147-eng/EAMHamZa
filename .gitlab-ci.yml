@@ -546,10 +546,18 @@ quality-gate:
   allow_failure: false
 
 # ─── Stage 8: Registry Push (Azure demo deployment, ~6-day window) ─────────
-# Reuses the :ci images build-images already built. Rebuilds only the
-# frontend, since Vite bakes VITE_API_BASE_URL in at build time and the
-# :ci frontend was built with a localhost URL — the demo needs the real
-# public HTTPS URL baked in instead.
+# The demo VM is ARM64 (Standard_B4ps_v2) — the only VM family with real
+# quota on this Azure-for-Students subscription (StandardDasv7Family and
+# every other x86 family: 0 quota; x86 B-series: NotAvailableForSubscription
+# outright). The :ci images build-images already built are amd64 (built on
+# the x86 local runner) and won't run on an ARM64 host, so every service is
+# rebuilt here for linux/arm64 via buildx+QEMU rather than re-tagged.
+# One-time host setup required (already done manually, not part of this
+# job): `docker run --privileged --rm tonistiigi/binfmt --install arm64`
+# registers ARM64 emulation with the daemon's kernel — that registration is
+# daemon-wide and persists across jobs. The buildx builder itself is
+# recreated every run (idempotent, cheap) since CI jobs don't share a
+# persistent $HOME with the host.
 
 registry-push:
   stage: registry-push
@@ -557,20 +565,24 @@ registry-push:
   tags: [local]
   image: docker:24-cli
   script:
-    - docker build --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} -t eam-frontend:demo ./app/frontend
+    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
     - |
-      for pair in "backend|eam-backend:ci" "frontend|eam-frontend:demo" "ml-service|eam-ml-microservice:ci" "rag-service|eam-rag-service:ci"; do
+      for pair in "backend|./app/backend" "ml-service|./app/ml-microservice" "rag-service|./app/rag-service"; do
         SVC="${pair%%|*}"
-        SRC="${pair#*|}"
-        docker tag "$SRC" "$CI_REGISTRY_IMAGE/${SVC}:demo"
-        docker push "$CI_REGISTRY_IMAGE/${SVC}:demo"
-        docker tag "$SRC" "$ACR_LOGIN_SERVER/${SVC}:demo"
-        docker push "$ACR_LOGIN_SERVER/${SVC}:demo"
+        CTX="${pair#*|}"
+        docker buildx build --platform linux/arm64 \
+          -t "$CI_REGISTRY_IMAGE/${SVC}:demo" -t "$ACR_LOGIN_SERVER/${SVC}:demo" \
+          --push "$CTX"
       done
+    - |
+      docker buildx build --platform linux/arm64 \
+        --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} \
+        -t "$CI_REGISTRY_IMAGE/frontend:demo" -t "$ACR_LOGIN_SERVER/frontend:demo" \
+        --push ./app/frontend
   rules: *branch-rules
-  timeout: 20 minutes
+  timeout: 40 minutes
   allow_failure: false
 
 # ─── Stage 9: Deploy (SSH to Azure demo VM) ─────────────────────────────────

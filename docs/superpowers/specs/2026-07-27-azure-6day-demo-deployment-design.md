@@ -11,6 +11,16 @@
 > — same specs, different family, keeps parity with the amd64 CI images).
 > `scripts/azure-provision-vm.sh` reflects this; the plan doc's embedded
 > code blocks below still show the original values as a historical record.
+>
+> **Further correction (same day):** even `Standard_D4as_v7` (x86) hit a
+> `QuotaExceeded` error (0 core quota for that family) — this subscription's
+> real, usable quota turned out to be ARM64 only. Actual deployed VM:
+> **`Standard_B4ps_v2` (ARM64, 4vCPU/16GB)**. Consequence: CI's `:ci` images
+> (amd64, built on the local x86 runner) can't run on this VM, so the
+> `registry-push` CI stage now cross-builds every service for `linux/arm64`
+> via `docker buildx` + QEMU emulation rather than re-tagging the existing
+> amd64 images. See `.gitlab-ci.yml`'s `registry-push` job for the final
+> approach.
 
 ## Purpose
 
