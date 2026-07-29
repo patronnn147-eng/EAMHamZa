@@ -223,6 +223,13 @@ Every significant action (creating, editing, or closing a work order or interven
 Security must be built into the development process through a dedicated GitLab CI/CD pipeline, covering the entire software supply chain.
 The pipeline includes five stages, run automatically on every code push, each illustrated below.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_overview.png}
+\caption{GitLab CI/CD pipeline --- overview of all stages}
+\label{fig:ss-pipeline-overview}
+\end{figure}
+
 \paragraph{Secret scanning (Gitleaks).}
 Detection of any secret or sensitive credential accidentally present in the source code or the Git history.
 
@@ -249,6 +256,13 @@ Detection of any secret or sensitive credential accidentally present in the sour
 }
 \caption{Secret scanning pipeline (Gitleaks)}
 \label{fig:sec-gitleaks}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_gitleaks.png}
+\caption{GitLab CI job --- \texttt{scan-secrets} (Gitleaks)}
+\label{fig:ss-pipeline-gitleaks}
 \end{figure}
 
 \paragraph{Software composition analysis (SCA), via pip-audit / pnpm audit.}
@@ -309,8 +323,15 @@ Source code inspection by SonarQube Community Edition (self-hosted instance), co
 \label{fig:sec-sast}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_sast.png}
+\caption{SonarQube issues list --- code smells and maintainability findings}
+\label{fig:ss-pipeline-sast}
+\end{figure}
+
 \paragraph{Docker image and infrastructure analysis (Trivy).}
-Scanning of the five Docker images produced by the build, as well as the Docker Compose files, looking for CVEs in system layers and infrastructure misconfigurations.
+Scanning of the five Docker images produced by the build, as well as the Docker Compose files, looking for CVEs in system layers and infrastructure misconfigurations. The infrastructure-as-code (IaC) part of this scan (\texttt{trivy config}) inspects the Compose files themselves, not the application code, for configuration risks such as missing resource limits, containers running as root, absent health checks, or ports exposed beyond what is required; it currently covers \texttt{docker-compose.yml}, \texttt{docker-compose.sonarqube.yml}, and \texttt{docker-compose.notebooks.yml}, each producing a JSON/SARIF/HTML report as a pipeline artifact.
 
 \begin{figure}[H]
 \centering
@@ -337,6 +358,13 @@ Scanning of the five Docker images produced by the build, as well as the Docker 
 }
 \caption{Docker image and infrastructure analysis pipeline (Trivy)}
 \label{fig:sec-trivy}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_trivy.png}
+\caption{Container security dashboard (Trivy) --- vulnerabilities by severity, Grafana}
+\label{fig:ss-pipeline-trivy}
 \end{figure}
 
 \paragraph{Dynamic application security testing (DAST), via OWASP ZAP.}
@@ -379,8 +407,37 @@ Active scanning of the running application via the ZAP automation framework, cov
 \label{fig:sec-zap}
 \end{figure}
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_zap.png}
+\caption{DAST dashboard (OWASP ZAP) --- alerts by severity, Grafana}
+\label{fig:ss-pipeline-zap}
+\end{figure}
+
 The results of each scanner are consolidated by a centralized reporting script (\texttt{security\_report.py}) that produces a structured terminal report on every pipeline run.
 All security stages are configured in non-blocking mode (\textit{allow\_failure: true}), providing immediate visibility into results without blocking delivery, while keeping the findings in a report available for review after every run.
+
+As of the latest scan, the SonarQube quality gate is fully green on all four of its conditions: zero new violations, 100\% of new security hotspots reviewed, 2.6\% code duplication on new code (down from an initial 10.3\%), and 74.8\% coverage of new code by automated tests, above the required 70\% threshold. Duplication was brought down by extracting logic that had been copy-pasted across several files into shared, reusable modules, rather than by excluding the duplicated code from analysis; for example, one shared module now backs all four data-seeding scripts, and one shared form component replaced three near-identical copies in the frontend.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_sonarqube_quality_gate.png}
+\caption{SonarQube quality gate --- project dashboard}
+\label{fig:ss-sonarqube-quality-gate}
+\end{figure}
+
+\subsection{Docker Compose stacks}
+
+The project is split into four independent Docker Compose stacks, each covering a distinct concern and startable on its own:
+
+\begin{itemize}
+\item \texttt{docker-compose.yml} --- the core application stack: Postgres, RabbitMQ, MinIO, the backend API, the Celery worker and scheduler, the RAG service, the ML microservice, the frontend, and pgAdmin.
+\item \texttt{docker-compose.sonarqube.yml} --- the self-hosted SonarQube Community Edition server and its database, used by the SAST stage of the pipeline.
+\item \texttt{docker-compose.monitoring.yml} --- Prometheus, Grafana, and a Pushgateway, used to collect and visualize pipeline and security-scan metrics over time.
+\item \texttt{docker-compose.notebooks.yml} --- the Jupyter research environment used to train and evaluate the Machine Learning models offline.
+\end{itemize}
+
+Keeping these four stacks separate means the SonarQube server, the monitoring stack, or the research notebooks can each be started, stopped, or rebuilt independently, without affecting the running application.
 
 \subsection{Performance}
 
