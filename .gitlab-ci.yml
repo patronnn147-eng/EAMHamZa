@@ -559,37 +559,61 @@ quality-gate:
 # recreated every run (idempotent, cheap) since CI jobs don't share a
 # persistent $HOME with the host.
 
-registry-push:
+# Split into one job per service (was a single sequential loop) — QEMU
+# emulation makes each build 40min+ on its own (apt-get/venv-creation is
+# disproportionately slow under emulation even though pip finds real
+# aarch64 wheels, no source compiling involved). Parallel jobs bring total
+# wall-clock down to roughly the slowest single service instead of the sum
+# of all four. Requires GitLab Runner's `concurrent` setting (in
+# C:\GitLab-Runner\config.toml) to be >1 or these still run sequentially
+# despite being independent jobs.
+
+.registry_push_base: &registry_push_base
   stage: registry-push
   needs: [quality-gate]
   tags: [local]
   image: docker:24-cli
+  rules: *branch-rules
+  timeout: 2 hours
+  allow_failure: false
+
+registry-push-backend:
+  <<: *registry_push_base
   script:
     - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
     - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
     - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-    - |
-      for pair in "backend|./app/backend" "ml-service|./app/ml-microservice" "rag-service|./app/rag-service"; do
-        SVC="${pair%%|*}"
-        CTX="${pair#*|}"
-        docker buildx build --platform linux/arm64 \
-          -t "$CI_REGISTRY_IMAGE/${SVC}:demo" -t "$ACR_LOGIN_SERVER/${SVC}:demo" \
-          --push "$CTX"
-      done
-    - |
-      docker buildx build --platform linux/arm64 \
-        --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} \
-        -t "$CI_REGISTRY_IMAGE/frontend:demo" -t "$ACR_LOGIN_SERVER/frontend:demo" \
-        --push ./app/frontend
-  rules: *branch-rules
-  timeout: 40 minutes
-  allow_failure: false
+    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/backend:demo" -t "$ACR_LOGIN_SERVER/backend:demo" --push ./app/backend
+
+registry-push-ml-service:
+  <<: *registry_push_base
+  script:
+    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/ml-service:demo" -t "$ACR_LOGIN_SERVER/ml-service:demo" --push ./app/ml-microservice
+
+registry-push-rag-service:
+  <<: *registry_push_base
+  script:
+    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/rag-service:demo" -t "$ACR_LOGIN_SERVER/rag-service:demo" --push ./app/rag-service
+
+registry-push-frontend:
+  <<: *registry_push_base
+  script:
+    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
+    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/arm64 --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} -t "$CI_REGISTRY_IMAGE/frontend:demo" -t "$ACR_LOGIN_SERVER/frontend:demo" --push ./app/frontend
 
 # ─── Stage 9: Deploy (SSH to Azure demo VM) ─────────────────────────────────
 
 deploy:
   stage: deploy
-  needs: [registry-push]
+  needs: [registry-push-backend, registry-push-ml-service, registry-push-rag-service, registry-push-frontend]
   tags: [local]
   image: alpine:3.19
   before_script:
