@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (gitignored) and fill in real values.
+# postgres_admin_password is intentionally NOT here — export it as
+# TF_VAR_postgres_admin_password in your shell instead, so it never touches
+# a file on disk.
+
+admin_ip_ranges = [
+  "203.0.113.5/32", # replace with your actual admin IP
+]
