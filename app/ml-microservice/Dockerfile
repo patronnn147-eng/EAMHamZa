@@ -5,6 +5,8 @@
 # Stage 1: Build — install Python deps into an isolated venv
 FROM python:3.11-slim AS builder
 
+ARG TARGETARCH
+
 WORKDIR /app
 
 RUN python -m venv /opt/venv
@@ -28,6 +30,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY requirements-heavy.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements-heavy.txt
+
+# tensorflow-cpu has no linux/arm64 wheels on PyPI (any version) — skip on
+# arm64 builds. P4's autoencoder is optional at runtime (guarded ImportError,
+# weights renormalized across the remaining ensemble methods).
+COPY requirements-tf.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ "$TARGETARCH" = "amd64" ]; then pip install -r requirements-tf.txt; fi
 
 # ── Layer 2: Light deps (fastapi, pydantic, uvicorn…) ────────────────────────
 # Changes frequently; reinstalls in ~15s because packages are small.

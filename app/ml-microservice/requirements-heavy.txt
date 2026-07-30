@@ -5,8 +5,3 @@ numpy>=2.0
 xgboost>=2.1.0
 lifelines>=0.29.0
 shap>=0.44.0
-# Phase 4.3: P4 ensemble's Autoencoder component (40% weight) — CPU-only,
-# same rationale as the CPU-only torch install above (inference service,
-# no GPU in CI/prod). Exact-pinned (not >=) so the .keras artifact trained
-# offline and the runtime that loads it are the same TF build.
-tensorflow-cpu==2.20.0

@@ -1,0 +1,11 @@
+# Phase 4.3: P4 ensemble's Autoencoder component (40% weight) — CPU-only,
+# same rationale as the CPU-only torch install above (inference service,
+# no GPU in CI/prod). Exact-pinned (not >=) so the .keras artifact trained
+# offline and the runtime that loads it are the same TF build.
+#
+# amd64-only: tensorflow-cpu publishes zero linux/arm64 wheels on PyPI for
+# any version (checked 2.16-2.20) — installing this on arm64 always fails.
+# Dockerfile only installs this file when TARGETARCH=amd64; on arm64 the
+# autoencoder is skipped at runtime (model_loader.py guards ImportError,
+# weights renormalized across IF+Z-score+cluster) same as before Phase 4.3.
+tensorflow-cpu==2.20.0
