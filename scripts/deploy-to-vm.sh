@@ -27,9 +27,12 @@ env | grep '^EAM_' | sed 's/^EAM_//' > .env.demo
 } >> .env.demo
 
 "${SCP_CMD[@]}" .env.demo "${VM_USER}@${AZURE_VM_HOST}:${REMOTE_DIR}/.env"
-"${SCP_CMD[@]}" docker-compose.prod.yml Caddyfile "${VM_USER}@${AZURE_VM_HOST}:${REMOTE_DIR}/"
 
+# git pull BEFORE scp'ing the tracked compose/Caddy files: if scp lands them
+# on the VM first, they sit there as untracked copies and git refuses to
+# pull ("untracked working tree files would be overwritten by merge").
 "${SSH_CMD[@]}" "cd ${REMOTE_DIR} && git pull --quiet"
+"${SCP_CMD[@]}" docker-compose.prod.yml Caddyfile "${VM_USER}@${AZURE_VM_HOST}:${REMOTE_DIR}/"
 "${SSH_CMD[@]}" "echo '${DEPLOY_TOKEN_PASSWORD}' | docker login ${CI_REGISTRY} -u '${DEPLOY_TOKEN_USER}' --password-stdin"
 "${SSH_CMD[@]}" "cd ${REMOTE_DIR} && docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml pull"
 "${SSH_CMD[@]}" "cd ${REMOTE_DIR} && docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.monitoring.yml up -d --remove-orphans"
