@@ -46,21 +46,29 @@ echo "Running database migrations..."
 # tables exist yet (not just alembic_version):
 #
 #  - Genuinely empty DB (new Postgres volume, e.g. first deploy to a new
-#    VM): no migration creates the base tables — they only ever come from
-#    SQLAlchemy's Base.metadata.create_all(), which runs inside the FastAPI
-#    app's lifespan startup, i.e. AFTER this script's `alembic upgrade head`
-#    (uvicorn starts last, via `exec`, below). Stamping to "add_requested_by"
-#    here and then running incremental ALTER-TABLE migrations against tables
-#    that don't exist yet crashes the container on boot. Fix: build the
-#    schema via create_all() right here (matches current models = head), then
-#    stamp straight to "head" — no incremental migrations to run afterward.
+#    VM): the migration chain's true base (db0b16342160_auto_update, down_
+#    revision=None) already creates the core tables (OrdresIntervention,
+#    utilisateurs, machines, ...) directly via op.create_table — it does NOT
+#    depend on SQLAlchemy's create_all(). Some tables (documents/doc_chunks,
+#    the pgvector RAG tables) are ONLY ever created this way, by design —
+#    they're deliberately kept out of the ORM/Base.metadata so the pgvector
+#    extension can be created before the vector column type is needed (see
+#    add_pgvector_rag.py). So for an empty DB we must NOT stamp past these
+#    migrations — just leave alembic_version untouched and let the normal
+#    `alembic upgrade head` below run the entire chain from base. (An
+#    earlier version of this script stamped straight to "head" via
+#    create_all() here, which skipped the chain entirely and silently left
+#    documents/doc_chunks missing — create_all() is unnecessary for a fresh
+#    DB and actively wrong for tables it doesn't know about.)
 #  - Pre-existing DB created by create_all() in an earlier deploy, before
 #    Alembic tracking was introduced: tables already exist but alembic_version
 #    doesn't. Stamp to "add_requested_by" (the bootstrap point) so only
-#    genuinely new migrations after that point run.
+#    genuinely new migrations after that point run — replaying the full chain
+#    here would fail on the early create_table migrations (tables already
+#    exist).
 #
-# Both branches run ONCE — subsequent startups skip straight to `alembic
-# upgrade head` because alembic_version is already populated.
+# Runs ONCE — subsequent startups skip straight to `alembic upgrade head`
+# because alembic_version is already populated.
 python - <<'PY'
 import os
 import asyncio
@@ -90,14 +98,7 @@ async def db_state():
 if __name__ == "__main__":
     state = asyncio.run(db_state())
     if state == "empty":
-        print("Empty database — building schema via create_all() and stamping head...")
-        import subprocess
-        subprocess.run(
-            ["python", "-c", "import asyncio; from services.database import initialize_database; asyncio.run(initialize_database())"],
-            check=True,
-        )
-        subprocess.run(["alembic", "stamp", "head"], check=True)
-        print("Schema created and stamped at head.")
+        print("Empty database — will run the full migration chain from base.")
     elif state == "legacy":
         print("Existing tables with no Alembic tracking — stamping bootstrap revision...")
         import subprocess
