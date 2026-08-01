@@ -1,0 +1,32 @@
+Full stack in this design, beyond just Kubernetes itself:
+
+Orchestration & cluster
+
+AKS (Azure Kubernetes Service) — managed control plane
+Helm — packaging/templating for deploys
+Horizontal Pod Autoscaler, PodDisruptionBudget — built into K8s, no extra install
+Networking / edge
+
+ingress-nginx — ingress controller (replaces Caddy)
+cert-manager — automated TLS certs (Let's Encrypt)
+Azure Load Balancer (Standard SKU) — public entry point
+Data & storage
+
+Azure Database for PostgreSQL (Flexible Server, with pgvector) — replaces self-hosted Postgres container
+Azure Blob Storage — replaces self-hosted MinIO
+RabbitMQ — stays self-hosted in-cluster (unchanged from today)
+Secrets & config
+
+Azure Key Vault
+Secrets Store CSI Driver — mounts Key Vault secrets into pods
+Kubernetes ConfigMaps — non-secret config
+CI/CD
+
+GitLab CI (unchanged — same runner, same pipeline, new deploy stage)
+Docker buildx (unchanged from today's ARM64 work)
+kubelogin / az aks get-credentials — CI auth into the cluster
+Observability
+
+kube-prometheus-stack (Prometheus + Grafana, Helm chart) — same tools you already run, K8s-native install
+Loki — new, log aggregation across pods (needed once you have replicas — docker logs stops being enough)
+Trivy — same scanner, moved from always-on sidecar to a CI pipeline stage
