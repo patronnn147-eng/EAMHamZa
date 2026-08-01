@@ -30,6 +30,13 @@ resource "azurerm_kubernetes_cluster" "main" {
     zones          = ["1", "2", "3"]
 
     only_critical_addons_enabled = true # keeps app workloads off this pool
+
+    # Declared explicitly to match AKS's own applied defaults — otherwise
+    # Terraform sees this block as absent from config and tries to null
+    # these out on every plan, a permanent (harmless but noisy) drift.
+    upgrade_settings {
+      max_surge = "10%"
+    }
   }
 
   identity {
@@ -74,6 +81,10 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   node_count             = var.user_node_min_count
 
   mode = "User"
+
+  upgrade_settings {
+    max_surge = "10%"
+  }
 
   tags = {
     environment = var.environment
