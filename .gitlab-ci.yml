@@ -609,6 +609,49 @@ registry-push-frontend:
     - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
     - docker buildx build --platform linux/arm64 --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} -t "$CI_REGISTRY_IMAGE/frontend:demo" -t "$ACR_LOGIN_SERVER/frontend:demo" --push ./app/frontend
 
+# ─── AKS x86 image builds (new cluster target, existing :demo ARM64 jobs above are untouched) ──
+
+.registry_push_aks_base: &registry_push_aks_base
+  stage: registry-push
+  needs: [quality-gate]
+  tags: [local]
+  image: docker:24-cli
+  rules: *branch-rules
+  timeout: 2 hours
+  allow_failure: false
+  when: manual
+
+registry-push-backend-aks:
+  <<: *registry_push_aks_base
+  script:
+    - docker buildx create --name eamaksbuilder --use 2>/dev/null || docker buildx use eamaksbuilder
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/amd64 -t "$ACR_LOGIN_SERVER/backend:aks-staging" --push ./app/backend
+
+registry-push-ml-service-aks:
+  <<: *registry_push_aks_base
+  script:
+    - docker buildx create --name eamaksbuilder --use 2>/dev/null || docker buildx use eamaksbuilder
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/amd64 -t "$ACR_LOGIN_SERVER/ml-service:aks-staging" --push ./app/ml-microservice
+
+registry-push-rag-service-aks:
+  <<: *registry_push_aks_base
+  script:
+    - docker buildx create --name eamaksbuilder --use 2>/dev/null || docker buildx use eamaksbuilder
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    - docker buildx build --platform linux/amd64 -t "$ACR_LOGIN_SERVER/rag-service:aks-staging" --push ./app/rag-service
+
+registry-push-frontend-aks:
+  <<: *registry_push_aks_base
+  script:
+    - docker buildx create --name eamaksbuilder --use 2>/dev/null || docker buildx use eamaksbuilder
+    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
+    # Empty VITE_API_BASE_URL -> frontend calls relative /api/* paths, proxied
+    # same-origin by its own nginx.conf. Works unchanged for staging AND prod,
+    # no rebuild needed when promoting.
+    - docker buildx build --platform linux/amd64 --build-arg VITE_API_BASE_URL= -t "$ACR_LOGIN_SERVER/frontend:aks-staging" --push ./app/frontend
+
 # ─── Stage 9: Deploy (SSH to Azure demo VM) ─────────────────────────────────
 
 deploy:
