@@ -32,6 +32,11 @@ resource "azurerm_postgresql_flexible_server" "main" {
 
   lifecycle {
     prevent_destroy = true
+    # zone isn't set in this config — Azure auto-assigns one at creation
+    # for a non-HA instance, and Terraform otherwise tries to "correct" it
+    # on every subsequent plan/apply, which isn't a real conflict since we
+    # don't care which zone a single-instance server lands in.
+    ignore_changes = [zone]
   }
 }
 
