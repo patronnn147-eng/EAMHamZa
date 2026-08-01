@@ -5,9 +5,19 @@ variable "project_name" {
 }
 
 variable "location" {
-  description = "Azure region for all resources."
-  type        = string
-  default     = "germanywestcentral"
+  description = <<-EOT
+    Azure region for all Phase 0 resources. Originally germanywestcentral
+    (matching the existing demo VM's region) but moved after hitting a
+    stuck regional vCPU quota there (4/6 used with nothing actually
+    running — deallocating the demo VM did not free it). A subscription-
+    level Azure Policy (sys.regionrestriction) restricts this subscription
+    to exactly five regions: switzerlandnorth, spaincentral,
+    germanywestcentral, norwayeast, polandcentral. Of the four alternatives,
+    polandcentral has confirmed clean (0/6) quota. Phase 0 has no
+    application traffic, so co-location with the demo VM isn't required.
+  EOT
+  type    = string
+  default = "polandcentral"
 }
 
 variable "environment" {
