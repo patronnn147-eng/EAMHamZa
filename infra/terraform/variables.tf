@@ -75,3 +75,16 @@ variable "acr_resource_group_name" {
   type        = string
   default     = "eam-demo-rg"
 }
+
+variable "groq_api_key" {
+  description = "Groq LLM API key for the RAG chat feature. Set via TF_VAR_groq_api_key, never commit it."
+  type        = string
+  sensitive   = true
+}
+
+variable "smtp_password" {
+  description = "SMTP password for outbound email. Optional for the AKS staging POC — leave unset and email sending simply won't work; nothing else breaks. Set via TF_VAR_smtp_password."
+  type        = string
+  sensitive   = true
+  default     = ""
+}

@@ -43,6 +43,11 @@ resource "azurerm_kubernetes_cluster" "main" {
     type = "SystemAssigned"
   }
 
+  key_vault_secrets_provider {
+    secret_rotation_enabled  = true
+    secret_rotation_interval = "2m"
+  }
+
   # Required by azurerm provider v5. This plan uses explicit, manually
   # defined node pools (system + user below) rather than AKS's Node Auto
   # Provisioning (Karpenter-based) feature, so mode = "Manual" (the

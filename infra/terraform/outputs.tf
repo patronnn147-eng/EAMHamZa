@@ -28,3 +28,8 @@ output "key_vault_uri" {
   description = "Key Vault URI — used by the Secrets Store CSI Driver in Phase 1."
   value       = azurerm_key_vault.main.vault_uri
 }
+
+output "key_vault_secrets_provider_client_id" {
+  description = "Client ID of the Secrets Store CSI Driver addon's identity — used in Helm's SecretProviderClass."
+  value       = azurerm_kubernetes_cluster.main.key_vault_secrets_provider[0].secret_identity[0].client_id
+}

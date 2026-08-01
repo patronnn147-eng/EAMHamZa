@@ -40,6 +40,15 @@ resource "azurerm_postgresql_flexible_server" "main" {
   }
 }
 
+# Matches the local docker-compose DB name exactly — the app's DATABASE_URL
+# in every environment points at a database literally named "asset_management".
+resource "azurerm_postgresql_flexible_server_database" "app" {
+  name      = "asset_management"
+  server_id = azurerm_postgresql_flexible_server.main.id
+  collation = "en_US.utf8"
+  charset   = "utf8"
+}
+
 resource "azurerm_postgresql_flexible_server_configuration" "pgvector" {
   name      = "azure.extensions"
   server_id = azurerm_postgresql_flexible_server.main.id
