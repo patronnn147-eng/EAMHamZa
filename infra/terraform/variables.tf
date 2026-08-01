@@ -63,3 +63,15 @@ variable "postgres_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "acr_name" {
+  description = "Existing Azure Container Registry to grant AKS pull access to (not managed by this Terraform config — created manually for the demo VM pipeline)."
+  type        = string
+  default     = "eamdemoacr24102"
+}
+
+variable "acr_resource_group_name" {
+  description = "Resource group containing the existing ACR."
+  type        = string
+  default     = "eam-demo-rg"
+}
