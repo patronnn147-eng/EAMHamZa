@@ -1,0 +1,94 @@
+{{- range $name, $cfg := .Values.workloads }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+spec:
+  replicas: {{ $cfg.replicas }}
+  selector:
+    matchLabels:
+      app: {{ $name }}
+  template:
+    metadata:
+      labels:
+        app: {{ $name }}
+    spec:
+      # Every pod needs the CSI volume mounted so eam-secrets gets synced,
+      # even workloads (frontend) that don't consume secrets directly —
+      # cheap and keeps this template uniform.
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: eam-secrets-provider
+      containers:
+        - name: {{ $name }}
+          image: "{{ $.Values.image.registry }}/{{ $cfg.image }}:{{ $.Values.image.tag }}"
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{- if $cfg.command }}
+          command: {{ toYaml $cfg.command | nindent 12 }}
+          {{- end }}
+          {{- if gt ($cfg.port | int) 0 }}
+          ports:
+            - containerPort: {{ $cfg.port }}
+          {{- end }}
+          volumeMounts:
+            - name: secrets-store
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          env:
+            {{- range $k, $v := $cfg.env }}
+            - name: {{ $k }}
+              value: {{ $v | quote }}
+            {{- end }}
+            {{- if or (eq $name "backend") (eq $name "celery-worker") (eq $name "celery-beat") }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eam-secrets
+                  key: postgres-password
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://{{ $.Values.postgres.user }}:$(POSTGRES_PASSWORD)@{{ $.Values.postgres.fqdn }}:5432/{{ $.Values.postgres.db }}?ssl=require"
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: eam-secrets
+                  key: jwt-secret-key
+            - name: GROQ_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: eam-secrets
+                  key: groq-api-key
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: eam-secrets
+                  key: smtp-password
+            - name: FRONTEND_URL
+              value: "https://{{ $.Values.ingress.hostname }}"
+            {{- end }}
+          {{- if $cfg.healthPath }}
+          readinessProbe:
+            httpGet:
+              path: {{ $cfg.healthPath }}
+              port: {{ $cfg.port }}
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          {{- end }}
+---
+{{- if gt ($cfg.port | int) 0 }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+spec:
+  selector:
+    app: {{ $name }}
+  ports:
+    - port: {{ $cfg.port }}
+      targetPort: {{ $cfg.port }}
+{{- end }}
+---
+{{- end }}
