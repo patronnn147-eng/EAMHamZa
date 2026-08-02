@@ -49,11 +49,13 @@ class OrdresTravailResponse(BaseModel):
     priorite: str
     machine_id: int
     utilisateur_id: Optional[int] = None
+    utilisateur_nom: Optional[str] = None
     date_echeance: Optional[datetime] = None
     statut: str
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     validated_by: Optional[int] = None
+    validated_by_nom: Optional[str] = None
     date_validation: Optional[datetime] = None
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None

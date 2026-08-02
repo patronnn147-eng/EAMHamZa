@@ -5,6 +5,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.ordres_travail import OrdresTravail
+from models.utilisateurs import Utilisateurs
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,8 @@ class OrdresTravailService:
         query_dict: Optional[Dict[str, Any]] = None,
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Get paginated list of OrdresTravails"""
+        """Get paginated list of OrdresTravails, enriched with resolved
+        utilisateur_nom / validated_by_nom (batch-fetched, no per-row query)."""
         try:
             query, count_query = self._apply_filters(
                 select(OrdresTravail), select(func.count(OrdresTravail.id)), query_dict
@@ -104,6 +106,20 @@ class OrdresTravailService:
             total = (await self.db.execute(count_query)).scalar()
             query = self._apply_sort(query, sort)
             items = (await self.db.execute(query.offset(skip).limit(limit))).scalars().all()
+
+            user_ids = {i.utilisateur_id for i in items if i.utilisateur_id is not None}
+            user_ids |= {i.validated_by for i in items if i.validated_by is not None}
+            id_to_nom: Dict[int, str] = {}
+            if user_ids:
+                rows = await self.db.execute(
+                    select(Utilisateurs.id, Utilisateurs.nom).where(Utilisateurs.id.in_(user_ids))
+                )
+                id_to_nom = {row.id: row.nom for row in rows.all()}
+
+            for item in items:
+                item.utilisateur_nom = id_to_nom.get(item.utilisateur_id) if item.utilisateur_id else None
+                item.validated_by_nom = id_to_nom.get(item.validated_by) if item.validated_by else None
+
             return {"items": items, "total": total, "skip": skip, "limit": limit}
         except Exception as e:
             logger.exception(f"Error fetching OrdresTravail list: {str(e)}")
