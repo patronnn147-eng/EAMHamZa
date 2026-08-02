@@ -24,6 +24,17 @@ const toneOf = (s: string): WhyTone => {
   return 'normal';
 };
 
+// Factor keys the models emit are not all human-readable.
+const FACTOR_LABEL: Record<string, string> = {
+  temp_delta: 'Écart entre température procédé et température air',
+  air_temperature: 'Température air',
+  process_temperature: 'Température procédé',
+  rotational_speed: 'Vitesse de rotation',
+  torque: 'Couple',
+  tool_wear: 'Usure outil',
+};
+const prettyFactor = (f: string) => FACTOR_LABEL[f] ?? f.replace(/_/g, ' ');
+
 export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
   const sensors = health.sensor_status ?? [];
   const abnormal = sensors.filter((s) => s.status !== 'NORMAL');
@@ -34,6 +45,44 @@ export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
     detail: `actuellement ${s.value} ${s.unit}`,
     tone: toneOf(s.status),
   }));
+
+  // A machine can be judged at risk while every single sensor still reads
+  // inside its own safe band: the verdict also weighs how the readings move
+  // together and how far they drift from this machine's own normal. Without
+  // this fallback the panel says "nothing concerning" under a title that says
+  // the opposite, which is exactly the case operators lose trust over.
+  if (!reasons.length) {
+    const flagged = (health.explanations ?? [])
+      .filter((e) => e.intensity === 'high' || e.intensity === 'medium')
+      .slice(0, 3);
+
+    for (const e of flagged) {
+      reasons.push({
+        label: `${prettyFactor(e.factor)} : évolution inhabituelle`,
+        detail: "cette mesure reste dans sa plage, mais s'écarte du comportement habituel de cette machine",
+        tone: e.intensity === 'high' ? 'warning' : 'normal',
+      });
+    }
+
+    const drifting = sensors
+      .filter((s) => s.target != null && s.value >= 0.85 * (s.target as number))
+      .map((s) => s.label);
+    if (drifting.length >= 2) {
+      reasons.push({
+        label: `Plusieurs mesures approchent leur limite en même temps`,
+        detail: drifting.join(', '),
+        tone: 'warning',
+      });
+    }
+
+    if (!reasons.length && (health.dst_verdict === 'Critical' || health.dst_verdict === 'Degrading')) {
+      reasons.push({
+        label: 'Tendance générale défavorable',
+        detail: "aucune mesure isolée n'est hors plage, mais leur évolution combinée est surveillée",
+        tone: 'normal',
+      });
+    }
+  }
 
   const counterfactual: WhyReason[] = abnormal
     .filter((s) => s.target != null)
@@ -46,9 +95,15 @@ export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
   const confidence = health.conflict_factor_K == null
     ? undefined : confidenceWords(health.conflict_factor_K);
 
-  const summary = abnormal.length
-    ? `Principale raison : ${abnormal[0].label.toLowerCase()} hors de la plage sûre.`
-    : 'Aucun signal préoccupant pour le moment.';
+  let summary: string;
+  if (abnormal.length) {
+    summary = `Principale raison : ${abnormal[0].label.toLowerCase()} hors de la plage sûre.`;
+  } else if (reasons.length) {
+    // Don't claim "nothing concerning" under a title that says the opposite.
+    summary = 'Aucune mesure n’est hors plage, mais leur évolution combinée justifie une surveillance.';
+  } else {
+    summary = 'Aucun signal préoccupant pour le moment.';
+  }
 
   return {
     title, summary, reasons,
