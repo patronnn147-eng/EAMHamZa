@@ -160,6 +160,14 @@ class DatabaseManager:
                     "pool_pre_ping",
                 ]:
                     engine_kwargs.pop(key, None)
+            elif "?sslmode=require" in database_url or "?ssl=require" in database_url:
+                # asyncpg's Python connect() only accepts ssl=, not sslmode= --
+                # passing sslmode as a URL query param makes SQLAlchemy's
+                # asyncpg dialect forward it verbatim as an unrecognized
+                # kwarg, raising TypeError. Strip it from the URL and pass
+                # the equivalent via connect_args instead.
+                database_url = database_url.split("?")[0]
+                engine_kwargs["connect_args"] = {"ssl": "require"}
 
             # Create async engine
             self.engine = create_async_engine(database_url, **engine_kwargs)

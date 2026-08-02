@@ -47,7 +47,44 @@ def _column_exists(table_name: str, column_name: str) -> bool:
 
 
 def upgrade() -> None:
-    if not _column_exists("machine_telemetry_logs", "is_synthetic"):
+    bind = op.get_bind()
+    # machine_telemetry_logs was never created by any tracked migration --
+    # only ever existed via untracked dev-DB drift. On a fresh database,
+    # create it directly with is_synthetic already included.
+    table_exists = bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.tables "
+            "WHERE table_name = 'machine_telemetry_logs'"
+        )
+    ).first()
+    if not table_exists:
+        op.create_table(
+            "machine_telemetry_logs",
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True, nullable=False),
+            sa.Column("machine_id", sa.Integer(), nullable=False),
+            sa.Column("work_order_id", sa.Integer(), nullable=True),
+            sa.Column("technician_id", sa.Integer(), nullable=False),
+            sa.Column("air_temperature", sa.Float(), nullable=False),
+            sa.Column("process_temperature", sa.Float(), nullable=False),
+            sa.Column("rotational_speed", sa.Integer(), nullable=False),
+            sa.Column("torque", sa.Float(), nullable=False),
+            sa.Column("tool_wear", sa.Float(), nullable=False),
+            sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
+            sa.Column("notes", sa.Text(), nullable=True),
+            sa.Column("is_synthetic", sa.Boolean(), nullable=False, server_default=sa.false()),
+            sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        )
+        op.create_index(
+            op.f("ix_machine_telemetry_logs_machine_id"),
+            "machine_telemetry_logs",
+            ["machine_id"],
+        )
+        op.create_index(
+            op.f("ix_machine_telemetry_logs_work_order_id"),
+            "machine_telemetry_logs",
+            ["work_order_id"],
+        )
+    elif not _column_exists("machine_telemetry_logs", "is_synthetic"):
         op.add_column(
             "machine_telemetry_logs",
             sa.Column("is_synthetic", sa.Boolean(), nullable=False, server_default=sa.false()),

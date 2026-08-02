@@ -23,7 +23,10 @@ config = context.config
 
 database_url = os.getenv("DATABASE_URL")
 if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    # set_main_option writes into a ConfigParser-backed value, which treats
+    # "%" as its interpolation escape character — a URL-encoded password
+    # (e.g. "%2F") breaks it unless escaped as "%%" first.
+    config.set_main_option("sqlalchemy.url", database_url.replace("%", "%%"))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
@@ -37,11 +40,12 @@ def alembic_include_object(object, name, type_, reflected, compare_to):
     return True
 
 
-def run_migrations_online_sync(db_url):
+def run_migrations_online_sync(db_url, connect_args=None):
     """Run migrations in 'online' mode using a synchronous engine."""
     connectable = create_engine(
         db_url,
         poolclass=pool.NullPool,
+        connect_args=connect_args or {},
     )
 
     with connectable.connect() as connection:
@@ -57,9 +61,9 @@ def run_migrations_online_sync(db_url):
             context.run_migrations()
 
 
-async def run_migrations_online_async(db_url):
+async def run_migrations_online_async(db_url, connect_args=None):
     """Run migrations in 'online' mode using an asynchronous engine."""
-    connectable = create_async_engine(db_url, poolclass=pool.NullPool)
+    connectable = create_async_engine(db_url, poolclass=pool.NullPool, connect_args=connect_args or {})
     async with connectable.connect() as connection:
         await connection.run_sync(
             lambda sync_conn: context.configure(
@@ -82,10 +86,18 @@ def run_migrations():
             "Alembic sqlalchemy.url is empty and DATABASE_URL is not set"
         )
 
+    connect_args = {}
+    if "?sslmode=require" in db_url or "?ssl=require" in db_url:
+        # asyncpg's connect() only accepts ssl=, not sslmode= -- passing
+        # sslmode as a URL query param makes SQLAlchemy's asyncpg dialect
+        # forward it verbatim as an unrecognized kwarg, raising TypeError.
+        db_url = db_url.split("?")[0]
+        connect_args = {"ssl": "require"}
+
     if "asyncpg" in db_url:
-        asyncio.run(run_migrations_online_async(db_url))
+        asyncio.run(run_migrations_online_async(db_url, connect_args))
     else:
-        run_migrations_online_sync(db_url)
+        run_migrations_online_sync(db_url, connect_args)
 
 
 run_migrations()

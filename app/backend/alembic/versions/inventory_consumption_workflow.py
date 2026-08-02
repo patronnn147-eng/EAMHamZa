@@ -35,24 +35,91 @@ _SQL_NOW = "now()"
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+
+    def _table_exists(table_name):
+        return bind.execute(
+            sa.text(
+                "SELECT 1 FROM information_schema.tables WHERE table_name=:t"
+            ),
+            {"t": table_name},
+        ).first()
+
+    def _column_exists(table_name, column_name):
+        return bind.execute(
+            sa.text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name=:t AND column_name=:c"
+            ),
+            {"t": table_name, "c": column_name},
+        ).first()
+
     # ── Extensions ────────────────────────────────────────────────────────────
     op.execute("CREATE EXTENSION IF NOT EXISTS pg_trgm")
 
-    # ── pieces: add columns ──────────────────────────────────────────────────
-    with op.batch_alter_table("pieces") as batch:
-        batch.add_column(
+    # `pieces` and `mouvement_stock` were never created by any tracked
+    # migration -- only ever existed via untracked dev-DB drift. On a
+    # genuinely fresh database, create them directly in the shape this
+    # migration otherwise assumes, then skip the redundant alters below.
+    pieces_existed = _table_exists("pieces")
+    if not pieces_existed:
+        op.create_table(
+            "pieces",
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+            sa.Column("reference", sa.String(), nullable=False, unique=True),
+            sa.Column("name", sa.String(), nullable=False),
+            sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("unit_price", sa.Float(), nullable=True),
+            sa.Column("category", sa.String(), nullable=True),
+            sa.Column("min_stock", sa.Integer(), nullable=True),
             sa.Column(
                 "is_consumable",
                 sa.Boolean(),
                 nullable=False,
                 server_default=sa.text("false"),
-            )
-        )
-        batch.add_column(
+            ),
             sa.Column(
                 "default_unit", sa.String(20), nullable=False, server_default="pcs"
-            )
+            ),
+            sa.Column(
+                "created_at", sa.DateTime(timezone=True), server_default=sa.text(_SQL_NOW)
+            ),
         )
+
+    mouvement_stock_existed = _table_exists("mouvement_stock")
+    if not mouvement_stock_existed:
+        op.create_table(
+            "mouvement_stock",
+            sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
+            sa.Column(
+                "piece_id", sa.Integer(), sa.ForeignKey(_FK_PIECES_ID), nullable=True
+            ),
+            sa.Column("quantity", sa.Numeric(10, 2), nullable=False),
+            sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
+            sa.Column("movement_type", sa.String(), nullable=False),
+            sa.Column("reference", sa.String(), nullable=True),
+            sa.Column("intervention_id", sa.Integer(), nullable=True),
+            sa.Column(
+                "created_at", sa.DateTime(timezone=True), server_default=sa.text(_SQL_NOW)
+            ),
+        )
+
+    # ── pieces: add columns (skip -- already included above if freshly created) ──
+    if pieces_existed:
+        with op.batch_alter_table("pieces") as batch:
+            batch.add_column(
+                sa.Column(
+                    "is_consumable",
+                    sa.Boolean(),
+                    nullable=False,
+                    server_default=sa.text("false"),
+                )
+            )
+            batch.add_column(
+                sa.Column(
+                    "default_unit", sa.String(20), nullable=False, server_default="pcs"
+                )
+            )
 
     op.create_index(
         "idx_pieces_name_trgm",
@@ -67,27 +134,28 @@ def upgrade() -> None:
         postgresql_using="gin",
     )
 
-    # ── mouvement_stock: extend ──────────────────────────────────────────────
-    # Drop NOT NULL on piece_id (pending pieces have no piece_id yet)
-    op.alter_column(
-        "mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=True
-    )
-    # Convert quantity to DECIMAL
-    op.alter_column(
-        "mouvement_stock",
-        "quantity",
-        existing_type=sa.Integer(),
-        type_=sa.Numeric(10, 2),
-        postgresql_using="quantity::numeric(10,2)",
-    )
-    # Add unit + pending_piece_id + intervention_id
-    op.add_column(
-        "mouvement_stock",
-        sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
-    )
-    op.add_column(
-        "mouvement_stock", sa.Column("intervention_id", sa.Integer(), nullable=True)
-    )
+    # ── mouvement_stock: extend (skip -- already in final shape above if freshly created) ──
+    if mouvement_stock_existed:
+        # Drop NOT NULL on piece_id (pending pieces have no piece_id yet)
+        op.alter_column(
+            "mouvement_stock", "piece_id", existing_type=sa.Integer(), nullable=True
+        )
+        # Convert quantity to DECIMAL
+        op.alter_column(
+            "mouvement_stock",
+            "quantity",
+            existing_type=sa.Integer(),
+            type_=sa.Numeric(10, 2),
+            postgresql_using="quantity::numeric(10,2)",
+        )
+        # Add unit + pending_piece_id + intervention_id
+        op.add_column(
+            "mouvement_stock",
+            sa.Column("unit", sa.String(20), nullable=False, server_default="pcs"),
+        )
+        op.add_column(
+            "mouvement_stock", sa.Column("intervention_id", sa.Integer(), nullable=True)
+        )
     # pending_piece_id added AFTER pending_pieces table exists (see below)
 
     # ── OrdresIntervention: parts_approved + rename ─────────────────────────
@@ -95,13 +163,20 @@ def upgrade() -> None:
         "OrdresIntervention",
         sa.Column("parts_approved", sa.Boolean(), nullable=True),
     )
-    # Keep parts_replaced as legacy_parts_text — preserve existing data
-    op.alter_column(
-        "OrdresIntervention",
-        "parts_replaced",
-        new_column_name="legacy_parts_text",
-        existing_type=sa.Text(),
-    )
+    # Keep parts_replaced as legacy_parts_text — preserve existing data.
+    # parts_replaced was never created by any tracked migration (untracked
+    # dev-DB drift) -- on a fresh DB, just add legacy_parts_text directly.
+    if _column_exists("OrdresIntervention", "parts_replaced"):
+        op.alter_column(
+            "OrdresIntervention",
+            "parts_replaced",
+            new_column_name="legacy_parts_text",
+            existing_type=sa.Text(),
+        )
+    else:
+        op.add_column(
+            "OrdresIntervention", sa.Column("legacy_parts_text", sa.Text(), nullable=True)
+        )
 
     # ── pending_pieces ───────────────────────────────────────────────────────
     op.create_table(

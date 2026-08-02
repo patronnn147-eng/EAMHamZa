@@ -79,13 +79,25 @@ def upgrade() -> None:
             "OrdresIntervention",
             sa.Column("retrained", sa.Boolean(), nullable=True),
         )
-    op.alter_column(
-        "OrdresIntervention",
-        "problem_start_time",
-        existing_type=postgresql.TIMESTAMP(),
-        type_=sa.DateTime(timezone=True),
-        existing_nullable=True,
-    )
+    problem_start_time_exists = bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='OrdresIntervention' AND column_name='problem_start_time'"
+        )
+    ).first()
+    if problem_start_time_exists:
+        op.alter_column(
+            "OrdresIntervention",
+            "problem_start_time",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+    else:
+        op.add_column(
+            "OrdresIntervention",
+            sa.Column("problem_start_time", sa.DateTime(timezone=True), nullable=True),
+        )
     op.drop_index(
         op.f("ix_OrdresIntervention_statut"), table_name="OrdresIntervention"
     )
@@ -106,19 +118,41 @@ def upgrade() -> None:
         server_default=None,
         existing_nullable=False,
     )
-    op.alter_column(
-        "OrdresTravail",
-        "date_validation",
-        existing_type=postgresql.TIMESTAMP(),
-        type_=sa.DateTime(timezone=True),
-        existing_nullable=True,
-    )
-    op.drop_column("OrdresTravail", "created_by_id")
-    op.drop_column("OrdresTravail", "validated_at")
-    op.drop_column("OrdresTravail", "completed_at")
-    op.drop_column("OrdresTravail", "estimated_duration_minutes")
-    op.drop_column("OrdresTravail", "validated_by_id")
-    op.drop_column("OrdresTravail", "assigned_at")
+    def _column_exists(table_name, column_name):
+        return bind.execute(
+            sa.text(
+                "SELECT 1 FROM information_schema.columns "
+                "WHERE table_name=:t AND column_name=:c"
+            ),
+            {"t": table_name, "c": column_name},
+        ).first()
+
+    if _column_exists("OrdresTravail", "date_validation"):
+        op.alter_column(
+            "OrdresTravail",
+            "date_validation",
+            existing_type=postgresql.TIMESTAMP(),
+            type_=sa.DateTime(timezone=True),
+            existing_nullable=True,
+        )
+    else:
+        op.add_column(
+            "OrdresTravail",
+            sa.Column("date_validation", sa.DateTime(timezone=True), nullable=True),
+        )
+    # These columns are pure ad-hoc dev-DB drift not tracked by any earlier
+    # migration and not present in the current model -- dropping them is a
+    # no-op if they were never actually created.
+    for _col in (
+        "created_by_id",
+        "validated_at",
+        "completed_at",
+        "estimated_duration_minutes",
+        "validated_by_id",
+        "assigned_at",
+    ):
+        if _column_exists("OrdresTravail", _col):
+            op.drop_column("OrdresTravail", _col)
     op.drop_index(
         op.f("ix_PlanningMachines_machine_id"), table_name="PlanningMachines"
     )
@@ -133,35 +167,53 @@ def upgrade() -> None:
     op.create_index(
         op.f("ix_PlanningMachines_id"), "PlanningMachines", ["id"], unique=False
     )
+    # alter_column with an Enum type_ does NOT auto-create the Postgres enum
+    # type the way adding a new enum column would -- on a genuinely fresh DB
+    # these types were never created. checkfirst=True makes this a no-op
+    # wherever the type already exists (e.g. from earlier dev-DB drift).
+    planningtype_enum = sa.Enum(
+        "MAINTENANCE",
+        "SHIFT",
+        "HEBDOMADAIRE",
+        "MENSUEL",
+        "JOURNALIER",
+        name="planningtype",
+    )
+    planningtype_enum.create(bind, checkfirst=True)
     op.alter_column(
         "plannings",
         "type",
         existing_type=sa.VARCHAR(),
-        type_=sa.Enum(
-            "MAINTENANCE",
-            "SHIFT",
-            "HEBDOMADAIRE",
-            "MENSUEL",
-            "JOURNALIER",
-            name="planningtype",
-        ),
+        type_=planningtype_enum,
         existing_nullable=False,
         postgresql_using="type::planningtype",
     )
-    op.alter_column(
-        "plannings",
-        "shift_type",
-        existing_type=sa.VARCHAR(),
-        type_=sa.Enum("MORNING", "NIGHT", name="shifttype"),
-        existing_nullable=True,
-        postgresql_using="shift_type::shifttype",
-    )
-   
+    shifttype_enum = sa.Enum("MORNING", "NIGHT", name="shifttype")
+    shifttype_enum.create(bind, checkfirst=True)
+    if bind.execute(
+        sa.text(
+            "SELECT 1 FROM information_schema.columns "
+            "WHERE table_name='plannings' AND column_name='shift_type'"
+        )
+    ).first():
+        op.alter_column(
+            "plannings",
+            "shift_type",
+            existing_type=sa.VARCHAR(),
+            type_=shifttype_enum,
+            existing_nullable=True,
+            postgresql_using="shift_type::shifttype",
+        )
+    else:
+        op.add_column("plannings", sa.Column("shift_type", shifttype_enum, nullable=True))
+
+    userrole_enum = sa.Enum("TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN", name="userrole")
+    userrole_enum.create(bind, checkfirst=True)
     op.alter_column(
         "utilisateurs",
         "role",
         existing_type=sa.VARCHAR(),
-        type_=sa.Enum("TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN", name="userrole"),
+        type_=userrole_enum,
         existing_nullable=False,
         postgresql_using="role::userrole",
     )
