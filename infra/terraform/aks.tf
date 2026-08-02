@@ -48,6 +48,13 @@ resource "azurerm_kubernetes_cluster" "main" {
     secret_rotation_interval = "2m"
   }
 
+  # Required for the Secrets Store CSI Driver addon's identity to actually
+  # authenticate — without Workload Identity federation, mounting a
+  # SecretProviderClass fails with AADSTS70025 ("no configured federated
+  # identity credentials"), discovered live during Phase 1 Task 10.
+  oidc_issuer_enabled      = true
+  workload_identity_enabled = true
+
   # Required by azurerm provider v5. This plan uses explicit, manually
   # defined node pools (system + user below) rather than AKS's Node Auto
   # Provisioning (Karpenter-based) feature, so mode = "Manual" (the

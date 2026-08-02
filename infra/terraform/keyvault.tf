@@ -77,3 +77,16 @@ resource "azurerm_key_vault_secret" "smtp_password" {
   key_vault_id = azurerm_key_vault.main.id
   depends_on   = [azurerm_role_assignment.operator_kv_admin]
 }
+
+# The raw Postgres admin password contains a "/" — a reserved URL delimiter.
+# Embedding it unencoded in DATABASE_URL breaks connection-string parsing
+# (discovered live during Phase 1 Task 10: asyncpg misparsed the URL and
+# tried to int()-parse a password fragment as a port number). Storing a
+# separately URL-encoded copy rather than changing the actual DB password,
+# which would be a real operational change.
+resource "azurerm_key_vault_secret" "postgres_admin_password_urlencoded" {
+  name         = "postgres-admin-password-urlencoded"
+  value        = urlencode(var.postgres_admin_password)
+  key_vault_id = azurerm_key_vault.main.id
+  depends_on   = [azurerm_role_assignment.operator_kv_admin]
+}

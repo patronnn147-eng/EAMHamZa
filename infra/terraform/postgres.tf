@@ -52,7 +52,9 @@ resource "azurerm_postgresql_flexible_server_database" "app" {
 resource "azurerm_postgresql_flexible_server_configuration" "pgvector" {
   name      = "azure.extensions"
   server_id = azurerm_postgresql_flexible_server.main.id
-  value     = "VECTOR"
+  # PG_TRGM added alongside VECTOR -- the migration chain also creates it
+  # (trigram fuzzy-text matching), discovered live during Phase 1 Task 10.
+  value = "VECTOR,PG_TRGM"
 }
 
 # Allows the AKS subnet's outbound traffic to reach Postgres. Azure Flexible
@@ -65,4 +67,21 @@ resource "azurerm_postgresql_flexible_server_firewall_rule" "aks_subnet" {
   server_id        = azurerm_postgresql_flexible_server.main.id
   start_ip_address = "10.10.1.0"
   end_ip_address   = "10.10.1.255"
+}
+
+# The rule above is a no-op in practice: this server has no VNet
+# integration (no delegated_subnet_id), so it's public-access-only and
+# never actually sees a private RFC1918 source IP. Pods reach it through
+# AKS's single managed outbound Load Balancer IP instead (discovered live
+# during Phase 1 Task 10 — connections silently failed until this was
+# added). Find this IP again via:
+#   az aks show -g eam-prod-rg -n eam-prod-aks --query "networkProfile.loadBalancerProfile.effectiveOutboundIPs"
+#   az network public-ip show --ids <that id> --query ipAddress
+# Stable as long as the cluster keeps a single managed outbound IP
+# (loadBalancerProfile.managedOutboundIPs.count = 1, the default).
+resource "azurerm_postgresql_flexible_server_firewall_rule" "aks_outbound_ip" {
+  name             = "allow-aks-outbound-ip"
+  server_id        = azurerm_postgresql_flexible_server.main.id
+  start_ip_address = "20.215.98.63"
+  end_ip_address   = "20.215.98.63"
 }
