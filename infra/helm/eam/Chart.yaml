@@ -1,0 +1,6 @@
+apiVersion: v2
+name: eam
+description: EAM SagemCom application — all pieces (backend, frontend, ml-service, rag-service, celery, rabbitmq, minio)
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

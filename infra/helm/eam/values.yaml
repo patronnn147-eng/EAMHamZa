@@ -1,0 +1,94 @@
+image:
+  registry: eamdemoacr24102.azurecr.io
+  tag: aks-staging
+  pullPolicy: IfNotPresent
+
+postgres:
+  fqdn: eam-prod-psql-1a6mi7.postgres.database.azure.com
+  db: asset_management
+  user: eamadmin
+
+keyVault:
+  name: eam-prod-kv-h597b3
+  tenantId: "604f1a96-cbe8-43f8-abbf-f8eaf5d85730"
+  clientId: ""  # set in values-staging.yaml from `terraform output key_vault_secrets_provider_client_id`
+
+ingress:
+  hostname: eam-staging.polandcentral.cloudapp.azure.com
+  clusterIssuer: letsencrypt-staging
+
+workloads:
+  backend:
+    image: backend
+    port: 8000
+    replicas: 1
+    command: []
+    healthPath: /api/v1/health
+    env:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      ENVIRONMENT: "production"
+      PYTHONUNBUFFERED: "1"
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      OSS_SERVICE_URL: "http://minio:9000/"
+      OSS_API_KEY: "minioadmin"
+      OSS_SECRET_KEY: "minioadmin"
+      OSS_PUBLIC_URL: "http://minio:9000/"
+      ML_SERVICE_URL: "http://ml-service:8000"
+      RAG_SERVICE_URL: "http://rag-service:8003"
+      ML_ALLOW_SYNTHETIC_TELEMETRY: "false"
+      JWT_ALGORITHM: "HS256"
+      JWT_EXPIRE_MINUTES: "1440"
+  celery-worker:
+    image: backend
+    port: 0
+    replicas: 1
+    command: ["celery", "-A", "core.celery_app", "worker", "-l", "info"]
+    healthPath: ""
+    env:
+      ENVIRONMENT: "production"
+      PYTHONUNBUFFERED: "1"
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      OSS_SERVICE_URL: "http://minio:9000/"
+      OSS_API_KEY: "minioadmin"
+      OSS_SECRET_KEY: "minioadmin"
+      OSS_PUBLIC_URL: "http://minio:9000/"
+  celery-beat:
+    image: backend
+    port: 0
+    replicas: 1
+    command: ["celery", "-A", "core.celery_app", "beat", "-l", "info"]
+    healthPath: ""
+    env:
+      ENVIRONMENT: "production"
+      PYTHONUNBUFFERED: "1"
+      CELERY_BROKER_URL: "amqp://guest:guest@rabbitmq:5672//"
+      OSS_SERVICE_URL: "http://minio:9000/"
+      OSS_API_KEY: "minioadmin"
+      OSS_SECRET_KEY: "minioadmin"
+  ml-service:
+    image: ml-service
+    port: 8000
+    replicas: 1
+    command: []
+    healthPath: /health
+    env:
+      PYTHONUNBUFFERED: "1"
+      PYTHONPATH: "/app"
+  rag-service:
+    image: rag-service
+    port: 8003
+    replicas: 1
+    command: []
+    healthPath: /health
+    env:
+      PYTHONUNBUFFERED: "1"
+      RERANK_ENABLED: "true"
+      HYBRID_ENABLED: "true"
+  frontend:
+    image: frontend
+    port: 80
+    replicas: 1
+    command: []
+    healthPath: /health
+    env: {}
