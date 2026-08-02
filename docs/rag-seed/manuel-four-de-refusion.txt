@@ -1,0 +1,74 @@
+MANUEL DE MAINTENANCE — FOUR DE REFUSION (REFLOW)
+Zone CMS / Lignes 1-3 — Sagemcom Ezzahra
+Référence document : MAN-CMS-FR-002
+Révision : 2 — Août 2026
+
+1. DESCRIPTION
+
+Le four de refusion assure la refusion de la pâte à souder SAC305 après
+placement des composants. Chaque ligne CMS dispose d'un four à convection
+forcée multi-zones.
+
+Profil thermique nominal :
+- Préchauffage : montée progressive jusqu'à 150 °C
+- Trempage : palier 150-180 °C
+- Refusion : pic entre 235 et 245 °C
+- Refroidissement : descente contrôlée, gradient maximal 4 °C/s
+
+2. CONTRÔLES QUOTIDIENS
+
+- Relevé du profil thermique et comparaison au profil de référence.
+- Contrôle du débit d'azote et de la pression du circuit.
+- Vérification visuelle de l'état des convoyeurs et de la chaîne.
+- Contrôle du niveau d'encrassement des filtres HEPA H13.
+
+3. MAINTENANCE PRÉVENTIVE
+
+3.1 Mensuelle
+- Nettoyage des collecteurs de flux et des pièges à condensats.
+- Contrôle des thermocouples type K sur chaque zone.
+- Vérification de l'étalonnage des sondes PT100.
+
+3.2 Semestrielle
+- Remplacement des filtres HEPA H13.
+- Contrôle des ventilateurs centrifuges et des ventilateurs axiaux.
+- Vérification des joints Viton et des joints d'étanchéité de porte.
+- Contrôle des résistances chauffantes et de leur isolement.
+
+4. DÉFAILLANCES COURANTES
+
+4.1 Dérive du profil thermique
+Symptômes : écart supérieur à 5 °C par rapport au profil de référence.
+Cause probable : thermocouple défaillant ou encrassement du ventilateur.
+Action : remplacer le thermocouple type K, nettoyer le ventilateur
+centrifuge, revalider le profil avec enregistreur.
+
+4.2 Surchauffe de zone
+Symptômes : température de zone supérieure à la consigne, alarme four.
+Cause probable : pressostat haute pression défaillant, échangeur thermique
+à plaques encrassé.
+Action : contrôler le pressostat, nettoyer l'échangeur thermique à plaques,
+vérifier le détendeur du circuit de refroidissement.
+
+4.3 Défaut de convoyage
+Symptômes : arrêt du convoyeur, cartes bloquées en zone chaude.
+Cause probable : courroie de transmission détendue ou moteur en surcharge.
+Action : contrôler la tension de la courroie trapézoïdale, vérifier le
+tendeur automatique et la poulie motrice.
+
+5. SÉCURITÉ
+
+ATTENTION — Surfaces à haute température. Attendre le refroidissement
+complet (température inférieure à 40 °C) avant toute intervention interne.
+Consignation obligatoire selon SOP-SEC-001. Risque de brûlure et
+d'inhalation de vapeurs de flux : ventilation obligatoire.
+
+6. PIÈCES DE RECHANGE PRINCIPALES
+
+- Thermocouple type K
+- Sonde PT100
+- Filtre HEPA H13
+- Ventilateur centrifuge / ventilateur axial
+- Joints Viton
+- Échangeur thermique à plaques
+- Pâte à souder SAC305

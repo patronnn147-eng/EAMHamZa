@@ -1,0 +1,79 @@
+PROCÉDURE — DIAGNOSTIC ET RAPPORT D'INTERVENTION (PDCA)
+Référence document : SOP-MNT-002
+Révision : 3 — Août 2026
+Applicable à : techniciens de maintenance, chefs techniques
+
+1. OBJET
+
+Standardiser le déroulement d'une intervention et la rédaction du rapport,
+afin d'alimenter la base de connaissance et les modèles de prédiction.
+
+2. CYCLE DE VIE D'UNE INTERVENTION
+
+Demande d'intervention (DI)
+  -> Validation par le Chef Technique
+  -> Création de l'ordre de travail (OT) et affectation au technicien
+  -> Démarrage de l'intervention
+  -> Clôture avec formulaire PDCA complet
+  -> Validation de l'intervention par le Chef Technique
+  -> Validation de l'OT
+  -> Clôture administrative par l'ADMIN
+
+Une intervention non renseignée au PDCA ne peut pas être validée.
+
+3. LES QUATRE ÉTAPES PDCA
+
+3.1 PLAN — Hypothèse de départ
+Formuler l'hypothèse avant démontage, à partir des symptômes observés et
+des indicateurs machine (température, couple, vitesse, usure outil).
+Exemple : « Hypothèse initiale : dérive liée à une usure mécanique. »
+
+3.2 DO — Actions réalisées
+Décrire les actions effectuées, les pièces remplacées et les outils
+utilisés. Renseigner obligatoirement :
+- Catégorie de cause racine : Mécanique, Électrique, Logiciel, Erreur
+  humaine, Inconnue.
+- Description de la cause racine confirmée après diagnostic.
+- Pièces consommées avec quantités réelles.
+
+3.3 CHECK — Vérification
+Indiquer si le problème est résolu et par quelle méthode de vérification :
+essai de fonctionnement, surveillance, inspection visuelle, mesure.
+Renseigner l'état de la machine après intervention : opérationnelle,
+fonctionnement limité, à l'arrêt.
+
+3.4 ACT — Actions préventives
+Proposer les actions évitant la réapparition du défaut et les
+recommandations pour les prochaines interventions. C'est cette rubrique qui
+alimente le plan de maintenance préventive.
+
+4. TYPE DE DÉFAILLANCE (CHAMP OBLIGATOIRE)
+
+Le technicien doit qualifier la défaillance constatée :
+- TWF : usure outil (Tool Wear Failure)
+- HDF : dissipation thermique insuffisante (Heat Dissipation Failure)
+- PWF : défaut de puissance (Power Failure)
+- OSF : surcontrainte (Overstrain Failure)
+- RNF : défaillance aléatoire (Random Failure)
+- NONE : aucune défaillance, intervention préventive
+
+Ce champ conditionne la validation de l'intervention et sert de vérité
+terrain pour le réentraînement des modèles de prédiction.
+
+5. QUALITÉ DU RAPPORT
+
+Un bon rapport est factuel et chiffré. Indiquer les valeurs mesurées
+(couple en Nm, vitesse en tr/min, température en °C) plutôt que des
+appréciations qualitatives. Mentionner les références exactes des pièces
+remplacées.
+
+Rapport insuffisant : « Machine réparée, OK. »
+Rapport correct : « Couple mesuré à 62,7 Nm pour une consigne de 45 Nm.
+Roulements broche dégradés, remplacés (roulement à billes broche x2).
+Couple après intervention : 43,1 Nm. Essai de fonctionnement concluant. »
+
+6. GESTION DES PIÈCES
+
+Les pièces consommées doivent être déclarées dans l'intervention afin de
+mettre à jour le stock. Toute pièce prélevée non déclarée fausse les
+prévisions d'approvisionnement et déclenche de fausses alertes de rupture.

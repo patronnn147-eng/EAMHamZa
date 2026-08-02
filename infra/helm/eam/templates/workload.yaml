@@ -45,7 +45,7 @@ spec:
             - name: {{ $k }}
               value: {{ $v | quote }}
             {{- end }}
-            {{- if or (eq $name "backend") (eq $name "celery-worker") (eq $name "celery-beat") }}
+            {{- if or (eq $name "backend") (eq $name "celery-worker") (eq $name "celery-beat") (eq $name "rag-service") }}
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -53,6 +53,8 @@ spec:
                   key: postgres-password-urlencoded
             - name: DATABASE_URL
               value: "postgresql+asyncpg://{{ $.Values.postgres.user }}:$(POSTGRES_PASSWORD)@{{ $.Values.postgres.fqdn }}:5432/{{ $.Values.postgres.db }}?sslmode=require"
+            {{- end }}
+            {{- if or (eq $name "backend") (eq $name "celery-worker") (eq $name "celery-beat") }}
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:

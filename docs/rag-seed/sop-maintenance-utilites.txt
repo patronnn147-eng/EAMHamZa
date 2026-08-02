@@ -1,0 +1,77 @@
+PROCÉDURE — MAINTENANCE DES UTILITÉS (COMPRESSEUR ET GROUPE FROID)
+Zone Utilités / Local technique — Sagemcom Ezzahra
+Référence document : SOP-UTI-003
+Révision : 2 — Août 2026
+
+1. CRITICITÉ
+
+Le compresseur central alimente en air comprimé l'ensemble des lignes CMS,
+des bancs de test et des postes d'assemblage. Le groupe froid assure le
+refroidissement des fours de refusion et des armoires électriques.
+
+Un arrêt non planifié de l'un de ces équipements entraîne l'arrêt de
+production de l'usine. Ces machines sont classées CRITIQUES.
+
+2. COMPRESSEUR CENTRAL
+
+2.1 Contrôles quotidiens
+- Relevé de la pression de refoulement et de la température.
+- Purge des condensats du réservoir.
+- Contrôle du niveau d'huile ISO VG46.
+- Écoute des bruits anormaux (sifflement, cognement).
+
+2.2 Maintenance préventive
+Toutes les 500 heures :
+- Remplacement du filtre à air.
+- Contrôle et nettoyage du séparateur air/huile.
+- Vérification du fonctionnement du pressostat haute pression.
+
+Toutes les 2 000 heures :
+- Vidange de l'huile ISO VG46.
+- Contrôle des roulements moteur et de l'accouplement.
+- Contrôle du contacteur tripolaire et du relais thermique.
+
+2.3 Défaillances courantes
+Surchauffe : filtre à air colmaté ou ventilation insuffisante. Remplacer le
+filtre, contrôler le ventilateur moteur et la grille de protection.
+Perte de pression : fuite sur le réseau ou clapet défaillant. Contrôler les
+raccords rapides et les joints toriques du circuit.
+Démarrages fréquents : condensateur de démarrage défaillant ou fuite réseau.
+
+3. GROUPE FROID
+
+3.1 Contrôles quotidiens
+- Relevé des températures d'entrée et de sortie du circuit.
+- Contrôle du niveau de liquide caloporteur.
+- Vérification de l'absence de givre sur l'évaporateur.
+
+3.2 Maintenance préventive
+Trimestrielle :
+- Nettoyage du condenseur et de l'échangeur thermique à plaques.
+- Contrôle de l'étanchéité du circuit frigorifique (compresseur scroll R410A).
+- Remplacement des joints toriques du circuit de refroidissement.
+- Contrôle du détendeur et du pressostat haute pression.
+
+3.3 Défaillances courantes
+Pression haute en défaut : condenseur encrassé ou ventilateur arrêté.
+Nettoyer le condenseur, contrôler le ventilateur axial.
+Sous-refroidissement insuffisant : charge en fluide basse, rechercher la
+fuite avant toute recharge.
+
+4. PLANIFICATION
+
+Toute intervention sur les utilités doit être planifiée hors production ou
+pendant un arrêt programmé. Demande à adresser au Chef d'Opérations avec un
+préavis de 48 heures minimum. La consignation suit la procédure SOP-SEC-001.
+
+5. PIÈCES DE RECHANGE PRINCIPALES
+
+- Filtre à air
+- Huile ISO VG46
+- Compresseur scroll R410A
+- Détendeur
+- Pressostat haute pression
+- Échangeur thermique à plaques
+- Liquide caloporteur
+- Joint torique circuit refroidissement
+- Contacteur tripolaire / relais thermique

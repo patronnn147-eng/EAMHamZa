@@ -1,0 +1,70 @@
+MANUEL DE MAINTENANCE — MACHINE DE PLACEMENT CMS (PICK & PLACE)
+Zone CMS / Lignes 1-3 — Sagemcom Ezzahra
+Référence document : MAN-CMS-PP-001
+Révision : 3 — Août 2026
+
+1. DESCRIPTION DE L'ÉQUIPEMENT
+
+Les machines de placement CMS (Pick & Place) assurent le positionnement
+automatisé des composants sur circuit imprimé. Chaque ligne (1, 2 et 3)
+comporte deux machines de placement montées en série.
+
+Paramètres nominaux de fonctionnement :
+- Vitesse de rotation de la tête : 1 400 à 1 600 tr/min
+- Couple nominal : 32 à 46 Nm
+- Température air ambiant : 299 à 301 K
+- Température process : 309 à 312 K
+- Usure outil : remplacement préventif au-delà de 100 minutes cumulées
+
+2. MAINTENANCE PRÉVENTIVE
+
+2.1 Hebdomadaire
+- Nettoyage des buses de préhension à l'alcool isopropylique.
+- Contrôle visuel des feeders 8 mm : absence de jeu, verrouillage correct.
+- Vérification du niveau de vide (dépression) sur chaque tête.
+
+2.2 Mensuelle
+- Graissage des guidages linéaires (graisse haute température).
+- Contrôle du serrage des vis de serrage M6 au couple prescrit.
+- Vérification de l'alignement de la caméra de centrage.
+
+2.3 Trimestrielle
+- Remplacement préventif des roulements à billes broche.
+- Contrôle de l'accouplement élastique Rotex et de l'insert élastomère.
+- Analyse vibratoire de la broche principale.
+
+3. DÉFAILLANCES COURANTES
+
+3.1 Usure outil (TWF)
+Symptômes : dégradation de la précision de pose, rejets AOI en hausse.
+Cause : dépassement de la durée de vie de la buse ou de la tête de perçage.
+Action : remplacer la buse SMT 0.5 mm ou la tête de perçage complète.
+
+3.2 Dissipation thermique insuffisante (HDF)
+Symptômes : température process élevée, écart air/process réduit.
+Cause : encrassement du dissipateur ou pâte thermique dégradée.
+Action : nettoyer le dissipateur cuivre à ailettes, renouveler la pâte
+thermique et les pads thermiques.
+
+3.3 Surcharge de puissance (PWF)
+Symptômes : couple mesuré supérieur à 60 Nm, vitesse en baisse.
+Cause : défaut d'alignement, roulements dégradés, courroie détendue.
+Action : réalignement laser arbre moteur/réducteur, remplacement de la
+courroie de transmission, contrôle des roulements SKF.
+
+4. SÉCURITÉ
+
+Toute intervention nécessite la consignation électrique et pneumatique de
+la machine (voir SOP-SEC-001). Le port des EPI est obligatoire : gants
+anti-coupure, lunettes de protection, chaussures de sécurité.
+
+5. PIÈCES DE RECHANGE PRINCIPALES
+
+- Buse SMT 0.5 mm
+- Feeder 8 mm
+- Roulement à billes broche
+- Tête de perçage complète
+- Courroie de transmission
+- Accouplement élastique Rotex / insert élastomère
+- Graisse haute température
+- Alcool isopropylique

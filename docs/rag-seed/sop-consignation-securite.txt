@@ -1,0 +1,71 @@
+PROCÉDURE — CONSIGNATION ET SÉCURITÉ AVANT INTERVENTION
+Référence document : SOP-SEC-001
+Révision : 4 — Août 2026
+Applicable à : toutes zones (CMS, Test, Assemblage, Emballage, Utilités)
+
+1. OBJET
+
+Définir les étapes obligatoires de mise en sécurité d'un équipement avant
+toute intervention de maintenance, corrective ou préventive.
+
+2. RÈGLE FONDAMENTALE
+
+Aucune intervention ne démarre sans consignation validée. Le technicien
+qui pose la consignation est le seul habilité à la lever. En cas de
+travail en équipe, chaque intervenant pose son propre cadenas.
+
+3. ÉTAPES DE CONSIGNATION (SÉQUENCE OBLIGATOIRE)
+
+Étape 1 — Identifier
+Identifier sans ambiguïté l'équipement et toutes ses sources d'énergie :
+électrique, pneumatique, hydraulique, thermique, gravitaire.
+
+Étape 2 — Séparer
+Ouvrir le sectionneur général. Fermer les vannes d'air comprimé et purger
+le circuit. Isoler l'alimentation en azote le cas échéant.
+
+Étape 3 — Condamner
+Poser le cadenas personnel et l'étiquette nominative sur chaque organe de
+séparation. L'étiquette porte le nom de l'intervenant, la date et l'heure.
+
+Étape 4 — Vérifier l'absence d'énergie (VAT)
+Contrôler l'absence de tension au multimètre sur chaque phase. Vérifier la
+purge effective du circuit pneumatique (manomètre à zéro). Contrôler le
+refroidissement pour les équipements chauds (four de refusion : attendre
+une température inférieure à 40 °C).
+
+Étape 5 — Baliser
+Délimiter la zone d'intervention et afficher le panneau « Maintenance en
+cours — Ne pas manœuvrer ».
+
+4. LEVÉE DE CONSIGNATION
+
+- Vérifier qu'aucune personne ne se trouve en zone dangereuse.
+- Remonter et fixer tous les carters et protections déposés.
+- Retirer les outils de la machine.
+- Retirer les cadenas dans l'ordre inverse de leur pose.
+- Réalimenter et effectuer un essai de fonctionnement à vide.
+
+5. ÉQUIPEMENTS DE PROTECTION INDIVIDUELLE
+
+Obligatoires en permanence : chaussures de sécurité, lunettes de protection.
+Selon l'intervention : gants anti-coupure (manipulation d'outils carbure),
+gants isolants (travaux électriques), masque (vapeurs de flux, solvants),
+protection auditive (zone compresseur).
+
+6. CAS PARTICULIERS
+
+6.1 Travaux électriques sous tension
+Interdits sauf habilitation spécifique et autorisation écrite du Chef
+Technique. Utiliser un câble thermorésistant et des fusibles aM adaptés.
+
+6.2 Interventions sur les utilités
+Le compresseur central et le groupe froid alimentent l'ensemble de l'usine.
+Toute consignation doit être planifiée et annoncée 48 heures à l'avance au
+Chef d'Opérations.
+
+7. EN CAS D'ACCIDENT
+
+Alerter immédiatement, ne pas déplacer la victime sauf danger imminent,
+prévenir le Chef Technique et le service HSE. Consigner l'événement dans
+le rapport d'intervention.
