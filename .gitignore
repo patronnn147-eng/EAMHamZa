@@ -87,3 +87,6 @@ tmp_sonar_query.py
 # ZAP DAST scan output (generated, not source)
 security/zap/zap-report.*
 security/zap/*.session
+
+# Backups written by scripts/repair_p7_catalog_encoding.py
+*.pkl.bak
