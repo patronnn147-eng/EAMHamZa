@@ -18,10 +18,14 @@ export function WhyDrawer({ open, onOpenChange, payload }:
   const [busy, setBusy] = useState(false);
   if (!payload) return null;
 
+  const explainReasons = ((payload.llmContext?.reasons as string[]) ?? payload.reasons.map((r) => r.label))
+    .filter((r) => r && r.trim());
+  const hasSomethingToExplain = explainReasons.length > 0;
+
   const explain = async () => {
     setBusy(true);
     try {
-      const reasons = (payload.llmContext?.reasons as string[]) ?? payload.reasons.map((r) => r.label);
+      const reasons = explainReasons;
       const res = await fetch(`${API}/api/v1/why/explain`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getToken()}` },
@@ -70,10 +74,15 @@ export function WhyDrawer({ open, onOpenChange, payload }:
           </div>
         )}
 
-        <button onClick={explain} disabled={busy}
-          className="mt-5 inline-flex items-center gap-2 text-xs font-medium text-blue-300 bg-slate-800 border border-slate-700 rounded-md px-3 py-2 hover:bg-slate-700/60 disabled:opacity-50">
-          <Sparkles className="h-4 w-4" /> {busy ? 'Explication…' : 'Expliquer simplement'}
-        </button>
+        {/* Only offer the button when there is something to send. With an empty
+            reason list the endpoint answers "Aucune raison particulière à
+            signaler.", which reads as a failure rather than an answer. */}
+        {hasSomethingToExplain && (
+          <button onClick={explain} disabled={busy}
+            className="mt-5 inline-flex items-center gap-2 text-xs font-medium text-blue-300 bg-slate-800 border border-slate-700 rounded-md px-3 py-2 hover:bg-slate-700/60 disabled:opacity-50">
+            <Sparkles className="h-4 w-4" /> {busy ? 'Explication…' : 'Expliquer simplement'}
+          </button>
+        )}
         {plain && <p className="mt-3 text-sm text-blue-100 leading-relaxed">{plain}</p>}
 
         <p className="mt-5 pt-3 border-t border-slate-800 text-[11px] text-slate-500">{payload.source}</p>
