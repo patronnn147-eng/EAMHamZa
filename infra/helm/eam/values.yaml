@@ -1,7 +1,7 @@
 image:
   registry: eamdemoacr24102.azurecr.io
   tag: aks-staging
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 postgres:
   fqdn: eam-prod-psql-1a6mi7.postgres.database.azure.com

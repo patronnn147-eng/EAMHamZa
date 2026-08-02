@@ -12,7 +12,9 @@ spec:
     metadata:
       labels:
         app: {{ $name }}
+        azure.workload.identity/use: "true"
     spec:
+      serviceAccountName: eam-secrets-sa
       # Every pod needs the CSI volume mounted so eam-secrets gets synced,
       # even workloads (frontend) that don't consume secrets directly —
       # cheap and keeps this template uniform.
@@ -48,9 +50,9 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: eam-secrets
-                  key: postgres-password
+                  key: postgres-password-urlencoded
             - name: DATABASE_URL
-              value: "postgresql+asyncpg://{{ $.Values.postgres.user }}:$(POSTGRES_PASSWORD)@{{ $.Values.postgres.fqdn }}:5432/{{ $.Values.postgres.db }}?ssl=require"
+              value: "postgresql+asyncpg://{{ $.Values.postgres.user }}:$(POSTGRES_PASSWORD)@{{ $.Values.postgres.fqdn }}:5432/{{ $.Values.postgres.db }}?sslmode=require"
             - name: JWT_SECRET_KEY
               valueFrom:
                 secretKeyRef:
