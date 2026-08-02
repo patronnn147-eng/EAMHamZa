@@ -79,20 +79,20 @@ MACHINE_CATALOG = [
 ]
 
 USER_CATALOG = [
-    {"nom": "Sonia Gharbi", "email": "sonia.gharbi@demo.local", "role": "ADMIN"},
-    {"nom": "Mohamed Aloui", "email": "mohamed.aloui@demo.local", "role": "CHEFTECH"},
-    {"nom": "Leila Ben Salah", "email": "leila.bensalah@demo.local", "role": "CHEFTECH"},
-    {"nom": "Karim Trabelsi", "email": "karim.trabelsi@demo.local", "role": "CHETOP"},
-    {"nom": "Nadia Jelassi", "email": "nadia.jelassi@demo.local", "role": "CHETOP"},
-    {"nom": "Hichem Bouzid", "email": "hichem.bouzid@demo.local", "role": "CHETOP"},
-    {"nom": "Youssef Mejri", "email": "youssef.mejri@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Amine Chaabane", "email": "amine.chaabane@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Rania Khelifi", "email": "rania.khelifi@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Bilel Hamdi", "email": "bilel.hamdi@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Ines Zouari", "email": "ines.zouari@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Walid Nasri", "email": "walid.nasri@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Sami Ferchichi", "email": "sami.ferchichi@demo.local", "role": "TECHNICIEN"},
-    {"nom": "Olfa Mansouri", "email": "olfa.mansouri@demo.local", "role": "TECHNICIEN"},
+    {"nom": "Sonia Gharbi", "email": "sonia.gharbi@sagemcom-demo.com", "role": "ADMIN"},
+    {"nom": "Mohamed Aloui", "email": "mohamed.aloui@sagemcom-demo.com", "role": "CHEFTECH"},
+    {"nom": "Leila Ben Salah", "email": "leila.bensalah@sagemcom-demo.com", "role": "CHEFTECH"},
+    {"nom": "Karim Trabelsi", "email": "karim.trabelsi@sagemcom-demo.com", "role": "CHETOP"},
+    {"nom": "Nadia Jelassi", "email": "nadia.jelassi@sagemcom-demo.com", "role": "CHETOP"},
+    {"nom": "Hichem Bouzid", "email": "hichem.bouzid@sagemcom-demo.com", "role": "CHETOP"},
+    {"nom": "Youssef Mejri", "email": "youssef.mejri@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Amine Chaabane", "email": "amine.chaabane@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Rania Khelifi", "email": "rania.khelifi@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Bilel Hamdi", "email": "bilel.hamdi@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Ines Zouari", "email": "ines.zouari@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Walid Nasri", "email": "walid.nasri@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Sami Ferchichi", "email": "sami.ferchichi@sagemcom-demo.com", "role": "TECHNICIEN"},
+    {"nom": "Olfa Mansouri", "email": "olfa.mansouri@sagemcom-demo.com", "role": "TECHNICIEN"},
 ]
 
 PIECE_CATALOG = [
