@@ -37,6 +37,7 @@ class WorkOrderResponse(BaseModel):
     statut: str
     machine_id: int
     machine_nom: Optional[str] = None
+    utilisateur_nom: Optional[str] = None
     created_at: datetime
     date_debut: Optional[datetime] = None
     date_fin: Optional[datetime] = None

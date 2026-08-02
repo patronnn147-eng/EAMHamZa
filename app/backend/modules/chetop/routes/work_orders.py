@@ -56,12 +56,17 @@ async def get_my_work_orders(
         total = total_result.scalar() or 0
 
         query = (
-            select(OrdresTravail, Machines.nom.label("machine_nom"))
+            select(
+                OrdresTravail,
+                Machines.nom.label("machine_nom"),
+                Utilisateurs.nom.label("utilisateur_nom"),
+            )
             .join(
                 OrdresIntervention,
                 OrdresTravail.id == OrdresIntervention.ordre_travail_id,
             )
             .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
+            .outerjoin(Utilisateurs, OrdresTravail.utilisateur_id == Utilisateurs.id)
             .where(OrdresIntervention.requested_by == current_user.id)
             .where(OrdresTravail.archived_at.is_(None))
             .order_by(OrdresTravail.created_at.desc())
@@ -84,11 +89,12 @@ async def get_my_work_orders(
                 statut=wo.statut,
                 machine_id=wo.machine_id,
                 machine_nom=machine_nom,
+                utilisateur_nom=utilisateur_nom,
                 created_at=wo.created_at,
                 date_debut=wo.date_debut,
                 date_fin=wo.date_fin,
             )
-            for wo, machine_nom in rows
+            for wo, machine_nom, utilisateur_nom in rows
         ]
 
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
