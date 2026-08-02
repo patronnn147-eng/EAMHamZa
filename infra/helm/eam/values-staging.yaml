@@ -1,0 +1,6 @@
+keyVault:
+  clientId: "271d139c-e1b2-49c4-8829-f2609f20b07b"
+
+ingress:
+  hostname: eam-staging.polandcentral.cloudapp.azure.com
+  clusterIssuer: letsencrypt-staging
