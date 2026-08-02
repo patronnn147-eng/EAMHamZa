@@ -92,6 +92,14 @@ async def list_my_interventions(
         )
         due_map = {row.id: row.date_echeance for row in ordres_res.all()}
 
+    approver_ids = {i.approved_by for i in interventions if i.approved_by is not None}
+    approver_id_to_nom: dict = {}
+    if approver_ids:
+        approver_rows = await db.execute(
+            select(Utilisateurs.id, Utilisateurs.nom).where(Utilisateurs.id.in_(approver_ids))
+        )
+        approver_id_to_nom = {row.id: row.nom for row in approver_rows.all()}
+
     now = datetime.now(timezone.utc)
     enriched: List[dict] = []
     for i in interventions:
@@ -106,6 +114,7 @@ async def list_my_interventions(
                 **InterventionResponse.model_validate(i).model_dump(),
                 "work_order_due_date": due,
                 "is_overdue": overdue,
+                "approved_by_nom": approver_id_to_nom.get(i.approved_by) if i.approved_by else None,
             }
         )
 

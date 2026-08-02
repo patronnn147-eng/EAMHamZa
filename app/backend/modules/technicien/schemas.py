@@ -15,6 +15,7 @@ class InterventionResponse(BaseModel):
     machine_id: Optional[int] = None
     requested_at: Optional[datetime] = None
     approved_by: Optional[int] = None
+    approved_by_nom: Optional[str] = None
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
