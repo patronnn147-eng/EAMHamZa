@@ -107,44 +107,74 @@ async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSess
     using the same shortfall/order/urgency formula as build_parts_demand.
     """
     items = parts_demand.get("items") or []
-    piece_ids = [i["piece_id"] for i in items if i.get("piece_id") is not None]
-    if not piece_ids:
+    if not items:
         return parts_demand
 
     from models.pieces import Piece
     from models.stock import Stock
 
+    # Match on normalised NAME, never on piece_id. The ids carried by P7 come
+    # from whatever database the model was trained against, so they are
+    # meaningless here: failure_part_map starts TWF at piece_id 1, which in a
+    # live catalogue is simply whichever part happens to hold that row. Joining
+    # on id therefore silently re-prices an unrelated part — wrong name, wrong
+    # stock, no error raised. A part P7 recommends that the site genuinely does
+    # not stock keeps the pkl's zeros, which is the honest answer.
     query = (
         select(Piece.id, Piece.name, Piece.reference, Piece.min_stock, Stock.quantity)
         .outerjoin(Stock, Stock.piece_id == Piece.id)
-        .where(Piece.id.in_(piece_ids))
     )
     rows = (await db.execute(query)).all()
     real_stock = {
-        row.id: {
+        _normalise_part_name(row.name): {
+            "piece_id": row.id,
             "name": row.name,
             "reference": row.reference,
             "min_stock": float(row.min_stock or 0),
             "on_hand": float(row.quantity or 0),
         }
         for row in rows
+        if row.name
     }
 
     horizon = parts_demand.get("horizon_days") or 30
 
+    matched = 0
     for item in items:
-        _reprice_part_item(item, real_stock, horizon)
+        if _reprice_part_item(item, real_stock, horizon):
+            matched += 1
 
     items.sort(key=lambda i: (-i["urgency_score"], -i["shortfall"]))
     parts_demand["items"] = items
+    parts_demand["stock_matched"] = matched
+    parts_demand["stock_unmatched"] = len(items) - matched
     return parts_demand
 
 
-def _reprice_part_item(item: Dict, real_stock: Dict, horizon: float) -> None:
-    """Re-price one parts_demand item against real Stock/Piece data (mutates item in place)."""
-    meta = real_stock.get(item["piece_id"])
+def _normalise_part_name(name: str) -> str:
+    """Fold a part name to a comparable key: case, accents and spacing ignored.
+
+    P7's vocabulary is lowercased at training time while catalogue rows are
+    entered free-form ("Roulement 6204"), and accented spellings vary by who
+    typed them, so an exact string match would miss almost everything."""
+    import unicodedata
+
+    if not name:
+        return ""
+    folded = unicodedata.normalize("NFKD", name)
+    folded = "".join(c for c in folded if not unicodedata.combining(c))
+    return " ".join(folded.lower().split())
+
+
+def _reprice_part_item(item: Dict, real_stock: Dict, horizon: float) -> bool:
+    """Re-price one parts_demand item against real Stock/Piece data.
+
+    Mutates `item` in place. Returns True when the part was found in the live
+    catalogue, False when it wasn't (the site doesn't stock it) — in which case
+    the pkl's zeros are left untouched rather than invented."""
+    meta = real_stock.get(_normalise_part_name(item.get("name", "")))
     if not meta:
-        return  # piece no longer catalogued — leave the pkl's stale numbers as-is
+        return False
     expected = item.get("expected_qty", 0.0)
     on_hand = meta["on_hand"]
     min_stock = meta["min_stock"]
@@ -165,10 +195,15 @@ def _reprice_part_item(item: Dict, real_stock: Dict, horizon: float) -> None:
     item["recommended_order_qty"] = round(order, 3)
     item["stock_coverage_days"] = round(coverage, 1) if coverage is not None else None
     item["urgency_score"] = urgency
+    # Re-point at the live catalogue row. Downstream consumers (Quick Action,
+    # procurement drafts) act on piece_id, so leaving the model's training-DB
+    # id here would have them reserve or order the wrong part.
+    item["piece_id"] = meta["piece_id"]
     if meta["name"]:
         item["name"] = meta["name"]
     if meta["reference"]:
         item["reference"] = meta["reference"]
+    return True
 
 
 @router.get("/machines/{machine_id}/unified-health", responses={404: {"description": "Machine non trouvée"}})

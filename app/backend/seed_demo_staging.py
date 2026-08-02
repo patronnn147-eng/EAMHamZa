@@ -238,8 +238,60 @@ async def seed_machines(db, rng, limit: int) -> list:
     return machines
 
 
+def _p7_catalog_specs() -> list:
+    """Spare-parts specs taken from P7's own vocabulary.
+
+    P7 recommends parts by name; the panel can only show a real stock level for
+    a part the site actually carries. Deriving the catalogue from the model's
+    pkl keeps the two in step by construction — hand-copying 80 French names
+    would drift the first time the model is retrained. Returns [] if the pkl
+    isn't present, so the seed still works without it."""
+    import pickle
+    from pathlib import Path
+
+    pkl = Path(__file__).resolve().parent / "modules" / "ml" / "models" / "ml_model_p7_parts_demand.pkl"
+    if not pkl.exists():
+        logger.warning("P7 pkl not found at %s — seeding generic parts only", pkl)
+        return []
+
+    try:
+        with open(pkl, "rb") as fh:
+            data = pickle.load(fh)
+    except Exception as exc:
+        logger.warning("Could not read P7 pkl (%s) — seeding generic parts only", exc)
+        return []
+
+    specs, seen = [], set()
+    for idx, entry in enumerate((data.get("parts_catalog") or {}).values(), start=1):
+        name = (entry.get("name") or "").strip()
+        key = name.lower()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        specs.append({
+            "reference": entry.get("reference") or f"P7-{idx:04d}",
+            "name": name.capitalize(),
+            "category": "Consommable" if entry.get("is_consumable") else "Pièce détachée",
+            "unit_price": round(rng_price(name), 2),
+            "min_stock": int(entry.get("min_stock") or 2),
+            "is_consumable": bool(entry.get("is_consumable")),
+            "default_unit": "L" if entry.get("is_consumable") else "pcs",
+        })
+    return specs
+
+
+def rng_price(name: str) -> float:
+    """Deterministic pseudo-price per part name — stable across re-seeds."""
+    return 5.0 + (sum(ord(c) for c in name) % 400)
+
+
 async def seed_pieces_and_stock(db, rng) -> list:
     """Create the spare-parts catalog with stock levels.
+
+    Two sources: a small hand-written generic catalogue, plus every part P7 can
+    actually recommend (see _p7_catalog_specs). Without the latter the parts
+    panel shows "In stock: 0" for everything, because the model recommends
+    parts the inventory has never heard of.
 
     Some rows are deliberately seeded BELOW min_stock so the P7 parts-shortage
     surfaces have something real to flag in the demo."""
@@ -247,8 +299,15 @@ async def seed_pieces_and_stock(db, rng) -> list:
     from models.pieces import Piece
     from models.stock import Stock
 
+    specs = list(PIECE_CATALOG)
+    known = {s["name"].strip().lower() for s in specs}
+    for spec in _p7_catalog_specs():
+        if spec["name"].strip().lower() not in known:
+            specs.append(spec)
+            known.add(spec["name"].strip().lower())
+
     pieces = []
-    for spec in PIECE_CATALOG:
+    for spec in specs:
         piece = Piece(**spec)
         db.add(piece)
         pieces.append(piece)
