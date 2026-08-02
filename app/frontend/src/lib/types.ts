@@ -83,6 +83,9 @@ export interface Intervention {
   date_intervention: string;
   statut?: string;
   technicien_id?: number;
+  technician_id?: number;
+  technicien_nom?: string;
+  approved_by_nom?: string;
   date_debut?: string;
   date_fin?: string;
   rapport: string;

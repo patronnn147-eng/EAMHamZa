@@ -8,7 +8,8 @@ class InterventionResponse(BaseModel):
     date_intervention: datetime
     rapport: Optional[str] = None
     ordre_travail_id: Optional[int] = None
-    technicien_id: Optional[int] = None
+    technician_id: Optional[int] = None
+    technicien_nom: Optional[str] = None
     statut: Optional[str] = None
     problem_description: Optional[str] = None
     priority: Optional[str] = None
@@ -17,6 +18,7 @@ class InterventionResponse(BaseModel):
     machine_id: Optional[int] = None
     requested_at: Optional[datetime] = None
     approved_by: Optional[int] = None
+    approved_by_nom: Optional[str] = None
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None

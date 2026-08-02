@@ -178,7 +178,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                           <span className="text-sm text-blue-300">Machine: #{intervention.machine_id}</span>
                         )}
                         <span className="text-sm font-medium text-blue-600">
-                          Par: {intervention.technicien_id ? `Tech #${intervention.technicien_id}` : 'ChefOp'}
+                          Par: {intervention.technicien_nom || (intervention.technician_id ? `Tech #${intervention.technician_id}` : 'ChefOp')}
                         </span>
                         <span className="text-sm text-blue-300">
                           {new Date(intervention.date_intervention).toLocaleDateString()}
