@@ -360,8 +360,16 @@ async def _backdate_cycle(db, intervention_id: int, work_order_id: int, cycle_st
 
 
 async def run_lifecycle_cycle(db, rng, planning, machine, tech, cheftech, admin,
-                              cycle_start, cycle_end) -> tuple:
-    """Drive one full maintenance cycle through the REAL endpoints, then backdate."""
+                              cycle_start, cycle_end, stop_at: str = "closed") -> tuple:
+    """Drive one maintenance cycle through the REAL endpoints, then backdate.
+
+    `stop_at` decides how far the cycle gets, so the fleet ends up with work at
+    every stage instead of a history where everything is already closed:
+        "assigned"    -> WO ASSIGNED, ITV CONVERTED_TO_WORKORDER (waiting to start)
+        "in_progress" -> WO IN_PROGRESS, ITV EN_COURS (being worked right now)
+        "completed"   -> WO COMPLETED, ITV TERMINÉ (done, awaiting validation)
+        "closed"      -> the full chain through VALIDATED to CLOSED
+    """
     from sqlalchemy import text
 
     from modules.shared.routes.intervention_workflow import (
@@ -397,6 +405,15 @@ async def run_lifecycle_cycle(db, rng, planning, machine, tech, cheftech, admin,
         required_materials=None, current_user=cheftech, db=db,
     )
 
+    # create_intervention_from_planning hardcodes technician_id=current_user.id,
+    # i.e. the CHEFTECH who raised it, and validate_intervention ignores the
+    # technicien_id on its payload entirely — so nothing in the real chain ever
+    # assigns the technician who actually does the work. Left alone, every
+    # intervention would belong to a CHEFTECH and each technician's own
+    # "my interventions" queue (filtered on technician_id) would be empty.
+    itv.technician_id = tech.id
+    await db.commit()
+
     # 2. CHEFTECH validates the request (statut: APPROVED).
     await validate_intervention(
         intervention_id=itv.id,
@@ -409,8 +426,18 @@ async def run_lifecycle_cycle(db, rng, planning, machine, tech, cheftech, admin,
         intervention_id=itv.id, technician_id=tech.id, current_user=cheftech, db=db,
     )
 
+    if stop_at == "assigned":
+        await _backdate_cycle(db, itv.id, wo.id, cycle_start, cycle_end)
+        await db.commit()
+        return itv.id, wo.id
+
     # 4. Technician starts (WO: IN_PROGRESS, ITV: EN_COURS).
     await start_work_order(order_id=wo.id, current_user=tech, db=db)
+
+    if stop_at == "in_progress":
+        await _backdate_cycle(db, itv.id, wo.id, cycle_start, cycle_end)
+        await db.commit()
+        return itv.id, wo.id
 
     # 5. Technician completes with the full PDCA form (WO: COMPLETED, ITV: TERMINÉ).
     #    This is the call that fills every PDCA field and fires P4/P7 ML feedback.
@@ -432,12 +459,19 @@ async def run_lifecycle_cycle(db, rng, planning, machine, tech, cheftech, admin,
     )
     await complete_work_order(order_id=wo.id, payload=payload, current_user=tech, db=db)
 
-    # 6. Diagnosis is required before the ITV can be validated.
-    await db.execute(
-        text('UPDATE "OrdresIntervention" SET actual_failure_type = :ft WHERE id = :id'),
-        {"id": itv.id, "ft": failure_type},
-    )
+    # 6. Diagnosis is required before the ITV can be validated
+    #    (complete_validation_* rejects a NULL actual_failure_type).
+    #    Set it through the ORM, not raw SQL: the session runs with
+    #    expire_on_commit=False, so a raw UPDATE would leave the identity-map
+    #    instance holding a stale None and the very next validation call
+    #    would still see no diagnosis.
+    itv.actual_failure_type = failure_type
     await db.commit()
+
+    if stop_at == "completed":
+        await _backdate_cycle(db, itv.id, wo.id, cycle_start, cycle_end)
+        await db.commit()
+        return itv.id, wo.id
 
     # 7. CHEFTECH validates the finished intervention (ITV: VALIDATED).
     await complete_validation_ordres_intervention(id=itv.id, db=db, current_user=cheftech)
@@ -464,15 +498,30 @@ async def seed_lifecycles(db, rng, users, plannings, history_days: int) -> list:
     admin = users["ADMIN"][0]
     results = []
     failures = 0
+    stage_counts: dict = {}
 
+    now = datetime.now(timezone.utc)
     for planning in plannings:
         cheftech = planning._demo_cheftech
         crew = planning._demo_crew
+        # How recent is this planning week? Older work is finished and closed;
+        # the current week still has work sitting at earlier stages, which is
+        # what makes the "pending"/"in progress" dashboard tiles non-zero.
+        days_old = (now - planning.date_fin).days
+
         for machine in planning._demo_machines:
             health = getattr(machine, "_demo_health", "healthy")
             chance = {"critical": 0.75, "at_risk": 0.45, "healthy": 0.20}[health]
             if rng.random() > chance:
                 continue
+
+            if days_old > 10:
+                stop_at = "closed"
+            else:
+                stop_at = rng.choices(
+                    ["closed", "completed", "in_progress", "assigned"],
+                    weights=[35, 20, 25, 20],
+                )[0]
 
             span_start = planning.date_debut + timedelta(hours=rng.randint(1, 60))
             span_end = span_start + timedelta(hours=rng.randint(2, 20))
@@ -482,17 +531,19 @@ async def seed_lifecycles(db, rng, users, plannings, history_days: int) -> list:
             tech = rng.choice(crew)
             try:
                 ids = await run_lifecycle_cycle(
-                    db, rng, planning, machine, tech, cheftech, admin, span_start, span_end,
+                    db, rng, planning, machine, tech, cheftech, admin,
+                    span_start, span_end, stop_at=stop_at,
                 )
                 results.append(ids)
+                stage_counts[stop_at] = stage_counts.get(stop_at, 0) + 1
             except Exception as exc:
                 await db.rollback()
                 failures += 1
                 logger.warning("Cycle failed for machine %s in %s: %s",
                                machine.nom, planning.identifiant_planning, exc)
 
-    logger.info("Completed lifecycles: %s work orders driven end-to-end (%s failed)",
-                len(results), failures)
+    logger.info("Lifecycles driven: %s (%s failed). Final stages: %s",
+                len(results), failures, stage_counts)
     return results
 
 
@@ -515,7 +566,7 @@ def _risk_level(prob: float) -> str:
     return "LOW"
 
 
-async def seed_telemetry(db, rng, machines, history_days: int) -> int:
+async def seed_telemetry(db, rng, machines, technicians, history_days: int) -> int:
     """Sensor history + shadow ML-prediction logs, ~4 readings per machine per day.
 
     is_synthetic=True is deliberate: it keeps this demo data out of ML retrain
@@ -528,6 +579,9 @@ async def seed_telemetry(db, rng, machines, history_days: int) -> int:
     now = datetime.now(timezone.utc)
     readings_per_machine = history_days * 4
     total = 0
+    # machine_telemetry_logs.technician_id is NOT NULL — every reading is
+    # attributed to whoever was on shift.
+    tech_ids = [t.id for t in technicians]
 
     for machine in machines:
         band = SENSOR_BANDS[getattr(machine, "_demo_health", "healthy")]
@@ -545,7 +599,8 @@ async def seed_telemetry(db, rng, machines, history_days: int) -> int:
             torque = rng.uniform(*band["torque"]) + rng.gauss(0, 1.5)
 
             db.add(MachineTelemetry(
-                machine_id=machine.id, air_temperature=round(air, 2),
+                machine_id=machine.id, technician_id=rng.choice(tech_ids),
+                air_temperature=round(air, 2),
                 process_temperature=round(proc, 2), rotational_speed=rpm,
                 torque=round(torque, 2), tool_wear=round(wear, 2),
                 recorded_at=recorded_at, notes="Demo seed telemetry",
@@ -590,6 +645,14 @@ async def main() -> None:
     rng = random.Random(RNG_SEED)
     from core.database import db_manager
 
+    # Register every ORM mapper before any query runs. `models/__init__` pulls in
+    # most of them, but NOT models.alertes — and Utilisateurs/Machines both declare
+    # relationship("Alert"), so without this explicit import SQLAlchemy raises
+    # "expression 'Alert' failed to locate a name" on the first query.
+    # seed_common.py carries the same workaround.
+    import models  # noqa: F401
+    from models.alertes import Alert  # noqa: F401
+
     await db_manager.init_db()
     async with db_manager.async_session_maker() as db:
         from sqlalchemy import func, select
@@ -617,7 +680,7 @@ async def main() -> None:
         cycles = await seed_lifecycles(db, rng, users, plannings, args.history_days)
         logger.info("Lifecycle seeding complete: %s cycles", len(cycles))
 
-        await seed_telemetry(db, rng, machines, args.history_days)
+        await seed_telemetry(db, rng, machines, users["TECHNICIEN"], args.history_days)
         logger.info("Seed complete.")
 
 

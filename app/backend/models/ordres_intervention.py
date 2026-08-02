@@ -19,7 +19,9 @@ class OrdresIntervention(Base):
     planning_tache_id = Column(
         Integer, nullable=True
     )  # Links intervention to a specific task
-    statut = Column(String(20), nullable=False, default="EN_ATTENTE")
+    # 32, not 20: the workflow writes "CONVERTED_TO_WORKORDER" (22 chars).
+    # See migration widen_intervention_statut.
+    statut = Column(String(32), nullable=False, default="EN_ATTENTE")
     problem_description = Column(Text, nullable=True)
     priority = Column(String(20), nullable=True)
     estimated_duration_minutes = Column(Integer, nullable=True)
