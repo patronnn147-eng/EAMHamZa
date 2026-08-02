@@ -54,6 +54,17 @@ async def validate_OrdresTravail(
         update_dict["utilisateur_id"] = data.utilisateur_id
         update_dict["validated_by"] = current_user.id
         update_dict["date_validation"] = datetime.now()
+    elif data.action == "VALIDATE":
+        # Closes out finished work: COMPLETED -> VALIDATED. /close then accepts it.
+        # Without this branch nothing ever set VALIDATED, so CLOSED was unreachable.
+        if order.statut != OrdreStatut.COMPLETED:
+            raise HTTPException(
+                status_code=400,
+                detail="Only completed work orders can be validated",
+            )
+        update_dict["statut"] = OrdreStatut.VALIDATED
+        update_dict["validated_by"] = current_user.id
+        update_dict["date_validation"] = datetime.now()
     elif data.action == "REJECT":
         update_dict["statut"] = OrdreStatut.REJECTED
         update_dict["validated_by"] = current_user.id
