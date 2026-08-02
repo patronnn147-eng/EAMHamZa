@@ -447,6 +447,19 @@ async def complete_work_order(
         )).scalar_one_or_none()
         if intervention:
             await _update_intervention_fields(db, intervention, payload, wo.date_debut, now)
+            # P7.6 + P4.3 feedback — non-fatal, mirrors the pattern already
+            # used in modules/technicien/routes/interventions.py's status endpoint.
+            if intervention.legacy_parts_text:
+                try:
+                    from modules.ml.services.p7_feedback import record_p7_feedback
+                    await record_p7_feedback(intervention.id, db)
+                except Exception as _fb_err:
+                    logger.debug(f"[P7-feedback] non-fatal error: {_fb_err}")
+            try:
+                from modules.ml.services.p4_feedback import record_p4_feedback
+                await record_p4_feedback(intervention.id, db)
+            except Exception as _fb_err:
+                logger.debug(f"[P4-feedback] non-fatal error: {_fb_err}")
             if payload.machine_status_after:
                 try:
                     await create_status_change_request(
