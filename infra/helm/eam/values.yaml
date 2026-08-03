@@ -17,6 +17,20 @@ ingress:
   hostname: eam-staging.polandcentral.cloudapp.azure.com
   clusterIssuer: letsencrypt-staging
 
+# Public HTTPS entry point that doesn't depend on Azure's inbound LoadBalancer
+# (blocked at the subscription/platform level, confirmed in Phase 1 — NSG/LB
+# config all correct, DipAvailability flat 0%). The ngrok agent dials OUT to
+# ngrok's edge, which is never blocked, and relays public traffic back in —
+# sidesteps the block entirely instead of fighting it. Disabled by default;
+# enabled per-environment (see values-prod.yaml) once a free static domain +
+# authtoken are reserved at ngrok.com (user-created account, not automatable).
+# authtoken lives in Key Vault (ngrok-authtoken secret), synced into the
+# same eam-secrets K8s Secret every other credential in this chart uses —
+# never put it here in plaintext.
+ngrok:
+  enabled: false
+  domain: ""
+
 workloads:
   backend:
     image: backend

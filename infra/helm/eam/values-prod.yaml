@@ -1,0 +1,18 @@
+keyVault:
+  clientId: "271d139c-e1b2-49c4-8829-f2609f20b07b"
+
+postgres:
+  db: asset_management_prod
+
+# Real public route is the ngrok tunnel below, not this Ingress+cert-manager
+# path — cert-manager will still fail to issue a cert here (same as staging's
+# broken public LB), harmless/non-blocking since ngrok terminates public TLS
+# itself. hostname is kept in sync with ngrok.domain because it also feeds
+# FRONTEND_URL on backend/celery.
+ingress:
+  hostname: shawnta-gruffiest-christa.ngrok-free.dev
+  clusterIssuer: letsencrypt-staging
+
+ngrok:
+  enabled: true
+  domain: "shawnta-gruffiest-christa.ngrok-free.dev"

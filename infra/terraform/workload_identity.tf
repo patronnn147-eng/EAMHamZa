@@ -17,3 +17,13 @@ resource "azurerm_federated_identity_credential" "kv_secrets_provider_staging" {
   issuer                      = azurerm_kubernetes_cluster.main.oidc_issuer_url
   subject                     = "system:serviceaccount:eam-staging:eam-secrets-sa"
 }
+
+# Same addon identity, federated for the eam-prod namespace's copy of the
+# ServiceAccount too — each namespace needs its own subject entry.
+resource "azurerm_federated_identity_credential" "kv_secrets_provider_prod" {
+  name                       = "eam-prod-secrets-sa"
+  user_assigned_identity_id = data.azurerm_user_assigned_identity.kv_secrets_provider.id
+  audience                   = ["api://AzureADTokenExchange"]
+  issuer                      = azurerm_kubernetes_cluster.main.oidc_issuer_url
+  subject                     = "system:serviceaccount:eam-prod:eam-secrets-sa"
+}

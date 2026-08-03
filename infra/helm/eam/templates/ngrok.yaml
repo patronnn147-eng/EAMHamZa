@@ -1,0 +1,42 @@
+{{- if .Values.ngrok.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ngrok
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ngrok
+  template:
+    metadata:
+      labels:
+        app: ngrok
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: eam-secrets-sa
+      volumes:
+        - name: secrets-store
+          csi:
+            driver: secrets-store.csi.k8s.io
+            readOnly: true
+            volumeAttributes:
+              secretProviderClass: eam-secrets-provider
+      containers:
+        - name: ngrok
+          image: ngrok/ngrok:latest
+          # frontend already reverse-proxies /api/ to backend internally
+          # (app/frontend/nginx.conf) — tunneling straight to it means no
+          # dependency on ingress-nginx/cert-manager for the public path.
+          args: ["http", "--url={{ .Values.ngrok.domain }}", "http://frontend:80"]
+          volumeMounts:
+            - name: secrets-store
+              mountPath: "/mnt/secrets-store"
+              readOnly: true
+          env:
+            - name: NGROK_AUTHTOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: eam-secrets
+                  key: ngrok-authtoken
+{{- end }}
