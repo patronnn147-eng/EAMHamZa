@@ -35,6 +35,53 @@ const FACTOR_LABEL: Record<string, string> = {
 };
 const prettyFactor = (f: string) => FACTOR_LABEL[f] ?? f.replace(/_/g, ' ');
 
+/** Share of its limit a reading has consumed, or null when there is no limit. */
+export const limitRatio = (s: SensorStatus): number | null =>
+  s.target == null || s.target === 0 ? null : s.value / s.target;
+
+/** "Couple à 55.4 Nm, limite 60 Nm" — the machine's condition, in numbers. */
+export const readingPhrase = (s: SensorStatus): string =>
+  s.target == null
+    ? `${s.label} à ${s.value} ${s.unit}`
+    : `${s.label} à ${s.value} ${s.unit}, limite ${s.target} ${s.unit}`;
+
+/** Sensors closest to their limit first — the ones worth telling an operator about. */
+export const byClosestToLimit = (sensors: SensorStatus[]): SensorStatus[] =>
+  sensors
+    .filter((s) => limitRatio(s) != null)
+    .sort((a, b) => (limitRatio(b) as number) - (limitRatio(a) as number));
+
+/** Match a model factor name back to the sensor it refers to, so the reason can
+ *  carry a real reading instead of an abstract statement. */
+export const sensorForFactor = (factor: string, sensors: SensorStatus[]): SensorStatus | undefined => {
+  // Model factor names and sensor labels describe the same thing in different
+  // words ("Usure de l'Outil" vs "Usure outil"), so compare the meaningful
+  // words rather than the whole string.
+  const STOP = new Set(['de', 'du', 'la', 'le', 'les', 'l', 'd', 'des', 'en']);
+  const words = (v: string) =>
+    new Set(
+      v.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .split(/[^a-z0-9]+/)
+        .filter((w) => w.length > 1 && !STOP.has(w)),
+    );
+
+  const f = words(factor);
+  if (!f.size) return undefined;
+
+  let best: SensorStatus | undefined;
+  let bestScore = 0;
+  for (const s of sensors) {
+    const cand = new Set([...words(s.label), ...words(s.key)]);
+    let hits = 0;
+    f.forEach((w) => { if (cand.has(w)) hits += 1; });
+    const score = hits / f.size;
+    if (score > bestScore) { bestScore = score; best = s; }
+  }
+  // Require a real overlap: "temp_delta" is derived and matches no sensor.
+  return bestScore >= 0.5 ? best : undefined;
+};
+
 export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
   const sensors = health.sensor_status ?? [];
   const abnormal = sensors.filter((s) => s.status !== 'NORMAL');
@@ -57,20 +104,26 @@ export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
       .slice(0, 3);
 
     for (const e of flagged) {
+      const s = sensorForFactor(e.factor, sensors);
+      const ratio = s ? limitRatio(s) : null;
       reasons.push({
-        label: `${prettyFactor(e.factor)} : évolution inhabituelle`,
-        detail: "cette mesure reste dans sa plage, mais s'écarte du comportement habituel de cette machine",
+        // Name the reading and where it actually stands, not the fact that a
+        // check ran. An operator needs the machine's condition, not ours.
+        label: s ? readingPhrase(s) : prettyFactor(e.factor),
+        detail: ratio != null
+          ? `${Math.round(ratio * 100)} % de la limite — sous le seuil, mais en évolution défavorable`
+          : "s'écarte du comportement habituel de cette machine",
         tone: e.intensity === 'high' ? 'warning' : 'normal',
       });
     }
 
-    const drifting = sensors
-      .filter((s) => s.target != null && s.value >= 0.85 * (s.target as number))
-      .map((s) => s.label);
+    const drifting = byClosestToLimit(sensors).filter((s) => (limitRatio(s) as number) >= 0.85);
     if (drifting.length >= 2) {
       reasons.push({
-        label: `Plusieurs mesures approchent leur limite en même temps`,
-        detail: drifting.join(', '),
+        label: `${drifting.length} mesures dépassent 85 % de leur limite en même temps`,
+        detail: drifting
+          .map((s) => `${s.label} ${Math.round((limitRatio(s) as number) * 100)} %`)
+          .join(' · '),
         tone: 'warning',
       });
     }
@@ -110,6 +163,8 @@ export function buildHealthWhy(health: UnifiedHealthLike): WhyPayload {
     confidence,
     counterfactual: counterfactual.length ? counterfactual : undefined,
     source: 'Basé sur les dernières mesures des capteurs et l’historique de pannes.',
-    llmContext: { reasons: reasons.map((r) => r.label) },
+    // Send the detail too — it carries the numbers, so the plain-language
+    // paragraph can talk about the machine rather than about the checks.
+    llmContext: { reasons: reasons.map((r) => (r.detail ? `${r.label} (${r.detail})` : r.label)) },
   };
 }
