@@ -46,20 +46,18 @@ export async function loadRuntimeConfig(): Promise<void> {
 
 // Get current configuration
 export function getConfig() {
-  // If config is still loading, return default config to avoid using stale Vite env vars
-  if (configLoading) {
-    console.log('Config still loading, using default config');
-    return defaultConfig;
-  }
-
-  // First try runtime config (for Lambda)
+  // Runtime config (fetched from /api/config, e.g. for Lambda) wins once loaded.
   if (runtimeConfig) {
     console.log('Using runtime config');
     return runtimeConfig;
   }
 
-  // Then try Vite environment variables (for local development)
-  if (import.meta.env.VITE_API_BASE_URL) {
+  // Vite env vars are baked in at build time -- known synchronously, so
+  // there's no reason to wait on the async /api/config fetch for this.
+  // Checked via !== undefined, not truthiness -- an explicitly empty
+  // string means "same-origin relative paths" (e.g. behind nginx's own
+  // /api/ proxy) and must be honored, not treated as "unset".
+  if (import.meta.env.VITE_API_BASE_URL !== undefined) {
     const viteConfig = {
       API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
     };
@@ -67,8 +65,13 @@ export function getConfig() {
     return viteConfig;
   }
 
-  // Finally fall back to default
-  console.log('Using default config');
+  // No Vite env var set -- still waiting on /api/config, or it came back
+  // empty. Use the Lambda-oriented default either way.
+  if (configLoading) {
+    console.log('Config still loading, using default config');
+  } else {
+    console.log('Using default config');
+  }
   return defaultConfig;
 }
 
