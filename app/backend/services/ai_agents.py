@@ -22,7 +22,7 @@ from services.ai_tools import get_tool_definitions, execute_tool
 
 logger = logging.getLogger(__name__)
 
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "openai/gpt-oss-120b"
 
 
 # ---------------------------------------------------------------------------
