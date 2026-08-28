@@ -29,15 +29,15 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "type": "object",
                     "properties": {
                         "zone": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Zone name (e.g., Zone_Nord, Zone_Sud, Zone_Centre)",
                         },
                         "status": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Machine status (OPERATIONNELLE, MAINTENANCE, PANNE)",
                         },
                         "machine_type": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Machine type",
                         },
                     },
@@ -54,15 +54,15 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "type": "object",
                     "properties": {
                         "status": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Order status (EN_ATTENTE, EN_COURS, TERMINÉ, ANNULÉ)",
                         },
                         "utilisateur_id": {
-                            "type": "integer",
+                            "type": ["integer", "null"],
                             "description": "Filter by user ID",
                         },
                         "machine_id": {
-                            "type": "integer",
+                            "type": ["integer", "null"],
                             "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                     },
@@ -79,11 +79,11 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "type": "object",
                     "properties": {
                         "machine_id": {
-                            "type": "integer",
+                            "type": ["integer", "null"],
                             "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                         "statut": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Intervention status (EN_ATTENTE, EN_COURS, TERMINÉE)",
                         },
                     },
@@ -100,11 +100,11 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "type": "object",
                     "properties": {
                         "date_from": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Start date (ISO format, e.g., 2024-01-01)",
                         },
                         "date_to": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "End date (ISO format, e.g., 2024-12-31)",
                         },
                     },
@@ -121,11 +121,11 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     "type": "object",
                     "properties": {
                         "priorite": {
-                            "type": "string",
+                            "type": ["string", "null"],
                             "description": "Priority level (LOW, MEDIUM, HIGH, CRITICAL)",
                         },
                         "machine_id": {
-                            "type": "integer",
+                            "type": ["integer", "null"],
                             "description": FILTER_BY_MACHINE_ID_DESC,
                         },
                     },
