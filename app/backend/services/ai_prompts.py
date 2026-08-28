@@ -356,7 +356,16 @@ def build_full_system_prompt(
     return base
 
 
-def format_tool_result(tool_name: str, result: ToolResult, max_items: int = 100) -> str:
+def _truncate_field_values(row: dict, max_len: int = 150) -> dict:
+    """Shorten long string field values so a single verbose row (e.g. a
+    multi-paragraph problem_description) can't blow the LLM's context budget."""
+    return {
+        k: (v[:max_len] + "…" if isinstance(v, str) and len(v) > max_len else v)
+        for k, v in row.items()
+    }
+
+
+def format_tool_result(tool_name: str, result: ToolResult, max_items: int = 10) -> str:
     """
     Format tool execution results for LLM context injection.
     Truncates large result sets and handles empty results explicitly.
@@ -377,7 +386,10 @@ def format_tool_result(tool_name: str, result: ToolResult, max_items: int = 100)
 
     if isinstance(result, list):
         total = len(result)
-        truncated = result[:max_items]
+        truncated = [
+            _truncate_field_values(row) if isinstance(row, dict) else row
+            for row in result[:max_items]
+        ]
         try:
             data_str = json.dumps(truncated, ensure_ascii=False, default=str)
         except Exception:
