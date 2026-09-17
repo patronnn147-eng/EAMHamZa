@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy import select
@@ -6,8 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from core.database import get_db
-from models.ordres_intervention import OrdresIntervention
-from models.ordres_travail import OrdresTravail
+from models.ordres_intervention import Ordres_intervention
+from models.ordres_travail import Ordres_travail
 from models.utilisateurs import Utilisateurs, UserRole
 from core.auth import get_current_user
 from typing import Annotated
@@ -24,46 +24,6 @@ def verify_admin(current_user: Annotated[Utilisateurs, Depends(get_current_user)
     return current_user
 
 
-def _compute_tech_stats(completed_wos: list) -> list:
-    """Build sorted technician-performance list from completed work orders."""
-    tech_stats: dict = {}
-    for wo in completed_wos:
-        tid = wo.utilisateur_id or "Unassigned"
-        if tid not in tech_stats:
-            tech_stats[tid] = {"completed": 0, "total_duration": 0}
-        tech_stats[tid]["completed"] += 1
-        if wo.date_debut and wo.date_fin:
-            tech_stats[tid]["total_duration"] += int(
-                (wo.date_fin - wo.date_debut).total_seconds() / 60
-            )
-
-    performance = []
-    for tid, stats in tech_stats.items():
-        avg = round(stats["total_duration"] / stats["completed"], 1) if stats["completed"] > 0 else 0
-        performance.append({"technician_id": tid, "completed": stats["completed"], "avg_duration": avg})
-
-    performance.sort(key=lambda x: x["completed"], reverse=True)
-    return performance
-
-
-def _compute_request_trends(all_ints: list) -> list:
-    """Build sorted daily-trend chart from all interventions."""
-    req_trends: dict = {}
-    for i in all_ints:
-        if not i.date_intervention:
-            continue
-        day_str = i.date_intervention.strftime("%Y-%m-%d")
-        if day_str not in req_trends:
-            req_trends[day_str] = {"accepted": 0, "rejected": 0, "pending": 0}
-        if i.statut == "APPROUVE":
-            req_trends[day_str]["accepted"] += 1
-        elif i.statut == "REJETE":
-            req_trends[day_str]["rejected"] += 1
-        elif i.statut == "EN_ATTENTE":
-            req_trends[day_str]["pending"] += 1
-    return [{"date": date_str, **counts} for date_str, counts in sorted(req_trends.items())]
-
-
 @admin_router.get("/dashboard")
 async def get_admin_analytics_dashboard(
     current_user: Annotated[Utilisateurs, Depends(verify_admin)],
@@ -73,16 +33,16 @@ async def get_admin_analytics_dashboard(
     Returns system-wide analytics, technician performance, and request trends for Admin.
     """
     w_result = await db.execute(
-        select(OrdresTravail)
-        .options(selectinload(OrdresTravail.machine))
-        .options(selectinload(OrdresTravail.utilisateur))
+        select(Ordres_travail)
+        .options(selectinload(Ordres_travail.machine))
+        .options(selectinload(Ordres_travail.utilisateur))
     )
     all_wos = list(w_result.scalars().all())
 
     i_result = await db.execute(
-        select(OrdresIntervention)
-        .options(selectinload(OrdresIntervention.machine))
-        .options(selectinload(OrdresIntervention.technicien))
+        select(Ordres_intervention)
+        .options(selectinload(Ordres_intervention.machine))
+        .options(selectinload(Ordres_intervention.technicien))
     )
     all_ints = list(i_result.scalars().all())
 
@@ -107,13 +67,59 @@ async def get_admin_analytics_dashboard(
     requests_validated = len(approved_ints)
 
     # 2. Technician Performance
-    tech_performance = _compute_tech_stats(completed_wos)
+    tech_stats = {}
+    for wo in completed_wos:
+        tid = wo.utilisateur_id or "Unassigned"
+        if tid not in tech_stats:
+            tech_stats[tid] = {"completed": 0, "total_duration": 0}
+
+        tech_stats[tid]["completed"] += 1
+        if wo.date_debut and wo.date_fin:
+            tech_stats[tid]["total_duration"] += int(
+                (wo.date_fin - wo.date_debut).total_seconds() / 60
+            )
+
+    tech_performance = []
+    for tid, stats in tech_stats.items():
+        avg = (
+            round(stats["total_duration"] / stats["completed"], 1)
+            if stats["completed"] > 0
+            else 0
+        )
+        tech_performance.append(
+            {
+                "technician_id": tid,
+                "completed": stats["completed"],
+                "avg_duration": avg,
+            }
+        )
+
+    # Sort technicians by completed amount
+    tech_performance.sort(key=lambda x: x["completed"], reverse=True)
 
     # 3. Request Trends
     accepted_ints = len(approved_ints)
     rejected_ints = sum(1 for i in all_ints if i.statut == "REJETE")
     pending_ints = sum(1 for i in all_ints if i.statut == "EN_ATTENTE")
-    trend_chart = _compute_request_trends(all_ints)
+
+    # Simple trend by day for interventions
+    req_trends = {}
+    for i in all_ints:
+        if i.date_intervention:
+            day_str = i.date_intervention.strftime("%Y-%m-%d")
+            if day_str not in req_trends:
+                req_trends[day_str] = {"accepted": 0, "rejected": 0, "pending": 0}
+
+            if i.statut == "APPROUVE":
+                req_trends[day_str]["accepted"] += 1
+            elif i.statut == "REJETE":
+                req_trends[day_str]["rejected"] += 1
+            elif i.statut == "EN_ATTENTE":
+                req_trends[day_str]["pending"] += 1
+
+    trend_chart = [
+        {"date": date_str, **counts} for date_str, counts in sorted(req_trends.items())
+    ]
 
     return {
         "kpis": {
@@ -141,9 +147,9 @@ async def export_admin_analytics(
     Exports aggregate analytics data as a CSV file.
     """
     w_result = await db.execute(
-        select(OrdresTravail)
-        .options(selectinload(OrdresTravail.machine))
-        .options(selectinload(OrdresTravail.utilisateur))
+        select(Ordres_travail)
+        .options(selectinload(Ordres_travail.machine))
+        .options(selectinload(Ordres_travail.utilisateur))
     )
     all_wos = list(w_result.scalars().all())
 

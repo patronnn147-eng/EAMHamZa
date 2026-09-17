@@ -100,7 +100,7 @@ class GroqClient:
 
         try:
             params = {
-                "model": "openai/gpt-oss-120b",
+                "model": "llama-3.3-70b-versatile",
                 "messages": messages,
                 "temperature": temperature,
                 "max_tokens": 4096,

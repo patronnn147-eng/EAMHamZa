@@ -25,7 +25,7 @@ An Administrator opens a planning window in \emph{draft} status; the Head Techni
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_planning_2.png}
-\caption{Planning screen --- per-machine task breakdown}
+\caption{Planning screen: per-machine task breakdown}
 \label{fig:ss-planning-2}
 \end{figure}
 
@@ -92,7 +92,7 @@ A single service owns every mutation of stock quantities for the intervention/wo
 
 \subsection{Summary}
 
-The four core workflows --- planning, intervention requests, work orders, inventory reservations --- are each owned by a single dedicated service, keeping stock mutations, approval logic, and state transitions from leaking into unrelated modules. This domain-by-domain split is what lets a rule change in one workflow (for example, how stock is reserved) ship without touching the others.
+The four core workflows (planning, intervention requests, work orders, inventory reservations) are each owned by a single dedicated service, keeping stock mutations, approval logic, and state transitions from leaking into unrelated modules. This domain-by-domain split is what lets a rule change in one workflow (for example, how stock is reserved) ship without touching the others.
 
 \section{Frontend implementation}
 
@@ -225,6 +225,54 @@ Deploying six new predictive models directly to every machine in the plant, with
 \caption{Pilot rollout dashboard (PDCA tracking)}
 \label{fig:ss-pdca}
 \end{figure}
+
+\section{Production deployment}
+
+Development up to this point ran entirely on Docker Compose. To validate the platform under conditions closer to a real operating environment (container orchestration, a managed database, centralized secret management, and public network access), the full stack was additionally deployed to a managed Kubernetes cluster on Microsoft Azure, provisioned as Infrastructure as Code. Figure~\ref{fig:deployment-pipeline} summarizes the resulting pipeline, from infrastructure provisioning down to the public web address; each step is explained below in plain terms.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/deployment_pipeline.png}
+\caption{Production deployment pipeline, from infrastructure to public access}
+\label{fig:deployment-pipeline}
+\end{figure}
+
+\paragraph{Terraform.} Every cloud resource this platform runs on is declared in Terraform's HCL syntax rather than clicked together in the Azure Portal, so the whole infrastructure can be rebuilt from the same text files already under version control: no undocumented manual step, and every change goes through the same plan/apply review a code change would.
+
+\paragraph{Azure resources.} Three resources come out of that Terraform configuration: the \textbf{Azure Kubernetes Service (AKS)} cluster the application runs on, the managed PostgreSQL Flexible Server behind it, and a Key Vault holding the database password and other secrets away from both the application code and the Helm values files.
+
+\paragraph{Helm chart.} The seven application components, backend, frontend, ML microservice, RAG service, Celery worker, Celery beat, RabbitMQ, are packaged into a single Helm chart, so a full environment comes up from one install command instead of applying seven sets of Kubernetes manifests by hand and keeping them in sync manually.
+
+\paragraph{Staging vs.\ production.} The same package is installed twice, into two separate, isolated environments. \emph{eam-staging} is loaded with realistic demonstration data and used for testing and screenshots. \emph{eam-prod} starts instead from a clean, empty database, with no demonstration data mixed in, so it reflects a genuine first-run deployment.
+
+\paragraph{Public access.} Public exposure is deliberately scoped to production only. Inside that cluster, a lightweight tunnel agent keeps an outbound-only connection alive to a relay service; that outbound link is what lets an outside visitor reach the app over HTTPS at a fixed address, without ever opening an inbound port on the cluster itself.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/aks_deployment.png}
+\caption{Production Kubernetes cluster (Azure Portal)}
+\label{fig:aks-deployment}
+\end{figure}
+
+The cluster, the managed PostgreSQL server (with the pgvector extension enabled for the RAG service), and a Key Vault for secret storage were all provisioned with Terraform, with remote state kept on \textbf{HashiCorp Cloud Platform (HCP)} Terraform for visibility into every planned and applied change.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/terraform.png}
+\caption{Terraform-managed infrastructure (HCP Terraform workspace)}
+\label{fig:terraform-iac}
+\end{figure}
+
+That same bundle, backend, frontend, ML microservice, RAG service, the two Celery processes, and RabbitMQ, together with MinIO for object storage, was deployed twice from one chart with different value files: once into a staging namespace seeded with realistic demonstration data, and once into a separate, clean production namespace with its own database and no demonstration data. Pods authenticate to Key Vault through Azure Workload Identity, via the Secrets Store CSI Driver, so no credential is ever stored in the chart's values or in a Kubernetes Secret checked into version control.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/helm.png}
+\caption{Helm releases across the cluster: staging and production side by side}
+\label{fig:helm-dashboard}
+\end{figure}
+
+Public HTTPS access is provided by a lightweight tunnel agent running inside the cluster, which exposes the production environment on a stable public address. The production environment is reachable publicly over HTTPS through this route.
 
 \section{Technical difficulties encountered}
 

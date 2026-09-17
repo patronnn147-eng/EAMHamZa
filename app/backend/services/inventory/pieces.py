@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.pieces import Piece
 from models.piece_machine import piece_machine
 from models.stock import Stock
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -60,17 +59,38 @@ class PieceService:
         sort: Optional[str] = None,
     ) -> Dict[str, Any]:
         try:
-            query, count_query = _apply_filters(
-                select(Piece),
-                select(func.count(Piece.id)),
-                Piece,
-                query_dict,
-            )
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Piece)
+            query = select(Piece)
+            count_query = select(lambda: Piece.id)
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Piece, field):
+                        query = query.where(getattr(Piece, field) == value)
+                        count_query = count_query.where(getattr(Piece, field) == value)
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Piece, field_name):
+                        query = query.order_by(getattr(Piece, field_name).desc())
+                else:
+                    if hasattr(Piece, sort):
+                        query = query.order_by(getattr(Piece, sort))
+            else:
+                query = query.order_by(Piece.id.desc())
+
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching piece list: {str(e)}")
             raise
@@ -337,12 +357,11 @@ class PieceService:
         out: List[Dict[str, Any]] = []
         for r in rows:
             score = min(1.0, float(r.score))
-            if score >= threshold_high:
-                tier = "high"
-            elif score >= 0.60:
-                tier = "medium"
-            else:
-                tier = "low"
+            tier = (
+                "high"
+                if score >= threshold_high
+                else ("medium" if score >= 0.60 else "low")
+            )
             out.append(
                 {
                     "piece_id": r.id,
@@ -443,7 +462,7 @@ async def batch_get_parts_readiness(db: AsyncSession) -> Dict[int, str]:
 
         readiness: Dict[int, str] = {}
         for row in rows:
-            machine_id, zero_count, low_count, _total_pieces = row
+            machine_id, zero_count, low_count, total_pieces = row
             if zero_count > 0:
                 readiness[machine_id] = "CRITICAL"
             elif low_count > 0:

@@ -176,7 +176,7 @@ class AIHubService:
         }.get(ct, "png")
         return f"{name_prefix}.{ext}"
 
-    def _image_str_to_upload_file(
+    async def _image_str_to_upload_file(
         self, image: str, name_prefix: str = "image"
     ) -> io.BytesIO:
         """
@@ -226,7 +226,7 @@ class AIHubService:
                     "Each image must be a base64 data URI string."
                 )
             upload_files.append(
-                self._image_str_to_upload_file(
+                await self._image_str_to_upload_file(
                     img, name_prefix=f"image_{idx + 1}"
                 )
             )

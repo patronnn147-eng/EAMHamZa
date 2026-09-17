@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { client } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -538,13 +538,10 @@ export default function WorkOrderDetailPage() {
             <CompleteWorkOrderModal
                 open={completeModalOpen}
                 onOpenChange={setCompleteModalOpen}
-                workOrderId={Number.parseInt(id)}
+                workOrderId={parseInt(id)}
                 machineId={ordre?.machine_id ?? null}
                 onSuccess={fetchData}
             />
         </div>
     );
 }
-
-
-

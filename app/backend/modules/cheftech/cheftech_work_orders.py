@@ -1,4 +1,4 @@
-﻿from datetime import datetime, timezone
+from datetime import datetime, timezone
 import io
 import logging
 
@@ -12,10 +12,9 @@ from schemas.pagination import PaginatedResponse
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_travail import OrdresTravail
+from models.ordres_travail import Ordres_travail
 from models.machines import Machines
-from models.ordres_intervention import OrdresIntervention
-from modules.shared.work_order_export_utils import autofit_columns as _autofit_columns, itv_str as _itv_str
+from models.ordres_intervention import Ordres_intervention
 from typing import Annotated
 
 logger = logging.getLogger(__name__)
@@ -30,124 +29,7 @@ def _require_cheftech(current_user: Utilisateurs):
         raise HTTPException(status_code=403, detail="Forbidden: ChefTech only")
 
 
-def _itv_attr(itv, attr, default=None):
-    """Return attribute from intervention ORM object, or default if itv is None."""
-    return getattr(itv, attr, default) if itv else default
-
-
-def _calc_duration(wo, now: datetime):
-    """Return (duration_min, live_seconds) based on WO dates."""
-    if wo.date_fin and wo.date_debut:
-        return int((wo.date_fin - wo.date_debut).total_seconds() / 60), None
-    if wo.date_debut:
-        return None, int((now.replace(tzinfo=None) - wo.date_debut.replace(tzinfo=None)).total_seconds())
-    return None, None
-
-
-def _build_wo_row(wo, m_nom, u_nom, u_email, itv, now: datetime) -> dict:
-    """Build the output dict for one work-order row in the list response."""
-    duration_min, live_seconds = _calc_duration(wo, now)
-    return {
-        "id": wo.id,
-        "titre": wo.titre,
-        "machine_nom": m_nom or "N/A",
-        "technicien_id": _itv_attr(itv, "technician_id"),
-        "technicien_nom": u_nom or "N/A",
-        "technicien_email": u_email or "N/A",
-        "intervention_id": _itv_attr(itv, "id"),
-        "statut": wo.statut,
-        "priorite": wo.priorite,
-        "created_at": wo.created_at.isoformat() if wo.created_at else None,
-        "date_debut": wo.date_debut.isoformat() if wo.date_debut else None,
-        "date_fin": wo.date_fin.isoformat() if wo.date_fin else None,
-        "duration_min": duration_min,
-        "live_seconds": live_seconds,
-        "rapport": wo.rapport,
-        "intervention_type": _itv_attr(itv, "intervention_type"),
-        "machine_status_after": _itv_attr(itv, "machine_status_after"),
-        "plan_hypothesis": _itv_attr(itv, "plan_hypothesis"),
-        "root_cause_category": _itv_attr(itv, "root_cause_category"),
-        "root_cause_description": _itv_attr(itv, "root_cause_description"),
-        "actions_performed": _itv_attr(itv, "actions_performed"),
-        "parts_replaced": _itv_attr(itv, "legacy_parts_text"),
-        "tools_used": _itv_attr(itv, "tools_used"),
-        "check_resolved": _itv_attr(itv, "check_resolved"),
-        "check_verification_method": _itv_attr(itv, "check_verification_method"),
-        "act_preventive_actions": _itv_attr(itv, "act_preventive_actions"),
-        "act_recommendations": _itv_attr(itv, "act_recommendations"),
-    }
-
-
-async def _fetch_consumed_summary(db: AsyncSession, itv) -> str | None:
-    """Query the intervention_consumption_summary VIEW; returns formatted string or None."""
-    if itv is None:
-        return None
-    try:
-        _row = (await db.execute(
-            text("SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"),
-            {"iid": itv.id},
-        )).first()
-        if not _row or not _row[0]:
-            return None
-        import json as _json
-        data = _row[0] if isinstance(_row[0], list) else _json.loads(_row[0])
-        parts = []
-        for x in data:
-            part = f"{x.get('piece_name', '?')} ({x.get('used', '0')}{x.get('unit', '')}"
-            if float(x.get("returned", 0) or 0):
-                part += f", retour={x.get('returned', '0')}"
-            if float(x.get("wasted", 0) or 0):
-                part += f", rebut={x.get('wasted', '0')}"
-            parts.append(part + ")")
-        return ", ".join(parts)
-    except Exception:
-        return None
-
-
-def _build_export_flat_row(wo, m_nom, u_nom, u_email, itv, consumed_summary, duration_min) -> dict:
-    """Build the flat dict used as a single Excel row for a work-order export."""
-    _fmt = lambda d: d.strftime("%Y-%m-%d %H:%M") if d else "N/A"  # noqa: E731
-    return {
-        "ID OT": wo.id,
-        "Titre": wo.titre or "N/A",
-        "Machine": m_nom or "N/A",
-        "Technicien": u_nom or "N/A",
-        "Email Technicien": u_email or "N/A",
-        "Date Création": _fmt(wo.created_at),
-        "Date Début": _fmt(wo.date_debut),
-        "Date Fin": _fmt(wo.date_fin),
-        "Durée (min)": duration_min,
-        "Statut OT": wo.statut,
-        "Priorité": wo.priorite,
-        "Rapport Brut": wo.rapport or "N/A",
-        "ID Intervention": itv.id if itv else "N/A",
-        "Priorité Intervention": _itv_str(itv, "priority"),
-        "Symptômes": _itv_str(itv, "symptoms"),
-        "Impact": _itv_str(itv, "impact"),
-        "Fréquence": _itv_str(itv, "frequency"),
-        "Score de Risque": _itv_str(itv, "risk_score"),
-        "Type d'intervention": _itv_str(itv, "intervention_type"),
-        "État Machine Après": _itv_str(itv, "machine_status_after"),
-        "PLAN - Hypothèse de départ": _itv_str(itv, "plan_hypothesis"),
-        "DO - Catégorie Cause Racine": _itv_str(itv, "root_cause_category"),
-        "DO - Description Cause Racine": _itv_str(itv, "root_cause_description"),
-        "DO - Rapport d'intervention": _itv_str(itv, "actions_performed"),
-        "DO - Pièces Remplacées": consumed_summary or _itv_str(itv, "legacy_parts_text"),
-        "DO - Outils Utilisés": _itv_str(itv, "tools_used"),
-        "CHECK - Problème Résolu?": "OUI" if _itv_str(itv, "check_resolved", False) else "NON",
-        "CHECK - Méthode de Vérification": _itv_str(itv, "check_verification_method"),
-        "ACT - Actions Préventives": _itv_str(itv, "act_preventive_actions"),
-        "ACT - Recommandations": _itv_str(itv, "act_recommendations"),
-    }
-
-
-@router.get(
-    "",
-    responses={
-        403: {"description": "Forbidden: ChefTech only"},
-        500: {"description": "Internal server error"},
-    },
-)
+@router.get("", responses={500: {"description": "Internal server error"}})
 async def list_cheftech_work_orders(
     *, page: Annotated[int, Query(ge=1)] = 1,
     size: Annotated[int, Query(ge=1, le=100)] = 10,
@@ -161,8 +43,8 @@ async def list_cheftech_work_orders(
         skip = (page - 1) * size
 
         # Count total
-        count_query = select(func.count(OrdresTravail.id)).where(
-            OrdresTravail.archived_at.is_(None)
+        count_query = select(func.count(Ordres_travail.id)).where(
+            Ordres_travail.archived_at.is_(None)
         )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
@@ -170,22 +52,22 @@ async def list_cheftech_work_orders(
         # Get all WOs assigned to technicians
         query = (
             select(
-                OrdresTravail,
+                Ordres_travail,
                 Machines.nom.label("machine_nom"),
                 Utilisateurs.nom.label("technicien_nom"),
                 Utilisateurs.email.label("technicien_email"),
-                OrdresIntervention,
+                Ordres_intervention,
             )
-            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
             .outerjoin(
-                OrdresIntervention,
-                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
             )
             .outerjoin(
-                Utilisateurs, OrdresIntervention.technician_id == Utilisateurs.id
+                Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
             )
-            .where(OrdresTravail.archived_at.is_(None))
-            .order_by(OrdresTravail.created_at.desc())
+            .where(Ordres_travail.archived_at.is_(None))
+            .order_by(Ordres_travail.created_at.desc())
             .offset(skip)
             .limit(size)
         )
@@ -196,8 +78,83 @@ async def list_cheftech_work_orders(
         result = await db.execute(query)
         rows = result.all()
 
+        output = []
         now = datetime.now(timezone.utc)
-        output = [_build_wo_row(wo, m_nom, u_nom, u_email, itv, now) for wo, m_nom, u_nom, u_email, itv in rows]
+
+        for wo, m_nom, u_nom, u_email, itv in rows:
+            # Calculate live duration
+            if wo.date_fin and wo.date_debut:
+                duration_min = int((wo.date_fin - wo.date_debut).total_seconds() / 60)
+                live_seconds = None
+            elif wo.date_debut:
+                duration_min = None
+                live_seconds = int(
+                    (now - wo.date_debut.replace(tzinfo=None)).total_seconds()
+                )
+            else:
+                duration_min = None
+                live_seconds = None
+
+            output.append(
+                {
+                    "id": wo.id,
+                    "titre": wo.titre,
+                    "machine_nom": m_nom or "N/A",
+                    "technicien_id": itv.technician_id if itv else None,
+                    "technicien_nom": u_nom or "N/A",
+                    "technicien_email": u_email or "N/A",
+                    "intervention_id": itv.id if itv else None,
+                    "statut": wo.statut,
+                    "priorite": wo.priorite,
+                    "created_at": wo.created_at.isoformat() if wo.created_at else None,
+                    "date_debut": wo.date_debut.isoformat() if wo.date_debut else None,
+                    "date_fin": wo.date_fin.isoformat() if wo.date_fin else None,
+                    "duration_min": duration_min,
+                    "live_seconds": live_seconds,
+                    "rapport": wo.rapport,
+                    # PDCA
+                    "intervention_type": getattr(itv, "intervention_type", None)
+                    if itv
+                    else None,
+                    "machine_status_after": getattr(itv, "machine_status_after", None)
+                    if itv
+                    else None,
+                    "plan_hypothesis": getattr(itv, "plan_hypothesis", None)
+                    if itv
+                    else None,
+                    "root_cause_category": getattr(itv, "root_cause_category", None)
+                    if itv
+                    else None,
+                    "root_cause_description": getattr(
+                        itv, "root_cause_description", None
+                    )
+                    if itv
+                    else None,
+                    "actions_performed": getattr(itv, "actions_performed", None)
+                    if itv
+                    else None,
+                    "parts_replaced": (
+                        getattr(itv, "legacy_parts_text", None) if itv else None
+                    ),
+                    "tools_used": getattr(itv, "tools_used", None) if itv else None,
+                    "check_resolved": getattr(itv, "check_resolved", None)
+                    if itv
+                    else None,
+                    "check_verification_method": getattr(
+                        itv, "check_verification_method", None
+                    )
+                    if itv
+                    else None,
+                    "act_preventive_actions": getattr(
+                        itv, "act_preventive_actions", None
+                    )
+                    if itv
+                    else None,
+                    "act_recommendations": getattr(itv, "act_recommendations", None)
+                    if itv
+                    else None,
+                }
+            )
 
         return PaginatedResponse.create(items=output, total=total, page=page, size=size)
 
@@ -206,14 +163,7 @@ async def list_cheftech_work_orders(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.get(
-    "/{order_id}/export",
-    responses={
-        403: {"description": "Forbidden: ChefTech only"},
-        404: {"description": "Work order not found"},
-        500: {"description": "Internal server error"},
-    },
-)
+@router.get("/{order_id}/export", responses={404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def export_cheftech_work_order_report(
     order_id: int,
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
@@ -225,43 +175,133 @@ async def export_cheftech_work_order_report(
     try:
         query = (
             select(
-                OrdresTravail,
+                Ordres_travail,
                 Machines.nom.label("machine_nom"),
                 Utilisateurs.nom.label("technicien_nom"),
                 Utilisateurs.email.label("technicien_email"),
-                OrdresIntervention,
+                Ordres_intervention,
             )
-            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
             .outerjoin(
-                OrdresIntervention,
-                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
             )
             .outerjoin(
-                Utilisateurs, OrdresIntervention.technician_id == Utilisateurs.id
+                Utilisateurs, Ordres_intervention.technician_id == Utilisateurs.id
             )
-            .where(OrdresTravail.id == order_id)
+            .where(Ordres_travail.id == order_id)
         )
 
         result = await db.execute(query)
         row = result.first()
+
         if not row:
             raise HTTPException(status_code=404, detail="Work order not found")
 
         wo, m_nom, u_nom, u_email, itv = row
-        consumed_summary = await _fetch_consumed_summary(db, itv)
-        duration_min = (
-            int((wo.date_fin - wo.date_debut).total_seconds() / 60)
-            if wo.date_fin and wo.date_debut
-            else "N/A"
-        )
 
-        flat_row = _build_export_flat_row(wo, m_nom, u_nom, u_email, itv, consumed_summary, duration_min)
+        def itv_get(attr, default="N/A"):
+            return getattr(itv, attr, None) or default if itv else default
+
+        # Fetch consumed-pieces summary from the canonical VIEW
+        consumed_summary = None
+        if itv is not None:
+            try:
+                _row = (
+                    await db.execute(
+                        text(
+                            "SELECT parts_replaced_json FROM intervention_consumption_summary WHERE intervention_id = :iid"
+                        ),
+                        {"iid": itv.id},
+                    )
+                ).first()
+                if _row and _row[0]:
+                    import json as _json
+
+                    _data = (
+                        _row[0] if isinstance(_row[0], list) else _json.loads(_row[0])
+                    )
+                    consumed_summary = ", ".join(
+                        f"{x.get('piece_name', '?')} ({x.get('used', '0')}{x.get('unit', '')}"
+                        + (
+                            f", retour={x.get('returned', '0')}"
+                            if float(x.get("returned", 0) or 0)
+                            else ""
+                        )
+                        + (
+                            f", rebut={x.get('wasted', '0')}"
+                            if float(x.get("wasted", 0) or 0)
+                            else ""
+                        )
+                        + ")"
+                        for x in _data
+                    )
+            except Exception:
+                pass
+
+        duration_min = "N/A"
+        if wo.date_fin and wo.date_debut:
+            duration_min = int((wo.date_fin - wo.date_debut).total_seconds() / 60)
+
+        flat_row = {
+            # Work Order Info
+            "ID OT": wo.id,
+            "Titre": wo.titre or "N/A",
+            "Machine": m_nom or "N/A",
+            "Technicien": u_nom or "N/A",
+            "Email Technicien": u_email or "N/A",
+            "Date Création": wo.created_at.strftime("%Y-%m-%d %H:%M")
+            if wo.created_at
+            else "N/A",
+            "Date Début": wo.date_debut.strftime("%Y-%m-%d %H:%M")
+            if wo.date_debut
+            else "N/A",
+            "Date Fin": wo.date_fin.strftime("%Y-%m-%d %H:%M")
+            if wo.date_fin
+            else "N/A",
+            "Durée (min)": duration_min,
+            "Statut OT": wo.statut,
+            "Priorité": wo.priorite,
+            "Rapport Brut": wo.rapport or "N/A",
+            # Intervention
+            "ID Intervention": itv.id if itv else "N/A",
+            "Priorité Intervention": itv_get("priority"),
+            "Symptômes": itv_get("symptoms"),
+            "Impact": itv_get("impact"),
+            "Fréquence": itv_get("frequency"),
+            "Score de Risque": itv_get("risk_score"),
+            # PDCA
+            "Type d'intervention": itv_get("intervention_type"),
+            "État Machine Après": itv_get("machine_status_after"),
+            "PLAN - Hypothèse de départ": itv_get("plan_hypothesis"),
+            "DO - Catégorie Cause Racine": itv_get("root_cause_category"),
+            "DO - Description Cause Racine": itv_get("root_cause_description"),
+            "DO - Rapport d'intervention": itv_get("actions_performed"),
+            "DO - Pièces Remplacées": (
+                consumed_summary or itv_get("legacy_parts_text") or "N/A"
+            ),
+            "DO - Outils Utilisés": itv_get("tools_used"),
+            "CHECK - Problème Résolu?": "OUI"
+            if itv_get("check_resolved", False)
+            else "NON",
+            "CHECK - Méthode de Vérification": itv_get("check_verification_method"),
+            "ACT - Actions Préventives": itv_get("act_preventive_actions"),
+            "ACT - Recommandations": itv_get("act_recommendations"),
+        }
+
         df = pd.DataFrame([flat_row])
 
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine="openpyxl") as writer:
             df.to_excel(writer, sheet_name="Rapport Intervention", index=False)
-            _autofit_columns(writer.sheets["Rapport Intervention"])
+            worksheet = writer.sheets["Rapport Intervention"]
+            for col_cells in worksheet.columns:
+                max_length = max(
+                    (len(str(cell.value)) for cell in col_cells if cell.value),
+                    default=0,
+                )
+                col_letter = col_cells[0].column_letter
+                worksheet.column_dimensions[col_letter].width = min(max_length + 4, 60)
 
         output.seek(0)
         filename = f"Rapport_OT_{order_id}_{datetime.now().strftime('%Y%m%d')}.xlsx"

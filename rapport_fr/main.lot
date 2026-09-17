@@ -1,0 +1,17 @@
+\babel@toc {french}{}\relax 
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces Déroulé du pipeline pour le problème 1}}{4}{table.caption.7}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Récapitulatif des six problématiques ML initiales}}{6}{table.caption.14}%
+\contentsline {table}{\numberline {1.3}{\ignorespaces Pipeline de développement ML en huit étapes}}{9}{table.caption.15}%
+\contentsline {table}{\numberline {1.4}{\ignorespaces Choix de modèle initial et cible d'évaluation par problème}}{10}{table.caption.16}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces Cas d'utilisation par acteur}}{37}{table.caption.56}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Caractéristiques de capteurs utilisées comme entrées des modèles}}{38}{table.caption.57}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Étapes du pipeline d'ingestion documentaire}}{49}{table.caption.74}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Statut de validation et porte de production par modèle}}{74}{table.caption.111}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Récapitulatif des métriques d'évaluation des modèles (modèles validés uniquement)}}{75}{table.caption.112}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {A.1}{\ignorespaces Récapitulatif des modèles du pipeline d'apprentissage automatique}}{86}{table.caption.120}%

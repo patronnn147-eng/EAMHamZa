@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -75,21 +76,12 @@ interface ChatSessionSummary {
   updated_at?: string | null;
 }
 
-// ─── Utility: hide abandoned empty conversations from the sidebar ──────────
-
-export function filterVisibleSessions(
-  sessions: ChatSessionSummary[],
-  currentSessionId: string | null
-): ChatSessionSummary[] {
-  return sessions.filter((s) => s.message_count > 0 || s.id === currentSessionId);
-}
-
 // ─── Utility: parse markdown tables ─────────────────────────────────────────
 
 function parseTable(content: string): { headers: string[]; rows: string[][] } | null {
   const lines = content.split('\n').map((l) => l.trim()).filter(Boolean);
   const tableLines = lines.filter(
-    (l) => l.startsWith('|') && !/^\|[\s\-:|]+\|$/.exec(l) && l.includes('|')
+    (l) => l.startsWith('|') && !l.match(/^\|[\s\-:|]+\|$/) && l.includes('|')
   );
   if (tableLines.length < 2) return null;
 
@@ -107,7 +99,7 @@ function parseTable(content: string): { headers: string[]; rows: string[][] } | 
 
 function parseLists(content: string): string[] | null {
   const lines = content.split('\n').filter(
-    (l) => /^[-*•]|^(\d+)\.\s/.exec(l) && l.length > 3
+    (l) => l.match(/^[-*•]|^(\d+)\.\s/) && l.length > 3
   );
   if (lines.length < 2) return null;
   return lines.map((l) => l.replace(/^[-*•]\s?|^(\d+)\.\s?/, '').trim());
@@ -238,7 +230,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
       })()}
 
       {/* Sources panel */}
-      {sources?.length > 0 && (
+      {sources && sources.length > 0 && (
         <div className="mt-3">
           <button
             onClick={() => setShowSources((v) => !v)}
@@ -254,7 +246,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
                 <Table className="h-3 w-3 text-primary" />
                 <span className="text-xs font-medium font-mono">{src.tool}</span>
                 <span className="text-xs text-muted-foreground ml-auto">
-                  {src.result?.length ?? 0} row{(src.result?.length ?? 0) === 1 ? '' : 's'}
+                  {src.result?.length ?? 0} row{(src.result?.length ?? 0) !== 1 ? 's' : ''}
                 </span>
               </div>
               {(src.result?.length ?? 0) > 0 && (
@@ -304,7 +296,7 @@ function RenderedMessage({ content, toolCalls, sources }: Readonly<{
       )}
 
       {/* Tool call badges (if no formatted sources) */}
-      {!sources && toolCalls?.length > 0 && (
+      {!sources && toolCalls && toolCalls.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-2">
           {toolCalls.map((tc) => (
             <Badge key={tc.id} variant="secondary" className="text-xs font-mono">
@@ -419,23 +411,21 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
   if (!isOpen) {
     return (
       <Button
-        className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-2xl z-50 bg-gradient-premium border-0 hover:opacity-90 transition-opacity"
+        className="fixed bottom-4 right-4 h-14 w-14 rounded-full shadow-2xl z-50 bg-primary hover:bg-primary/90"
         onClick={() => setIsOpen(true)}
         size="icon"
       >
-        <Sparkles className="h-6 w-6 text-white" />
+        <Sparkles className="h-6 w-6" />
       </Button>
     );
   }
 
   return (
     <Card className={`fixed bottom-4 right-4 w-96 shadow-2xl z-50 border-2 ${isMinimized ? 'h-auto' : ''}`}>
-      <CardHeader className="pb-2 border-b border-white/[0.08] bg-white/[0.02]">
+      <CardHeader className="pb-2 border-b bg-gradient-to-r from-primary/5 to-transparent">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-gradient-premium">
-              <Sparkles className="h-3.5 w-3.5 text-white" />
-            </span>
+            <Sparkles className="h-4 w-4 text-primary" />
             Assistant IA
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -468,21 +458,21 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
                   {/* User message */}
                   <div className="flex justify-end">
                     <div className="flex items-end gap-2 max-w-[85%]">
-                      <div className="bg-gradient-premium text-white px-3 py-2 rounded-2xl rounded-br-md text-sm">
+                      <div className="bg-primary text-primary-foreground px-3 py-2 rounded-2xl rounded-br-md text-sm">
                         {msg.content}
                       </div>
-                      <div className="h-8 w-8 rounded-full bg-gradient-premium flex items-center justify-center flex-shrink-0">
-                        <User className="h-4 w-4 text-white" />
+                      <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-primary-foreground" />
                       </div>
                     </div>
                   </div>
 
                   {/* AI response */}
                   <div className="flex items-end gap-2 max-w-[85%]">
-                    <div className="h-8 w-8 rounded-full bg-[radial-gradient(circle,hsl(var(--premium-indigo)/0.35),hsl(var(--premium-purple)/0.2)_70%)] flex items-center justify-center flex-shrink-0">
-                      <Bot className="h-4 w-4 text-[hsl(var(--premium-indigo))]" />
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
+                      <Bot className="h-4 w-4 text-primary" />
                     </div>
-                    <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-[12px] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="bg-muted/80 backdrop-blur-sm px-4 py-3 rounded-2xl rounded-bl-md border">
                       {msg.role === 'assistant' ? (
                         <RenderedMessage
                           content={msg.content}
@@ -521,7 +511,7 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
           )}
 
           {/* Input */}
-          <div className="p-4 border-t border-white/[0.08] bg-transparent">
+          <div className="p-4 border-t bg-muted/20">
             <form
               onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
               className="flex gap-2"
@@ -530,25 +520,18 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
                 type="button"
                 size="icon"
                 variant="outline"
-                className="border-white/[0.12] hover:border-[rgba(0,255,242,0.4)]"
                 onClick={() => setShowDocUpload(true)}
                 title="Importer un document dans la base RAG"
               >
                 <Plus className="h-4 w-4" />
               </Button>
-              <input
-                placeholder="Posez une question sur les machines, alertes..."
+              <Input
+                placeholder="Ask about machines, alerts..."
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 disabled={loading}
-                className="input-glass flex-1 px-3"
               />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={loading || !input.trim()}
-                className="bg-gradient-premium text-white border-0 hover:opacity-90 transition-opacity disabled:opacity-40"
-              >
+              <Button type="submit" size="icon" disabled={loading || !input.trim()}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               </Button>
             </form>
@@ -565,9 +548,8 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
               </DialogHeader>
               <div className="space-y-3 py-2">
                 <div>
-                  <label htmlFor="chat-doc-file" className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                  <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
                   <input
-                    id="chat-doc-file"
                     type="file"
                     accept=".pdf,.txt"
                     className="text-sm w-full"
@@ -575,9 +557,9 @@ export const ChatWidget: React.FC<{ machineId?: number }> = ({ machineId }) => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="chat-doc-type" className="text-sm font-medium block mb-1.5">Type</label>
+                  <label className="text-sm font-medium block mb-1.5">Type</label>
                   <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
-                    <SelectTrigger id="chat-doc-type">
+                    <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -760,7 +742,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
   const renameSession = async (id: string) => {
     const current = sessions.find((s) => s.id === id);
     const next = prompt('Nouveau titre :', current?.title ?? '');
-    if (!next?.trim()) return;
+    if (!next || !next.trim()) return;
     try {
       const res = await fetch(`${API}/api/v1/chat/sessions/${id}`, {
         method: 'PATCH',
@@ -838,28 +820,21 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
     }
   };
 
-  const visibleSessions = filterVisibleSessions(sessions, currentSessionId);
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
-            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-premium">
-              <Sparkles className="h-4 w-4 text-white" />
-            </span>
+            <Sparkles className="h-6 w-6 text-primary" />
             Assistant IA
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Interrogez vos machines, ordres de travail, alertes et plannings en langage naturel
+            Powered by Groq — interrogez vos machines, ordres de travail, alertes et plannings
           </p>
         </div>
-        <Badge variant="outline" className="text-xs gap-1.5">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-gradient-premium opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-gradient-premium" />
-          </span>
-          Assistant actif
+        <Badge variant="outline" className="text-xs">
+          <Bot className="h-3 w-3 mr-1" />
+          Groq LLM
         </Badge>
       </div>
 
@@ -873,7 +848,8 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
             </CardTitle>
             <Button
               size="sm"
-              className="h-8 gap-1 bg-gradient-premium text-white border-0 hover:opacity-90 transition-opacity"
+              variant="outline"
+              className="h-8 gap-1"
               onClick={() => createNewSession({ select: true })}
               title="Nouvelle conversation"
             >
@@ -884,18 +860,20 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
           <CardContent className="p-2 pt-0">
             <ScrollArea className="h-[500px]">
               <div className="space-y-1 pr-2">
-                {visibleSessions.length === 0 && (
+                {sessions.length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-6">
                     Aucune conversation.
                   </p>
                 )}
-                {visibleSessions.map((s) => {
+                {sessions.map((s) => {
                   const active = s.id === currentSessionId;
                   return (
                     <div
                       key={s.id}
-                      className={`group relative flex items-center gap-1 rounded-md px-2 py-2 pl-3 text-sm cursor-pointer transition-colors overflow-hidden ${
-                        active ? 'bg-white/[0.04] text-foreground' : 'hover:bg-muted/60'
+                      className={`group flex items-center gap-1 rounded-md px-2 py-2 text-sm cursor-pointer transition-colors ${
+                        active
+                          ? 'bg-primary/10 text-foreground border border-primary/30'
+                          : 'hover:bg-muted/60'
                       }`}
                       role="button"
                       tabIndex={0}
@@ -907,9 +885,6 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                         }
                       }}
                     >
-                      {active && (
-                        <span className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-premium rounded-full shadow-[0_0_15px_rgba(139,92,246,0.8)]" />
-                      )}
                       <MessageSquare className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <div className="truncate text-sm font-medium">
@@ -960,8 +935,8 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
               <div className="p-6 space-y-6">
                 {messages.length === 0 && (
                   <div className="text-center text-muted-foreground py-16">
-                    <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-[radial-gradient(circle,hsl(var(--premium-indigo)/0.18),hsl(var(--premium-purple)/0.08)_70%)] shadow-[0_0_30px_rgba(139,92,246,0.15)] mb-4">
-                      <Sparkles className="h-8 w-8 text-[hsl(var(--premium-indigo))]" />
+                    <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
+                      <Sparkles className="h-8 w-8 text-primary" />
                     </div>
                     <h3 className="text-lg font-semibold mb-2">Commencez une conversation</h3>
                     <p className="text-sm mb-6 max-w-md mx-auto">
@@ -982,20 +957,20 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                     {msg.role === 'user' ? (
                       <div className="flex justify-end">
                         <div className="flex items-end gap-2 max-w-[75%]">
-                          <div className="bg-gradient-premium text-white px-4 py-3 rounded-2xl rounded-br-md text-sm animate-premium-fade-in">
+                          <div className="bg-primary text-primary-foreground px-4 py-3 rounded-2xl rounded-br-md text-sm">
                             {msg.content}
                           </div>
-                          <div className="h-9 w-9 rounded-full bg-gradient-premium flex items-center justify-center flex-shrink-0">
-                            <User className="h-4 w-4 text-white" />
+                          <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                            <User className="h-4 w-4 text-primary-foreground" />
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-end gap-3 animate-premium-fade-in">
-                        <div className="h-10 w-10 rounded-full bg-[radial-gradient(circle,hsl(var(--premium-indigo)/0.35),hsl(var(--premium-purple)/0.2)_70%)] flex items-center justify-center flex-shrink-0">
-                          <Bot className="h-5 w-5 text-[hsl(var(--premium-indigo))]" />
+                      <div className="flex items-end gap-3">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center flex-shrink-0">
+                          <Bot className="h-5 w-5 text-primary" />
                         </div>
-                        <div className="flex-1 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.08] hover:border-[rgba(0,255,242,0.25)] hover:shadow-[0_0_20px_rgba(0,255,242,0.1)] backdrop-blur-[12px] transition-all px-5 py-4 rounded-2xl rounded-bl-md min-w-0">
+                        <div className="flex-1 bg-muted/60 backdrop-blur-sm px-5 py-4 rounded-2xl rounded-bl-md border min-w-0">
                           <div className="flex items-center gap-2 mb-3">
                             <Badge variant="secondary" className="text-xs font-medium">
                               <Sparkles className="h-3 w-3 mr-1" />
@@ -1026,15 +1001,15 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
 
                 {loading && (
                   <div className="flex items-center gap-3 pl-13">
-                    <div className="h-10 w-10 rounded-full bg-[radial-gradient(circle,hsl(var(--premium-indigo)/0.35),hsl(var(--premium-purple)/0.2)_70%)] flex items-center justify-center">
-                      <Bot className="h-5 w-5 text-[hsl(var(--premium-indigo))] animate-pulse" />
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                      <Bot className="h-5 w-5 text-muted-foreground animate-pulse" />
                     </div>
-                    <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-[12px] px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="bg-muted/60 px-4 py-3 rounded-2xl rounded-bl-md border">
                       <div className="flex items-center gap-2">
                         <div className="flex gap-1">
-                          <span className="h-2 w-2 rounded-full bg-[hsl(var(--premium-indigo))] animate-bounce" style={{ animationDelay: '0ms' }} />
-                          <span className="h-2 w-2 rounded-full bg-[hsl(var(--premium-purple))] animate-bounce" style={{ animationDelay: '150ms' }} />
-                          <span className="h-2 w-2 rounded-full bg-[hsl(var(--premium-rose))] animate-bounce" style={{ animationDelay: '300ms' }} />
+                          <span className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <span className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <span className="h-2 w-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '300ms' }} />
                         </div>
                         <span className="text-sm text-muted-foreground">L'IA réfléchit...</span>
                       </div>
@@ -1047,7 +1022,7 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
             </ScrollArea>
 
             {/* Input bar */}
-            <div className="p-4 border-t border-white/[0.08] bg-transparent">
+            <div className="p-4 border-t bg-muted/30">
               <form
                 onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
                 className="flex gap-3"
@@ -1056,24 +1031,24 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                   type="button"
                   size="icon"
                   variant="outline"
-                  className="h-12 w-12 flex-shrink-0 border-white/[0.12] hover:border-[rgba(0,255,242,0.4)]"
+                  className="h-12 w-12 flex-shrink-0"
                   onClick={() => setShowDocUpload(true)}
                   title="Importer un document dans la base RAG"
                 >
                   <Plus className="h-5 w-5" />
                 </Button>
-                <input
+                <Input
                   placeholder="Tapez votre question... (ex: Machines en panne dans Zone A)"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   disabled={loading}
-                  className="input-glass flex-1 text-base h-12 px-4"
+                  className="text-base h-12"
                 />
                 <Button
                   type="submit"
                   size="lg"
                   disabled={loading || !input.trim()}
-                  className="h-12 px-6 bg-gradient-premium text-white border-0 hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="h-12 px-6"
                 >
                   {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
                 </Button>
@@ -1091,9 +1066,8 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                 </DialogHeader>
                 <div className="space-y-3 py-2">
                   <div>
-                    <label htmlFor="chat-doc-file-2" className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
+                    <label className="text-sm font-medium block mb-1.5">Fichier (PDF ou TXT)</label>
                     <input
-                      id="chat-doc-file-2"
                       type="file"
                       accept=".pdf,.txt"
                       className="text-sm w-full"
@@ -1101,9 +1075,9 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
                     />
                   </div>
                   <div>
-                    <label htmlFor="chat-doc-type-2" className="text-sm font-medium block mb-1.5">Type</label>
+                    <label className="text-sm font-medium block mb-1.5">Type</label>
                     <Select value={docType} onValueChange={(v: any) => setDocType(v)}>
-                      <SelectTrigger id="chat-doc-type-2">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1139,19 +1113,19 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
           <CardContent>
             <div className="space-y-2">
               {[
-                'Machines en Zone A',
-                'Alertes critiques',
-                'Ordres de travail en attente',
-                'Voir les interventions',
-                'Plannings de la semaine',
-                'Machines à réparer',
-                'Alertes haute priorité',
-                'Ordres de travail par CHEFTECH',
+                'Show machines in Zone A',
+                'Show critical alerts',
+                'Pending work orders',
+                'Show me interventions',
+                'Show plannings for this week',
+                'Machines needing repair',
+                'Show high priority alerts',
+                'Work orders by CHEFTECH',
               ].map((s, i) => (
                 <Button
                   key={i}
                   variant="ghost"
-                  className="w-full justify-start text-left h-auto py-2.5 text-sm text-muted-foreground hover:text-foreground hover:bg-white/[0.04] border border-transparent hover:border-[rgba(139,92,246,0.3)] transition-colors"
+                  className="w-full justify-start text-left h-auto py-2.5 text-sm text-muted-foreground hover:text-foreground"
                   onClick={() => handleSubmit(s)}
                 >
                   <Sparkles className="h-3 w-3 mr-2 flex-shrink-0 text-primary/60" />
@@ -1162,10 +1136,10 @@ export const ChatPage: React.FC<{ machineId?: number }> = ({ machineId }) => {
             <Separator className="my-4" />
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Domaines couverts
+                Domains supported
               </p>
               <div className="flex flex-wrap gap-1.5">
-                {['Machines', 'Ordres de travail', 'Alertes', 'Interventions', 'Plannings'].map((d) => (
+                {['Machines', 'Work Orders', 'Alerts', 'Interventions', 'Plannings'].map((d) => (
                   <Badge key={d} variant="outline" className="text-xs">
                     {d}
                   </Badge>

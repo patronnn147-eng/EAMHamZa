@@ -181,7 +181,7 @@ const ChetopValidationQueue: React.FC<ChetopValidationQueueProps> = ({ className
               onClick={handleReject}
               disabled={validatingId !== null}
             >
-              {validatingId === null ? null : <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {validatingId !== null ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Confirmer le rejet
             </Button>
           </DialogFooter>

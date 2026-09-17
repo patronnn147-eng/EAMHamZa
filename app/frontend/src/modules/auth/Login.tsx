@@ -22,16 +22,6 @@ interface RegisterFormData {
   role: string;
 }
 
-const FieldError = ({ message }: { message?: string }) => {
-  if (!message) return null;
-  return (
-    <p className="text-sm text-red-500 flex items-center gap-1">
-      <AlertCircle className="h-4 w-4" />
-      {message}
-    </p>
-  );
-};
-
 export default function Login() {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -50,11 +40,8 @@ export default function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const validateEmail = (email: string): boolean => {
-    const at = email.indexOf('@');
-    if (at < 1 || at !== email.lastIndexOf('@')) return false;
-    const domain = email.slice(at + 1);
-    const dot = domain.lastIndexOf('.');
-    return dot > 0 && dot < domain.length - 1;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   };
 
   const validatePassword = (password: string): string | null => {
@@ -67,7 +54,7 @@ export default function Login() {
     if (!/[a-z]/.test(password)) {
       return 'Le mot de passe doit contenir au moins une lettre minuscule';
     }
-    if (!/\d/.test(password)) {
+    if (!/[0-9]/.test(password)) {
       return 'Le mot de passe doit contenir au moins un chiffre';
     }
     return null;
@@ -113,11 +100,6 @@ export default function Login() {
 
       // Store token in localStorage
       localStorage.setItem('access_token', data.access_token);
-      // @metagptx/web-sdk's built-in entity CRUD client (client.entities.*)
-      // reads its own auth token from this exact key, independent of our
-      // injectToken wrapper in lib/api.ts — must be kept in sync or SDK
-      // POST/PUT/DELETE calls silently go out with no Authorization header.
-      localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
@@ -197,11 +179,6 @@ export default function Login() {
 
       // Store token in localStorage
       localStorage.setItem('access_token', data.access_token);
-      // @metagptx/web-sdk's built-in entity CRUD client (client.entities.*)
-      // reads its own auth token from this exact key, independent of our
-      // injectToken wrapper in lib/api.ts — must be kept in sync or SDK
-      // POST/PUT/DELETE calls silently go out with no Authorization header.
-      localStorage.setItem('token', data.access_token);
       localStorage.setItem('user', JSON.stringify(data.user));
 
       toast({
@@ -258,7 +235,12 @@ export default function Login() {
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     className={errors.email ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.email} />
+                  {errors.email && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -271,7 +253,12 @@ export default function Login() {
                     onChange={(e) => setLoginData({ ...loginData, mot_de_passe: e.target.value })}
                     className={errors.mot_de_passe ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.mot_de_passe} />
+                  {errors.mot_de_passe && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.mot_de_passe}
+                    </p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
@@ -292,7 +279,12 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                     className={errors.email ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.email} />
+                  {errors.email && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.email}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -305,7 +297,12 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, nom: e.target.value })}
                     className={errors.nom ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.nom} />
+                  {errors.nom && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.nom}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -321,7 +318,12 @@ export default function Login() {
                       <SelectItem value="ADMIN">Administrateur</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FieldError message={errors.role} />
+                  {errors.role && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.role}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -334,7 +336,12 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, mot_de_passe: e.target.value })}
                     className={errors.mot_de_passe ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.mot_de_passe} />
+                  {errors.mot_de_passe && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.mot_de_passe}
+                    </p>
+                  )}
                   <p className="text-xs text-blue-300">
                     Min. 8 caractères, 1 majuscule, 1 minuscule, 1 chiffre
                   </p>
@@ -350,7 +357,12 @@ export default function Login() {
                     onChange={(e) => setRegisterData({ ...registerData, confirm_password: e.target.value })}
                     className={errors.confirm_password ? 'border-red-500' : ''}
                   />
-                  <FieldError message={errors.confirm_password} />
+                  {errors.confirm_password && (
+                    <p className="text-sm text-red-500 flex items-center gap-1">
+                      <AlertCircle className="h-4 w-4" />
+                      {errors.confirm_password}
+                    </p>
+                  )}
                 </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>

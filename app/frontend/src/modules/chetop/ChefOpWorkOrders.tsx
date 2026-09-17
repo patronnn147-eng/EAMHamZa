@@ -32,7 +32,6 @@ interface WorkOrder {
   statut: string;
   machine_id: number;
   machine_nom?: string;
-  utilisateur_nom?: string;
   created_at: string;
 }
 
@@ -205,9 +204,6 @@ const ChefOpWorkOrders: React.FC = () => {
                       )}
                       <div className="flex items-center gap-4 text-xs text-blue-400 font-medium">
                         <span>Machine: <span className="text-blue-200 font-bold">{wo.machine_nom || `#${wo.machine_id}`}</span></span>
-                        {wo.utilisateur_nom && (
-                          <span>Assigné à: <span className="text-blue-200">{wo.utilisateur_nom}</span></span>
-                        )}
                         <span>Créé le: <span className="text-blue-200">{new Date(wo.created_at).toLocaleDateString('fr-FR')}</span></span>
                         <span>OT #{wo.id}</span>
                       </div>
@@ -298,7 +294,7 @@ const ChefOpWorkOrders: React.FC = () => {
               disabled={!rapport.trim() || completingId !== null}
               className="bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-black px-8"
             >
-              {completingId === null ? null : <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {completingId !== null ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
               Confirmer la clôture
             </Button>
           </DialogFooter>

@@ -29,11 +29,6 @@ interface Notification {
   lu: boolean;
 }
 
-function mergeNewNotification(prev: Notification[], newNotif: Notification): Notification[] {
-  if (prev.some((n) => n.id === newNotif.id)) return prev;
-  return [newNotif, ...prev].slice(0, 10);
-}
-
 export default function Header() {
   const [user, setUser] = useState<UserData | null>(null);
   const [userRole, setUserRole] = useState<string>('');
@@ -83,14 +78,18 @@ export default function Header() {
     const token = localStorage.getItem('access_token');
     if (!token) return;
 
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || globalThis.location.origin;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || window.location.origin;
     const eventSource = new EventSource(`${baseUrl}/api/v1/notifications/stream?token=${token}`);
 
     eventSource.onmessage = (event) => {
       try {
         const newNotif = JSON.parse(event.data);
-        if (newNotif?.id) {
-          setNotifications((prev) => mergeNewNotification(prev, newNotif));
+        if (newNotif && newNotif.id) {
+          setNotifications(prev => {
+            // Avoid duplicates
+            if (prev.find(n => n.id === newNotif.id)) return prev;
+            return [newNotif, ...prev].slice(0, 10);
+          });
           setUnreadCount(prev => prev + 1);
         }
       } catch (err) {
@@ -157,7 +156,7 @@ export default function Header() {
   const handleLogout = async () => {
     try {
       await client.auth.logout();
-      globalThis.location.href = '/login';
+      window.location.href = '/login';
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -168,7 +167,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-[hsl(226_70%_40%)] dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-900 dark:to-slate-900 border-b border-[hsl(226_70%_32%)] dark:border-blue-800 sticky top-0 z-50 backdrop-blur-md">
+    <header className="bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-blue-900 dark:to-slate-900 border-b border-slate-200 dark:border-blue-800 sticky top-0 z-50 backdrop-blur-md">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3">
@@ -178,7 +177,7 @@ export default function Header() {
               onClick={toggle}
               aria-label={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
               title={collapsed ? 'Afficher la barre latérale' : 'Masquer la barre latérale'}
-              className="text-white/90 dark:text-blue-100 hover:text-white dark:hover:text-white hover:bg-white/10 dark:hover:bg-blue-800/40"
+              className="text-slate-600 dark:text-blue-100 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-blue-800/40"
             >
               {collapsed ? <Menu className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
             </Button>
@@ -187,19 +186,19 @@ export default function Header() {
               alt="Logo"
               className="h-8 w-8"
             />
-            <h1 className="text-xl font-bold text-white dark:text-white">Asset Management</h1>
+            <h1 className="text-xl font-bold text-slate-900 dark:text-white">Asset Management</h1>
           </div>
 
           <div className="flex items-center space-x-4">
             {userRole && (
-              <span className="text-sm text-white bg-white/15 dark:bg-blue-600/30 border border-white/25 dark:border-blue-500/30 px-3 py-1 rounded-full">
+              <span className="text-sm text-slate-700 dark:text-blue-100 bg-blue-100 dark:bg-blue-600/30 border border-blue-200 dark:border-blue-500/30 px-3 py-1 rounded-full">
                 {userRole}
               </span>
             )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="relative text-white/90 hover:text-white hover:bg-white/10 dark:text-inherit dark:hover:bg-accent">
+                <Button variant="ghost" size="sm" className="relative">
                   <Bell className="h-5 w-5" />
                   {unreadCount > 0 && (
                     <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white">
@@ -224,7 +223,7 @@ export default function Header() {
                     notifications.map((notif) => (
                       <DropdownMenuItem
                         key={notif.id}
-                        className={`flex flex-col items-start p-4 cursor-pointer ${notif.lu ? '' : 'bg-blue-50 dark:bg-blue-900/30'}`}
+                        className={`flex flex-col items-start p-4 cursor-pointer ${!notif.lu ? 'bg-blue-50 dark:bg-blue-900/30' : ''}`}
                         onClick={() => !notif.lu && markAsRead(notif.id)}
                       >
                         <div className="flex items-start justify-between w-full">

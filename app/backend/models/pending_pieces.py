@@ -1,4 +1,4 @@
-﻿"""PendingPiece model — uncatalogued items submitted by technicians.
+"""PendingPiece model — uncatalogued items submitted by technicians.
 
 When a technician needs a piece that's not in the catalog (e.g., a generic
 "M4 screw"), they submit it via the intervention dialog. A placeholder
@@ -27,8 +27,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.sql import func
 
-_SET_NULL = "SET NULL"
-
 
 class PendingPiece(Base):
     __tablename__ = "pending_pieces"
@@ -39,13 +37,13 @@ class PendingPiece(Base):
     )
     intervention_id = Column(
         Integer,
-        ForeignKey("OrdresIntervention.id", ondelete=_SET_NULL),
+        ForeignKey("ordres_intervention.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     submitted_by = Column(
         Integer,
-        ForeignKey("utilisateurs.id", ondelete=_SET_NULL),
+        ForeignKey("utilisateurs.id", ondelete="SET NULL"),
         nullable=True,
     )
     name = Column(String(200), nullable=False)
@@ -57,12 +55,12 @@ class PendingPiece(Base):
     status = Column(String(20), nullable=False, default="PENDING_REVIEW", index=True)
     matched_piece_id = Column(
         Integer,
-        ForeignKey("pieces.id", ondelete=_SET_NULL),
+        ForeignKey("pieces.id", ondelete="SET NULL"),
         nullable=True,
     )
     reviewed_by = Column(
         Integer,
-        ForeignKey("utilisateurs.id", ondelete=_SET_NULL),
+        ForeignKey("utilisateurs.id", ondelete="SET NULL"),
         nullable=True,
     )
     reviewed_at = Column(DateTime(timezone=True), nullable=True)
@@ -70,4 +68,3 @@ class PendingPiece(Base):
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
-

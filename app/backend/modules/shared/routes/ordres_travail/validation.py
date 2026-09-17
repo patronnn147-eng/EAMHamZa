@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -8,24 +8,24 @@ from core.database import get_db
 from dependencies.auth import require_role
 from models.utilisateurs import Utilisateurs, UserRole
 from models.ordres_travail import OrdreStatut
-from services.ordres_travail import OrdresTravailService
+from services.ordres_travail import Ordres_travailService
 from services.inventory import InventoryReservationService
-from models.ordres_intervention import OrdresIntervention
+from models.ordres_intervention import Ordres_intervention
 from sqlalchemy import select
-from .schemas import (
-    OrdresTravailValidationData,
-    OrdresTravailResponse,
+from ..ordres_travail.schemas import (
+    Ordres_travailValidationData,
+    Ordres_travailResponse,
 )
 from typing import Annotated
 
-router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["OrdresTravail"])
+router = APIRouter(prefix="/api/v1/entities/ordres_travail", tags=["ordres_travail"])
 logger = logging.getLogger(__name__)
 
 
-@router.post("/{id}/validate", response_model=OrdresTravailResponse, responses={400: {"description": "utilisateur_id is required to approve & assign.; Invalid action"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "OrdresTravail not found"}})
-async def validate_OrdresTravail(
+@router.post("/{id}/validate", response_model=Ordres_travailResponse, responses={400: {"description": "utilisateur_id is required to approve & assign.; Invalid action"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "Ordres_travail not found"}})
+async def validate_ordres_travail(
     id: int,
-    data: OrdresTravailValidationData,
+    data: Ordres_travailValidationData,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(require_role(["CHEFTECH"]))],
 ):
@@ -36,12 +36,12 @@ async def validate_OrdresTravail(
             status_code=403, detail="Vous n'avez pas la permission pour cette action"
         )
 
-    logger.debug(f"Validating OrdresTravail {id} with action: {data.action}")
-    service = OrdresTravailService(db)
+    logger.debug(f"Validating ordres_travail {id} with action: {data.action}")
+    service = Ordres_travailService(db)
 
     order = await service.get_by_id(id)
     if not order:
-        raise HTTPException(status_code=404, detail="OrdresTravail not found")
+        raise HTTPException(status_code=404, detail="Ordres_travail not found")
 
     update_dict = {}
     if data.action == "APPROVE":
@@ -52,17 +52,6 @@ async def validate_OrdresTravail(
             )
         update_dict["statut"] = OrdreStatut.APPROVED
         update_dict["utilisateur_id"] = data.utilisateur_id
-        update_dict["validated_by"] = current_user.id
-        update_dict["date_validation"] = datetime.now()
-    elif data.action == "VALIDATE":
-        # Closes out finished work: COMPLETED -> VALIDATED. /close then accepts it.
-        # Without this branch nothing ever set VALIDATED, so CLOSED was unreachable.
-        if order.statut != OrdreStatut.COMPLETED:
-            raise HTTPException(
-                status_code=400,
-                detail="Only completed work orders can be validated",
-            )
-        update_dict["statut"] = OrdreStatut.VALIDATED
         update_dict["validated_by"] = current_user.id
         update_dict["date_validation"] = datetime.now()
     elif data.action == "REJECT":
@@ -80,8 +69,8 @@ async def validate_OrdresTravail(
             linked = (
                 (
                     await db.execute(
-                        select(OrdresIntervention.id).where(
-                            OrdresIntervention.ordre_travail_id == id
+                        select(Ordres_intervention.id).where(
+                            Ordres_intervention.ordre_travail_id == id
                         )
                     )
                 )
@@ -107,8 +96,8 @@ async def validate_OrdresTravail(
     return result
 
 
-@router.post("/{id}/close", response_model=OrdresTravailResponse, responses={400: {"description": "Only validated work orders can be closed"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "OrdresTravail not found"}})
-async def close_OrdresTravail(
+@router.post("/{id}/close", response_model=Ordres_travailResponse, responses={400: {"description": "Only validated work orders can be closed"}, 403: {"description": "Vous n'avez pas la permission pour cette action"}, 404: {"description": "Ordres_travail not found"}})
+async def close_ordres_travail(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(require_role(["ADMIN"]))],
@@ -119,12 +108,12 @@ async def close_OrdresTravail(
             status_code=403, detail="Vous n'avez pas la permission pour cette action"
         )
 
-    logger.debug(f"Closing OrdresTravail {id}")
-    service = OrdresTravailService(db)
+    logger.debug(f"Closing ordres_travail {id}")
+    service = Ordres_travailService(db)
 
     order = await service.get_by_id(id)
     if not order:
-        raise HTTPException(status_code=404, detail="OrdresTravail not found")
+        raise HTTPException(status_code=404, detail="Ordres_travail not found")
 
     # Only allow closing VALIDATED orders
     if order.statut != OrdreStatut.VALIDATED:

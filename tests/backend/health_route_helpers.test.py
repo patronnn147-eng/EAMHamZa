@@ -19,7 +19,7 @@ from modules.ml.routes.health import (
     _fetch_machine_or_404,
     _reprice_part_item,
     _run_ml_fusion,
-    _try_update_maintenance_schedule,
+    _schedule_recommendation,
     update_machine_telemetry,
 )
 
@@ -115,34 +115,26 @@ async def test_count_open_work_orders_none_becomes_zero():
     assert await _count_open_work_orders(1, db) == 0
 
 
-# ── _try_update_maintenance_schedule ─────────────────────────────────────────
+# ── _schedule_recommendation ─────────────────────────────────────────────────
 
-@pytest.mark.asyncio
-async def test_try_update_maintenance_schedule_none_days_is_noop():
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
-    db = FakeDb([])
-    result = await _try_update_maintenance_schedule(machine, db, None)
-    assert result is None
-    assert db.committed == 0
+def test_schedule_recommendation_none_days_has_no_date():
+    assert _schedule_recommendation(None) == (None, None)
 
 
-@pytest.mark.asyncio
-async def test_try_update_maintenance_schedule_positive_days_commits():
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
-    db = FakeDb([])
-    result = await _try_update_maintenance_schedule(machine, db, 15.4)
-    assert result == 15.4
-    assert db.committed == 1
-    assert machine.date_prochaine_maintenance is not None
+def test_schedule_recommendation_positive_days_is_now_plus_days():
+    from datetime import datetime, timedelta, timezone
+
+    days, iso = _schedule_recommendation(15.4)
+    assert days == 15.4
+    # The date must be the horizon measured from now, not from any stored
+    # maintenance date — that mismatch is the bug this replaced.
+    expected = datetime.now(timezone.utc) + timedelta(days=15)
+    assert abs((datetime.fromisoformat(iso) - expected).total_seconds()) < 60
 
 
-@pytest.mark.asyncio
-async def test_try_update_maintenance_schedule_negative_days_no_commit():
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
-    db = FakeDb([])
-    result = await _try_update_maintenance_schedule(machine, db, -5.0)
-    assert result == -5.0
-    assert db.committed == 0
+def test_schedule_recommendation_non_positive_days_has_no_date():
+    assert _schedule_recommendation(-5.0) == (-5.0, None)
+    assert _schedule_recommendation(0.0) == (0.0, None)
 
 
 # ── _reprice_part_item / _enrich_parts_demand_with_real_stock ────────────────
@@ -308,9 +300,8 @@ async def test_attach_parts_and_schedule_no_fusion_result(monkeypatch):
         "modules.ml.services.parts_alerts.emit_shortfall_alert", AsyncMock()
     )
     response = {}
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
     db = FakeDb([])
-    await _attach_parts_and_schedule(response, machine, None, machine_id=1, db=db)
+    await _attach_parts_and_schedule(response, None, machine_id=1, db=db)
     assert response["parts_readiness"] == {"status": "OK"}
     assert response["p6_schedule_days"] is None
     assert response["parts_demand"] is None
@@ -323,9 +314,8 @@ async def test_attach_parts_and_schedule_inventory_error_falls_back(monkeypatch)
     )
     monkeypatch.setattr("modules.ml.services.parts_alerts.emit_shortfall_alert", AsyncMock())
     response = {}
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
     db = FakeDb([])
-    await _attach_parts_and_schedule(response, machine, None, machine_id=1, db=db)
+    await _attach_parts_and_schedule(response, None, machine_id=1, db=db)
     assert response["parts_readiness"] == {"status": "UNKNOWN", "error": "inventory_unavailable"}
 
 
@@ -339,10 +329,9 @@ async def test_attach_parts_and_schedule_enriches_parts_demand_with_real_stock(m
     monkeypatch.setattr(health_mod, "_enrich_parts_demand_with_real_stock", enrich_mock)
 
     response = {}
-    machine = SimpleNamespace(date_derniere_maintenance=None, date_prochaine_maintenance=None)
     fusion_result = {"p7_parts_demand": {"items": [{"piece_id": 1}]}, "p6_schedule_days": None}
     db = FakeDb([])
-    await _attach_parts_and_schedule(response, machine, fusion_result, machine_id=1, db=db)
+    await _attach_parts_and_schedule(response, fusion_result, machine_id=1, db=db)
 
     enrich_mock.assert_awaited_once()
     assert response["parts_demand"] == {"items": [{"piece_id": 1, "enriched": True}]}

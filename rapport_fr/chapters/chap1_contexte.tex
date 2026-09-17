@@ -1,0 +1,294 @@
+\chapter{Contexte Général du Projet}
+
+\section{Présentation de l'entreprise d'accueil}
+
+SagemCom est un groupe industriel spécialisé dans la conception et la fabrication d'équipements de communication à forte valeur ajoutée (décodeurs, box internet, compteurs intelligents). L'entreprise exploite des lignes de production automatisées combinant l'assemblage de composants électroniques (SMT), les tests fonctionnels et le contrôle qualité, répartis sur plusieurs zones de production.
+
+\subsection{Présentation du service d'accueil}
+
+Le stage s'est déroulé au sein du Département Ingénierie Logicielle et Innovation, dont la mission principale est de développer des outils numériques internes visant à moderniser la gestion et la maintenance des équipements de production, en s'appuyant sur les données industrielles générées par les lignes de fabrication.
+
+\section{Contexte du projet}
+
+La gestion des actifs industriels (machines de production, lignes d'assemblage, bancs de test) repose traditionnellement sur des cycles de maintenance préventive planifiés à intervalles fixes, indépendamment de l'état réel des équipements. Cette approche conduit soit à des interventions inutiles sur des machines encore en bon état, soit à des pannes imprévues sur des machines se dégradant plus vite que prévu.
+
+L'essor des capteurs industriels et des techniques d'apprentissage automatique permet aujourd'hui d'envisager la maintenance prédictive : estimer la probabilité de panne, le type de panne probable, la durée de vie utile restante (RUL) et détecter un comportement anormal de la machine à partir de ses données de fonctionnement.
+
+\section{Problématique}
+
+La problématique du stage consiste à concevoir une plateforme unique couvrant à la fois :
+\begin{itemize}
+\item la gestion opérationnelle classique d'un système EAM (utilisateurs, machines, ordres de travail, ordres d'intervention, planification) ;
+\item des modules de maintenance prédictive fondés sur l'apprentissage automatique (probabilité de panne, classification du type de panne, estimation de la durée de vie utile restante, détection d'anomalies, priorisation et planification des interventions, coordination des pièces détachées) ;
+\item un accompagnement intelligent des équipes terrain : alertes contextualisées, explicabilité des prédictions (« pourquoi cette alerte ? »), et un assistant conversationnel capable de répondre aux questions des techniciens à partir de la documentation de maintenance et de l'état de santé en temps réel des machines.
+\end{itemize}
+
+\section{Objectifs du stage}
+
+Les objectifs assignés à ce stage sont :
+\begin{itemize}
+\item concevoir et réaliser le backend et le frontend de la plateforme EAM ;
+\item concevoir et entraîner les modèles de maintenance prédictive (P1 à P7) ;
+\item intégrer un service RAG (\emph{Retrieval-Augmented Generation}) pour l'assistance documentaire, connecté aux prédictions ML en temps réel ;
+\item valider l'ensemble par des tests fonctionnels et une évaluation des performances des modèles.
+\end{itemize}
+
+\section{Méthodologie de travail}
+\label{sec:ml-methodology}
+
+Le développement a suivi une démarche itérative : chaque fonctionnalité a fait l'objet d'une spécification écrite (document de besoins), suivie d'un plan d'implémentation détaillé, avant d'être réalisée puis vérifiée. Cette méthodologie a permis de conserver une traçabilité complète des décisions de conception (choix techniques, alternatives envisagées, justifications) tout au long des six mois de stage.
+
+Pour les six problématiques de Machine Learning initialement définies, cette démarche itérative a pris la forme concrète d'un pipeline structuré et reproductible en huit étapes, appliqué à chaque problématique tour à tour, décrit ci-dessous avec les définitions de problème originales qui précédaient tout travail d'implémentation.
+
+\subsection{Les six définitions de problème initiales}
+
+Cette sous-section reproduit les six définitions de problème telles qu'elles ont été initialement spécifiées pour le projet, avant tout travail d'implémentation (les marqueurs de statut sous forme d'émoji de la spécification originale sont ici rendus par des équivalents en texte simple, la police du document ne les prenant pas en charge).
+
+\paragraph{Problème 1 : Maintenance Prédictive (En cours).}
+\emph{« Cette machine va-t-elle bientôt tomber en panne ? »}
+
+\textbf{Type :} Classification binaire (0 = Saine, 1 = En panne)
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\toprule
+\textbf{Étape du pipeline} & \textbf{Ce qui est fait} \\
+\midrule
+Définir le problème & Prédire si une machine va tomber en panne à partir de la télémétrie des capteurs \\
+\midrule
+Collecter les données & \texttt{ai4i2020.csv} : 10 000 lignes (jeu de données Kaggle AI4I 2020) \\
+\midrule
+Préparer et nettoyer & Sélection de 5 caractéristiques : température de l'air, température du procédé, RPM, couple, usure de l'outil \\
+\midrule
+Séparer les données & Répartition 80/20 entraînement-test avec \texttt{stratify=y} \\
+\midrule
+Choisir un modèle & \texttt{RandomForestClassifier} (adapté aux données de capteurs non linéaires) \\
+\midrule
+Entraîner le modèle & \texttt{ml\_train\_basic.py} avec sur-échantillonnage SMOTE + réglage par GridSearchCV \\
+\midrule
+Évaluer & Matrice de confusion : 98\,\% d'exactitude, 63\,\% de rappel sur les pannes \\
+\midrule
+Ajuster et améliorer & \texttt{class\_weight='balanced'}, SMOTE, GridSearchCV (réalisé) \\
+\midrule
+Sauvegarder le modèle & \texttt{basic\_machine\_model.pkl} \\
+\midrule
+Déployer & \texttt{GET /api/v1/ml/machines/\{id\}/prediction} $\rightarrow$ affiché dans \texttt{PredictivePanel.tsx} \\
+\bottomrule
+\end{tabularx}
+\caption{Déroulé du pipeline pour le problème 1}
+\label{tab:p1-walkthrough}
+\end{table}
+
+\paragraph{Problème 2 : Classification du type de panne.}
+\emph{« Quel TYPE de panne est probable ? »}
+
+\textbf{Type :} Classification multi-étiquettes
+
+Le jeu de données comprend 5 sous-étiquettes de panne :
+\begin{itemize}
+\item \texttt{TWF} : panne par usure de l'outil (Tool Wear Failure)
+\item \texttt{HDF} : panne par dissipation thermique (Heat Dissipation Failure) (\textbf{corrélation de 57\,\%} avec la panne, le prédicteur le plus fort)
+\item \texttt{PWF} : panne d'alimentation (Power Failure)
+\item \texttt{OSF} : panne par surcharge (Overstrain Failure)
+\item \texttt{RNF} : panne aléatoire (Random Failure)
+\end{itemize}
+
+\textbf{Bénéfice pour l'EAM :} suggestion automatique du type d'ordre de travail (mécanique, électrique, thermique) afin que le ChefTech affecte le bon technicien.
+
+\paragraph{Problème 3 : Estimation de la durée de vie utile restante (RUL).}
+\emph{« Combien de jours avant que cette machine ait besoin de maintenance ? »}
+
+\textbf{Type :} Régression (\texttt{RandomForestRegressor} ou XGBoost)
+
+\begin{itemize}
+\item \textbf{Entrée :} progression de l'usure de l'outil dans le temps + historique des interventions
+\item \textbf{Sortie :} \texttt{rul\_days} $\leftarrow$ déjà affiché dans \texttt{PredictivePanel.tsx}
+\item \textbf{Source des données :} données opérationnelles réelles issues de la table PostgreSQL \texttt{interventions}
+\end{itemize}
+
+\emph{Avertissement : le fichier \texttt{ml\_predictive.py} actuel utilise une régression linéaire codée à la main. Elle devra être remplacée par un modèle de régression entraîné.}
+
+\paragraph{Problème 4 : Détection d'anomalies.}
+\emph{« Cette machine se comporte-t-elle anormalement en ce moment ? »}
+
+\textbf{Type :} Apprentissage non supervisé (aucune étiquette requise)
+
+\begin{itemize}
+\item \textbf{Modèle :} Isolation Forest ou Autoencodeur
+\item \textbf{Entrée :} télémétrie en temps réel (température, RPM, couple)
+\item \textbf{Bénéfice pour l'EAM :} déclenchement d'alertes SSE via \texttt{core/notifications.py} dès qu'une anomalie est détectée, avant même qu'une panne ne soit prédite
+\item \textbf{Source des données :} \texttt{ai4i2020.csv} pour l'entraînement, puis application sur les données machine en direct
+\end{itemize}
+
+\paragraph{Problème 5 : Prédiction de la priorité des ordres de travail.}
+\emph{« Quel degré d'urgence pour cet ordre de travail ? »}
+
+\textbf{Type :} Classification multi-classes
+
+\begin{itemize}
+\item \textbf{Classes :} \texttt{LOW}, \texttt{MEDIUM}, \texttt{HIGH}, \texttt{CRITICAL}
+\item \textbf{Caractéristiques :} âge de la machine, temps écoulé depuis la dernière maintenance, nombre d'interventions précédentes, zone de la machine
+\item \textbf{Source des données :} tables PostgreSQL propres \texttt{work\_orders} et \texttt{interventions}
+\item \textbf{Bénéfice pour l'EAM :} le ChefTech obtient des priorités suggérées automatiquement lors de la création des ordres de travail
+\end{itemize}
+
+\paragraph{Problème 6 : Optimisation du calendrier de maintenance (Avancé).}
+\emph{« Quel est le MEILLEUR moment pour planifier la maintenance de toutes les machines ? »}
+
+\textbf{Type :} Prévision de séries temporelles (ARIMA, Prophet, ou LSTM)
+
+\begin{itemize}
+\item \textbf{Entrée :} historique de planification + taux de panne par machine
+\item \textbf{Bénéfice pour l'EAM :} moins de pannes imprévues, meilleure répartition des techniciens entre zones (sous-zone, ordre)
+\end{itemize}
+
+\paragraph{Récapitulatif.}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|c|X|X|X|X|}
+\toprule
+\textbf{\#} & \textbf{Problème} & \textbf{Type de ML} & \textbf{Priorité} & \textbf{Source des données} \\
+\midrule
+1 & Prédiction de panne binaire & Classification & Réalisé & \texttt{ai4i2020.csv} \\
+\midrule
+2 & Type de panne (TWF/HDF/PWF\ldots) & Multi-étiquettes & Élevée & \texttt{ai4i2020.csv} \\
+\midrule
+3 & Estimation de la RUL & Régression & Élevée & BD PostgreSQL + Kaggle \\
+\midrule
+4 & Détection d'anomalies & Non supervisé & Moyenne & Télémétrie des capteurs \\
+\midrule
+5 & Priorité des ordres de travail & Classification & Moyenne & BD PostgreSQL \\
+\midrule
+6 & Planification de la maintenance & Séries temporelles & Avancé & Historique de planification \\
+\bottomrule
+\end{tabularx}
+\caption{Récapitulatif des six problématiques ML initiales}
+\label{tab:six-problems-summary}
+\end{table}
+
+\subsection{Pipeline de développement de modèle en huit étapes}
+
+Chacune des six problématiques initiales (prédiction de panne binaire, classification du type de panne, estimation de la durée de vie utile restante, détection d'anomalies, priorité des ordres de travail, et planification de la maintenance) a suivi les mêmes huit étapes, résumées dans le Tableau~\ref{tab:pipeline-steps}.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|c|X|X|}
+\toprule
+\textbf{Étape} & \textbf{Phase} & \textbf{Objectif} \\
+\midrule
+1 & Définir le problème   & Énoncer la question à laquelle chaque modèle répond et son type d'apprentissage (classification, régression, non supervisé, séries temporelles) \\
+\midrule
+2 & Collecter les données         & Identifier la source des données : le jeu de référence public AI4I~2020, ou les tables PostgreSQL internes (interventions, ordres de travail, plannings) \\
+\midrule
+3 & Préparer et nettoyer les données & Sélectionner les caractéristiques pertinentes, écarter les colonnes propices aux fuites, traiter les valeurs manquantes, encoder les champs catégoriels \\
+\midrule
+4 & Séparer les données           & Choisir une stratégie de séparation adaptée au problème : stratifiée pour les classes déséquilibrées, chronologique pour les séries temporelles, aucune pour l'entraînement non supervisé \\
+\midrule
+5 & Choisir un modèle       & Comparer 2 à 4 algorithmes candidats sur une métrique de validation adaptée au problème \\
+\midrule
+6 & Entraîner le modèle      & Ajuster l'algorithme choisi avec une configuration explicite et justifiée \\
+\midrule
+7 & Évaluer la performance & Mesurer le modèle sur un jeu de test non exploité, avec la métrique correspondant au risque métier, et non l'exactitude brute \\
+\midrule
+8 & Ajuster et améliorer       & Combler l'écart entre la performance mesurée et la cible visée par recherche d'hyperparamètres, ajustement de seuil, ou ingénierie de caractéristiques \\
+\bottomrule
+\end{tabularx}
+\caption{Pipeline de développement ML en huit étapes}
+\label{tab:pipeline-steps}
+\end{table}
+
+Dès l'étape de préparation des données (étape~3), un premier avertissement avait déjà été formulé pour le problème de prédiction de panne : les cinq sous-étiquettes de panne (TWF, HDF, PWF, OSF, RNF) sont des sous-causes déterministes de l'indicateur global de panne et ne doivent pas être utilisées comme caractéristiques d'entrée, sous peine de gonfler artificiellement l'exactitude. Il s'agit du même type de problème (des caractéristiques d'entrée encodant la cible) que celui que l'audit systématique de fuite d'étiquette, réalisé plus tard, a formellement confirmé et marqué comme \texttt{validation\_status: "leaked"} en production (Section~\ref{sec:validation}) ; il avait déjà été anticipé qualitativement à ce stade antérieur du projet, mais sans être encore démontré ni traité.
+
+Comme la classe « panne » ne représente que 3,39\,\% du jeu de données de référence, l'étape~4 a appliqué une séparation stratifiée associée à un sur-échantillonnage SMOTE (sur-échantillonnage synthétique de la classe minoritaire, appliqué strictement après la séparation afin d'éviter toute fuite d'information du jeu de test vers les échantillons synthétiques) pour les problèmes de classification, tandis que le problème de planification de la maintenance (étant une série temporelle) a été séparé chronologiquement, un mélange aléatoire risquant de faire apprendre au modèle des données postérieures au point sur lequel il est testé.
+
+Le Tableau~\ref{tab:initial-choices} résume le modèle initialement sélectionné pour chaque problème à l'étape~5, ainsi que la cible d'évaluation fixée à l'étape~7.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
+\toprule
+\textbf{Problème} & \textbf{Modèle initial} & \textbf{Métrique principale} & \textbf{Cible} \\
+\midrule
+P1 : probabilité de panne   & Random Forest (puis XGBoost) & Rappel sur les pannes        & $> 80\,\%$, précision $> 65\,\%$ \\
+\midrule
+P2 : type de panne          & MultiOutput Random Forest     & F1 par étiquette              & Rappel HDF $> 75\,\%$ \\
+\midrule
+P3 : estimation de la RUL        & XGBoost Regressor             & RMSE                       & $< 10$ jours, $R^2 > 0{,}85$ \\
+\midrule
+P4 : détection d'anomalies     & Isolation Forest              & Rappel sur les anomalies       & Capter les déviations évidentes \\
+\midrule
+P5 : priorité des ordres de travail   & XGBoost (multi-classes)         & F1 macro                   & $> 70\,\%$ \\
+\midrule
+P6 : planification de la maintenance & Prophet                      & MAE                        & $< 5$ jours \\
+\bottomrule
+\end{tabularx}
+\caption{Choix de modèle initial et cible d'évaluation par problème}
+\label{tab:initial-choices}
+\end{table}
+
+L'étape~8 (ajuster et améliorer) a défini, pour chaque problème, un levier concret pour combler l'écart entre la métrique mesurée et la cible : recherche d'hyperparamètres via \texttt{GridSearchCV}, ajustement du seuil de classification pour arbitrer entre précision et rappel, stratégies de rééchantillonnage alternatives (SMOTE, ADASYN, ou sous-échantillonnage), ingénierie de caractéristiques ciblée (par exemple, une caractéristique d'écart de température pour renforcer le signal de panne par dissipation thermique), pondération des classes pour les niveaux de priorité rares, et arrêt anticipé pour éviter le surapprentissage sur les modèles d'arbres boostés.
+
+Plusieurs de ces choix initiaux ont été révisés lors de la mise en production, une fois identifiés les problèmes de fuite d'étiquette et de méthodologie de validation décrits au Chapitre~5 : Random Forest a cédé la place à XGBoost avec validation par exclusion de groupes pour P1, et le problème de planification a été retravaillé, abandonnant une pure prévision de série temporelle Prophet au profit de l'approche par classification et de la couche de fusion de signaux Wave~2 présentée au Chapitre~3. Une septième problématique, la prévision de la demande de pièces détachées (P7), a été ajoutée au-delà de ce périmètre initial de six problèmes, une fois que le modèle de données de la plateforme a suffisamment mûri pour la prendre en charge.
+
+\subsection{Récapitulatif}
+
+Chaque fonctionnalité a suivi la même boucle disciplinée : spécification écrite, plan d'implémentation, réalisation, puis vérification. Pour les six problématiques ML initialement définies, cette boucle a pris la forme concrète d'un pipeline en huit étapes (définir, collecter, préparer, séparer, choisir, entraîner, évaluer, ajuster) appliqué de façon identique à chacune ; deux des choix faits à ce stade précoce (une séparation aléatoire entraînement/test et des caractéristiques dont on a découvert plus tard qu'elles laissaient fuiter l'étiquette) ont été révisés une fois le problème mis en évidence par la mise en production, au Chapitre~5. La prévision de la demande de pièces détachées (P7) est arrivée plus tard, intégrée seulement une fois que le modèle de données sous-jacent à la plateforme a pu réellement soutenir une septième cible de prédiction.
+
+\section{Planning du stage}
+
+\definecolor{gantt1}{HTML}{274472}
+\definecolor{gantt2}{HTML}{34507B}
+\definecolor{gantt3}{HTML}{415C85}
+\definecolor{gantt4}{HTML}{4E688E}
+\definecolor{gantt5}{HTML}{5B7498}
+\definecolor{gantt6}{HTML}{6880A1}
+\definecolor{gantt7}{HTML}{758CAA}
+\definecolor{gantt8}{HTML}{8298B4}
+\definecolor{gantt9}{HTML}{8EA4BD}
+\definecolor{gantt10}{HTML}{9BB0C7}
+\definecolor{gantt11}{HTML}{A8BCD0}
+\definecolor{gantt12}{HTML}{B5C8D9}
+\definecolor{gantt13}{HTML}{C2D4E3}
+\definecolor{gantt14}{HTML}{CFE0EC}
+
+\begin{figure}[p]
+\begingroup
+\catcode`\.=12
+\noindent\makebox[\textwidth][c]{%
+\begin{ganttchart}[
+    vgrid,
+    hgrid,
+    x unit=1.35cm,
+    y unit title=1.1cm,
+    y unit chart=1.05cm,
+    title height=1,
+    bar height=0.6,
+    bar label font=\small,
+    bar label node/.append style={text width=4.6cm, align=right},
+    title label font=\bfseries\normalsize,
+    title/.style={draw=none, fill=black!10},
+]{1}{7}
+\gantttitle{Planning du stage (mois)}{7} \\
+\gantttitlelist{1,...,7}{1} \\
+\ganttbar[bar/.append style={fill=gantt1}]{Analyse \& architecture}{1.0}{1.4} \\
+\ganttbar[bar/.append style={fill=gantt2}]{Backend (utilisateurs/machines)}{1.1}{1.9} \\
+\ganttbar[bar/.append style={fill=gantt3}]{Backend (ordres trav./interv.)}{1.6}{2.3} \\
+\ganttbar[bar/.append style={fill=gantt4}]{Frontend (tableaux de bord)}{1.8}{2.5} \\
+\ganttbar[bar/.append style={fill=gantt5}]{ML P1 à P3}{2.2}{3.2} \\
+\ganttbar[bar/.append style={fill=gantt6}]{ML P4 à P6}{2.8}{3.7} \\
+\ganttbar[bar/.append style={fill=gantt7}]{Fusion DST (Wave 2)}{3.3}{3.9} \\
+\ganttbar[bar/.append style={fill=gantt8}]{RAG (ingestion/S3)}{3.5}{4.2} \\
+\ganttbar[bar/.append style={fill=gantt9}]{Pont ML-RAG}{3.9}{4.6} \\
+\ganttbar[bar/.append style={fill=gantt10}]{P7 (pièces détachées)}{4.2}{5.1} \\
+\ganttbar[bar/.append style={fill=gantt11}]{Explicabilité \& alertes}{4.8}{5.6} \\
+\ganttbar[bar/.append style={fill=gantt12}]{Phase 4 (refonte des modèles)}{5.4}{6.4} \\
+\ganttbar[bar/.append style={fill=gantt13}]{Tests \& corrections}{6.0}{6.8} \\
+\ganttbar[bar/.append style={fill=gantt14}]{Rédaction du rapport}{6.5}{7.0}
+\end{ganttchart}%
+}
+\endgroup
+\caption{Planning du stage de fin d'études}
+\label{fig:planning}
+\end{figure}

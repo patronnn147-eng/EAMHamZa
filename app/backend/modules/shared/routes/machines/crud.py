@@ -148,17 +148,15 @@ async def create_machines(
             await AuditService(db).log_create(
                 entity_type=AuditEntityType.MACHINE,
                 entity_id=result.id,
-                new_values=data.model_dump(mode="json"),
+                new_values=data.model_dump(),
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=getattr(result, "nom", None),
             )
         except Exception:
-            logger.warning("Audit log failed for create machine %s", safe_id)
+            logger.warning("Audit log failed for create machine %s", result.id)
 
         return result
-    except HTTPException:
-        raise
     except ValueError as e:
         logger.exception(f"Validation error creating machines: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -192,19 +190,18 @@ async def create_machiness_batch(
 
         audit_service = AuditService(db)
         for result, item_data in zip(results, request.items):
-            safe_item_id = str(result.id).replace("\r", "").replace("\n", "")
             try:
                 await audit_service.log_create(
                     entity_type=AuditEntityType.MACHINE,
                     entity_id=result.id,
-                    new_values=item_data.model_dump(mode="json"),
+                    new_values=item_data.model_dump(),
                     user_id=current_user.id,
                     user_name=current_user.nom,
                     entity_name=getattr(result, "nom", None),
                 )
             except Exception:
                 logger.warning(
-                    "Audit log failed for batch create machine %s", safe_item_id
+                    "Audit log failed for batch create machine %s", result.id
                 )
 
         logger.info(f"Batch created {len(results)} machiness successfully")

@@ -1,0 +1,148 @@
+\chapter{Tests et Résultats}
+
+\section{Stratégie de test}
+
+La validation du système repose sur deux niveaux de tests : des tests unitaires vérifiant le comportement isolé de chaque service métier, et des tests d'intégration vérifiant le comportement de bout en bout des principaux parcours utilisateurs (création d'un ordre de travail, déclenchement d'une alerte, réponse de l'assistant conversationnel). La suite de tests couvre 99 tests au total (46 tests unitaires et de cœur, 53 tests d'intégration backend), tous en succès sur la pile Docker en fonctionnement.
+
+\section{Évaluation des modèles d'apprentissage automatique}
+
+\subsection{Méthodologie de validation}
+
+Le Chapitre~3 avait déjà écarté une séparation aléatoire des lignes pour ce type de données, et c'est la phase de test qui permet de vérifier ce choix à l'épreuve des faits. Un modèle évalué sur une séparation aléatoire 80/20 aurait été jugé sur des machines dont il avait déjà partiellement observé la dégradation, puisque les deux moitiés d'une séparation aléatoire proviennent du même parc ; le score obtenu mesurerait alors la mémorisation des trajectoires propres à ce parc, et non une réelle capacité à généraliser à une machine jamais rencontrée.
+
+P3 est le seul modèle réellement soumis à cette exigence dans ce chapitre : les machines 70 à 79 ont été exclues entièrement avant le début de l'entraînement, si bien que chaque chiffre rapporté ci-dessous pour ce modèle reflète sa performance sur des machines qu'il n'a jamais vues. C'est de ce fait le seul modèle dont les résultats peuvent être pris au pied de la lettre ; les autres restent conditionnés au problème de qualité des étiquettes traité juste après, indépendamment de la façon dont leurs données ont été séparées.
+
+\subsection{Qualité des étiquettes et statut de validation}
+\label{sec:validation}
+
+Le risque avait été signalé tôt, au Chapitre~1 : les cinq sous-étiquettes de panne n'étaient jamais censées servir aussi de prédicteurs de l'indicateur global dont elles sont elles-mêmes dérivées. Ce qu'a fait cette phase de test, c'est transformer cette prudence initiale en constat confirmé, un problème que le Chapitre~3 traite déjà comme le principal problème de qualité des données de la plateforme : P1, P2 et P5 lisent tous \texttt{tool\_wear} en entrée alors que leurs propres étiquettes d'entraînement sont calculées comme une fonction déterministe de cette même colonne, une fuite de cible typique. Aucune quantité supplémentaire de données, d'ingénierie de caractéristiques, ou de changement d'algorithme ne corrige un problème qui réside dans la source des étiquettes plutôt que dans le modèle, aucune tentative n'a donc été faite en ce sens.
+
+Ce que ce constat confirmé change aux chiffres rapportés mérite d'être dit clairement : le $\sim$99\,\% d'AUC-ROC affiché par ces trois modèles sous validation par exclusion de groupes mesure la fidélité avec laquelle chacun reproduit une identité arithmétique qu'il n'était pas censé voir formulée aussi directement, non sa capacité à prédire une réelle panne. Publier ce chiffre comme une métrique de performance donnerait aux parties prenantes une confiance infondée, c'est pourquoi le registre des modèles marque explicitement le \texttt{validation\_status} de chaque modèle, et pourquoi le tableau de bord masque les chiffres d'exactitude de tout modèle marqué \texttt{"leaked"} plutôt que d'afficher un score trompeusement élevé.
+
+Le Tableau~\ref{tab:validation-status} résume le statut de validation et la porte de production de chaque modèle.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
+\toprule
+\textbf{Modèle} & \textbf{Algorithme} & \textbf{Porte de production} & \textbf{Statut} \\
+\midrule
+P1 : probabilité de panne   & XGBClassifier         & AUC-ROC $\geq 0{,}85$            & Fuite \\
+\midrule
+P2 : type de panne          & MultiOutputClassifier & F1 macro $\geq 0{,}70$           & Fuite (partielle) \\
+\midrule
+P3 : estimation RUL          & XGBRegressor          & $R^2 \geq 0{,}40$, indice de concordance $\geq 0{,}62$ & Validé par exclusion de groupes \\
+\midrule
+P4 : détection d'anomalie     & Ensemble (IF+Z+AE)    & Précision sur les résultats OT       & Non vérifié \\
+\midrule
+P5 : priorité des ordres de travail   & XGBClassifier         & F1 $\geq 0{,}70$                 & Fuite \\
+\midrule
+P6 : calendrier de maintenance  & XGBClassifier         & F1 $\geq 0{,}70$                 & Non vérifié \\
+\midrule
+P7 : demande de pièces          & Survie + Croston    & vs.\ référence naïve            & Non vérifié \\
+\bottomrule
+\end{tabularx}
+\caption{Statut de validation et porte de production par modèle}
+\label{tab:validation-status}
+\end{table}
+
+\subsection{Métriques des modèles validés}
+
+Pour les modèles disposant d'une évaluation fiable, le Tableau~\ref{tab:metriques-ml} rapporte les métriques mesurées par rapport à la porte de production.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
+\toprule
+\textbf{Modèle} & \textbf{Métrique} & \textbf{Résultat} & \textbf{Porte} \\
+\midrule
+P3 : durée de vie utile restante & Erreur absolue moyenne (MAE)    & 14,95 cycles & $\leq 16{,}25 \times 1{,}15$ \\
+\midrule
+P3 : durée de vie utile restante & Indice de concordance (C-index)  & 0,620        & $\geq 0{,}62$ \\
+\midrule
+P4 : détection d'anomalie     & ROC-AUC (référence)           & 0,83         & $>$ référence naïve \\
+\midrule
+P3 : prototype (Cox PH)    & C-index (prototype de recherche) & 0,712        & référence uniquement \\
+\midrule
+P3 : prototype (Weibull AFT) & C-index (prototype de recherche) & 0,714      & référence uniquement \\
+\bottomrule
+\end{tabularx}
+\caption{Récapitulatif des métriques d'évaluation des modèles (modèles validés uniquement)}
+\label{tab:metriques-ml}
+\end{table}
+
+Les résultats de Cox et Weibull des deux dernières lignes proviennent d'un prototype de recherche appliquant une modélisation de survie tenant compte de la censure sur le même ensemble de machines exclues que P3, et démontrent qu'un traitement explicite des machines censurées à droite (celles encore en fonctionnement au moment de l'observation) produit une amélioration réelle par rapport à la référence de régression naïve (C-index de 0,644). Ces résultats confortent la décision de feuille de route consistant à migrer P3 vers une architecture de modèle de survie une fois que de véritables données de fonctionnement jusqu'à la panne seront disponibles.
+
+\subsection{Stratégie de réentraînement}
+
+Une porte de production est appliquée à chaque réentraînement : un nouvel artefact de modèle n'est écrit sur disque que s'il atteint ou dépasse le seuil minimal pour sa métrique. Cela empêche un mauvais réentraînement d'écraser silencieusement un bon modèle.
+
+La stratégie de déclenchement varie selon le modèle et dépend de son statut de validation :
+
+\begin{itemize}
+\item \textbf{P1 et P5} sont gelés jusqu'à ce que de véritables enregistrements de panne confirmés par des techniciens remplacent les étiquettes dérivées de formule. Réentraîner sur davantage de données synthétiques ne ferait que renforcer la tautologie.
+\item \textbf{P2} est réentraîné sur déclenchement manuel lorsqu'un lot significatif de nouvelles étiquettes de type de panne confirmées par les techniciens s'est accumulé, à l'aide d'une validation croisée répétée par exclusion de groupes rapportant la moyenne et l'écart-type du F1 macro entre les plis.
+\item \textbf{P3} est le seul modèle programmé selon une cadence régulière : réentraînement mensuel par lots, ou déclenché chaque fois qu'un cycle de vie machine complet se referme et devient disponible comme échantillon d'entraînement. Il est le premier à bénéficier d'un contrôle d'exactitude renforcé pour les nouveaux régresseurs, car c'est le modèle le plus fiable du pipeline.
+\item \textbf{P4, P6 et P7} sont réentraînés de façon événementielle lorsque suffisamment de données de résultats réels (indicateurs d'anomalie confirmés, résultats d'intervention, consommation réelle de pièces) se sont accumulées pour constituer un signal de mise à jour significatif.
+\end{itemize}
+
+\subsection{Ce que des données réelles permettraient de débloquer}
+
+La plateforme actuelle repose sur une architecture solide, mais est limitée par la qualité des données d'entraînement disponibles. Trois investissements concrets changeraient significativement la situation.
+
+Premièrement, des \textbf{enregistrements de panne confirmés par les techniciens} : lorsqu'un technicien clôture un ordre de travail et enregistre la cause racine (TWF, HDF, PWF, OSF, ou RNF), cette observation constitue une étiquette dont P1 et P2 peuvent réellement apprendre. Accumuler 1\,000 événements confirmés ou plus sur six à douze mois est le seuil minimal pour un réentraînement significatif.
+
+Deuxièmement, de \textbf{véritables séquences de fonctionnement jusqu'à la panne pour P3} : suivre en continu quinze à vingt machines depuis un état sain jusqu'à une panne confirmée (ou une mise hors service documentée) fournirait à P3 de véritables séquences censurées, permettant une migration vers un modèle à risques proportionnels de Cox ou Weibull AFT comme modèle de production.
+
+Troisièmement, des \textbf{capteurs de vibration et de courant moteur} : les cinq entrées de capteurs actuellement disponibles ne peuvent pas capter la dégradation des roulements, le mode de panne industriel le plus courant. La valeur RMS et le kurtosis des vibrations, associés au courant absorbé par le moteur, sont les signaux qui rendraient P1, P3 et P4 nettement plus puissants, car ils fournissent une information réellement indépendante de l'usure de l'outil.
+
+\subsection{Récapitulatif}
+
+Sur les sept modèles, seul P3 (RUL) dispose de chiffres d'évaluation dignes de confiance : c'est le seul modèle entraîné et testé avec une validation par exclusion de groupes en bonne et due forme, atteignant une MAE de 14,95 cycles et un indice de concordance de 0,620 par rapport à sa porte de production. P1, P2 et P5 sont formellement marqués \texttt{"leaked"} car leurs étiquettes sont des fonctions déterministes d'une caractéristique d'entrée, et la stratégie de réentraînement de chaque modèle est explicitement conditionnée à l'accumulation de résultats réels, confirmés par des techniciens, plutôt qu'à davantage de données synthétiques.
+
+\section{Démonstrations de cas d'utilisation}
+
+Trois scénarios illustrent le fonctionnement de bout en bout de la plateforme :
+\begin{itemize}
+\item \textbf{Création et suivi d'un ordre d'intervention} : un technicien reçoit un ordre d'intervention affecté par le Chef Technicien, le consulte depuis son espace, puis le clôture une fois terminé, ce qui met à jour l'historique de la machine concernée ;
+\item \textbf{Réception d'une alerte de pénurie de stock} : lorsque le module P7 détecte qu'une pièce nécessaire à une intervention planifiée sera bientôt indisponible, une alerte est automatiquement générée et présentée au Chef Technicien accompagnée d'une proposition de commande à valider ;
+\item \textbf{Interrogation de l'assistant conversationnel} : un technicien interroge l'assistant sur la procédure de dépannage d'une machine précise ; la réponse combine la documentation technique avec l'état de santé en temps réel de la machine.
+\end{itemize}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_1_request.png}
+\caption{Étape 1 : le technicien soumet la demande d'intervention}
+\label{fig:ss-uc-intervention-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_2_approval.png}
+\caption{Étape 2 : le Chef Technicien approuve la demande}
+\label{fig:ss-uc-intervention-2}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_intervention_3_closure.png}
+\caption{Étape 3 : le technicien clôture l'ordre de travail}
+\label{fig:ss-uc-intervention-3}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_uc_shortage.png}
+\caption{De bout en bout : alerte de pénurie de stock}
+\label{fig:ss-uc-shortage}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+Le cycle de vie de l'intervention (demande, approbation, clôture), le flux d'alerte de pénurie de stock, et une interrogation de l'assistant conversationnel ont été parcourus de bout en bout sur la plateforme en fonctionnement : une demande soumise par un technicien atteint la file du Chef Technicien avec un ordre de travail lié, une pénurie projetée se manifeste sous forme d'alerte accompagnée d'un brouillon de commande lié, et une question de technicien reçoit une réponse combinant à la fois la documentation et l'état de santé en temps réel de la machine, exactement comme spécifié au Chapitre~2.
+
+\section{Difficultés rencontrées lors des tests}
+
+La phase de test a mis en évidence l'importance de la représentativité des données d'entraînement : les modèles ont été validés sur un jeu de données historique simulant plusieurs dizaines de cycles de maintenance complets, afin de couvrir une diversité suffisante de scénarios de panne. Le temps de calcul de certains modèles (en particulier le modèle hybride de durée de vie utile restante) a nécessité l'optimisation du chargement des modèles, qui est mis en cache en mémoire afin d'éviter un rechargement depuis le disque à chaque requête.
+
+Une difficulté plus subtile a concerné l'interaction entre la télémétrie synthétique et l'inférence en temps réel. Lorsque la plateforme a été amorcée avec des relevés générés marqués \texttt{is\_synthetic = true}, chaque machine affichait des valeurs de capteurs et des sorties ML identiques, car le service ML substituait silencieusement des valeurs de remplacement fixes lorsqu'aucun relevé réel ne passait le filtre synthétique. La correction a remplacé les valeurs de remplacement silencieuses par un indicateur explicite \texttt{telemetry\_available: false}, arrêtant entièrement l'appel au modèle en l'absence de données réelles et rendant l'absence de données visible pour l'utilisateur plutôt que dissimulée derrière un nombre d'apparence plausible.

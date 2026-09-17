@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from typing import Optional, Dict, Any, List
 
 from sqlalchemy import select, func
@@ -6,8 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from models.plannings import Plannings
-from models.planning_utilisateurs import PlanningUtilisateurs
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
+from models.planning_utilisateurs import Planning_utilisateurs
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +38,10 @@ class PlanningsService:
             query = (
                 select(Plannings)
                 .options(
-                    selectinload(Plannings.PlanningUtilisateurs).selectinload(
-                        PlanningUtilisateurs.utilisateur
+                    selectinload(Plannings.planning_utilisateurs).selectinload(
+                        Planning_utilisateurs.utilisateur
                     ),
-                    selectinload(Plannings.PlanningMachines),
+                    selectinload(Plannings.planning_machines),
                 )
                 .where(Plannings.id == obj_id)
             )
@@ -61,25 +60,51 @@ class PlanningsService:
     ) -> Dict[str, Any]:
         """Get paginated list of planningss"""
         try:
-            base_q = select(Plannings).where(Plannings.archived_at.is_(None))
-            base_count = select(func.count(Plannings.id)).where(
+            query = select(Plannings).where(Plannings.archived_at.is_(None))
+            count_query = select(func.count(Plannings.id)).where(
                 Plannings.archived_at.is_(None)
             )
-            query, count_query = _apply_filters(base_q, base_count, Plannings, query_dict)
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Plannings)
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Plannings, field):
+                        query = query.where(getattr(Plannings, field) == value)
+                        count_query = count_query.where(
+                            getattr(Plannings, field) == value
+                        )
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Plannings, field_name):
+                        query = query.order_by(getattr(Plannings, field_name).desc())
+                else:
+                    if hasattr(Plannings, sort):
+                        query = query.order_by(getattr(Plannings, sort))
+            else:
+                query = query.order_by(Plannings.id.desc())
+
             result = await self.db.execute(
                 query.options(
-                    selectinload(Plannings.PlanningUtilisateurs).selectinload(
-                        PlanningUtilisateurs.utilisateur
+                    selectinload(Plannings.planning_utilisateurs).selectinload(
+                        Planning_utilisateurs.utilisateur
                     ),
-                    selectinload(Plannings.PlanningMachines),
+                    selectinload(Plannings.planning_machines),
                 )
                 .offset(skip)
                 .limit(limit)
             )
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching plannings list: {str(e)}")
             raise

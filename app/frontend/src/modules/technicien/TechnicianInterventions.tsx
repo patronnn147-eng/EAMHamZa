@@ -145,7 +145,7 @@ export default function TechnicianInterventions() {
     return (
       <div className="space-y-1">
         {parts.map((part, idx) => {
-          const match = /\[FILE:([^|]+)\|([^\]]+)\]/.exec(part);
+          const match = part.match(/\[FILE:([^|]+)\|([^\]]+)\]/);
           if (match) {
             const [, key, name] = match;
             return (

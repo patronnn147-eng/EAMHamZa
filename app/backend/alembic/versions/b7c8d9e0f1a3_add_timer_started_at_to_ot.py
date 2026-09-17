@@ -1,4 +1,4 @@
-﻿"""add_timer_started_at_to_ot
+"""add_timer_started_at_to_ot
 
 Revision ID: b7c8d9e0f1a3
 Revises: a1b2c3d4e5f6
@@ -19,25 +19,20 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def _column_exists(table_name: str, column_name: str) -> bool:
     bind = op.get_bind()
-    result = bind.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns"
-            " WHERE table_name = :tbl AND column_name = :col"
-        ),
-        {"tbl": table_name, "col": column_name},
-    )
+    # nosemgrep: sqlalchemy-raw-sql-interpolation,python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text -- table_name/column_name are hardcoded migration-author literals, never user input
+    result = bind.execute(sa.text(f"SELECT 1 FROM information_schema.columns WHERE table_name = '{table_name}' AND column_name = '{column_name}'"))  # fmt: skip
     return result.first() is not None
 
 
 def upgrade() -> None:
-    # --- OrdresTravail ---
-    if not _column_exists("OrdresTravail", "timer_started_at"):
+    # --- Ordres_travail ---
+    if not _column_exists("ordres_travail", "timer_started_at"):
         op.add_column(
-            "OrdresTravail",
+            "ordres_travail",
             sa.Column("timer_started_at", sa.DateTime(timezone=True), nullable=True),
         )
 
 
 def downgrade() -> None:
-    # --- OrdresTravail ---
-    op.drop_column("OrdresTravail", "timer_started_at")
+    # --- Ordres_travail ---
+    op.drop_column("ordres_travail", "timer_started_at")

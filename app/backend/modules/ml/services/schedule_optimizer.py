@@ -1,4 +1,4 @@
-﻿"""
+"""
 Schedule optimizer.
 Primary: OR-Tools CP-SAT (minimize priority-weighted completion day).
 Fallback: greedy round-robin when ortools unavailable.
@@ -29,13 +29,13 @@ except ImportError:
 def _greedy_schedule(
     work_orders: List[Dict[str, Any]],
     technician_ids: List[int],
-    _horizon_days: int,
+    horizon_days: int,
 ) -> Dict[str, Any]:
     if not work_orders or not technician_ids:
         return {"assignments": [], "makespan_days": 0, "solved": True, "fallback": True}
 
     sorted_wos = sorted(work_orders, key=lambda w: w.get("priority", 1), reverse=True)
-    tech_next_day = dict.fromkeys(technician_ids, 0)
+    tech_next_day = {t: 0 for t in technician_ids}
     assignments = []
 
     for i, wo in enumerate(sorted_wos):
@@ -155,47 +155,62 @@ def optimize_schedule(
     )
 
 
-def _wo_to_dict(wo) -> Dict[str, Any]:
-    """Convert OrdresTravail ORM object to scheduler-compatible dict."""
-    est = 4.0
-    if wo.date_debut and wo.date_fin:
-        h = (wo.date_fin - wo.date_debut).total_seconds() / 3600.0
-        if 0 < h <= 168:
-            est = h
-    priority = 3
-    if hasattr(wo, "priority") and wo.priority:
-        try:
-            priority = int(wo.priority)
-        except (ValueError, TypeError):
-            pass
-    return {"id": wo.id, "priority": priority, "estimated_hours": est, "parts_ready": True, "titre": wo.titre or f"WO #{wo.id}"}
-
-
 async def compute_schedule(db, horizon_days: int) -> Dict[str, Any]:
     from sqlalchemy import select
-    from models.ordres_travail import OrdresTravail, OrdreStatut
+    from models.ordres_travail import Ordres_travail, OrdreStatut
     from models.utilisateurs import Utilisateurs
 
     now = datetime.now(timezone.utc)
     if (
         _SCHEDULE_CACHE["data"] is not None
         and _SCHEDULE_CACHE["timestamp"] is not None
-        and (now - _SCHEDULE_CACHE["timestamp"]).total_seconds() < _SCHEDULE_CACHE["ttl"]
+        and (now - _SCHEDULE_CACHE["timestamp"]).total_seconds()
+        < _SCHEDULE_CACHE["ttl"]
     ):
         return _SCHEDULE_CACHE["data"]
 
     wo_res = await db.execute(
-        select(OrdresTravail)
-        .where(OrdresTravail.statut.in_([OrdreStatut.ASSIGNED, OrdreStatut.IN_PROGRESS]))
+        select(Ordres_travail)
+        .where(Ordres_travail.statut.in_([OrdreStatut.PLANIFIE, OrdreStatut.EN_COURS]))
         .limit(100)
     )
-    work_orders = [_wo_to_dict(wo) for wo in wo_res.scalars().all()]
+    wos_db = wo_res.scalars().all()
 
-    tech_res = await db.execute(select(Utilisateurs).where(Utilisateurs.role == "TECHNICIEN"))
-    tech_ids = [u.id for u in tech_res.scalars().all()] or [0]
+    work_orders = []
+    for wo in wos_db:
+        est = 4.0
+        if wo.date_debut and wo.date_fin:
+            h = (wo.date_fin - wo.date_debut).total_seconds() / 3600.0
+            if 0 < h <= 168:
+                est = h
+        priority = 3
+        if hasattr(wo, "priority") and wo.priority:
+            try:
+                priority = int(wo.priority)
+            except (ValueError, TypeError):
+                pass
+        work_orders.append(
+            {
+                "id": wo.id,
+                "priority": priority,
+                "estimated_hours": est,
+                "parts_ready": True,
+                "titre": wo.titre or f"WO #{wo.id}",
+            }
+        )
+
+    tech_res = await db.execute(
+        select(Utilisateurs).where(Utilisateurs.role == "TECHNICIEN")
+    )
+    tech_ids = [u.id for u in tech_res.scalars().all()]
+
+    if not tech_ids:
+        tech_ids = [0]
 
     loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, optimize_schedule, work_orders, tech_ids, horizon_days)
+    result = await loop.run_in_executor(
+        None, optimize_schedule, work_orders, tech_ids, horizon_days
+    )
 
     wo_titles = {wo["id"]: wo["titre"] for wo in work_orders}
     for a in result.get("assignments", []):

@@ -1,0 +1,58 @@
+\appendix
+\chapter{Annexes}
+
+\section{Extraits de code sélectionnés}
+
+L'extrait ci-dessous illustre, sous une forme simplifiée, la logique de fusion des scores de l'ensemble de détection d'anomalies (module P4), avec renormalisation des poids lorsqu'un détecteur est indisponible :
+
+\begin{verbatim}
+def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
+    available = {k: v for k, v in scores.items() if v is not None}
+    total_weight = sum(weights[k] for k in available)
+    if total_weight == 0:
+        return 0.0
+    return sum(scores[k] * weights[k] for k in available) / total_weight
+\end{verbatim}
+
+L'extrait suivant illustre le principe du calcul du score de disponibilité opérationnelle (module P7), combinant plusieurs signaux pondérés :
+
+\begin{verbatim}
+def compute_readiness_score(health, inventory, shortage, recency):
+    return (
+        0.40 * health
+        + 0.30 * inventory
+        - 0.20 * shortage
+        + 0.10 * recency
+    )
+\end{verbatim}
+
+\section{Diagrammes détaillés}
+
+Le diagramme de classes complet ainsi que le diagramme de séquence du pont ML-RAG (invocation parallèle du service RAG et du microservice ML, fusion du contexte avant génération de la réponse) sont disponibles dans les spécifications techniques du projet.
+
+\section{Tableaux de métriques complets}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\toprule
+\textbf{Modèle} & \textbf{Description} \\
+\midrule
+P1 & Probabilité de panne (classification binaire) \\
+\midrule
+P2 & Classification du type de panne \\
+\midrule
+P3 & Estimation de la durée de vie utile restante (MAE = 14,95 cycles, indice de concordance = 0,620) \\
+\midrule
+P4 & Détection d'anomalie comportementale (ROC-AUC de référence = 0,83) \\
+\midrule
+P5 & Priorisation des ordres de travail \\
+\midrule
+P6 & Planification de la maintenance \\
+\midrule
+P7 & Coordination des pièces détachées (prévision de la demande, alertes, approvisionnement guidé) \\
+\bottomrule
+\end{tabularx}
+\caption{Récapitulatif des modèles du pipeline d'apprentissage automatique}
+\label{tab:metriques-completes-fr}
+\end{table}

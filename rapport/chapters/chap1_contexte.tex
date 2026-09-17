@@ -15,226 +15,77 @@ The management of industrial assets (production machines, assembly lines, test b
 The rise of industrial sensors and machine learning techniques now makes it possible to consider predictive maintenance: estimating the probability of failure, the likely failure type, the remaining useful life (RUL) and detecting abnormal machine behavior from its operating data.
 
 \section{Problem statement}
+\label{sec:problematic}
 
-The internship's problem statement is to design a single platform that covers at once:
-\begin{itemize}
-\item the classic operational management of an EAM system (users, machines, work orders, intervention orders, scheduling);
-\item predictive maintenance modules based on machine learning (failure probability, failure type classification, remaining useful life estimation, anomaly detection, intervention prioritization and scheduling, spare parts coordination);
-\item intelligent support for field teams: contextualized alerts, prediction explainability (``why this alert?''), and a conversational assistant able to answer technicians' questions based on maintenance documentation and the real-time health status of the machines.
-\end{itemize}
+Industrial production lines rely on maintenance strategies that are either purely reactive (intervening only after a breakdown has occurred) or strictly calendar-based, where preventive tasks are performed at fixed intervals regardless of the actual condition of the equipment. Reactive maintenance leads to unplanned downtime, emergency part procurement at premium cost, and potential safety hazards for nearby operators. Calendar-based preventive maintenance, while reducing the frequency of catastrophic failures, generates unnecessary interventions on machines still in good condition and fails to catch machines degrading faster than the planned cycle.
+
+The core problem this internship addresses is therefore threefold:
+\begin{enumerate}
+\item \textbf{Absence of condition-based visibility.} Without continuous analysis of sensor data (temperature, rotational speed, torque, tool wear), maintenance teams have no objective basis for deciding \emph{when} a specific machine actually needs attention, leading to either over-maintenance or surprise failures.
+\item \textbf{Fragmented tooling.} Enterprise Asset Management (EAM) systems, when they exist, typically handle only the administrative workflow (work orders, intervention scheduling, spare-parts inventory) and offer no integration with predictive analytics or field-level decision support. Machine Learning models, when developed separately, remain disconnected from the operational cycle and are never used by the technicians who need them.
+\item \textbf{Lack of contextualized field support.} Technicians in the field must currently consult separate paper manuals, internal wikis, or call the head office to interpret an alert or decide on a corrective action. There is no single interface that combines the machine's real-time health status, its maintenance history, and the relevant documentation into a single, actionable answer.
+\end{enumerate}
+
+Bridging these three gaps (condition-based visibility, integrated predictive analytics, and contextualized field support) within a single, cohesive platform is the problem this project set out to solve.
 
 \section{Internship objectives}
+\label{sec:internship-objectives}
 
-The objectives assigned for this internship are:
+The main objective of this internship is to design and implement a single, integrated platform that combines the following capabilities:
+
 \begin{itemize}
-\item design and implement the backend and frontend of the EAM platform;
-\item design and train the predictive maintenance models (P1 to P7);
-\item integrate a RAG (\emph{Retrieval-Augmented Generation}) service for documentary assistance, connected to real-time ML predictions;
-\item validate the whole through functional tests and a performance evaluation of the models.
+\item \textbf{EAM operational management:} management of users, machines, work orders, intervention orders, and maintenance scheduling.
+\item \textbf{Predictive maintenance:} design and integration of machine learning models (P1 to P7) covering failure probability prediction, failure type classification, remaining useful life estimation, anomaly detection, intervention prioritization and scheduling, and spare parts coordination.
+\item \textbf{Intelligent support for field teams:} implementation of contextualized alerts, prediction explainability to answer ``why this alert?'', and a conversational assistant capable of answering technicians' questions using maintenance documentation and the real-time health status of machines.
+\end{itemize}
+
+To achieve these objectives, the platform development will focus on:
+
+\begin{itemize}
+\item \textbf{Backend and frontend development} of the EAM platform.
+\item \textbf{Design and training of the P1 to P7 predictive maintenance models.}
+\item \textbf{Integration of a Retrieval-Augmented Generation (RAG) service} for documentary assistance, connected to real-time machine learning predictions.
+\item \textbf{Validation of the complete solution} through functional testing and performance evaluation of the developed models.
 \end{itemize}
 
 \section{Working methodology}
-\label{sec:ml-methodology}
+\label{sec:methodology}
 
-Development followed an iterative approach: each feature was the subject of a written specification (requirements document), followed by a detailed implementation plan, before being built and verified. This methodology made it possible to maintain full traceability of design decisions (technical choices, alternatives considered, justifications) throughout the six months of the internship.
+The internship followed an iterative, sprint-based methodology inspired by Scrum, adapted to the constraints of a solo-developer end-of-studies project within an industrial environment. Each feature was the subject of a written specification (requirements document), followed by a detailed implementation plan, before being built and verified. This methodology made it possible to maintain full traceability of design decisions throughout the six months of the internship.
 
-For the six initially scoped Machine Learning problems specifically, this iterative approach took the concrete form of a structured, repeatable eight-step pipeline applied to each problem in turn, described below together with the original problem definitions that preceded any implementation work.
+\subsection{Sprint-based development}
 
-\subsection{The six initial problem definitions}
+Work was organised into two-week sprints, each ending with a demonstrable milestone. A typical sprint followed four phases:
 
-This subsection reproduces the six problem definitions exactly as originally specified for the project, before any implementation work began (emoji status markers from the original specification are rendered here as plain-text equivalents, since the document font does not support them).
+\begin{enumerate}
+\item \textbf{Sprint planning:} the objectives for the coming two weeks were defined, broken down into concrete tasks with estimated effort, and prioritised against the project roadmap.
+\item \textbf{Development and integration:} features were implemented, tested locally, and merged into the working branch. Dependencies between frontend, backend, and ML components were resolved incrementally.
+\item \textbf{Sprint review:} the results were demonstrated to the internship supervisor and, when relevant, to the company's technical stakeholders (Head Technician, Administrator). Feedback was recorded and fed into the next planning cycle.
+\item \textbf{Sprint retrospective:} what worked well and what needed adjustment in the process was identified, leading to concrete improvements for the next iteration (tooling, documentation practices, testing strategy).
+\end{enumerate}
 
-\paragraph{Problem 1: Predictive Maintenance (In Progress).}
-\emph{"Will this machine fail soon?"}
+\subsection{Internship lifecycle}
 
-\textbf{Type:} Binary Classification (0 = Healthy, 1 = Failed)
+The six-month internship was structured into five sequential phases, each building on the previous one. Figure~\ref{fig:planning} provides a visual timeline.
 
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\toprule
-\textbf{Pipeline Step} & \textbf{What We Do} \\
-\midrule
-Define the problem & Predict if a machine will fail based on sensor telemetry \\
-\midrule
-Collect data & \texttt{ai4i2020.csv}: 10,000 rows (Kaggle AI4I 2020 dataset) \\
-\midrule
-Prepare \& clean & Select 5 features: Air Temp, Process Temp, RPM, Torque, Tool Wear \\
-\midrule
-Split data & 80/20 train-test split with \texttt{stratify=y} \\
-\midrule
-Choose a model & \texttt{RandomForestClassifier} (handles non-linear sensor data) \\
-\midrule
-Train the model & \texttt{ml\_train\_basic.py} with SMOTE oversampling + GridSearchCV tuning \\
-\midrule
-Evaluate & Confusion matrix: 98\% accuracy, 63\% recall on failures \\
-\midrule
-Tune \& improve & \texttt{class\_weight='balanced'}, SMOTE, GridSearchCV (done) \\
-\midrule
-Save the model & \texttt{basic\_machine\_model.pkl} \\
-\midrule
-Deploy & \texttt{GET /api/v1/ml/machines/\{id\}/prediction} $\rightarrow$ displayed in \texttt{PredictivePanel.tsx} \\
-\bottomrule
-\end{tabularx}
-\caption{Problem 1 pipeline walkthrough}
-\label{tab:p1-walkthrough}
-\end{table}
+\paragraph{Phase 1: Analysis and architecture (month 1).}
+The existing EAM system at SagemCom was studied in depth: business processes, data model, user roles, and pain points. The four-component architecture (frontend, backend, ML microservice, RAG service) was designed during this phase, along with the initial data model and API contracts.
 
-\paragraph{Problem 2: Failure Type Classification.}
-\emph{"What TYPE of failure is likely?"}
+\paragraph{Phase 2: Core platform development (months 1--2).}
+The backend services (user management, machine registry, work orders, intervention orders) and the frontend dashboards for the three roles (Administrator, Head Technician, Technician) were built incrementally. Each feature followed the same loop: specification, implementation plan, build, verification.
 
-\textbf{Type:} Multi-label Classification
+\paragraph{Phase 3: Machine Learning integration (months 2--4).}
+The ML microservice was developed progressively, starting with the six initially scoped prediction problems (P1--P6) and expanding to the Wave~2 signal-fusion layer and the spare-parts demand forecasting module (P7). Each model followed an eight-step pipeline (define, collect, prepare, split, choose, train, evaluate, tune) applied identically across all problems. This phase also included the RAG service for document ingestion and the ML--RAG bridge for conversational assistance.
 
-Your dataset includes 5 failure sub-labels:
-\begin{itemize}
-\item \texttt{TWF}: Tool Wear Failure
-\item \texttt{HDF}: Heat Dissipation Failure (\textbf{57\% correlation} with failure, the strongest predictor)
-\item \texttt{PWF}: Power Failure
-\item \texttt{OSF}: Overstrain Failure
-\item \texttt{RNF}: Random Failure
-\end{itemize}
+\paragraph{Phase 4: Explainability, alerts, and production readiness (months 4--5).}
+Explainability panels, role-aware alert routing, and the readiness score were added. The system was deployed on a Kubernetes cluster (Azure AKS) with Terraform-managed infrastructure and Helm-based release management.
 
-\textbf{Benefit for EAM:} Auto-suggest work order type (mechanical, electrical, thermal) so the ChefTech assigns the right technician.
+\paragraph{Phase 5: Testing and validation (month 6).}
+Comprehensive testing was carried out: unit tests for business logic, integration tests for API endpoints, and end-to-end validation of the ML pipeline against known failure scenarios. The label-leakage and validation-methodology issues identified during this phase led to significant revisions in the model training approach (Chapter~5).
 
-\paragraph{Problem 3: Remaining Useful Life (RUL) Estimation.}
-\emph{"How many days before this machine needs maintenance?"}
+\subsection{Traceability and documentation}
 
-\textbf{Type:} Regression (\texttt{RandomForestRegressor} or XGBoost)
-
-\begin{itemize}
-\item \textbf{Input:} Tool wear progression over time + intervention history
-\item \textbf{Output:} \texttt{rul\_days} $\leftarrow$ already displayed in \texttt{PredictivePanel.tsx}
-\item \textbf{Data source:} Real operational data from your PostgreSQL \texttt{interventions} table
-\end{itemize}
-
-\emph{Warning: The current \texttt{ml\_predictive.py} uses a hand-coded linear regression. This should be replaced with a trained regression model.}
-
-\paragraph{Problem 4: Anomaly Detection.}
-\emph{"Is this machine behaving abnormally right now?"}
-
-\textbf{Type:} Unsupervised Learning (no labels needed)
-
-\begin{itemize}
-\item \textbf{Model:} Isolation Forest or Autoencoder
-\item \textbf{Input:} Real-time telemetry (temperature, RPM, torque)
-\item \textbf{Benefit for EAM:} Trigger SSE alerts via \texttt{core/notifications.py} when anomaly is detected, even before a failure is predicted
-\item \textbf{Data source:} \texttt{ai4i2020.csv} for training, then applied on live machine data
-\end{itemize}
-
-\paragraph{Problem 5: Work Order Priority Prediction.}
-\emph{"How urgent should this work order be?"}
-
-\textbf{Type:} Multi-class Classification
-
-\begin{itemize}
-\item \textbf{Classes:} \texttt{LOW}, \texttt{MEDIUM}, \texttt{HIGH}, \texttt{CRITICAL}
-\item \textbf{Features:} Machine age, time since last maintenance, number of previous interventions, machine zone
-\item \textbf{Data source:} Your own PostgreSQL \texttt{work\_orders} and \texttt{interventions} tables
-\item \textbf{Benefit for EAM:} ChefTech gets auto-suggested priorities when creating work orders
-\end{itemize}
-
-\paragraph{Problem 6: Maintenance Schedule Optimization (Advanced).}
-\emph{"When is the BEST time to schedule maintenance for all machines?"}
-
-\textbf{Type:} Time-series Forecasting (ARIMA, Prophet, or LSTM)
-
-\begin{itemize}
-\item \textbf{Input:} Historical planning data + failure rates per machine
-\item \textbf{Benefit for EAM:} Fewer unexpected breakdowns, better technician allocation across zones (Sub-Zone, Order)
-\end{itemize}
-
-\paragraph{Summary.}
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{|c|X|X|X|X|}
-\toprule
-\textbf{\#} & \textbf{Problem} & \textbf{ML Type} & \textbf{Priority} & \textbf{Data Source} \\
-\midrule
-1 & Binary failure prediction & Classification & Done & \texttt{ai4i2020.csv} \\
-\midrule
-2 & Failure type (TWF/HDF/PWF\ldots) & Multi-label & High & \texttt{ai4i2020.csv} \\
-\midrule
-3 & RUL estimation & Regression & High & PostgreSQL DB + Kaggle \\
-\midrule
-4 & Anomaly detection & Unsupervised & Medium & Sensor telemetry \\
-\midrule
-5 & Work order priority & Classification & Medium & PostgreSQL DB \\
-\midrule
-6 & Maintenance scheduling & Time-series & Advanced & Planning history \\
-\bottomrule
-\end{tabularx}
-\caption{Summary of the six initial ML problems}
-\label{tab:six-problems-summary}
-\end{table}
-
-\subsection{Eight-step model development pipeline}
-
-Each of the six initial problems (binary failure prediction, failure-type classification, remaining-useful-life estimation, anomaly detection, work-order priority, and maintenance scheduling) was carried through the same eight stages, summarized in Table~\ref{tab:pipeline-steps}.
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{|c|X|X|}
-\toprule
-\textbf{Step} & \textbf{Stage} & \textbf{Purpose} \\
-\midrule
-1 & Define the problem   & State the question each model answers and its learning type (classification, regression, unsupervised, time-series) \\
-\midrule
-2 & Collect data         & Identify the data source: the public AI4I~2020 benchmark, or internal PostgreSQL tables (interventions, work orders, plannings) \\
-\midrule
-3 & Prepare \& clean data & Select relevant features, drop leakage-prone columns, handle missing values, encode categorical fields \\
-\midrule
-4 & Split data           & Choose a splitting strategy matched to the problem: stratified for imbalanced classes, chronological for time-series, none for unsupervised training \\
-\midrule
-5 & Choose a model       & Compare 2--4 candidate algorithms on a validation metric appropriate to the problem \\
-\midrule
-6 & Train the model      & Fit the chosen algorithm with an explicit, justified configuration \\
-\midrule
-7 & Evaluate performance & Measure the model on an untouched test set using the metric that matches the business risk, not raw accuracy \\
-\midrule
-8 & Tune \& improve       & Close the gap between measured and target performance through hyperparameter search, threshold adjustment, or feature engineering \\
-\bottomrule
-\end{tabularx}
-\caption{Eight-step ML development pipeline}
-\label{tab:pipeline-steps}
-\end{table}
-
-At the data-preparation stage (step~3), a first, self-imposed warning was already recorded for the failure-prediction problem: the five failure sub-labels (TWF, HDF, PWF, OSF, RNF) are deterministic sub-causes of the overall failure flag and must not be used as input features, on pain of artificially inflating accuracy. This is the same class of issue (input features encoding the target) that the later, systematic label-leakage audit formally confirmed and tagged as \texttt{validation\_status: "leaked"} in production (Section~\ref{sec:validation}); it had already been anticipated qualitatively at this earlier stage of the project, but not yet proven or acted upon.
-
-Because the failure class represents only 3.39\% of the benchmark dataset, step~4 applied stratified splitting together with SMOTE oversampling (synthetic minority over-sampling, applied strictly after the split to avoid leaking test information into the synthetic samples) for the classification problems, while the maintenance-scheduling problem (being a time series) was split chronologically, since a random shuffle would let the model train on data from after the point it is tested on.
-
-Table~\ref{tab:initial-choices} summarizes the model initially selected for each problem at step~5, and the evaluation target fixed for it at step~7.
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{|X|X|X|X|}
-\toprule
-\textbf{Problem} & \textbf{Initial model} & \textbf{Primary metric} & \textbf{Target} \\
-\midrule
-P1: Failure probability   & Random Forest (later XGBoost) & Recall on failures        & $> 80\%$, precision $> 65\%$ \\
-\midrule
-P2: Failure type          & MultiOutput Random Forest     & F1 per label              & HDF recall $> 75\%$ \\
-\midrule
-P3: RUL estimation        & XGBoost Regressor             & RMSE                       & $< 10$ days, $R^2 > 0.85$ \\
-\midrule
-P4: Anomaly detection     & Isolation Forest              & Recall on anomalies       & Catch obvious deviations \\
-\midrule
-P5: Work order priority   & XGBoost (multi-class)         & Macro F1                   & $> 70\%$ \\
-\midrule
-P6: Maintenance scheduling & Prophet                      & MAE                        & $< 5$ days \\
-\bottomrule
-\end{tabularx}
-\caption{Initial model choice and evaluation target per problem}
-\label{tab:initial-choices}
-\end{table}
-
-Step~8 (tune and improve) defined, for every problem, a concrete lever to close the gap between the measured and the target metric: hyperparameter search via \texttt{GridSearchCV}, classification-threshold adjustment to trade precision for recall, alternative resampling strategies (SMOTE, ADASYN, or undersampling), targeted feature engineering (for instance, a temperature-delta feature to strengthen the heat-dissipation-failure signal), class-weighting of rare priority levels, and early stopping to prevent overfitting on the boosted-tree models.
-
-Several of these initial choices were revised during productionisation, once the label-leakage and validation-methodology issues described in Chapter~5 were identified: Random Forest gave way to XGBoost with group-holdout validation for P1, and the scheduling problem was reworked away from a pure Prophet time-series forecast towards the classifier-based approach and the broader Wave~2 signal-fusion layer presented in Chapter~3. A seventh problem, spare-parts demand forecasting (P7), was added beyond this original six-problem scope once the platform's data model matured enough to support it.
-
-\subsection{Summary}
-
-Every feature followed the same disciplined loop: written specification, implementation plan, build, then verification. For the six originally scoped ML problems, this loop took the concrete shape of an eight-step pipeline (define, collect, prepare, split, choose, train, evaluate, tune) applied identically to each; two of the choices made at this early stage --- a random train/test split and features that were later found to leak the label --- were revised once productionisation surfaced the issue in Chapter~5. A seventh problem, spare-parts demand forecasting (P7), was added once the platform's data model matured enough to support it.
+Every design decision was recorded in a structured format: the problem being solved, the alternatives considered, the choice made, and the justification. This documentation served two purposes: it made it possible to revisit early assumptions when later evidence contradicted them (as happened with the label-leakage issue), and it provided the foundation for this report. The internship schedule shown in Figure~\ref{fig:planning} compresses this six-month process into a single Gantt chart, with overlapping bars reflecting the parallel nature of the work.
 
 \section{Internship schedule}
 

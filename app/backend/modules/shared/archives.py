@@ -27,7 +27,7 @@ class ArchivesData(BaseModel):
     nom: str
     date_archivage: datetime
     type: str
-    object_key: Optional[str] = None
+    object_key: str = None
     ordre_travail_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
@@ -215,8 +215,6 @@ async def create_archives(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"Archives created successfully with id: {safe_id}")
         return result
-    except HTTPException:
-        raise
     except ValueError as e:
         logger.exception(f"Validation error creating archives: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

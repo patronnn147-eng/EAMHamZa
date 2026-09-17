@@ -42,10 +42,6 @@ CHAT_TIMEOUT = 120.0  # Groq + tools can be slow
 PASS, SKIP, MANUAL_REVIEW, FAIL = "PASS", "SKIP", "MANUAL_REVIEW", "FAIL"
 _SEVERITY = {PASS: 0, SKIP: 0, MANUAL_REVIEW: 2, FAIL: 1}
 
-# Check names reused across multiple record() calls (SonarQube S1192).
-CHECK_RAG_MANUAL_CORPUS = "RAG manual corpus (soft)"
-CHECK_NO_MACHINE_CHAT_ISOLATED = "no-machine chat isolated"
-
 results: dict = {}  # name -> (status, detail)
 
 
@@ -96,14 +92,14 @@ def layer1_stack_health(client: httpx.Client, base: str, headers: dict):
             docs = r.json()
             manuals = [d for d in docs if d.get("doc_type") == "manual"]
             record(
-                CHECK_RAG_MANUAL_CORPUS,
+                "RAG manual corpus (soft)",
                 PASS if manuals else FAIL,
                 f"{len(manuals)} manual docs / {len(docs)} total",
             )
         else:
-            record(CHECK_RAG_MANUAL_CORPUS, FAIL, f"HTTP {r.status_code}")
+            record("RAG manual corpus (soft)", FAIL, f"HTTP {r.status_code}")
     except Exception as e:
-        record(CHECK_RAG_MANUAL_CORPUS, FAIL, str(e))
+        record("RAG manual corpus (soft)", FAIL, str(e))
 
 
 def discover_machine(client: httpx.Client, base: str, headers: dict, override):
@@ -262,14 +258,14 @@ def layer2_bridge(
                 d2.get("message", "").strip()
             )
             record(
-                CHECK_NO_MACHINE_CHAT_ISOLATED,
+                "no-machine chat isolated",
                 PASS if no_leak else FAIL,
                 f"ml_context_used={d2.get('ml_context_used')!r}",
             )
         else:
-            record(CHECK_NO_MACHINE_CHAT_ISOLATED, FAIL, f"HTTP {r2.status_code}")
+            record("no-machine chat isolated", FAIL, f"HTTP {r2.status_code}")
     except Exception as e:
-        record(CHECK_NO_MACHINE_CHAT_ISOLATED, FAIL, str(e))
+        record("no-machine chat isolated", FAIL, str(e))
 
 
 def layer3_degradation(
@@ -281,7 +277,7 @@ def layer3_degradation(
         return
 
     try:
-        subprocess.run(  # NOSONAR -- list-form invocation, no shell expansion, controlled args
+        subprocess.run(
             ["docker", "stop", ML_CONTAINER], check=True, capture_output=True
         )
         print(f"  stopped {ML_CONTAINER}")
@@ -314,7 +310,7 @@ def layer3_degradation(
         except Exception as e:
             record("degradation", FAIL, f"chat error with ML down: {e}")
     finally:
-        subprocess.run(  # NOSONAR -- list-form invocation, no shell expansion, controlled args
+        subprocess.run(
             ["docker", "start", ML_CONTAINER], check=False, capture_output=True
         )
         print(f"  restarted {ML_CONTAINER}, waiting for health…")

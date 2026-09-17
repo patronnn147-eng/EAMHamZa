@@ -1,0 +1,132 @@
+\babel@toc {french}{}\relax 
+\contentsline {chapter}{Remerciements}{i}{chapter*.1}%
+\contentsline {chapter}{Introduction Générale}{1}{chapter*.5}%
+\contentsline {chapter}{\numberline {1}Contexte Général du Projet}{2}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Présentation de l'entreprise d'accueil}{2}{section.1.1}%
+\contentsline {subsection}{\numberline {1.1.1}Présentation du service d'accueil}{2}{subsection.1.1.1}%
+\contentsline {section}{\numberline {1.2}Contexte du projet}{2}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Problématique}{2}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Objectifs du stage}{3}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Méthodologie de travail}{3}{section.1.5}%
+\contentsline {subsection}{\numberline {1.5.1}Les six définitions de problème initiales}{3}{subsection.1.5.1}%
+\contentsline {paragraph}{Problème 1 : Maintenance Prédictive (En cours).}{3}{paragraph*.6}%
+\contentsline {paragraph}{Problème 2 : Classification du type de panne.}{4}{paragraph*.8}%
+\contentsline {paragraph}{Problème 3 : Estimation de la durée de vie utile restante (RUL).}{4}{paragraph*.9}%
+\contentsline {paragraph}{Problème 4 : Détection d'anomalies.}{5}{paragraph*.10}%
+\contentsline {paragraph}{Problème 5 : Prédiction de la priorité des ordres de travail.}{5}{paragraph*.11}%
+\contentsline {paragraph}{Problème 6 : Optimisation du calendrier de maintenance (Avancé).}{5}{paragraph*.12}%
+\contentsline {paragraph}{Récapitulatif.}{5}{paragraph*.13}%
+\contentsline {subsection}{\numberline {1.5.2}Pipeline de développement de modèle en huit étapes}{6}{subsection.1.5.2}%
+\contentsline {subsection}{\numberline {1.5.3}Récapitulatif}{7}{subsection.1.5.3}%
+\contentsline {section}{\numberline {1.6}Planning du stage}{7}{section.1.6}%
+\contentsline {chapter}{\numberline {2}Analyse et Spécification des Besoins}{11}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Identification des acteurs}{11}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Récapitulatif}{11}{subsection.2.1.1}%
+\contentsline {section}{\numberline {2.2}Besoins fonctionnels}{11}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Authentification et gestion des accès}{11}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Gestion des utilisateurs et des rôles}{12}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Gestion du parc machines}{13}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}Étiquetage des machines}{14}{subsection.2.2.4}%
+\contentsline {subsection}{\numberline {2.2.5}Gestion des ordres de travail}{14}{subsection.2.2.5}%
+\contentsline {subsection}{\numberline {2.2.6}Gestion des ordres d'intervention}{15}{subsection.2.2.6}%
+\contentsline {subsection}{\numberline {2.2.7}Planification des interventions}{16}{subsection.2.2.7}%
+\contentsline {subsection}{\numberline {2.2.8}Collecte et supervision des données de télémétrie}{17}{subsection.2.2.8}%
+\contentsline {subsection}{\numberline {2.2.9}Prédictions par apprentissage automatique}{18}{subsection.2.2.9}%
+\contentsline {subsection}{\numberline {2.2.10}Alertes et notifications}{18}{subsection.2.2.10}%
+\contentsline {subsection}{\numberline {2.2.11}Coordination des pièces détachées}{19}{subsection.2.2.11}%
+\contentsline {subsection}{\numberline {2.2.12}Base de connaissances et assistant conversationnel}{20}{subsection.2.2.12}%
+\contentsline {subsection}{\numberline {2.2.13}Tableaux de bord et rapports}{20}{subsection.2.2.13}%
+\contentsline {subsection}{\numberline {2.2.14}Archivage et traçabilité}{22}{subsection.2.2.14}%
+\contentsline {subsection}{\numberline {2.2.15}Sécurité applicative}{23}{subsection.2.2.15}%
+\contentsline {subsection}{\numberline {2.2.16}Pipeline DevSecOps}{23}{subsection.2.2.16}%
+\contentsline {paragraph}{Analyse des secrets (Gitleaks).}{23}{paragraph*.36}%
+\contentsline {paragraph}{Analyse de la composition logicielle (SCA), via pip-audit / pnpm audit.}{24}{paragraph*.39}%
+\contentsline {paragraph}{Analyse statique de sécurité applicative (SAST), via SonarQube.}{24}{paragraph*.41}%
+\contentsline {paragraph}{Analyse des images Docker et de l'infrastructure (Trivy).}{25}{paragraph*.44}%
+\contentsline {paragraph}{Tests dynamiques de sécurité applicative (DAST), via OWASP ZAP.}{26}{paragraph*.47}%
+\contentsline {subsection}{\numberline {2.2.17}Récapitulatif}{28}{subsection.2.2.17}%
+\contentsline {section}{\numberline {2.3}Besoins non fonctionnels}{28}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Piles Docker Compose}{28}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Performance}{29}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}Disponibilité et résilience}{29}{subsection.2.3.3}%
+\contentsline {subsection}{\numberline {2.3.4}Maintenabilité et évolutivité}{29}{subsection.2.3.4}%
+\contentsline {subsection}{\numberline {2.3.5}Portabilité et déploiement}{30}{subsection.2.3.5}%
+\contentsline {subsection}{\numberline {2.3.6}Ergonomie et utilisabilité}{30}{subsection.2.3.6}%
+\contentsline {subsection}{\numberline {2.3.7}Intégrité et confidentialité des données}{30}{subsection.2.3.7}%
+\contentsline {subsection}{\numberline {2.3.8}Récapitulatif}{30}{subsection.2.3.8}%
+\contentsline {chapter}{\numberline {3}Conception}{31}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Architecture générale}{31}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Récapitulatif}{32}{subsection.3.1.1}%
+\contentsline {section}{\numberline {3.2}Flux métier global}{32}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Modèle de données}{33}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Récapitulatif}{35}{subsection.3.3.1}%
+\contentsline {section}{\numberline {3.4}Diagramme de cas d'utilisation}{35}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Récapitulatif}{37}{subsection.3.4.1}%
+\contentsline {section}{\numberline {3.5}Architecture du pipeline d'apprentissage automatique}{37}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Cadrage du problème et stratégie de maintenance}{37}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Données d'entraînement : le jeu de données AI4I 2020}{38}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}Qualité des données et méthodologie de validation}{38}{subsection.3.5.3}%
+\contentsline {paragraph}{Mise en quarantaine des données synthétiques.}{39}{paragraph*.58}%
+\contentsline {paragraph}{Gestion de la télémétrie nulle.}{39}{paragraph*.59}%
+\contentsline {paragraph}{Détection de la fuite d'étiquette.}{39}{paragraph*.60}%
+\contentsline {paragraph}{Validation par exclusion de groupes.}{39}{paragraph*.61}%
+\contentsline {subsection}{\numberline {3.5.4}Les sept modèles de prédiction}{39}{subsection.3.5.4}%
+\contentsline {paragraph}{P1 : probabilité de panne.}{40}{paragraph*.63}%
+\contentsline {paragraph}{P2 : classification du type de panne.}{40}{paragraph*.64}%
+\contentsline {paragraph}{P3 : estimation de la durée de vie utile restante.}{40}{paragraph*.65}%
+\contentsline {paragraph}{P4 : détection d'anomalie comportementale.}{40}{paragraph*.66}%
+\contentsline {paragraph}{P5 : priorité des ordres de travail.}{41}{paragraph*.67}%
+\contentsline {paragraph}{P6 : planification de la maintenance.}{41}{paragraph*.68}%
+\contentsline {paragraph}{P7 : prévision de la demande de pièces détachées.}{41}{paragraph*.69}%
+\contentsline {subsection}{\numberline {3.5.5}Modèles de traitement de signal Wave 2}{41}{subsection.3.5.5}%
+\contentsline {subsection}{\numberline {3.5.6}Fusion d'évidence de Dempster-Shafer}{42}{subsection.3.5.6}%
+\contentsline {subsection}{\numberline {3.5.7}Déroulement d'une requête d'inférence en direct}{45}{subsection.3.5.7}%
+\contentsline {subsection}{\numberline {3.5.8}Traitement en aval : disponibilité, alertes et approvisionnement}{46}{subsection.3.5.8}%
+\contentsline {subsection}{\numberline {3.5.9}Récapitulatif}{47}{subsection.3.5.9}%
+\contentsline {section}{\numberline {3.6}Architecture du service RAG et du pont ML}{47}{section.3.6}%
+\contentsline {subsection}{\numberline {3.6.1}Récapitulatif}{48}{subsection.3.6.1}%
+\contentsline {section}{\numberline {3.7}Pipeline d'ingestion documentaire}{48}{section.3.7}%
+\contentsline {subsection}{\numberline {3.7.1}Récapitulatif}{49}{subsection.3.7.1}%
+\contentsline {section}{\numberline {3.8}Flux de requête de bout en bout}{50}{section.3.8}%
+\contentsline {section}{\numberline {3.9}Choix technologiques}{50}{section.3.9}%
+\contentsline {chapter}{\numberline {4}Réalisation}{52}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Réalisation du backend}{52}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}Flux de planification de la maintenance}{52}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Flux de demande d'intervention}{54}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}Cycle de vie de l'ordre de travail}{56}{subsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.1.4}Système de réservation de stock}{57}{subsection.4.1.4}%
+\contentsline {subsection}{\numberline {4.1.5}Récapitulatif}{59}{subsection.4.1.5}%
+\contentsline {section}{\numberline {4.2}Réalisation du frontend}{59}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Récapitulatif}{63}{subsection.4.2.1}%
+\contentsline {section}{\numberline {4.3}Réalisation du pipeline d'apprentissage automatique}{63}{section.4.3}%
+\contentsline {subsection}{\numberline {4.3.1}Récapitulatif}{65}{subsection.4.3.1}%
+\contentsline {section}{\numberline {4.4}Réalisation du service RAG et du pont conversationnel}{66}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Récapitulatif}{67}{subsection.4.4.1}%
+\contentsline {section}{\numberline {4.5}Plan de déploiement pilote (PDCA)}{67}{section.4.5}%
+\contentsline {paragraph}{Plan.}{67}{paragraph*.99}%
+\contentsline {paragraph}{Do.}{68}{paragraph*.100}%
+\contentsline {section}{\numberline {4.6}Déploiement en production}{68}{section.4.6}%
+\contentsline {paragraph}{Terraform.}{69}{paragraph*.103}%
+\contentsline {paragraph}{Ressources Azure.}{69}{paragraph*.104}%
+\contentsline {paragraph}{Chart Helm.}{70}{paragraph*.105}%
+\contentsline {paragraph}{Staging vs.\ production.}{70}{paragraph*.106}%
+\contentsline {paragraph}{Accès public.}{70}{paragraph*.107}%
+\contentsline {section}{\numberline {4.7}Difficultés techniques rencontrées}{72}{section.4.7}%
+\contentsline {chapter}{\numberline {5}Tests et Résultats}{73}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Stratégie de test}{73}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Évaluation des modèles d'apprentissage automatique}{73}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Méthodologie de validation}{73}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Qualité des étiquettes et statut de validation}{73}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Métriques des modèles validés}{74}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}Stratégie de réentraînement}{75}{subsection.5.2.4}%
+\contentsline {subsection}{\numberline {5.2.5}Ce que des données réelles permettraient de débloquer}{76}{subsection.5.2.5}%
+\contentsline {subsection}{\numberline {5.2.6}Récapitulatif}{76}{subsection.5.2.6}%
+\contentsline {section}{\numberline {5.3}Démonstrations de cas d'utilisation}{77}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Récapitulatif}{79}{subsection.5.3.1}%
+\contentsline {section}{\numberline {5.4}Difficultés rencontrées lors des tests}{79}{section.5.4}%
+\contentsline {chapter}{Conclusion Générale}{81}{chapter*.117}%
+\contentsline {chapter}{Bibliographie / Netographie}{82}{chapter*.118}%
+\contentsline {chapter}{\numberline {A}Annexes}{85}{appendix.A}%
+\contentsline {section}{\numberline {A.1}Extraits de code sélectionnés}{85}{section.A.1}%
+\contentsline {section}{\numberline {A.2}Diagrammes détaillés}{85}{section.A.2}%
+\contentsline {section}{\numberline {A.3}Tableaux de métriques complets}{85}{section.A.3}%

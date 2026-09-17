@@ -14,11 +14,14 @@
 \usepackage{fancyhdr}
 \pagestyle{fancy}
 \fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
 \fancyfoot[R]{\thepage}
-\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{Chapter \thechapter: #1}{}}
 \usepackage{float}
 \usepackage{graphicx}
 \usepackage{tabularx}
+\usepackage{longtable}
 \usepackage{booktabs}
 \usepackage{tikz}
 \usetikzlibrary{positioning, arrows.meta, matrix, calc}

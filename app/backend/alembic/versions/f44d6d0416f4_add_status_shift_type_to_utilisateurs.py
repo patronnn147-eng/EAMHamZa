@@ -1,4 +1,4 @@
-﻿"""add_status_shift_type_to_utilisateurs
+"""add_status_shift_type_to_utilisateurs
 
 Revision ID: f44d6d0416f4
 Revises: b7c8d9e0f1a3
@@ -46,174 +46,111 @@ def upgrade() -> None:
         op.f("ix_ml_prediction_logs_id"), "ml_prediction_logs", ["id"], unique=False
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "statut",
         existing_type=sa.VARCHAR(length=20),
         server_default=None,
         existing_nullable=False,
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "created_at",
         existing_type=postgresql.TIMESTAMP(timezone=True),
         server_default=sa.text("now()"),
         existing_nullable=True,
     )
-    bind = op.get_bind()
-    retrained_exists = bind.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name='OrdresIntervention' AND column_name='retrained'"
-        )
-    ).first()
-    if retrained_exists:
-        op.alter_column(
-            "OrdresIntervention",
-            "retrained",
-            existing_type=sa.BOOLEAN(),
-            server_default=None,
-            existing_nullable=True,
-        )
-    else:
-        op.add_column(
-            "OrdresIntervention",
-            sa.Column("retrained", sa.Boolean(), nullable=True),
-        )
-    problem_start_time_exists = bind.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name='OrdresIntervention' AND column_name='problem_start_time'"
-        )
-    ).first()
-    if problem_start_time_exists:
-        op.alter_column(
-            "OrdresIntervention",
-            "problem_start_time",
-            existing_type=postgresql.TIMESTAMP(),
-            type_=sa.DateTime(timezone=True),
-            existing_nullable=True,
-        )
-    else:
-        op.add_column(
-            "OrdresIntervention",
-            sa.Column("problem_start_time", sa.DateTime(timezone=True), nullable=True),
-        )
-    op.drop_index(
-        op.f("ix_OrdresIntervention_statut"), table_name="OrdresIntervention"
-    )
-    op.drop_index(
-        op.f("ix_OrdresIntervention_technicien_id"), table_name="OrdresIntervention"
+    op.alter_column(
+        "ordres_intervention",
+        "retrained",
+        existing_type=sa.BOOLEAN(),
+        server_default=None,
+        existing_nullable=True,
     )
     op.alter_column(
-        "OrdresTravail",
+        "ordres_intervention",
+        "problem_start_time",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=True,
+    )
+    op.drop_index(
+        op.f("ix_ordres_intervention_statut"), table_name="ordres_intervention"
+    )
+    op.drop_index(
+        op.f("ix_ordres_intervention_technicien_id"), table_name="ordres_intervention"
+    )
+    op.alter_column(
+        "ordres_travail",
         "priorite",
         existing_type=sa.VARCHAR(),
         server_default=None,
         existing_nullable=False,
     )
     op.alter_column(
-        "OrdresTravail",
+        "ordres_travail",
         "statut",
         existing_type=sa.VARCHAR(),
         server_default=None,
         existing_nullable=False,
     )
-    def _column_exists(table_name, column_name):
-        return bind.execute(
-            sa.text(
-                "SELECT 1 FROM information_schema.columns "
-                "WHERE table_name=:t AND column_name=:c"
-            ),
-            {"t": table_name, "c": column_name},
-        ).first()
-
-    if _column_exists("OrdresTravail", "date_validation"):
-        op.alter_column(
-            "OrdresTravail",
-            "date_validation",
-            existing_type=postgresql.TIMESTAMP(),
-            type_=sa.DateTime(timezone=True),
-            existing_nullable=True,
-        )
-    else:
-        op.add_column(
-            "OrdresTravail",
-            sa.Column("date_validation", sa.DateTime(timezone=True), nullable=True),
-        )
-    # These columns are pure ad-hoc dev-DB drift not tracked by any earlier
-    # migration and not present in the current model -- dropping them is a
-    # no-op if they were never actually created.
-    for _col in (
-        "created_by_id",
-        "validated_at",
-        "completed_at",
-        "estimated_duration_minutes",
-        "validated_by_id",
-        "assigned_at",
-    ):
-        if _column_exists("OrdresTravail", _col):
-            op.drop_column("OrdresTravail", _col)
+    op.alter_column(
+        "ordres_travail",
+        "date_validation",
+        existing_type=postgresql.TIMESTAMP(),
+        type_=sa.DateTime(timezone=True),
+        existing_nullable=True,
+    )
+    op.drop_column("ordres_travail", "created_by_id")
+    op.drop_column("ordres_travail", "validated_at")
+    op.drop_column("ordres_travail", "completed_at")
+    op.drop_column("ordres_travail", "estimated_duration_minutes")
+    op.drop_column("ordres_travail", "validated_by_id")
+    op.drop_column("ordres_travail", "assigned_at")
     op.drop_index(
-        op.f("ix_PlanningMachines_machine_id"), table_name="PlanningMachines"
+        op.f("ix_planning_machines_machine_id"), table_name="planning_machines"
     )
     op.drop_index(
-        op.f("ix_PlanningMachines_planning_id"), table_name="PlanningMachines"
+        op.f("ix_planning_machines_planning_id"), table_name="planning_machines"
     )
     op.drop_constraint(
-        op.f("uq_PlanningMachines_planning_machine"),
-        "PlanningMachines",
+        op.f("uq_planning_machines_planning_machine"),
+        "planning_machines",
         type_="unique",
     )
     op.create_index(
-        op.f("ix_PlanningMachines_id"), "PlanningMachines", ["id"], unique=False
+        op.f("ix_planning_machines_id"), "planning_machines", ["id"], unique=False
     )
-    # alter_column with an Enum type_ does NOT auto-create the Postgres enum
-    # type the way adding a new enum column would -- on a genuinely fresh DB
-    # these types were never created. checkfirst=True makes this a no-op
-    # wherever the type already exists (e.g. from earlier dev-DB drift).
-    planningtype_enum = sa.Enum(
-        "MAINTENANCE",
-        "SHIFT",
-        "HEBDOMADAIRE",
-        "MENSUEL",
-        "JOURNALIER",
-        name="planningtype",
-    )
-    planningtype_enum.create(bind, checkfirst=True)
     op.alter_column(
         "plannings",
         "type",
         existing_type=sa.VARCHAR(),
-        type_=planningtype_enum,
+        type_=sa.Enum(
+            "MAINTENANCE",
+            "SHIFT",
+            "HEBDOMADAIRE",
+            "MENSUEL",
+            "JOURNALIER",
+            name="planningtype",
+        ),
         existing_nullable=False,
         postgresql_using="type::planningtype",
     )
-    shifttype_enum = sa.Enum("MORNING", "NIGHT", name="shifttype")
-    shifttype_enum.create(bind, checkfirst=True)
-    if bind.execute(
-        sa.text(
-            "SELECT 1 FROM information_schema.columns "
-            "WHERE table_name='plannings' AND column_name='shift_type'"
-        )
-    ).first():
-        op.alter_column(
-            "plannings",
-            "shift_type",
-            existing_type=sa.VARCHAR(),
-            type_=shifttype_enum,
-            existing_nullable=True,
-            postgresql_using="shift_type::shifttype",
-        )
-    else:
-        op.add_column("plannings", sa.Column("shift_type", shifttype_enum, nullable=True))
-
-    userrole_enum = sa.Enum("TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN", name="userrole")
-    userrole_enum.create(bind, checkfirst=True)
+    op.alter_column(
+        "plannings",
+        "shift_type",
+        existing_type=sa.VARCHAR(),
+        type_=sa.Enum("MORNING", "NIGHT", name="shifttype"),
+        existing_nullable=True,
+        postgresql_using="shift_type::shifttype",
+    )
+    # op.add_column('utilisateurs', sa.Column('status', sa.Enum('PENDING', 'APPROVED', 'REJECTED', name='userstatus'), nullable=False))
+    # op.add_column('utilisateurs', sa.Column('shift_type', sa.Enum('MORNING', 'NIGHT', name='usershifttype', native_enum=False), nullable=False))
+    # op.add_column('utilisateurs', sa.Column('updated_at', sa.DateTime(), nullable=True))
     op.alter_column(
         "utilisateurs",
         "role",
         existing_type=sa.VARCHAR(),
-        type_=userrole_enum,
+        type_=sa.Enum("TECHNICIEN", "CHEFTECH", "CHETOP", "ADMIN", name="userrole"),
         existing_nullable=False,
         postgresql_using="role::userrole",
     )
@@ -290,27 +227,27 @@ def downgrade() -> None:
         type_=sa.VARCHAR(),
         existing_nullable=False,
     )
-    op.drop_index(op.f("ix_PlanningMachines_id"), table_name="PlanningMachines")
+    op.drop_index(op.f("ix_planning_machines_id"), table_name="planning_machines")
     op.create_unique_constraint(
-        op.f("uq_PlanningMachines_planning_machine"),
-        "PlanningMachines",
+        op.f("uq_planning_machines_planning_machine"),
+        "planning_machines",
         ["planning_id", "machine_id"],
         postgresql_nulls_not_distinct=False,
     )
     op.create_index(
-        op.f("ix_PlanningMachines_planning_id"),
-        "PlanningMachines",
+        op.f("ix_planning_machines_planning_id"),
+        "planning_machines",
         ["planning_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_PlanningMachines_machine_id"),
-        "PlanningMachines",
+        op.f("ix_planning_machines_machine_id"),
+        "planning_machines",
         ["machine_id"],
         unique=False,
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column(
             "assigned_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -319,11 +256,11 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column("validated_by_id", sa.INTEGER(), autoincrement=False, nullable=True),
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column(
             "estimated_duration_minutes",
             sa.INTEGER(),
@@ -332,7 +269,7 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column(
             "completed_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -341,7 +278,7 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column(
             "validated_at",
             postgresql.TIMESTAMP(timezone=True),
@@ -350,65 +287,65 @@ def downgrade() -> None:
         ),
     )
     op.add_column(
-        "OrdresTravail",
+        "ordres_travail",
         sa.Column("created_by_id", sa.INTEGER(), autoincrement=False, nullable=True),
     )
     op.alter_column(
-        "OrdresTravail",
+        "ordres_travail",
         "date_validation",
         existing_type=sa.DateTime(timezone=True),
         type_=postgresql.TIMESTAMP(),
         existing_nullable=True,
     )
     op.alter_column(
-        "OrdresTravail",
+        "ordres_travail",
         "statut",
         existing_type=sa.VARCHAR(),
         server_default=sa.text("'EN_ATTENTE'::character varying"),
         existing_nullable=False,
     )
     op.alter_column(
-        "OrdresTravail",
+        "ordres_travail",
         "priorite",
         existing_type=sa.VARCHAR(),
         server_default=sa.text("'MOYENNE'::character varying"),
         existing_nullable=False,
     )
     op.create_index(
-        op.f("ix_OrdresIntervention_technicien_id"),
-        "OrdresIntervention",
+        op.f("ix_ordres_intervention_technicien_id"),
+        "ordres_intervention",
         ["technicien_id"],
         unique=False,
     )
     op.create_index(
-        op.f("ix_OrdresIntervention_statut"),
-        "OrdresIntervention",
+        op.f("ix_ordres_intervention_statut"),
+        "ordres_intervention",
         ["statut"],
         unique=False,
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "problem_start_time",
         existing_type=sa.DateTime(timezone=True),
         type_=postgresql.TIMESTAMP(),
         existing_nullable=True,
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "retrained",
         existing_type=sa.BOOLEAN(),
         server_default=sa.text("false"),
         existing_nullable=True,
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "created_at",
         existing_type=postgresql.TIMESTAMP(timezone=True),
         server_default=None,
         existing_nullable=True,
     )
     op.alter_column(
-        "OrdresIntervention",
+        "ordres_intervention",
         "statut",
         existing_type=sa.VARCHAR(length=20),
         server_default=sa.text("'EN_ATTENTE'::character varying"),

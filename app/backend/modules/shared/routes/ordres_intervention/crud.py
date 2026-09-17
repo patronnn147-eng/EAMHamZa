@@ -1,4 +1,4 @@
-﻿import json
+import json
 import logging
 from datetime import datetime
 
@@ -9,28 +9,28 @@ from core.auth import get_current_user
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
 from services.audit import AuditService, AuditEntityType
-from services.ordres_intervention import OrdresInterventionService
-from .schemas import (
-    OrdresInterventionData,
-    OrdresInterventionUpdateData,
-    OrdresInterventionResponse,
-    OrdresInterventionListResponse,
-    OrdresInterventionBatchCreateRequest,
-    OrdresInterventionBatchUpdateRequest,
-    OrdresInterventionBatchDeleteRequest,
+from services.ordres_intervention import Ordres_interventionService
+from ..ordres_intervention.schemas import (
+    Ordres_interventionData,
+    Ordres_interventionUpdateData,
+    Ordres_interventionResponse,
+    Ordres_interventionListResponse,
+    Ordres_interventionBatchCreateRequest,
+    Ordres_interventionBatchUpdateRequest,
+    Ordres_interventionBatchDeleteRequest,
 )
 from typing import Annotated
 
 router = APIRouter(
-    prefix="/api/v1/entities/ordres_intervention", tags=["OrdresIntervention"]
+    prefix="/api/v1/entities/ordres_intervention", tags=["ordres_intervention"]
 )
 logger = logging.getLogger(__name__)
 
-_NOT_FOUND_MSG = "OrdresIntervention not found"
+_NOT_FOUND_MSG = "Ordres_intervention not found"
 
 
-@router.get("", response_model=OrdresInterventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_OrdresInterventions(
+@router.get("", response_model=Ordres_interventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_ordres_interventions(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -41,10 +41,10 @@ async def query_OrdresInterventions(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
-        f"Querying OrdresInterventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         query_dict = None
         if query:
@@ -59,19 +59,19 @@ async def query_OrdresInterventions(
             query_dict=query_dict,
             sort=sort,
         )
-        logger.debug(f"Found {result['total']} OrdresInterventions")
+        logger.debug(f"Found {result['total']} ordres_interventions")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying OrdresInterventions: {str(e)}", exc_info=True
+            f"Error querying ordres_interventions: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/all", response_model=OrdresInterventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
-async def query_OrdresInterventions_all(
+@router.get("/all", response_model=Ordres_interventionListResponse, responses={400: {"description": "Invalid query JSON format"}, 500: {"description": "Internal Server Error"}})
+async def query_ordres_interventions_all(
     *, query: Annotated[str, Query(description="Query conditions (JSON string)")] = None,
     sort: Annotated[str, Query(description="Sort field (prefix with '-' for descending)")] = None,
     skip: Annotated[int, Query(ge=0, description="Number of records to skip")] = 0,
@@ -82,10 +82,10 @@ async def query_OrdresInterventions_all(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     logger.debug(
-        f"Querying OrdresInterventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
+        f"Querying ordres_interventions: query={query}, sort={sort}, skip={skip}, limit={limit}, fields={fields}"
     )
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         query_dict = None
         if query:
@@ -97,30 +97,30 @@ async def query_OrdresInterventions_all(
         result = await service.get_list(
             skip=skip, limit=limit, query_dict=query_dict, sort=sort
         )
-        logger.debug(f"Found {result['total']} OrdresInterventions")
+        logger.debug(f"Found {result['total']} ordres_interventions")
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error querying OrdresInterventions: {str(e)}", exc_info=True
+            f"Error querying ordres_interventions: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.get("/{id}", response_model=OrdresInterventionResponse, responses={404: {"description": "OrdresIntervention not found"}, 500: {"description": "Internal Server Error"}})
-async def get_OrdresIntervention(
+@router.get("/{id}", response_model=Ordres_interventionResponse, responses={404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
+async def get_ordres_intervention(
     *, id: int,
     fields: Annotated[str, Query(description="Comma-separated list of fields to return")] = None,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    logger.debug(f"Fetching OrdresIntervention with id: {id}, fields={fields}")
+    logger.debug(f"Fetching ordres_intervention with id: {id}, fields={fields}")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         result = await service.get_by_id(id)
         if not result:
-            logger.warning(f"OrdresIntervention with id {id} not found")
+            logger.warning(f"Ordres_intervention with id {id} not found")
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
         return result
@@ -128,67 +128,65 @@ async def get_OrdresIntervention(
         raise
     except Exception as e:
         logger.exception(
-            f"Error fetching OrdresIntervention {id}: {str(e)}", exc_info=True
+            f"Error fetching ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-@router.post("", response_model=OrdresInterventionResponse, status_code=201, responses={400: {"description": "Failed to create OrdresIntervention"}, 500: {"description": "Internal Server Error"}})
-async def create_OrdresIntervention(
-    data: OrdresInterventionData,
+@router.post("", response_model=Ordres_interventionResponse, status_code=201, responses={400: {"description": "Failed to create ordres_intervention"}, 500: {"description": "Internal Server Error"}})
+async def create_ordres_intervention(
+    data: Ordres_interventionData,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Creating new OrdresIntervention with data: {data}")
+    logger.debug(f"Creating new ordres_intervention with data: {data}")
 
     data.statut = "EN_ATTENTE"
     data.requested_at = datetime.now()
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         result = await service.create(data.model_dump())
         if not result:
             raise HTTPException(
-                status_code=400, detail="Failed to create OrdresIntervention"
+                status_code=400, detail="Failed to create ordres_intervention"
             )
 
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
-        logger.info(f"OrdresIntervention created successfully with id: {safe_id}")
+        logger.info(f"Ordres_intervention created successfully with id: {safe_id}")
 
         try:
             await AuditService(db).log_create(
                 entity_type=AuditEntityType.INTERVENTION,
                 entity_id=result.id,
-                new_values=data.model_dump(mode="json"),
+                new_values=data.model_dump(),
                 user_id=current_user.id,
                 user_name=current_user.nom,
                 entity_name=getattr(result, "titre", None),
             )
         except Exception:
-            logger.warning("Audit log failed for create intervention %s", safe_id)
+            logger.warning("Audit log failed for create intervention %s", result.id)
 
         return result
-    except HTTPException:
-        raise
     except ValueError as e:
-        logger.exception(f"Validation error creating OrdresIntervention: {str(e)}")
+        logger.exception(f"Validation error creating ordres_intervention: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.exception(f"Error creating OrdresIntervention: {str(e)}", exc_info=True)
+        logger.exception(f"Error creating ordres_intervention: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post(
-    "/batch", response_model=list[OrdresInterventionResponse], status_code=201, 
+    "/batch", response_model=list[Ordres_interventionResponse], status_code=201, 
 responses={500: {"description": "Internal Server Error"}})
-async def create_OrdresInterventions_batch(
-    request: OrdresInterventionBatchCreateRequest,
+async def create_ordres_interventions_batch(
+    request: Ordres_interventionBatchCreateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Batch creating {len(request.items)} OrdresInterventions")
+    logger.debug(f"Batch creating {len(request.items)} ordres_interventions")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     results = []
 
     try:
@@ -196,22 +194,21 @@ async def create_OrdresInterventions_batch(
             result = await service.create(item_data.model_dump())
             if result:
                 results.append(result)
-                safe_item_id = str(result.id).replace("\r", "").replace("\n", "")
                 try:
                     await AuditService(db).log_create(
                         entity_type=AuditEntityType.INTERVENTION,
                         entity_id=result.id,
-                        new_values=item_data.model_dump(mode="json"),
+                        new_values=item_data.model_dump(),
                         user_id=current_user.id,
                         user_name=current_user.nom,
                         entity_name=getattr(result, "titre", None),
                     )
                 except Exception:
                     logger.warning(
-                        "Audit log failed for batch create intervention %s", safe_item_id
+                        "Audit log failed for batch create intervention %s", result.id
                     )
 
-        logger.info(f"Batch created {len(results)} OrdresInterventions successfully")
+        logger.info(f"Batch created {len(results)} ordres_interventions successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -219,15 +216,15 @@ async def create_OrdresInterventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch create failed: {str(e)}")
 
 
-@router.put("/batch", response_model=list[OrdresInterventionResponse], responses={500: {"description": "Internal Server Error"}})
-async def update_OrdresInterventions_batch(
-    request: OrdresInterventionBatchUpdateRequest,
+@router.put("/batch", response_model=list[Ordres_interventionResponse], responses={500: {"description": "Internal Server Error"}})
+async def update_ordres_interventions_batch(
+    request: Ordres_interventionBatchUpdateRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Batch updating {len(request.items)} OrdresInterventions")
+    logger.debug(f"Batch updating {len(request.items)} ordres_interventions")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     results = []
 
     try:
@@ -253,7 +250,7 @@ async def update_OrdresInterventions_batch(
                         "Audit log failed for batch update intervention %s", item.id
                     )
 
-        logger.info(f"Batch updated {len(results)} OrdresInterventions successfully")
+        logger.info(f"Batch updated {len(results)} ordres_interventions successfully")
         return results
     except Exception as e:
         await db.rollback()
@@ -261,16 +258,16 @@ async def update_OrdresInterventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch update failed: {str(e)}")
 
 
-@router.put("/{id}", response_model=OrdresInterventionResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "OrdresIntervention not found"}, 500: {"description": "Internal Server Error"}})
-async def update_OrdresIntervention(
+@router.put("/{id}", response_model=Ordres_interventionResponse, responses={400: {"description": "Bad Request"}, 404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
+async def update_ordres_intervention(
     id: int,
-    data: OrdresInterventionUpdateData,
+    data: Ordres_interventionUpdateData,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Updating OrdresIntervention {id} with data: {data}")
+    logger.debug(f"Updating ordres_intervention {id} with data: {data}")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         update_dict = {k: v for k, v in data.model_dump().items() if v is not None}
 
@@ -281,10 +278,10 @@ async def update_OrdresIntervention(
 
         result = await service.update(id, update_dict)
         if not result:
-            logger.warning(f"OrdresIntervention with id {id} not found for update")
+            logger.warning(f"Ordres_intervention with id {id} not found for update")
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
-        logger.info(f"OrdresIntervention {id} updated successfully")
+        logger.info(f"Ordres_intervention {id} updated successfully")
 
         try:
             new_values = {k: getattr(result, k, None) for k in update_dict}
@@ -305,25 +302,25 @@ async def update_OrdresIntervention(
         raise
     except ValueError as e:
         logger.exception(
-            f"Validation error updating OrdresIntervention {id}: {str(e)}"
+            f"Validation error updating ordres_intervention {id}: {str(e)}"
         )
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.exception(
-            f"Error updating OrdresIntervention {id}: {str(e)}", exc_info=True
+            f"Error updating ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.delete("/batch", responses={500: {"description": "Internal Server Error"}})
-async def delete_OrdresInterventions_batch(
-    request: OrdresInterventionBatchDeleteRequest,
+async def delete_ordres_interventions_batch(
+    request: Ordres_interventionBatchDeleteRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Batch deleting {len(request.ids)} OrdresInterventions")
+    logger.debug(f"Batch deleting {len(request.ids)} ordres_interventions")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     deleted_count = 0
 
     try:
@@ -343,9 +340,9 @@ async def delete_OrdresInterventions_batch(
                         "Audit log failed for batch delete intervention %s", item_id
                     )
 
-        logger.info(f"Batch deleted {deleted_count} OrdresInterventions successfully")
+        logger.info(f"Batch deleted {deleted_count} ordres_interventions successfully")
         return {
-            "message": f"Successfully deleted {deleted_count} OrdresInterventions",
+            "message": f"Successfully deleted {deleted_count} ordres_interventions",
             "deleted_count": deleted_count,
         }
     except Exception as e:
@@ -354,22 +351,22 @@ async def delete_OrdresInterventions_batch(
         raise HTTPException(status_code=500, detail=f"Batch delete failed: {str(e)}")
 
 
-@router.delete("/{id}", responses={404: {"description": "OrdresIntervention not found"}, 500: {"description": "Internal Server Error"}})
-async def delete_OrdresIntervention(
+@router.delete("/{id}", responses={404: {"description": "Ordres_intervention not found"}, 500: {"description": "Internal Server Error"}})
+async def delete_ordres_intervention(
     id: int,
     db: Annotated[AsyncSession, Depends(get_db)],
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
-    logger.debug(f"Deleting OrdresIntervention with id: {id}")
+    logger.debug(f"Deleting ordres_intervention with id: {id}")
 
-    service = OrdresInterventionService(db)
+    service = Ordres_interventionService(db)
     try:
         success = await service.delete(id)
         if not success:
-            logger.warning(f"OrdresIntervention with id {id} not found for deletion")
+            logger.warning(f"Ordres_intervention with id {id} not found for deletion")
             raise HTTPException(status_code=404, detail=_NOT_FOUND_MSG)
 
-        logger.info(f"OrdresIntervention {id} deleted successfully")
+        logger.info(f"Ordres_intervention {id} deleted successfully")
 
         try:
             await AuditService(db).log_delete(
@@ -381,11 +378,11 @@ async def delete_OrdresIntervention(
         except Exception:
             logger.warning("Audit log failed for delete intervention %s", id)
 
-        return {"message": "OrdresIntervention deleted successfully", "id": id}
+        return {"message": "Ordres_intervention deleted successfully", "id": id}
     except HTTPException:
         raise
     except Exception as e:
         logger.exception(
-            f"Error deleting OrdresIntervention {id}: {str(e)}", exc_info=True
+            f"Error deleting ordres_intervention {id}: {str(e)}", exc_info=True
         )
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

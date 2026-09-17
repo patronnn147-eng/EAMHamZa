@@ -264,11 +264,11 @@ body.is-scrolling {
 }
 
 .is-scrolling::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.6);
+  background-color: rgba(148, 163, 184, 0.6);
 }
 
 .is-scrolling::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(18, 19, 20, 0.85);
+  background-color: rgba(148, 163, 184, 0.85);
 }
 
 /* .no-scrollbar is intentionally a no-op — the global overlay scrollbar
@@ -306,10 +306,10 @@ body.is-scrolling {
 
 /* Input Glass */
 .input-glass {
-  background: rgba(15, 15, 35, 0.55);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 8px;
-  color: #e8eaf0;
+  color: white;
   transition: all 0.2s ease;
 }
 .input-glass:focus {
@@ -329,6 +329,10 @@ body.is-scrolling {
   border-radius: 8px;
   transition: all 0.2s ease;
 }
+.btn-cyan:hover {
+  box-shadow: 0 0 20px rgba(0, 255, 242, 0.3);
+}
+
 /* Font Families for Orchestrated Void */
 .font-heading {
   font-family: 'Manrope', sans-serif;
@@ -344,12 +348,11 @@ body.is-scrolling {
 
 /* Orchestrated Void Colors */
 .text-orchestrated-glass {
-  color: rgba(12, 3, 3, 0.6);
+  color: rgba(255, 255, 255, 0.6);
 }
-/* Orchestrated Void Colors */
 
 .text-orchestrated-cyan {
-  color: #1f41ae;
+  color: #00fff2;
 }
 
 .bg-orchestrated-void {
@@ -357,7 +360,7 @@ body.is-scrolling {
 }
 
 .btn-cyan:hover {
-  background: #1f41ae;
+  background: #33fff6;
   box-shadow: 0 0 20px rgba(0, 255, 242, 0.4);
 }
 

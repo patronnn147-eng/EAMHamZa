@@ -1,0 +1,523 @@
+\chapter{Conception}
+
+\section{Architecture générale}
+
+La plateforme est organisée en quatre composants principaux, communiquant via des API HTTP :
+\begin{itemize}
+\item un \textbf{frontend} construit avec Next.js, offrant trois espaces distincts selon le rôle (Administrateur, Chef Technicien, Technicien) ;
+\item un \textbf{backend} construit avec FastAPI, responsable de la logique métier, de la persistance des données (PostgreSQL) et de la sécurité (authentification, contrôle d'accès) ;
+\item un \textbf{microservice d'apprentissage automatique} construit avec Flask, chargé de servir les modèles prédictifs (P1 à P7) ;
+\item un \textbf{service RAG}, chargé de l'ingestion documentaire et de la génération de réponses conversationnelles enrichies par le contexte ML en temps réel.
+\end{itemize}
+
+L'ensemble du système est orchestré par Docker, avec un stockage d'objets (MinIO) pour les documents et les pièces jointes.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.3cm, box/.style={draw, rectangle, minimum width=3.2cm, minimum height=1cm, align=center}]
+\node[box] (front) {Frontend\\Next.js};
+\node[box, below=of front] (back) {Backend\\FastAPI};
+\node[box, below left=1cm and 0.5cm of back] (ml) {Microservice ML\\Flask};
+\node[box, below right=1cm and 0.5cm of back] (rag) {Service RAG};
+\node[box, below=2.6cm of back] (db) {PostgreSQL / MinIO};
+\draw[->] (front) -- (back);
+\draw[->] (back) -- (ml);
+\draw[->] (back) -- (rag);
+\draw[->] (ml) -- (db);
+\draw[->] (rag) -- (db);
+\draw[->] (back) -- (db);
+\end{tikzpicture}
+\caption{Architecture générale de la plateforme}
+\label{fig:architecture}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+La plateforme est un système à quatre composants (frontend Next.js, backend FastAPI, microservice ML Flask, service RAG) communiquant en HTTP, avec PostgreSQL et MinIO comme stockage partagé et Docker comme socle de déploiement. Le backend occupe une position centrale, agissant comme unique point de contact pour le frontend et redistribuant vers les deux services spécialisés selon les besoins.
+
+\section{Flux métier global}
+
+Au-delà de l'architecture par composant présentée ci-dessus, il est utile de voir comment un événement métier unique traverse l'ensemble du système. Une demande d'intervention passe par une porte de validation avant de devenir un ordre de travail, tandis que la télémétrie des machines est analysée en continu par le moteur ML, dont les prédictions alimentent directement cette même étape de validation en tant qu'éléments d'aide à la décision pour le Chef Technicien.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/global.png}
+\caption{Flux global d'une demande d'intervention}
+\label{fig:flux-global}
+\end{figure}
+
+Le rejet d'une demande (encadré en pointillés dans la Figure~\ref{fig:flux-global}) libère automatiquement toute réservation de pièces déjà effectuée pour elle ; son approbation crée un ordre de travail lié et fait avancer l'exécution jusqu'à ce qu'une seconde validation, finale, clôture la boucle de diagnostic avant qu'un Administrateur puisse clôturer l'ordre.
+
+\section{Modèle de données}
+
+Le modèle de données est construit autour de quatre entités centrales, identifiées comme les plus fortement connectées lors de l'analyse du domaine :
+\begin{itemize}
+\item \textbf{User} (Utilisateur) : porte le rôle (Administrateur, ChefTech, Technicien) et les droits d'accès ;
+\item \textbf{Machine} : représente un équipement de production, avec ses caractéristiques et son historique ;
+\item \textbf{WorkOrder} (Ordre de travail) : une demande de travail associée à une ou plusieurs machines ;
+\item \textbf{InterventionOrder} (Ordre d'intervention) : une intervention concrète réalisée par un technicien sur une machine, liée à un ordre de travail.
+\end{itemize}
+
+Une entité \textbf{Alert} (Alerte) relie ces objets aux prédictions du microservice ML.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, box/.style={draw, rectangle, minimum width=3cm, minimum height=1cm, align=center}]
+\node[box] (user) {User};
+\node[box, right=2.5cm of user] (machine) {Machine};
+\node[box, below=of user] (ot) {WorkOrder};
+\node[box, below=of machine] (oi) {InterventionOrder};
+\node[box, below right=1.2cm and -0.5cm of ot] (alerte) {Alert};
+\draw (user) -- (ot);
+\draw (machine) -- (ot);
+\draw (ot) -- (oi);
+\draw (machine) -- (oi);
+\draw (oi) -- (alerte);
+\draw (machine) -- (alerte);
+\end{tikzpicture}
+\caption{Modèle de données simplifié}
+\label{fig:modele-donnees}
+\end{figure}
+
+La Figure~\ref{fig:class-diagram} détaille ce modèle au niveau des classes, avec l'ensemble complet des attributs, méthodes, énumérations et cardinalités.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/class_diagram.png}
+\caption{Diagramme de classes}
+\label{fig:class-diagram}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+Quatre entités (User, Machine, WorkOrder, InterventionOrder) ancrent le schéma relationnel, l'entité Alert reliant ce noyau opérationnel aux prédictions du microservice ML. Le diagramme de classes complet (Figure~\ref{fig:class-diagram}) développe ce modèle en l'ensemble complet des attributs, méthodes, énumérations et cardinalités réellement implémentés.
+
+\section{Diagramme de cas d'utilisation}
+\label{sec:use-case-diagram}
+
+La Figure~\ref{fig:use-case-diagram} présente le diagramme de cas d'utilisation détaillé, montrant les interactions entre les quatre rôles identifiés au Chapitre~2 et l'ensemble des fonctionnalités du système.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.74,
+  uc/.style={ellipse, draw, align=center, font=\footnotesize,
+             text width=2.8cm, inner sep=3pt},
+  uca/.style={ellipse, draw, align=center, font=\scriptsize,
+              text width=2.0cm, inner sep=2pt},
+  inc/.style={dashed, -{Latex}},
+  ext/.style={dashed, -{Latex}},
+]
+
+%% ---- FRONTIÈRE DU SYSTÈME ----
+\draw[thick] (3.5,-2.2) rectangle (19.0,22.5);
+\node[above, font=\small\bfseries] at (11.25,22.5) {APPLICATION EAM};
+
+%% ---- ACTEUR : Chefop (centré à y≈20.8) ----
+\draw (1.5,21.4) circle (0.32);
+\draw (1.5,21.08) -- (1.5,20.35);
+\draw (1.1,20.72) -- (1.9,20.72);
+\draw (1.5,20.35) -- (1.2,19.75) (1.5,20.35) -- (1.8,19.75);
+\node[below, font=\footnotesize] at (1.5,19.75) {Chefop};
+
+%% ---- ACTEUR : Thech (centré à y≈13.5) ----
+\draw (1.5,14.1) circle (0.32);
+\draw (1.5,13.78) -- (1.5,13.05);
+\draw (1.1,13.42) -- (1.9,13.42);
+\draw (1.5,13.05) -- (1.2,12.45) (1.5,13.05) -- (1.8,12.45);
+\node[below, font=\footnotesize] at (1.5,12.45) {Thech};
+
+%% ---- ACTEUR : ChefTech (centré à y≈6.5) ----
+\draw (1.5,7.1) circle (0.32);
+\draw (1.5,6.78) -- (1.5,6.05);
+\draw (1.1,6.42) -- (1.9,6.42);
+\draw (1.5,6.05) -- (1.2,5.45) (1.5,6.05) -- (1.8,5.45);
+\node[below, font=\footnotesize] at (1.5,5.45) {ChefTech};
+
+%% ---- ACTEUR : Admin (centré à y≈0.5) ----
+\draw (1.5,1.1) circle (0.32);
+\draw (1.5,0.78) -- (1.5,0.05);
+\draw (1.1,0.42) -- (1.9,0.42);
+\draw (1.5,0.05) -- (1.2,-0.55) (1.5,0.05) -- (1.8,-0.55);
+\node[below, font=\footnotesize] at (1.5,-0.55) {Admin};
+
+%% ---- CAS D'UTILISATION (colonne principale x=8.5) ----
+\node[uc] (eth)    at (8.5, 21.5) {gérer\\les étiquettes};
+\node[uc] (stat)   at (8.5, 19.6) {consulter l'état\\des machines};
+\node[uc] (bt)     at (8.5, 17.6) {gérer les ordres\\d'intervention};
+\node[uc] (plan)   at (8.5, 15.6) {consulter\\le planning};
+  \node[uca] (jr)   at (5.5, 13.4) {par jour};
+  \node[uca] (sem)  at (8.5, 13.4) {par semaine};
+  \node[uca] (mois) at (11.5,13.4) {par mois};
+\node[uc] (rap)    at (8.5, 11.5) {consulter\\les rapports};
+\node[uc] (arch)   at (8.5,  9.7) {gérer l'archive};
+\node[uc] (ot)     at (8.5,  7.8) {gérer les tâches\\des ordres de travail};
+\node[uc] (alerte) at (8.5,  5.9) {gérer\\les alertes};
+  \node[uca] (prio) at (5.5,  4.0) {par priorité};
+\node[uc] (gplan)  at (8.5,  2.3) {gérer\\le planning};
+\node[uc] (roles)  at (8.5,  0.5) {gérer\\rôles/utilisateurs};
+
+%% ---- AUTHENTIFICATION (côté droit, grande ellipse) ----
+\node[uc, text width=3.2cm, minimum height=3.2cm]
+  (auth) at (16.0, 11.0) {authentification};
+
+%% ---- ASSOCIATIONS acteur -> cas d'utilisation ----
+\draw (1.5,21.4) -- (eth);
+\draw (1.5,21.4) -- (stat);
+\draw (1.5,14.1) -- (bt);
+\draw (1.5,14.1) -- (plan);
+\draw (1.5,14.1) -- (rap);
+\draw (1.5,14.1) -- (arch);
+\draw (1.5,7.1)  -- (ot);
+\draw (1.5,7.1)  -- (alerte);
+\draw (1.5,1.1)  -- (gplan);
+\draw (1.5,1.1)  -- (roles);
+
+%% ---- RELATIONS «étend» ----
+\draw[ext] (plan) -- node[midway, above left,  font=\tiny]{«étend»} (jr);
+\draw[ext] (plan) -- node[midway, right,        font=\tiny]{«étend»} (sem);
+\draw[ext] (plan) -- node[midway, above right,  font=\tiny]{«étend»} (mois);
+\draw[ext] (alerte) -- node[midway, left, font=\tiny]{«étend»} (prio);
+
+%% ---- RELATIONS «inclut» vers l'authentification ----
+%% Un seul libellé sur la flèche du milieu pour la lisibilité
+\draw[inc] (eth)    -- (auth);
+\draw[inc] (stat)   -- (auth);
+\draw[inc] (bt)     -- (auth);
+\draw[inc] (plan)   -- node[midway, above, sloped, font=\tiny]{«inclut»} (auth);
+\draw[inc] (rap)    -- (auth);
+\draw[inc] (arch)   -- (auth);
+\draw[inc] (ot)     -- (auth);
+\draw[inc] (alerte) -- (auth);
+\draw[inc] (gplan)  -- (auth);
+\draw[inc] (roles)  -- (auth);
+
+\end{tikzpicture}
+\caption{Diagramme de cas d'utilisation de la plateforme EAM}
+\label{fig:use-case-diagram}
+\end{figure}
+
+Le Tableau~\ref{fig:cas-utilisation} résume les principaux cas d'utilisation par acteur.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\toprule
+\textbf{Acteur} & \textbf{Principaux cas d'utilisation} \\
+\midrule
+Administrateur & Gérer les utilisateurs, gérer les machines, gérer la base de connaissances, consulter les statistiques globales \\
+\midrule
+Chef Technicien & Planifier les interventions, superviser les ordres de travail, arbitrer les priorités, consulter les tableaux de bord de fiabilité, valider les propositions d'approvisionnement \\
+\midrule
+Technicien & Consulter les ordres d'intervention affectés, clôturer une intervention, consulter l'état de santé d'une machine, interroger l'assistant conversationnel \\
+\bottomrule
+\end{tabularx}
+\caption{Cas d'utilisation par acteur}
+\label{fig:cas-utilisation}
+\end{table}
+
+\subsection{Récapitulatif}
+
+Le diagramme de cas d'utilisation et son tableau associé traduisent les frontières de rôles introduites au Chapitre~2 en une référence unique, visuelle et tabulaire : chaque fonctionnalité est rattachée au(x) rôle(s) autorisé(s) à l'utiliser, et tout accès à une fonctionnalité protégée passe par le portail d'authentification commun.
+
+\section{Architecture du pipeline d'apprentissage automatique}
+\label{sec:ml-pipeline-architecture}
+
+\subsection{Cadrage du problème et stratégie de maintenance}
+
+Chaque machine de la ligne se dégrade avant de tomber en panne, et cette dégradation est, dans la plupart des cas, visible dans les données de capteurs bien avant l'arrêt effectif, c'est la prémisse sur laquelle repose tout ce pipeline ML. La plateforme est conçue contre les deux modes de maintenance qu'elle remplace. Laissée purement réactive, une ligne n'obtient de l'attention qu'une fois déjà arrêtée : les techniciens se précipitent, les pièces sont commandées en urgence, et la ligne reste immobile entretemps, le mode le plus coûteux en coût total, pas seulement en coût de réparation. Un calendrier préventif fixe évite le pire de cela mais introduit son propre gaspillage : une pièce est remplacée selon le calendrier, qu'elle en ait besoin ou non, et une machine qui se dégrade plus vite que prévu par ce calendrier tombe quand même en panne entre deux visites planifiées. Ce que cette plateforme fait à la place, c'est lire en continu les signaux propres à la machine, température, couple, usure de l'outil, vitesse de rotation, et s'en servir pour répondre à trois questions avant qu'une panne ne survienne : une panne est-elle imminente sur cette machine, quel type de panne est en train de se développer, et quelles pièces le technicien devra-t-il avoir sous la main. Caler l'intervention sur l'état réel de la machine plutôt que sur une horloge est tout l'enjeu du pipeline à sept modèles décrit dans la suite de cette section.
+
+La question centrale à laquelle chaque composant du service ML est conçu pour répondre est : \emph{étant donné les relevés de capteurs actuels d'une machine et son historique, quel est son état de santé actuel, dans combien de temps aura-t-elle besoin d'une intervention, et que doit préparer l'équipe ?}
+
+\subsection{Données d'entraînement : le jeu de données AI4I 2020}
+
+Tous les modèles prédictifs sont initialement entraînés sur le jeu de données AI4I 2020 Predictive Maintenance Dataset, une référence publique UCI qui simule le fonctionnement de machines CNC. Le jeu de données contient 10\,000 enregistrements de cycles machine répartis sur 100 machines simulées, avec un taux de panne de 3,4\,\% (339 événements de panne confirmés répartis sur cinq types de panne). Il fournit le signal supervisé nécessaire pour entraîner les modèles de classification et de régression avant qu'un historique réel propre à chaque machine ne soit disponible.
+
+Chaque cycle est décrit par cinq relevés de capteurs et deux caractéristiques dérivées :
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|X|X|X|}
+\toprule
+\textbf{Caractéristique} & \textbf{Plage typique} & \textbf{Signification physique} \\
+\midrule
+Température de l'air     & $\approx 300\,\mathrm{K}$   & Air ambiant autour de la machine \\
+\midrule
+Température du procédé & $\approx 310\,\mathrm{K}$   & Chaleur générée par le procédé d'usinage \\
+\midrule
+Vitesse de rotation    & $\approx 1{,}500\,\mathrm{tr/min}$ & Vitesse de rotation de la broche \\
+\midrule
+Couple              & $\approx 40\,\mathrm{Nm}$   & Charge mécanique appliquée à l'outil \\
+\midrule
+Usure de l'outil           & $0$--$250\,\mathrm{min}$    & Temps d'usinage cumulé sur l'outil courant \\
+\midrule
+Écart de température   & dérivée                     & Température procédé moins température air \\
+\midrule
+RPM $\times$ couple & dérivée                     & Indicateur de puissance \\
+\bottomrule
+\end{tabularx}
+\caption{Caractéristiques de capteurs utilisées comme entrées des modèles}
+\label{tab:features}
+\end{table}
+
+Cinq de ces sept caractéristiques sont lues directement depuis les capteurs de la machine ; les deux autres sont dérivées au moment de l'inférence par le pipeline de caractéristiques avant qu'aucun modèle ne voie les données.
+
+\subsection{Qualité des données et méthodologie de validation}
+
+Avant qu'un modèle ne soit entraîné, quatre contraintes de qualité des données sont appliquées.
+
+\paragraph{Mise en quarantaine des données synthétiques.}
+Chaque ligne de télémétrie amorcée ou générée est marquée \texttt{is\_synthetic = true} au moment de son écriture. Le service ML filtre ces lignes par défaut en production (\texttt{ML\_ALLOW\_SYNTHETIC\_TELEMETRY = false}), de sorte que les modèles ne consomment que des relevés provenant de capteurs réels. Les données synthétiques ne restent disponibles que pour les tests locaux du pipeline, via un indicateur d'environnement explicite.
+
+\paragraph{Gestion de la télémétrie nulle.}
+Si une machine ne dispose d'aucune télémétrie réelle enregistrée, le système ne substitue pas de valeurs de capteur par défaut. Appeler un modèle ML sur des entrées fabriquées produirait une prédiction d'apparence valide mais totalement dénuée de sens. Le service renvoie à la place \texttt{telemetry\_available: false}, saute l'appel au microservice, et se replie sur une estimation de santé plus simple, fondée sur des règles et dérivée uniquement de l'historique de maintenance.
+
+\paragraph{Détection de la fuite d'étiquette.}
+Le problème de qualité de données le plus important constaté durant le développement a été une \emph{fuite de cible} (\textit{target leakage}) : les étiquettes d'entraînement de P1, P2 et P5 étaient générées par des formules déterministes de \texttt{tool\_wear}, la même caractéristique que les modèles lisent en entrée. Un modèle entraîné sur de telles données apprend à reproduire la formule, et non à prédire de réelles pannes. Ces modèles affichent des scores d'exactitude quasi parfaits en validation ($\sim$99\,\% d'AUC-ROC), mais ce chiffre mesure une reproduction arithmétique, non une capacité prédictive. Ils sont marqués \texttt{validation\_status: "leaked"} dans le registre des modèles, et leurs scores d'exactitude sont masqués dans le tableau de bord. Corriger ce problème nécessite de remplacer les étiquettes dérivées de formule par de véritables enregistrements de panne confirmés par des techniciens.
+
+\paragraph{Validation par exclusion de groupes.}
+Pour des données machine de type série temporelle, une séparation aléatoire des lignes en 80/20 n'est pas fiable : les deux ensembles contiennent des relevés des mêmes machines, ce qui signifie que le modèle voit des données de la propre trajectoire de dégradation d'une machine à la fois en entraînement et en test. Cela gonfle les scores de test par mémorisation plutôt que par généralisation. La procédure correcte consiste à exclure des machines entières de l'entraînement (par exemple, exclure entièrement les machines d'identifiants 70 à 79), de sorte que l'évaluation soit toujours effectuée sur des machines que le modèle n'a jamais rencontrées. C'est la méthodologie utilisée pour P3, et c'est la raison pour laquelle ses métriques de validation sont considérées comme fiables, contrairement à celles des autres modèles.
+
+\subsection{Les sept modèles de prédiction}
+
+Le pipeline de prédiction est structuré en sept spécialistes indépendants, chacun répondant à une question sur la machine. Ils sont entraînés séparément et ne consomment jamais la sortie les uns des autres : chacun lit le même jeu de caractéristiques de télémétrie partagé du Tableau~\ref{tab:features} et renvoie son propre champ dans la réponse API unifiée.
+
+\begin{figure}[h]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.28cm and 1.4cm,
+  sensor/.style={draw, rectangle, rounded corners=3pt, minimum width=2.7cm, minimum height=1.6cm, align=center, font=\normalsize},
+  model/.style={draw, rectangle, rounded corners=3pt, minimum width=4.6cm, minimum height=0.75cm, align=left, font=\normalsize, inner sep=6pt},
+  fuse/.style={draw, rectangle, rounded corners=4pt, minimum width=2.4cm, minimum height=1.6cm, align=center, font=\normalsize, thick},
+  outbox/.style={draw, rectangle, rounded corners=4pt, minimum width=2.6cm, minimum height=1.6cm, align=center, font=\normalsize, thick}
+]
+% Nœuds des modèles, empilés verticalement en premier (ils définissent la hauteur globale)
+\node[model] (p1) {P1 : Probabilité de panne};
+\node[model, below=of p1] (p2) {P2 : Type de panne};
+\node[model, below=of p2] (p3) {P3 : Estimation RUL};
+\node[model, below=of p3] (p4) {P4 : Détection d'anomalie};
+\node[model, below=of p4] (p5) {P5 : Priorité de l'ordre};
+\node[model, below=of p5] (p6) {P6 : Calendrier de maintenance};
+\node[model, below=of p6] (p7) {P7 : Demande de pièces};
+
+% Pipeline de caractéristiques, centré verticalement sur la pile de modèles
+\node[sensor, left=1.6cm of p4] (fp) {Pipeline de\\Caractéristiques};
+
+% Boîte d'entrée des capteurs
+\node[sensor, left=1.6cm of fp] (sensors) {5 Entrées\\Capteurs};
+\draw[->] (sensors) -- (fp);
+
+% Éventail du pipeline de caractéristiques vers chaque modèle
+\foreach \i in {1,...,7} {
+  \draw (fp.east) -- ++(0.5,0) |- (p\i.west);
+}
+
+% Éventail de collecte de chaque modèle vers la fusion DST
+\node[fuse, right=2.6cm of p4] (dst) {Fusion\\DST};
+\foreach \i in {1,...,7} {
+  \draw (p\i.east) -| ++(0.9,0) |- (dst.west);
+}
+
+% Sortie du score de santé
+\node[outbox, right=1.6cm of dst] (hs) {Score de\\Santé\\0--100};
+\draw[->] (dst) -- (hs);
+
+\end{tikzpicture}%
+}
+\caption{Modèles de prédiction P1--P7 alimentant la couche de fusion DST}
+\label{fig:p1-p7}
+\end{figure}
+
+\paragraph{P1 : probabilité de panne.}
+Un classificateur binaire XGBoost qui produit une probabilité de panne de 0 à 100\,\% pour le prochain cycle. Son rôle principal est de classer les machines par urgence afin que les planificateurs inspectent en premier celles présentant le risque le plus élevé. Comme discuté à la Section~\ref{sec:validation}, le score d'exactitude de ce modèle n'est pas une mesure fiable de son réel pouvoir prédictif en raison de la fuite d'étiquette.
+
+\paragraph{P2 : classification du type de panne.}
+Un classificateur XGBoost multi-sorties qui prédit quel mode de panne est en train de se développer parmi cinq possibilités : panne par usure de l'outil (TWF), panne par dissipation thermique (HDF), panne d'alimentation (PWF), panne par surcharge (OSF), et panne aléatoire (RNF). Sa sortie permet aux équipes de maintenance de préparer à l'avance les bonnes pièces détachées et les bonnes compétences avant l'arrivée d'un technicien, réduisant la durée de l'intervention.
+
+\paragraph{P3 : estimation de la durée de vie utile restante.}
+Un régresseur XGBoost qui estime combien de cycles opérationnels restent avant que la machine ne nécessite une intervention. C'est le seul modèle du pipeline dont le signal est validé et non affecté par une fuite : après le passage d'une séparation aléatoire des lignes à une validation par exclusion de groupes (machines 70 à 79 entièrement exclues de l'entraînement), le modèle atteint une erreur absolue moyenne de 14,95 cycles et un indice de concordance de 0,620. Une tête de régression quantile entraînée en parallèle de l'estimateur ponctuel fournit un intervalle de prédiction calibré (P10 à P90), de sorte que le tableau de bord affiche une plage plutôt qu'un nombre unique, reflétant l'incertitude réelle de l'estimation.
+
+\paragraph{P4 : détection d'anomalie comportementale.}
+Un ensemble à quatre méthodes qui détecte un comportement anormal des capteurs. Isolation Forest contribue à hauteur de 30\,\% au score combiné, la normalisation par score Z à 20\,\%, la déviation par cluster à 10\,\%, et un autoencodeur neuronal entraîné à 40\,\%. Le score de l'ensemble est normalisé sur $[0,1]$ ; un score supérieur à 0,5 est classé comme anomalie. Utilisant TensorFlow CPU, l'autoencodeur a été entraîné exclusivement sur des cycles machine exempts de panne, et un artefact \texttt{.keras} distinct est chargé au démarrage aux côtés des méthodes classiques.
+
+\paragraph{P5 : priorité des ordres de travail.}
+Un classificateur XGBoost qui attribue un niveau de priorité (LOW, MEDIUM, HIGH, CRITICAL) à une panne prédite, permettant au planificateur de maintenance d'ordonner la file de travail. Comme P1, ses étiquettes dans le jeu d'entraînement actuel sont dérivées des mêmes caractéristiques de capteurs, rendant son score d'exactitude non fiable tant que de véritables jugements de priorité de techniciens ne se seront pas accumulés.
+
+\paragraph{P6 : planification de la maintenance.}
+Un classificateur XGBoost qui recommande la fenêtre de planification appropriée : immédiate, dans la semaine, ou planifiée. Il permet à la plateforme de distinguer une machine nécessitant une intervention aujourd'hui d'une machine pouvant être incluse dans le prochain cycle de maintenance planifié sans risque.
+
+\paragraph{P7 : prévision de la demande de pièces détachées.}
+Un module de prévision statistique qui prédit quelles pièces détachées seront nécessaires et à quel moment. Il associe deux logiques de prévision pour deux questions distinctes : un modèle de survie estime la probabilité qu'une machine donnée ait besoin d'une pièce donnée dans une fenêtre à venir, tandis que la méthode de Croston, conçue pour une demande qui arrive par à-coups occasionnels plutôt qu'au fil de l'eau, ce qui correspond à la façon dont les pièces détachées sont réellement consommées ici, estime la quantité de cette pièce qui sera nécessaire le moment venu. Lorsque la demande prévue dépasse le stock actuel, une alerte de pénurie est levée et un brouillon de demande d'approvisionnement est généré pour approbation humaine.
+
+\subsection{Modèles de traitement de signal Wave 2}
+
+Un second pipeline, parallèle (désigné Wave 2), traite l'\emph{historique} de télémétrie de chaque machine plutôt qu'un instantané unique. Quatre modèles de traitement de signal s'exécutent simultanément :
+
+\begin{itemize}
+\item un \textbf{réseau de neurones informé par la physique (PINN)} qui encode la physique de la dégradation sous forme de contraintes souples dans la fonction de perte, empêchant le modèle de produire des estimations de RUL physiquement impossibles ;
+\item un \textbf{modèle de survie à risques proportionnels de Cox} qui estime la probabilité de panne sur une fenêtre temporelle future tout en traitant explicitement les machines censurées à droite (celles encore en fonctionnement au moment de l'observation, dont le devenir futur est inconnu) ;
+\item un \textbf{indice de santé de Mahalanobis} qui mesure à quel point les relevés de capteurs actuels s'écartent de la ligne de base saine propre à cette machine, en excluant du calcul l'événement de remise à zéro de l'usure de l'outil afin d'éviter les fausses alertes immédiatement après un remplacement d'outil ;
+\item un \textbf{détecteur d'anomalie CUSUM} lissé par un \textbf{filtre de Kalman} pour détecter une dérive cumulative lente que des instantanés ponctuels manqueraient.
+\end{itemize}
+
+\subsection{Fusion d'évidence de Dempster-Shafer}
+
+Plutôt que de laisser l'un des quatre signaux Wave~2 écraser silencieusement les autres, leurs sorties sont réconciliées grâce à la théorie de l'évidence de Dempster-Shafer (DST) : chaque signal exprime un vote sur les quatre mêmes états possibles de la machine, $\Theta = \{\mathrm{Saine},\, \mathrm{Degradation},\, \mathrm{Critique},\, \mathrm{Inconnue}\}$, et c'est cette règle de combinaison qui permet à quatre modèles entraînés indépendamment, sans connaissance les uns des autres, de produire malgré tout une réponse défendable même lorsque deux d'entre eux sont en désaccord.
+
+Chaque modèle convertit sa sortie en une \emph{affectation de probabilité de base} (BPA) sur $\Theta$ à l'aide de fonctions d'appartenance linéaires par morceaux. Un modèle très confiant apporte l'essentiel de sa masse à l'une des trois hypothèses substantielles ; un modèle indisponible ou en fort désaccord avec les autres apporte sa masse à \textit{Inconnue} plutôt que de fausser l'estimation combinée. La règle de combinaison bascule entre la règle de Dempster (lorsque le conflit $K \leq 0{,}8$) et la règle plus prudente de Yager (lorsque $K > 0{,}8$), de sorte qu'un véritable désaccord entre sources soit rapporté comme une incertitude plutôt que d'être silencieusement écarté.
+
+Ce mécanisme est important pour la crédibilité de la plateforme. Un système qui produit toujours une réponse d'apparence confiante, même lorsque ses propres entrées se contredisent, finira par se tromper avec assurance. La couche DST est conçue pour dire explicitement « pas encore sûr », plutôt que de forcer un faux consensus. La BPA fusionnée produit le \emph{score de santé unifié} unique (0--100) ainsi qu'un verdict global que la logique de disponibilité et d'alerte en aval consomme.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/dst.png}
+\caption{Fusion des signaux Wave 2 en score de santé DST}
+\label{fig:dst-fusion}
+\end{figure}
+
+Pour un lecteur non spécialiste, la Figure~\ref{fig:wave2-explainer} reformule ce même mécanisme en langage clair : ce que chacun des quatre signaux Wave~2 apporte, si l'ajout d'un modèle de survie tenant compte de la censure par rapport à une régression naïve en vaut réellement la peine (c'est le cas : les indices de concordance du Tableau~\ref{tab:metriques-ml}, repris ici sous forme de graphique en barres), et ce que produit la couche de fusion selon que ses quatre entrées s'accordent ou se contredisent.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/wave2_benchmarks.png}
+\caption{Signaux Wave 2, référence comparative, et résultat de la fusion}
+\label{fig:wave2-explainer}
+\end{figure}
+
+En termes simples, les quatre encadrés en haut de la Figure~\ref{fig:wave2-explainer} peuvent se lire ainsi.
+
+\textbf{Veille de dérive} surveille si les relevés d'une machine s'écartent lentement de la normale, cycle après cycle. Un relevé isolé inhabituel n'est pas préoccupant ; un petit changement qui continue de croître, jour après jour, l'est. C'est le seul signal spécifiquement conçu pour détecter ce type de déclin lent et facile à manquer, avant qu'il ne se transforme en panne soudaine.
+
+\textbf{Distance à la normale} compare les relevés actuels d'une machine à sa propre ligne de base : ce à quoi ressemble la « normale » pour cette machine précise, et non pour les machines en général. Plus le relevé du jour s'écarte de cette ligne de base, plus il se distingue. Un changement d'outil récent est délibérément ignoré pendant un court laps de temps après qu'il survient, afin qu'un remplacement de pièce de routine ne soit jamais confondu avec un signal d'alerte.
+
+\textbf{Chances de survie} pose une question différente : compte tenu de tout ce que l'on sait sur des machines similaires, combien de temps des machines comme celle-ci continuent-elles typiquement à fonctionner avant de nécessiter une attention particulière ? Fait important, ce signal ne se limite pas aux machines déjà tombées en panne ; il apprend aussi de chaque machine encore saine et en fonctionnement aujourd'hui, ce qui rend son estimation du « temps restant » nettement plus honnête.
+
+\textbf{Contrôle physique} agit comme un filtre de bon sens par-dessus les autres estimations. Il connaît les règles physiques de base qu'une machine doit respecter (par exemple, que la durée de vie restante ne peut pas soudainement augmenter sans raison) et rejette toute estimation qui enfreint ces règles, même si un modèle purement statistique l'aurait acceptée.
+
+Ensemble, ces quatre signaux sont combinés par l'étape de fusion : lorsqu'ils s'accordent globalement, la plateforme rapporte un score de santé confiant ; lorsqu'ils sont clairement en désaccord entre eux, elle le signale honnêtement plutôt que de choisir un nombre au hasard, comme illustré dans la moitié inférieure de la Figure~\ref{fig:wave2-explainer}.
+
+\subsection{Déroulement d'une requête d'inférence en direct}
+
+Lorsqu'un utilisateur ouvre la fiche détaillée d'une machine, la séquence suivante s'exécute :
+
+\begin{enumerate}
+\item Le frontend appelle \texttt{GET /api/v1/ml/machines/\{id\}/unified-health}.
+\item Le backend interroge PostgreSQL pour obtenir les derniers relevés de capteurs réels, en filtrant les lignes synthétiques. Si aucun n'existe, il renvoie \texttt{telemetry\_available: false} et s'arrête ici.
+\item Le backend transmet l'instantané de capteurs au microservice ML, qui exécute P1--P7 en parallèle (les modèles sont conservés en mémoire via un cache LRU après le premier chargement, afin d'éviter une relecture du disque à chaque requête).
+\item Les modèles Wave 2 traitent l'historique de télémétrie simultanément.
+\item La couche de fusion DST combine tous les signaux disponibles en un score de santé et un verdict.
+\item L'enregistrement de prédiction complet est écrit dans \texttt{ml\_prediction\_logs} à des fins d'audit et de futur réentraînement.
+\item La réponse est renvoyée au frontend, qui affiche le panneau d'intelligence ML.
+\end{enumerate}
+
+\subsection{Traitement en aval : disponibilité, alertes et approvisionnement}
+
+Le score de disponibilité combine le score de santé unifié (40\,\%) avec la couverture de stock (30\,\%), le risque d'approvisionnement (20\,\%) et la récence de la maintenance (10\,\%). Les alertes agrègent des signaux issus des deux pipelines (un indicateur d'anomalie de P4, une pénurie de pièces de P7, ou un indicateur de désaccord entre modèles de l'étape de fusion elle-même), et une pénurie de pièces détectée déclenche le brouillon d'achat, comme illustré à la Figure~\ref{fig:downstream}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/downstream.png}
+\caption{Des sorties ML à la disponibilité, aux alertes et aux brouillons d'achat}
+\label{fig:downstream}
+\end{figure}
+
+P7 agit comme une liste de courses intelligente plutôt que comme un acheteur automatisé. Chaque pièce détachée est consommée à son propre rythme (certaines s'usent régulièrement, d'autres ne sont remplacées que par à-coups occasionnels), et P7 apprend ce rythme par pièce, par machine, puis le combine avec la probabilité que chaque machine ait bientôt besoin d'une intervention. À partir de cela, il estime combien d'unités d'une pièce donnée seront nécessaires dans les semaines à venir, et compare cette estimation à ce qui est réellement disponible en entrepôt. Lorsque les chiffres ne concordent pas, une alerte de pénurie est levée bien avant qu'un technicien ne se retrouve à attendre une pièce en plein milieu d'une réparation. Le système ne passe jamais de commande de façon autonome ; il ne fait que préparer la suggestion, qu'un humain doit examiner et approuver.
+
+\subsection{Récapitulatif}
+
+Sept modèles indépendants (P1--P7) répondent chacun à une question à partir d'un instantané de télémétrie partagé, alimentant un second pipeline, sensible à l'historique (Wave~2 : PINN, Cox PH, Mahalanobis, CUSUM/Kalman), dont les sorties sont réconciliées par fusion d'évidence de Dempster-Shafer en un score de santé et un verdict uniques, rapportant une incertitude réelle plutôt qu'un faux consensus lorsque les sources sont en désaccord. Trois garde-fous de qualité des données s'exécutent en amont de chaque prédiction (mise en quarantaine des données synthétiques, gestion de la télémétrie nulle, validation par exclusion de groupes), et le score de santé qui en résulte, combiné à la prévision de la demande de pièces, pilote la logique de disponibilité, d'alerte et d'approvisionnement décrite à la fin de cette section.
+
+\section{Architecture du service RAG et du pont ML}
+
+Le service RAG ingère la documentation technique (manuels de maintenance, procédures de sécurité, fiches techniques machine) et la découpe en fragments indexés pour la recherche sémantique. Lorsqu'un technicien pose une question sur une machine précise, le backend interroge en parallèle le service RAG (documentation) et le microservice ML (état de santé en temps réel de la machine), puis fusionne les deux contextes avant de les transmettre au modèle de langage pour générer une réponse, comme illustré à la Figure~\ref{fig:rag-bridge}. Ce mécanisme garantit que l'assistant répond toujours, même si l'un des deux services est indisponible.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+  node distance=1.1cm and 1.3cm,
+  box/.style={draw, rectangle, rounded corners, minimum width=4.6cm, minimum height=1.2cm, align=center, font=\small},
+  docbox/.style={box, fill=gray!12, draw=gray!70},
+  ragbox/.style={box, fill=blue!8, draw=blue!60!black},
+  qbox/.style={box, fill=orange!12, draw=orange!70!black, minimum width=6.8cm},
+  abox/.style={box, fill=green!10, draw=green!50!black}
+]
+\node[docbox] (docs) {\textbf{Documents}\\{\scriptsize (manuels, procédures), stockés dans MinIO}};
+\node[ragbox, below=of docs] (ragin) {\textbf{Ingestion RAG}\\{\scriptsize fragments + embeddings}};
+\node[ragbox, right=2.6cm of docs] (mlctx) {\textbf{Instantané ML temps réel}\\{\scriptsize santé, alertes, pièces pour la machine}};
+\node[qbox, below=1.6cm of ragin, xshift=3.6cm] (question) {\textbf{Question du technicien / CHEFTECH}\\{\scriptsize les deux sources récupérées en parallèle}};
+\node[abox, below=of question] (answer) {\textbf{Réponse contextualisée}\\{\scriptsize fonctionne même si le ML est hors ligne}};
+
+\draw[->, thick] (docs) -- (ragin);
+\draw[->, thick] (ragin.south) -- (question.north west);
+\draw[->, thick] (mlctx.south) -- (question.north east);
+\draw[->, thick] (question) -- (answer);
+\end{tikzpicture}
+\caption{Service RAG et pont ML}
+\label{fig:rag-bridge}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+La récupération de documentation et l'état de santé machine en temps réel sont récupérés en parallèle et fusionnés avant d'atteindre le modèle de langage, de sorte que la question d'un technicien est toujours traitée à partir des deux sources à la fois, plutôt que l'une après l'autre. Les deux récupérations étant indépendantes, l'assistant continue de répondre, à partir de la documentation seule, même si le microservice ML est hors service.
+
+\section{Pipeline d'ingestion documentaire}
+
+Chaque document soumis au service RAG (PDF, image scannée, document Word, tableur, ou page web) passe par le même pipeline en six étapes avant de devenir consultable. Le Tableau~\ref{tab:ingestion} résume ces étapes.
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Étape} & \textbf{Nom} & \textbf{Description} \\
+\hline
+1 & Détection du format & Douze extensions acceptées (PDF, TXT, images, DOCX, XLSX, HTML) ; les autres fichiers sont rejetés d'emblée, 50~Mo max. \\
+\hline
+2 & Extraction de texte avec repli OCR & La couche de texte native du PDF est lue en premier ; les pages peu fournies basculent sur l'OCR Tesseract (français/anglais) sur un rendu zoomé 3$\times$ ; les scans et images passent directement par l'OCR. \\
+\hline
+3 & Détection des doublons & Le hachage SHA-256 du fichier est vérifié par rapport aux téléversements précédents avant extraction ; une répétition exacte renvoie l'identifiant du document existant avec un statut de conflit. \\
+\hline
+4 & Découpage sensible aux phrases & Le texte est découpé aux limites de phrases en fragments de $\leq$200 mots avec un chevauchement de 20 mots entre fragments consécutifs ; les fragments de moins de 20 caractères sont écartés. \\
+\hline
+5 & Embedding par lots & Les fragments sont vectorisés avec BAAI/bge-m3 (1024 dimensions, normalisé) par lots de 32, via un exécuteur à pool de threads. \\
+\hline
+6 & Stockage pgvector & Chaque fragment est stocké avec son vecteur et ses métadonnées (page, nom de fichier, type, identifiant machine) ; le nombre de fragments est mis à jour et le cache de récupération est invalidé. \\
+\hline
+\end{tabularx}
+\caption{Étapes du pipeline d'ingestion documentaire}
+\label{tab:ingestion}
+\end{table}
+
+\subsection{Récapitulatif}
+
+Chaque document téléversé passe par les mêmes six étapes déterministes (vérification du format, extraction de texte avec repli OCR, déduplication SHA-256, découpage sensible aux phrases, embedding par lots, et stockage pgvector) avant de devenir consultable. L'OCR et la déduplication referment en particulier deux modes de défaillance qui existaient dans des versions antérieures du service : des PDF scannés produisant zéro fragment, et des téléversements en double retraités depuis zéro.
+
+\section{Flux de requête de bout en bout}
+
+La Figure~\ref{fig:architecture} montre les composants impliqués ; la séquence ci-dessous détaille une requête unique, de l'action de l'utilisateur à la réponse renvoyée, dans l'ordre :
+
+\begin{enumerate}
+\item \textbf{Utilisateur vers Backend} : un technicien pose une question dans le chat, ou un administrateur téléverse un document. Dans les deux cas, la requête atterrit d'abord sur le backend FastAPI.
+\item \textbf{Backend vers Service RAG} : le backend transmet la requête au microservice RAG : un téléversement devient un appel d'ingestion, une question devient un appel de récupération.
+\item \textbf{Service RAG vers PostgreSQL} : le microservice RAG effectue son travail d'ingestion/embedding ou de récupération/reclassement directement sur PostgreSQL avec pgvector, en écrivant de nouveaux fragments et vecteurs à l'ingestion, en les lisant et en les classant à la récupération.
+\item \textbf{Service RAG vers MinIO} : en parallèle, le microservice RAG stocke le fichier téléversé original dans MinIO, ou le relit pour un téléchargement.
+\item \textbf{Backend vers le LLM Groq} : pour une question, le backend récupère le contexte extrait auprès du service RAG et le transmet au modèle de langage hébergé par Groq.
+\item \textbf{LLM Groq vers Utilisateur} : le modèle de langage génère la réponse à partir de ce contexte, et le backend la renvoie à l'utilisateur.
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/rag_flow.png}
+\caption{Flux de requête de bout en bout}
+\label{fig:rag-flow}
+\end{figure}
+
+\section{Choix technologiques}
+
+\begin{itemize}
+\item \textbf{Next.js} : rendu hybride, écosystème React mature, bien adapté à des interfaces riches et sensibles au rôle ;
+\item \textbf{FastAPI} : haute performance, validation de schéma native, documentation d'API générée automatiquement ;
+\item \textbf{Flask} : léger, bien adapté à un microservice de service de modèles ;
+\item \textbf{PostgreSQL} : robustesse transactionnelle, requêtes relationnelles bien adaptées au modèle de données ;
+\item \textbf{Docker} : isolation et reproductibilité des environnements de développement et de déploiement ;
+\item \textbf{MinIO} : stockage d'objets compatible S3, auto-hébergeable.
+\end{itemize}

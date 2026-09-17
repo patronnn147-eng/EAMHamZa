@@ -26,28 +26,7 @@ import {
   type OrdreTemplate
 } from '@/lib/constants';
 
-const SUBZONE_SHORT: Record<string, string> = {
-  'CMS LINE 1 (e.g., BBS - Broadband Products)': 'L1',
-  'CMS LINE 2 (e.g., AVS - Audio Video Products)': 'L2',
-  'TEST IN-SITU (Test des Composants)': 'ISITU',
-  'TEST FONCTIONNEL (Test de Fonctionnement)': 'TF',
-  'TEST WiFi (Test Sans Fil)': 'WIFI',
-};
-
-const FILLER_WORDS = new Set(['MACHINE', 'POSTE', 'FOUR', 'DE', 'DU', 'DES', 'LA', 'LE', 'LES', 'AVEC']);
-
-export const shortMachineName = (nom: string): string => {
-  const withoutParens = nom.replace(/\([^)]*\)/g, '').trim();
-  const words = withoutParens.split(/\s+/).filter(Boolean);
-  const remaining = words.filter(w => !FILLER_WORDS.has(w.toUpperCase()));
-  if (remaining.length === 0) return withoutParens;
-  const picked = remaining[0].length <= 2 && remaining.length > 1
-    ? `${remaining[0]} ${remaining[1]}`
-    : remaining[0];
-  return picked;
-};
-
-export const generateMachineName = (zone: string, sous_zone: string, ordre: string, ordreTemplates: OrdreTemplate[]): string => {
+const generateMachineName = (zone: string, sous_zone: string, ordre: string, ordreTemplates: OrdreTemplate[]): string => {
   if (!zone || !sous_zone || !ordre) return '';
 
   let cmsNumber = '';
@@ -57,18 +36,16 @@ export const generateMachineName = (zone: string, sous_zone: string, ordre: stri
     cmsNumber = '2';
   }
 
-  const stripAccents = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const cleanStr = (s: string) =>
-    stripAccents(s).toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+/, '').replace(/_+$/, '');
+  const cleanStr = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
-  const subzoneKey = SUBZONE_SHORT[sous_zone] || cleanStr(sous_zone).split('_')[0];
+  const subzoneKey = cleanStr(sous_zone);
   const selectedTemplate = ordreTemplates.find(t => t.ordre.toString() === ordre);
-  const orderName = selectedTemplate ? cleanStr(shortMachineName(selectedTemplate.nom)) : '';
+  const orderName = selectedTemplate ? cleanStr(selectedTemplate.nom) : '';
 
-  return `CMS${cmsNumber}-${subzoneKey}-${orderName}`;
+  return `ZONE_CMS${cmsNumber}_${subzoneKey}_${orderName}`;
 };
 
-export const getOrdreTemplates = (zone: string, sous_zone: string): OrdreTemplate[] => {
+const getOrdreTemplates = (zone: string, sous_zone: string): OrdreTemplate[] => {
   if (!zone || !sous_zone) return [];
   return ORDRE_TEMPLATES[zone]?.[sous_zone] || [];
 };
@@ -82,16 +59,13 @@ interface MachineFormDialogProps {
     zone: string;
     sous_zone: string;
     ordre: string;
-    statut?: string;
+    statut: string;
     date_derniere_maintenance: string;
     date_prochaine_maintenance: string;
     image_url: string;
   };
   setFormData: React.Dispatch<React.SetStateAction<any>>;
   onSubmit: () => void;
-  /** Admin's dialog manages status via a separate workflow, not this form. */
-  showStatusField?: boolean;
-  imagePlaceholder?: string;
 }
 
 export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
@@ -101,8 +75,6 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
   formData,
   setFormData,
   onSubmit,
-  showStatusField = true,
-  imagePlaceholder = '/images/ImageUpload.jpg',
 }) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -193,26 +165,24 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
               </SelectContent>
             </Select>
           </div>
-          {showStatusField && (
-            <div className="grid gap-2">
-              <Label htmlFor="statut">Status</Label>
-              <Select
-                value={formData.statut}
-                onValueChange={(value) => setFormData({ ...formData, statut: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MACHINE_STATUS_OPTIONS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
+          <div className="grid gap-2">
+            <Label htmlFor="statut">Status</Label>
+            <Select
+              value={formData.statut}
+              onValueChange={(value) => setFormData({ ...formData, statut: value })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                {MACHINE_STATUS_OPTIONS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="grid gap-2">
             <Label htmlFor="date_derniere_maintenance">Last Maintenance Date</Label>
             <Input
@@ -237,7 +207,7 @@ export const MachineFormDialog: React.FC<MachineFormDialogProps> = ({
               id="image_url"
               value={formData.image_url}
               onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-              placeholder={imagePlaceholder}
+              placeholder="/images/ImageUpload.jpg"
             />
           </div>
         </div>

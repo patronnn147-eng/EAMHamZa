@@ -27,7 +27,7 @@ class RapportsData(BaseModel):
     titre: str
     date_generation: datetime
     contenu: str
-    utilisateur_id: Optional[int] = None
+    utilisateur_id: int = None
     created_at: Optional[datetime] = None
 
 
@@ -211,8 +211,6 @@ async def create_rapports(
 
         logger.info(f"Rapports created successfully with id: {result.id}")
         return result
-    except HTTPException:
-        raise
     except ValueError as e:
         logger.exception(f"Validation error creating rapports: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Model E: Isolation Forest + CUSUM Control Chart Anomaly Ensemble
 Dual-gate: BOTH detectors must fire to flag anomaly (reduces false alarms).
 
@@ -55,8 +55,8 @@ class CUSUMDetector:
         """
         self.k = float(k)
         self.h = float(h)
-        self.s_pos: float = 0.0   # upper CUSUM statistic
-        self.s_neg: float = 0.0   # lower CUSUM statistic
+        self.S_pos: float = 0.0   # upper CUSUM statistic
+        self.S_neg: float = 0.0   # lower CUSUM statistic
         self.n_updates: int = 0
 
     def update(self, x_t: float, mu_0: float) -> bool:
@@ -74,19 +74,19 @@ class CUSUMDetector:
         Returns:
             True if alarm triggered (shift detected), False otherwise
         """
-        self.s_pos = max(0.0, self.s_pos + (x_t - mu_0 - self.k))
-        self.s_neg = max(0.0, self.s_neg - (x_t - mu_0 + self.k))
+        self.S_pos = max(0.0, self.S_pos + (x_t - mu_0 - self.k))
+        self.S_neg = max(0.0, self.S_neg - (x_t - mu_0 + self.k))
         self.n_updates += 1
-        return self.s_pos > self.h or self.s_neg > self.h
+        return self.S_pos > self.h or self.S_neg > self.h
 
     def reset(self) -> None:
         """Reset statistics to zero (e.g., after alarm investigation)."""
-        self.s_pos = 0.0
-        self.s_neg = 0.0
+        self.S_pos = 0.0
+        self.S_neg = 0.0
 
     @property
     def is_alarmed(self) -> bool:
-        return self.s_pos > self.h or self.s_neg > self.h
+        return self.S_pos > self.h or self.S_neg > self.h
 
 
 # -----------------------------------------------------------------------
@@ -165,27 +165,6 @@ class AnomalyEnsemble:
         )
         return self
 
-    def _build_temp_cusums(self) -> Dict[str, "CUSUMDetector"]:
-        """Create fresh (zero-state) CUSUM detectors from stored baselines."""
-        return {name: CUSUMDetector(k=0.5 * sigma, h=5.0 * sigma) for name, (_, sigma) in self._baselines.items()}
-
-    def _warmup_cusums(self, temp_cusums: Dict, history: List, feature_names: List[str]) -> None:
-        """Replay history observations through temp_cusums (mutates in place)."""
-        for obs in history:
-            obs_arr = np.asarray(obs, dtype=float)
-            for i, name in enumerate(feature_names):
-                if name not in temp_cusums or i >= len(obs_arr):
-                    continue
-                temp_cusums[name].update(float(obs_arr[i]), self._baselines[name][0])
-
-    def _run_cusum_gate(self, temp_cusums: Dict, x: np.ndarray, feature_names: List[str]) -> Dict[str, bool]:
-        """Score current observation x against per-feature CUSUM detectors."""
-        alarms: Dict[str, bool] = {}
-        for i, name in enumerate(feature_names):
-            if name in temp_cusums and i < len(x):
-                alarms[name] = temp_cusums[name].update(float(x[i]), self._baselines[name][0])
-        return alarms
-
     def predict_with_history(
         self,
         x: np.ndarray,
@@ -229,18 +208,41 @@ class AnomalyEnsemble:
         if feature_names is None:
             feature_names = list(self._baselines.keys())
 
-        temp_cusums = self._build_temp_cusums()
-        if history:
-            self._warmup_cusums(temp_cusums, history, feature_names)
+        # --- Build fresh per-request CUSUM detectors (no shared mutable state) ---
+        temp_cusums: Dict[str, CUSUMDetector] = {}
+        for name, (mu, sigma) in self._baselines.items():
+            temp_cusums[name] = CUSUMDetector(k=0.5 * sigma, h=5.0 * sigma)
 
+        # --- Warm-start: replay history through fresh detectors ---
+        if history:
+            for obs in history:
+                obs_arr = np.asarray(obs, dtype=float)
+                for i, name in enumerate(feature_names):
+                    if name not in temp_cusums or i >= len(obs_arr):
+                        continue
+                    mu = self._baselines[name][0]
+                    temp_cusums[name].update(float(obs_arr[i]), mu)
+
+        # --- Isolation Forest gate (read-only, always thread-safe) ---
         iso_score = float(self._iso_forest.decision_function(x.reshape(1, -1))[0])
         iso_anomaly = iso_score < self.iso_threshold
 
-        cusum_alarms = self._run_cusum_gate(temp_cusums, x, feature_names)
-        anomaly_detected = iso_anomaly and any(cusum_alarms.values())
+        # --- CUSUM gate using fresh per-request detectors ---
+        cusum_alarms: Dict[str, bool] = {}
+        for i, name in enumerate(feature_names):
+            if name in temp_cusums and i < len(x):
+                mu = self._baselines[name][0]
+                alarmed = temp_cusums[name].update(float(x[i]), mu)
+                cusum_alarms[name] = alarmed
+        any_cusum_alarm = any(cusum_alarms.values())
 
+        # --- Dual-gate reconciliation ---
+        anomaly_detected = iso_anomaly and any_cusum_alarm
+
+        # --- Health Index from Isolation Forest score ---
         pct_rank = float(np.searchsorted(self._iso_scores_sorted, iso_score)) / max(1, len(self._iso_scores_sorted))
-        hi = max(0.0, min(100.0, round(100.0 * pct_rank, 2)))
+        hi = round(100.0 * pct_rank, 2)
+        hi = max(0.0, min(100.0, hi))
         critical_prob = 1.0 - (hi / 100.0)
 
         if anomaly_detected:
@@ -253,7 +255,7 @@ class AnomalyEnsemble:
             "critical_prob": float(critical_prob),
             "rul_estimate":  None,
             "uncertainty":   float(abs(iso_score)),
-            "confidence":    0.85,
+            "confidence":    0.85 if self._fitted else 0.0,
             "is_anomaly":    bool(anomaly_detected),
             "iso_score":     iso_score,
             "cusum_alarms":  cusum_alarms,
@@ -404,4 +406,3 @@ def fit_anomaly_ensemble(
     _anomaly_ensemble = AnomalyEnsemble()
     _anomaly_ensemble.fit(X, feature_names)
     return _anomaly_ensemble
-

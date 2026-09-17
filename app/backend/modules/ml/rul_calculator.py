@@ -1,4 +1,4 @@
-﻿"""
+"""
 RUL Calculator — Backend business logic for Remaining Useful Life estimation.
 
 All ML inference is delegated to the ml-microservice (via ml_client.predict_all).
@@ -21,176 +21,15 @@ import numpy as np
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Optional
 
-from models.ordres_intervention import OrdresIntervention
+from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
-
-
-_SHAP_FRIENDLY = {
-    "Air temperature [K]": "Température Ambiante",
-    "Process temperature [K]": "Température du Processus",
-    "Rotational speed [rpm]": "Vitesse de Rotation",
-    "Torque [Nm]": "Couple (Torque)",
-    "Tool wear [min]": "Usure de l'Outil",
-}
 
 
 class RULCalculator:
     @staticmethod
-    def _extract_telemetry(entries: list) -> tuple:
-        """
-        Return (air_temp, process_temp, rpm, torque, tool_wear) from the last
-        entry, or all-None when there is no telemetry.
-
-        No placeholder defaults on purpose: substituting nominal readings makes
-        a machine with zero sensor history indistinguishable from a healthy one.
-        """
-        if not entries:
-            return None, None, None, None, None
-        latest = entries[-1]
-        return (
-            float(latest.air_temperature),
-            float(latest.process_temperature),
-            int(latest.rotational_speed),
-            float(latest.torque),
-            float(latest.tool_wear),
-        )
-
-    @staticmethod
-    def _deg_rate(entries: list, attr: str) -> float:
-        if len(entries) < 2:
-            return 0.0
-        return (float(getattr(entries[-1], attr)) - float(getattr(entries[0], attr))) / (len(entries) - 1)
-
-    @staticmethod
-    def _extract_fusion_fields(fusion_result: Optional[Dict]) -> tuple:
-        """Return (ml_probability, model_rul, is_anomaly, anomaly_score, priority_ml, failure_types, shap_exps, rul_interval)."""
-        if not fusion_result:
-            return 0.0, None, False, 0.0, None, {}, [], None
-        return (
-            float(fusion_result.get("p1_failure_probability", 0.0)),
-            fusion_result.get("p3_rul_days"),
-            bool(fusion_result.get("p4_is_anomaly", False)),
-            float(fusion_result.get("p4_anomaly_score", 0.0)),
-            fusion_result.get("p5_predicted_priority"),
-            fusion_result.get("p2_failure_types", {}),
-            fusion_result.get("shap_explanations", []),
-            fusion_result.get("p3_rul_interval"),
-        )
-
-    @staticmethod
-    def _scale_rul_interval(rul_interval: Optional[Dict], rul_days: float) -> Optional[Dict]:
-        """Rescale the raw model's [p10,p50,p90] spread onto the final,
-        blended rul_days actually shown to the user (rul_days is model_rul
-        blended with historical MTBF + degradation adjustment — not the raw
-        model output the interval was fit against). Applies the model's
-        relative spread (as a fraction of its own p50) around the final
-        number instead of the raw model's absolute bounds, so a stale/absent
-        interval never contradicts the headline RUL figure. None when no
-        interval is available (older pkl, not yet retrained with Phase 4.2
-        quantile heads) — omitted entirely rather than faked."""
-        if not rul_interval:
-            return None
-        p10, p50, p90 = rul_interval.get("p10"), rul_interval.get("p50"), rul_interval.get("p90")
-        if not p50 or p50 <= 0 or p10 is None or p90 is None:
-            return None
-        low_ratio = max(0.0, min(1.0, (p50 - p10) / p50))
-        high_ratio = max(0.0, (p90 - p50) / p50)
-        return {
-            "low": round(max(0.0, rul_days * (1 - low_ratio)), 1),
-            "high": round(rul_days * (1 + high_ratio), 1),
-            "confidence": 0.8,
-        }
-
-    @staticmethod
-    def _compute_deductions(machine: Machines, now_dt: datetime,
-                            open_work_orders: int, recent_interventions: int) -> tuple:
-        """Return (maint_deduction, overdue_deduction, status_deduction, wo_deduction, ri_deduction, days_since_maint)."""
-        maint_date = machine.date_derniere_maintenance
-        if maint_date:
-            if maint_date.tzinfo is None:
-                maint_date = maint_date.replace(tzinfo=timezone.utc)
-            days_since_maint = (now_dt - maint_date).days
-        else:
-            days_since_maint = -1
-        maint_deduction = max(0, min(days_since_maint * 0.5, 30)) if days_since_maint > 0 else 0
-
-        overdue_deduction = 0
-        next_maint = machine.date_prochaine_maintenance
-        if next_maint:
-            if next_maint.tzinfo is None:
-                next_maint = next_maint.replace(tzinfo=timezone.utc)
-            if now_dt > next_maint:
-                overdue_deduction = min((now_dt - next_maint).days * 2, 40)
-
-        return (
-            maint_deduction,
-            overdue_deduction,
-            60 if machine.statut in ["EN_PANNE", "HORS_SERVICE"] else 0,
-            min(open_work_orders * 12, 36),
-            min(recent_interventions * 10, 30),
-            days_since_maint,
-        )
-
-    @staticmethod
-    def _compute_health_score(fusion_result, ml_probability, maint_ded, overdue_ded,
-                               status_ded, wo_ded, ri_ded) -> tuple:
-        """Return (health_score, score_source, dst_verdict, conflict_k)."""
-        if fusion_result and "unified_health_score" in fusion_result:
-            return (
-                float(fusion_result["unified_health_score"]),
-                "dst_fusion",
-                fusion_result.get("dst_verdict", "Unknown"),
-                float(fusion_result.get("conflict_factor_K", 0.0)),
-            )
-        score = max(0.0, min(100.0, (100.0 - ml_probability) - (maint_ded + overdue_ded + status_ded + wo_ded + ri_ded)))
-        return score, "fallback_additive", None, None
-
-    @staticmethod
-    def _compute_kpis(interventions, rul_days, ml_probability, failure_types,
-                       ml_health_score, ml_reliability_score) -> tuple:
-        """Return (mtbf_hours, mttr_hours, avail_pct, health_score, reliability_score)."""
-        if not interventions:
-            return 0.0, 0.0, 0.0, 100.0, 100.0
-        mttr = 2.5
-        for t_name, t_data in failure_types.items():
-            if isinstance(t_data, dict) and t_data.get("detected"):
-                if t_name in ["HDF", "OSF"]:
-                    mttr += 1.5
-                if t_name == "TWF":
-                    mttr += 0.5
-        return (
-            rul_days * 24,
-            mttr,
-            max(0, min(100.0, 100.0 - ml_probability * 0.1)),
-            ml_health_score,
-            ml_reliability_score,
-        )
-
-    @staticmethod
-    def _compute_risk_level(ml_probability: float, rul_days: float) -> str:
-        if ml_probability >= 70 or rul_days < 7:
-            return "CRITICAL"
-        if ml_probability >= 50 or rul_days < 15:
-            return "HIGH"
-        if ml_probability >= 30 or rul_days < 30:
-            return "MEDIUM"
-        return "LOW"
-
-    @staticmethod
-    def _map_shap(shap_exps: list) -> list:
-        return [
-            {
-                "factor": _SHAP_FRIENDLY.get(e.get("factor", ""), e.get("factor", "")),
-                "impact": e.get("impact", 0.0),
-                "intensity": e.get("intensity", "low"),
-            }
-            for e in shap_exps
-        ]
-
-    @staticmethod
     def calculate_rul(
         machine: Machines,
-        interventions: List[OrdresIntervention],
+        interventions: List[Ordres_intervention],
         telemetry_entries=None,  # List[MachineTelemetry] — optional
         open_work_orders: int = 0,
         recent_interventions: int = 0,
@@ -204,115 +43,235 @@ class RULCalculator:
         is used — degraded accuracy but no silent failures.
         """
         now = datetime.now(timezone.utc)
+
+        # --- Step 1: Telemetry Data Extraction ---
         entries = list(telemetry_entries) if telemetry_entries else []
 
-        air_temp, process_temp, rpm, torque, tool_wear = RULCalculator._extract_telemetry(entries)
-        deg_air = RULCalculator._deg_rate(entries, "air_temperature")
-        deg_proc = RULCalculator._deg_rate(entries, "process_temperature")
-        deg_wear = RULCalculator._deg_rate(entries, "tool_wear")
+        if entries:
+            latest = entries[-1]
+            air_temp = float(latest.air_temperature)
+            process_temp = float(latest.process_temperature)
+            rpm = int(latest.rotational_speed)
+            torque = float(latest.torque)
+            tool_wear = float(latest.tool_wear)
+        else:
+            air_temp, process_temp, rpm, torque, tool_wear = (
+                300.0,
+                310.0,
+                1500,
+                40.0,
+                0.0,
+            )
+
+        # --- Step 1b: Degradation Rate ---
+        def _deg_rate(attr: str) -> float:
+            if len(entries) < 2:
+                return 0.0
+            first = float(getattr(entries[0], attr))
+            last = float(getattr(entries[-1], attr))
+            return (last - first) / (len(entries) - 1)
+
+        deg_air = _deg_rate("air_temperature")
+        deg_proc = _deg_rate("process_temperature")
+        deg_wear = _deg_rate("tool_wear")
+
         deg_magnitude = abs(deg_air) / 10.0 + abs(deg_proc) / 10.0 + abs(deg_wear) / 5.0
 
-        ml_probability, model_rul, is_anomaly, anomaly_score, predicted_priority_ml, failure_types, shap_exps, rul_interval_raw = \
-            RULCalculator._extract_fusion_fields(fusion_result)
+        # --- Step 2: RUL & Failure Probability from microservice ---
+        # Extract ML data from fusion_result when available; formula fallback otherwise.
+        if fusion_result:
+            ml_probability = float(fusion_result.get("p1_failure_probability", 0.0))
+            model_rul = fusion_result.get("p3_rul_days")  # may be None
+            is_anomaly = bool(fusion_result.get("p4_is_anomaly", False))
+            anomaly_score = float(fusion_result.get("p4_anomaly_score", 0.0))
+            predicted_priority_ml = fusion_result.get("p5_predicted_priority")
+            failure_types = fusion_result.get("p2_failure_types", {})
+            shap_exps = fusion_result.get("shap_explanations", [])
+        else:
+            # Microservice unavailable — degraded formula-only mode
+            ml_probability = 0.0
+            model_rul = None
+            is_anomaly = False
+            anomaly_score = 0.0
+            predicted_priority_ml = None
+            failure_types = {}
+            shap_exps = []
 
+        # Historical MTBF from intervention records
         hist_mtbf_days = RULCalculator._get_historical_mtbf(interventions)
-        rul_days = (float(model_rul) * 0.7 + hist_mtbf_days * 0.3) if model_rul is not None else hist_mtbf_days
+
+        if model_rul is not None:
+            rul_days = (float(model_rul) * 0.7) + (hist_mtbf_days * 0.3)
+        else:
+            rul_days = hist_mtbf_days
+
+        # Apply degradation rate (cap at 50% reduction)
         if deg_magnitude > 0:
-            rul_days *= max(0.5, 1.0 - min(0.5, deg_magnitude * 0.1))
+            degradation_factor = max(0.5, 1.0 - min(0.5, deg_magnitude * 0.1))
+            rul_days = rul_days * degradation_factor
 
-        maint_ded, overdue_ded, status_ded, wo_ded, ri_ded, days_since_maint = \
-            RULCalculator._compute_deductions(machine, now, open_work_orders, recent_interventions)
+        # --- Step 3: Operational Deductions ---
+        now_dt = datetime.now(timezone.utc)
 
-        ml_health_score, score_source, dst_verdict, conflict_k = \
-            RULCalculator._compute_health_score(fusion_result, ml_probability,
-                                                 maint_ded, overdue_ded, status_ded, wo_ded, ri_ded)
+        maint_date = machine.date_derniere_maintenance
+        if maint_date:
+            if maint_date.tzinfo is None:
+                maint_date = maint_date.replace(tzinfo=timezone.utc)
+            days_since_maint = (now_dt - maint_date).days
+        else:
+            days_since_maint = -1
+        maint_deduction = (
+            max(0, min(days_since_maint * 0.5, 30)) if days_since_maint > 0 else 0
+        )
 
+        overdue_deduction = 0
+        next_maint = machine.date_prochaine_maintenance
+        if next_maint:
+            if next_maint.tzinfo is None:
+                next_maint = next_maint.replace(tzinfo=timezone.utc)
+            if now_dt > next_maint:
+                days_overdue = (now_dt - next_maint).days
+                overdue_deduction = min(days_overdue * 2, 40)
+
+        status_deduction = 60 if machine.statut in ["EN_PANNE", "HORS_SERVICE"] else 0
+        wo_deduction = min(open_work_orders * 12, 36)
+        ri_deduction = min(recent_interventions * 10, 30)
+
+        # --- Step 4: Health Score ---
+        if fusion_result and "unified_health_score" in fusion_result:
+            ml_health_score = float(fusion_result["unified_health_score"])
+            score_source = "dst_fusion"
+            dst_verdict = fusion_result.get("dst_verdict", "Unknown")
+            conflict_k = float(fusion_result.get("conflict_factor_K", 0.0))
+        else:
+            predictive_health = 100.0 - ml_probability
+            ml_health_score = predictive_health - (
+                maint_deduction
+                + overdue_deduction
+                + status_deduction
+                + wo_deduction
+                + ri_deduction
+            )
+            ml_health_score = max(0.0, min(100.0, ml_health_score))
+            score_source = "fallback_additive"
+            dst_verdict = None
+            conflict_k = None
+
+        # --- Step 5: Reliability Score ---
         reliability_base = min(100, (rul_days / 60) * 100) if rul_days < 60 else 100
-        ml_reliability_score = max(0, min(100, reliability_base * (1 - ml_probability / 200)))
-
-        ml_mtbf_hours, ml_mttr_hours, ml_availability_pct, ml_health_score, ml_reliability_score = \
-            RULCalculator._compute_kpis(interventions, rul_days, ml_probability,
-                                         failure_types, ml_health_score, ml_reliability_score)
-
-        risk_level = RULCalculator._compute_risk_level(ml_probability, rul_days)
-        rul_confidence_interval = RULCalculator._scale_rul_interval(rul_interval_raw, rul_days)
-        predicted_priority = RULCalculator._derive_predicted_priority(
-            predicted_priority_ml, interventions, risk_level
+        ml_reliability_score = max(
+            0, min(100, reliability_base * (1 - (ml_probability / 200)))
         )
 
-        return RULCalculator._build_rul_response(
-            machine=machine, interventions=interventions, entries=entries, now=now,
-            rul_days=rul_days, rul_confidence_interval=rul_confidence_interval,
-            risk_level=risk_level, ml_probability=ml_probability,
-            fusion_result=fusion_result, predicted_priority=predicted_priority,
-            is_anomaly=is_anomaly, anomaly_score=anomaly_score, shap_exps=shap_exps,
-            ml_health_score=ml_health_score, score_source=score_source, dst_verdict=dst_verdict,
-            conflict_k=conflict_k, maint_ded=maint_ded, overdue_ded=overdue_ded,
-            status_ded=status_ded, wo_ded=wo_ded, ri_ded=ri_ded, days_since_maint=days_since_maint,
-            open_work_orders=open_work_orders, recent_interventions=recent_interventions,
-            deg_air=deg_air, deg_wear=deg_wear, deg_magnitude=deg_magnitude,
-            ml_reliability_score=ml_reliability_score, ml_mtbf_hours=ml_mtbf_hours,
-            ml_mttr_hours=ml_mttr_hours, ml_availability_pct=ml_availability_pct,
-            air_temp=air_temp, process_temp=process_temp, rpm=rpm, torque=torque, tool_wear=tool_wear,
-        )
+        # --- Step 6: KPIs & Risk ---
+        if len(interventions) == 0:
+            ml_mtbf_hours = 0.0
+            ml_mttr_hours = 0.0
+            ml_availability_pct = 0.0
+            ml_health_score = 100.0
+            ml_reliability_score = 100.0
+        else:
+            ml_mtbf_hours = rul_days * 24
+            ml_mttr_hours = 2.5
+            for t_name, t_data in failure_types.items():
+                if isinstance(t_data, dict) and t_data.get("detected"):
+                    if t_name in ["HDF", "OSF"]:
+                        ml_mttr_hours += 1.5
+                    if t_name == "TWF":
+                        ml_mttr_hours += 0.5
+            ml_availability_pct = max(0, min(100.0, 100.0 - (ml_probability * 0.1)))
 
-    @staticmethod
-    def _derive_predicted_priority(predicted_priority_ml, interventions: List[OrdresIntervention], risk_level: str) -> str:
+        # --- Step 7: Risk Level ---
+        if ml_probability >= 70 or rul_days < 7:
+            risk_level = "CRITICAL"
+        elif ml_probability >= 50 or rul_days < 15:
+            risk_level = "HIGH"
+        elif ml_probability >= 30 or rul_days < 30:
+            risk_level = "MEDIUM"
+        else:
+            risk_level = "LOW"
+
+        # Priority from microservice; fallback to risk-derived label
         if predicted_priority_ml:
-            return str(predicted_priority_ml)
-        if not interventions:
-            return "Normal"
-        return risk_level.title()
+            predicted_priority = str(predicted_priority_ml)
+        elif len(interventions) == 0:
+            predicted_priority = "Normal"
+        else:
+            predicted_priority = risk_level.title()
 
-    @staticmethod
-    def _build_rul_response(**f) -> Dict:
-        """Assemble the calculate_rul response dict from its computed fields (see calculate_rul's call site for `f`'s keys)."""
+        # --- Step 8: SHAP Explanations ---
+        # Already retrieved from fusion_result; map to friendly French names
+        explanations = []
+        _FRIENDLY = {
+            "Air temperature [K]": "Température Ambiante",
+            "Process temperature [K]": "Température du Processus",
+            "Rotational speed [rpm]": "Vitesse de Rotation",
+            "Torque [Nm]": "Couple (Torque)",
+            "Tool wear [min]": "Usure de l'Outil",
+        }
+        for e in shap_exps:
+            explanations.append(
+                {
+                    "factor": _FRIENDLY.get(e.get("factor", ""), e.get("factor", "")),
+                    "impact": e.get("impact", 0.0),
+                    "intensity": e.get("intensity", "low"),
+                }
+            )
+
         response = {
-            "machine_id": f["machine"].id,
-            "machine_name": f["machine"].nom,
-            "rul_days": round(float(max(0, f["rul_days"])), 1),
-            "rul_confidence_interval": f["rul_confidence_interval"],
-            "risk_level": f["risk_level"],
-            "failure_probability": float(f["ml_probability"]),
-            "predicted_failure_date": (f["now"] + timedelta(days=max(0, f["rul_days"]))).isoformat(),
-            "data_points": len(f["interventions"]),
-            "ml_model_used": f["fusion_result"] is not None,
-            "predicted_priority": f["predicted_priority"],
-            "is_anomaly": bool(f["is_anomaly"]),
-            "anomaly_score": round(float(f["anomaly_score"]), 4),
-            "explanations": RULCalculator._map_shap(f["shap_exps"]),
-            "health_score": round(float(f["ml_health_score"]), 1) if f["ml_health_score"] is not None else None,
+            "machine_id": machine.id,
+            "machine_name": machine.nom,
+            "rul_days": round(float(max(0, rul_days)), 1),
+            "risk_level": risk_level,
+            "failure_probability": float(ml_probability),
+            "predicted_failure_date": (
+                now + timedelta(days=max(0, rul_days))
+            ).isoformat(),
+            "data_points": len(interventions),
+            "ml_model_used": fusion_result is not None,
+            "predicted_priority": predicted_priority,
+            "is_anomaly": bool(is_anomaly),
+            "anomaly_score": round(float(anomaly_score), 4),
+            "explanations": explanations,
+            "health_score": round(float(ml_health_score), 1)
+            if ml_health_score is not None
+            else None,
             "health_breakdown": {
-                "predictive_risk": round(float(f["ml_probability"]), 1),
-                "score_source": f["score_source"],
-                "dst_verdict": f["dst_verdict"],
-                "conflict_factor_K": round(float(f["conflict_k"]), 4) if f["conflict_k"] is not None else None,
-                "maintenance_deduction": round(float(f["maint_ded"]), 1),
-                "overdue_deduction": round(float(f["overdue_ded"]), 1),
-                "status_deduction": round(float(f["status_ded"]), 1),
-                "work_order_deduction": round(float(f["wo_ded"]), 1),
-                "intervention_deduction": round(float(f["ri_ded"]), 1),
-                "days_since_maintenance": f["days_since_maint"],
-                "open_work_orders": f["open_work_orders"],
-                "recent_interventions": f["recent_interventions"],
-                "degradation_rate_air": round(float(f["deg_air"]), 4),
-                "degradation_rate_wear": round(float(f["deg_wear"]), 4),
-                "degradation_magnitude": round(float(f["deg_magnitude"]), 4),
+                "predictive_risk": round(float(ml_probability), 1),
+                "score_source": score_source,
+                "dst_verdict": dst_verdict,
+                "conflict_factor_K": round(float(conflict_k), 4)
+                if conflict_k is not None
+                else None,
+                "maintenance_deduction": round(float(maint_deduction), 1),
+                "overdue_deduction": round(float(overdue_deduction), 1),
+                "status_deduction": round(float(status_deduction), 1),
+                "work_order_deduction": round(float(wo_deduction), 1),
+                "intervention_deduction": round(float(ri_deduction), 1),
+                "days_since_maintenance": days_since_maint,
+                "open_work_orders": open_work_orders,
+                "recent_interventions": recent_interventions,
+                "degradation_rate_air": round(float(deg_air), 4),
+                "degradation_rate_wear": round(float(deg_wear), 4),
+                "degradation_magnitude": round(float(deg_magnitude), 4),
             },
-            "reliability_score": round(float(f["ml_reliability_score"]), 1) if f["ml_reliability_score"] is not None else 0.0,
-            "mtbf_pred": round(float(f["ml_mtbf_hours"]), 1),
-            "mttr_pred": round(float(f["ml_mttr_hours"]), 1),
-            "availability_pred": round(float(f["ml_availability_pct"]), 1) if f["ml_availability_pct"] is not None else 0.0,
-            "air_temperature": round(float(f["air_temp"]), 2) if f["air_temp"] is not None else None,
-            "process_temperature": round(float(f["process_temp"]), 2) if f["process_temp"] is not None else None,
-            "rotational_speed": int(f["rpm"]) if f["rpm"] is not None else None,
-            "torque": round(float(f["torque"]), 2) if f["torque"] is not None else None,
-            "tool_wear": round(float(f["tool_wear"]), 2) if f["tool_wear"] is not None else None,
-            "telemetry_data_points": len(f["entries"]),
-            "telemetry_available": len(f["entries"]) > 0,
+            "reliability_score": round(float(ml_reliability_score), 1)
+            if ml_reliability_score is not None
+            else 0.0,
+            "mtbf_pred": round(float(ml_mtbf_hours), 1),
+            "mttr_pred": round(float(ml_mttr_hours), 1),
+            "availability_pred": round(float(ml_availability_pct), 1)
+            if ml_availability_pct is not None
+            else 0.0,
+            "air_temperature": round(float(air_temp), 2),
+            "process_temperature": round(float(process_temp), 2),
+            "rotational_speed": int(rpm),
+            "torque": round(float(torque), 2),
+            "tool_wear": round(float(tool_wear), 2),
+            "telemetry_data_points": len(entries),
         }
 
-        if not f["fusion_result"]:
+        if not fusion_result:
             response["model_unavailable"] = True
 
         return response
@@ -321,7 +280,7 @@ class RULCalculator:
 
     @staticmethod
     def _get_historical_mtbf(
-        interventions: List[OrdresIntervention],
+        interventions: List[Ordres_intervention],
         default_days: Optional[float] = None,
     ) -> float:
         """Calculate Mean Time Between Failures from intervention history."""

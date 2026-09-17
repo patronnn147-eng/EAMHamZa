@@ -1,4 +1,4 @@
-﻿"""Add requested_by column to OrdresIntervention
+"""Add requested_by column to Ordres_intervention
 
 Revision ID: add_requested_by
 Revises: more_perf_indexes_v2
@@ -17,14 +17,11 @@ depends_on = None
 
 def upgrade() -> None:
     # Use IF NOT EXISTS to avoid errors if column already added in a previous run.
-    # Table name must be quoted -- unquoted "OrdresIntervention" gets Postgres
-    # case-folded to "ordresintervention", which doesn't match the real
-    # mixed-case table name.
     op.execute(
-        'ALTER TABLE "OrdresIntervention" ADD COLUMN IF NOT EXISTS requested_by INTEGER'
+        "ALTER TABLE ordres_intervention ADD COLUMN IF NOT EXISTS requested_by INTEGER"
     )
 
 
 def downgrade() -> None:
     # Drop the column if it exists.
-    op.execute('ALTER TABLE "OrdresIntervention" DROP COLUMN IF EXISTS requested_by')
+    op.execute("ALTER TABLE ordres_intervention DROP COLUMN IF EXISTS requested_by")

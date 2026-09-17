@@ -25,7 +25,7 @@ class OrdresData(BaseModel):
 
     identifiant: str
     titre: str
-    description: Optional[str] = None
+    description: str = None
     date_creation: datetime
     statut: str
     created_at: Optional[datetime] = None
@@ -212,8 +212,6 @@ async def create_ordres(
         safe_id = str(result.id).replace("\r", "").replace("\n", "")
         logger.info(f"Ordres created successfully with id: {safe_id}")
         return result
-    except HTTPException:
-        raise
     except ValueError as e:
         logger.exception(f"Validation error creating ordres: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.machines import Machines
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +49,40 @@ class MachinesService:
     ) -> Dict[str, Any]:
         """Get paginated list of machiness"""
         try:
-            query, count_query = _apply_filters(
-                select(Machines), select(func.count(Machines.id)), Machines, query_dict
-            )
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Machines)
+            query = select(Machines)
+            count_query = select(func.count(Machines.id))
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Machines, field):
+                        query = query.where(getattr(Machines, field) == value)
+                        count_query = count_query.where(
+                            getattr(Machines, field) == value
+                        )
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Machines, field_name):
+                        query = query.order_by(getattr(Machines, field_name).desc())
+                else:
+                    if hasattr(Machines, sort):
+                        query = query.order_by(getattr(Machines, sort))
+            else:
+                query = query.order_by(Machines.id.desc())
+
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching machines list: {str(e)}")
             raise

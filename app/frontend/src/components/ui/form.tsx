@@ -20,10 +20,8 @@ const FormFieldContext = React.createContext<FormFieldContextValue>({} as FormFi
 const FormField = <TFieldValues extends FieldValues = FieldValues, TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>>({
   ...props
 }: ControllerProps<TFieldValues, TName>) => {
-  const fieldContextValue = React.useMemo(() => ({ name: props.name }), [props.name]);
-
   return (
-    <FormFieldContext.Provider value={fieldContextValue}>
+    <FormFieldContext.Provider value={{ name: props.name }}>
       <Controller {...props} />
     </FormFieldContext.Provider>
   );
@@ -60,10 +58,9 @@ const FormItemContext = React.createContext<FormItemContextValue>({});
 
 const FormItem = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => {
   const id = React.useId();
-  const itemContextValue = React.useMemo(() => ({ id }), [id]);
 
   return (
-    <FormItemContext.Provider value={itemContextValue}>
+    <FormItemContext.Provider value={{ id }}>
       <div ref={ref} className={cn('space-y-2', className)} {...props} />
     </FormItemContext.Provider>
   );
@@ -87,7 +84,7 @@ const FormControl = React.forwardRef<React.ElementRef<typeof Slot>, React.Compon
     <Slot
       ref={ref}
       id={formItemId}
-      aria-describedby={error ? `${formDescriptionId} ${formMessageId}` : `${formDescriptionId}`}
+      aria-describedby={!error ? `${formDescriptionId}` : `${formDescriptionId} ${formMessageId}`}
       aria-invalid={!!error}
       {...props}
     />

@@ -3,7 +3,7 @@ from models.utilisateurs import Utilisateurs
 from core.auth import get_current_user
 
 
-def verify_technicien(
+async def verify_technicien(
     current_user: Utilisateurs = Depends(get_current_user),
 ) -> Utilisateurs:
     """Dependency to verify that the current user has the TECHNICIEN role."""

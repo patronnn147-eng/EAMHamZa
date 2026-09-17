@@ -1,0 +1,79 @@
+\babel@toc {french}{}\relax 
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {1.1}{\ignorespaces Planning du stage de fin d'études}}{8}{figure.caption.17}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {2.1}{\ignorespaces Écran de connexion : accès refusé en attente d'approbation de l'administrateur}}{12}{figure.caption.18}%
+\contentsline {figure}{\numberline {2.2}{\ignorespaces Écran de gestion des utilisateurs et des rôles}}{12}{figure.caption.19}%
+\contentsline {figure}{\numberline {2.3}{\ignorespaces Écran de gestion des utilisateurs et des rôles : détail de l'affectation d'un rôle}}{13}{figure.caption.20}%
+\contentsline {figure}{\numberline {2.4}{\ignorespaces Écran de gestion du parc machines}}{13}{figure.caption.21}%
+\contentsline {figure}{\numberline {2.5}{\ignorespaces Écran d'étiquetage des machines}}{14}{figure.caption.22}%
+\contentsline {figure}{\numberline {2.6}{\ignorespaces Écran de gestion des ordres de travail}}{15}{figure.caption.23}%
+\contentsline {figure}{\numberline {2.7}{\ignorespaces Écran de gestion des ordres d'intervention}}{16}{figure.caption.24}%
+\contentsline {figure}{\numberline {2.8}{\ignorespaces Écran de planification des interventions}}{16}{figure.caption.25}%
+\contentsline {figure}{\numberline {2.9}{\ignorespaces Écran de collecte et supervision des données de télémétrie}}{17}{figure.caption.26}%
+\contentsline {figure}{\numberline {2.10}{\ignorespaces Écran de collecte et supervision des données de télémétrie : détail de l'historique des capteurs}}{18}{figure.caption.27}%
+\contentsline {figure}{\numberline {2.11}{\ignorespaces Écran des alertes et notifications}}{19}{figure.caption.28}%
+\contentsline {figure}{\numberline {2.12}{\ignorespaces Écran des alertes et notifications : détail d'une alerte}}{19}{figure.caption.29}%
+\contentsline {figure}{\numberline {2.13}{\ignorespaces Écran de coordination des pièces détachées}}{20}{figure.caption.30}%
+\contentsline {figure}{\numberline {2.14}{\ignorespaces Tableaux de bord et rapports : vue Administrateur}}{21}{figure.caption.31}%
+\contentsline {figure}{\numberline {2.15}{\ignorespaces Tableaux de bord et rapports : vue Chef Technicien}}{21}{figure.caption.32}%
+\contentsline {figure}{\numberline {2.16}{\ignorespaces Tableaux de bord et rapports : vue Technicien}}{22}{figure.caption.33}%
+\contentsline {figure}{\numberline {2.17}{\ignorespaces Écran d'archivage et de traçabilité}}{22}{figure.caption.34}%
+\contentsline {figure}{\numberline {2.18}{\ignorespaces Pipeline GitLab CI/CD : vue d'ensemble des étapes}}{23}{figure.caption.35}%
+\contentsline {figure}{\numberline {2.19}{\ignorespaces Pipeline d'analyse des secrets (Gitleaks)}}{23}{figure.caption.37}%
+\contentsline {figure}{\numberline {2.20}{\ignorespaces Job GitLab CI : \texttt {scan-secrets} (Gitleaks)}}{24}{figure.caption.38}%
+\contentsline {figure}{\numberline {2.21}{\ignorespaces Pipeline d'analyse de la composition logicielle (pip-audit / pnpm audit)}}{24}{figure.caption.40}%
+\contentsline {figure}{\numberline {2.22}{\ignorespaces Pipeline d'analyse statique de sécurité applicative (SonarQube)}}{25}{figure.caption.42}%
+\contentsline {figure}{\numberline {2.23}{\ignorespaces Liste des anomalies SonarQube : code smells et constats de maintenabilité}}{25}{figure.caption.43}%
+\contentsline {figure}{\numberline {2.24}{\ignorespaces Pipeline d'analyse des images Docker et de l'infrastructure (Trivy)}}{26}{figure.caption.45}%
+\contentsline {figure}{\numberline {2.25}{\ignorespaces Tableau de bord de sécurité des conteneurs (Trivy) : vulnérabilités par sévérité, Grafana}}{26}{figure.caption.46}%
+\contentsline {figure}{\numberline {2.26}{\ignorespaces Pipeline de tests dynamiques de sécurité applicative (OWASP ZAP)}}{27}{figure.caption.48}%
+\contentsline {figure}{\numberline {2.27}{\ignorespaces Tableau de bord DAST (OWASP ZAP) : alertes par sévérité, Grafana}}{27}{figure.caption.49}%
+\contentsline {figure}{\numberline {2.28}{\ignorespaces Quality Gate SonarQube : tableau de bord du projet}}{28}{figure.caption.50}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {3.1}{\ignorespaces Architecture générale de la plateforme}}{31}{figure.caption.51}%
+\contentsline {figure}{\numberline {3.2}{\ignorespaces Flux global d'une demande d'intervention}}{33}{figure.caption.52}%
+\contentsline {figure}{\numberline {3.3}{\ignorespaces Modèle de données simplifié}}{34}{figure.caption.53}%
+\contentsline {figure}{\numberline {3.4}{\ignorespaces Diagramme de classes}}{35}{figure.caption.54}%
+\contentsline {figure}{\numberline {3.5}{\ignorespaces Diagramme de cas d'utilisation de la plateforme EAM}}{36}{figure.caption.55}%
+\contentsline {figure}{\numberline {3.6}{\ignorespaces Modèles de prédiction P1--P7 alimentant la couche de fusion DST}}{40}{figure.caption.62}%
+\contentsline {figure}{\numberline {3.7}{\ignorespaces Fusion des signaux Wave 2 en score de santé DST}}{43}{figure.caption.70}%
+\contentsline {figure}{\numberline {3.8}{\ignorespaces Signaux Wave 2, référence comparative, et résultat de la fusion}}{44}{figure.caption.71}%
+\contentsline {figure}{\numberline {3.9}{\ignorespaces Des sorties ML à la disponibilité, aux alertes et aux brouillons d'achat}}{46}{figure.caption.72}%
+\contentsline {figure}{\numberline {3.10}{\ignorespaces Service RAG et pont ML}}{48}{figure.caption.73}%
+\contentsline {figure}{\numberline {3.11}{\ignorespaces Flux de requête de bout en bout}}{50}{figure.caption.75}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {4.1}{\ignorespaces Flux de planification de la maintenance}}{53}{figure.caption.76}%
+\contentsline {figure}{\numberline {4.2}{\ignorespaces Écran de planification (Administrateur)}}{54}{figure.caption.77}%
+\contentsline {figure}{\numberline {4.3}{\ignorespaces Écran de planification : décomposition des tâches par machine}}{54}{figure.caption.78}%
+\contentsline {figure}{\numberline {4.4}{\ignorespaces Flux de demande d'intervention}}{55}{figure.caption.79}%
+\contentsline {figure}{\numberline {4.5}{\ignorespaces Écran des ordres d'intervention}}{56}{figure.caption.80}%
+\contentsline {figure}{\numberline {4.6}{\ignorespaces Cycle de vie de l'ordre de travail}}{56}{figure.caption.81}%
+\contentsline {figure}{\numberline {4.7}{\ignorespaces Écran de gestion des ordres de travail}}{57}{figure.caption.82}%
+\contentsline {figure}{\numberline {4.8}{\ignorespaces Formulaire de clôture d'ordre de travail (Technicien)}}{57}{figure.caption.83}%
+\contentsline {figure}{\numberline {4.9}{\ignorespaces Flux de données de réservation de stock}}{58}{figure.caption.84}%
+\contentsline {figure}{\numberline {4.10}{\ignorespaces Écran d'inventaire des pièces détachées}}{59}{figure.caption.85}%
+\contentsline {figure}{\numberline {4.11}{\ignorespaces Écran de connexion}}{60}{figure.caption.86}%
+\contentsline {figure}{\numberline {4.12}{\ignorespaces Tableau de bord Administrateur}}{60}{figure.caption.87}%
+\contentsline {figure}{\numberline {4.13}{\ignorespaces Écran d'approbation des utilisateurs (Administrateur)}}{61}{figure.caption.88}%
+\contentsline {figure}{\numberline {4.14}{\ignorespaces Écran d'approbation des interventions (Chef Technicien/administrateur)}}{61}{figure.caption.89}%
+\contentsline {figure}{\numberline {4.15}{\ignorespaces Tableau de bord Chef Technicien}}{62}{figure.caption.90}%
+\contentsline {figure}{\numberline {4.16}{\ignorespaces Tableau de bord Technicien}}{62}{figure.caption.91}%
+\contentsline {figure}{\numberline {4.17}{\ignorespaces Écran de détail et de santé de la machine}}{63}{figure.caption.92}%
+\contentsline {figure}{\numberline {4.18}{\ignorespaces Écran des prédictions ML}}{64}{figure.caption.93}%
+\contentsline {figure}{\numberline {4.19}{\ignorespaces Écran des alertes prédictives}}{64}{figure.caption.94}%
+\contentsline {figure}{\numberline {4.20}{\ignorespaces Écran d'approvisionnement guidé}}{65}{figure.caption.95}%
+\contentsline {figure}{\numberline {4.21}{\ignorespaces Panneau d'explicabilité des prédictions}}{65}{figure.caption.96}%
+\contentsline {figure}{\numberline {4.22}{\ignorespaces Écran de gestion des documents de la base de connaissances}}{66}{figure.caption.97}%
+\contentsline {figure}{\numberline {4.23}{\ignorespaces Écran de l'assistant conversationnel}}{67}{figure.caption.98}%
+\contentsline {figure}{\numberline {4.24}{\ignorespaces Tableau de bord de déploiement pilote (suivi PDCA)}}{68}{figure.caption.101}%
+\contentsline {figure}{\numberline {4.25}{\ignorespaces Pipeline de déploiement en production, de l'infrastructure à l'accès public}}{69}{figure.caption.102}%
+\contentsline {figure}{\numberline {4.26}{\ignorespaces Cluster Kubernetes de production (Portail Azure)}}{70}{figure.caption.108}%
+\contentsline {figure}{\numberline {4.27}{\ignorespaces Infrastructure gérée par Terraform (espace de travail HCP Terraform)}}{71}{figure.caption.109}%
+\contentsline {figure}{\numberline {4.28}{\ignorespaces Releases Helm sur le cluster : staging et production côte à côte}}{72}{figure.caption.110}%
+\addvspace {10\p@ }
+\contentsline {figure}{\numberline {5.1}{\ignorespaces Étape 1 : le technicien soumet la demande d'intervention}}{77}{figure.caption.113}%
+\contentsline {figure}{\numberline {5.2}{\ignorespaces Étape 2 : le Chef Technicien approuve la demande}}{78}{figure.caption.114}%
+\contentsline {figure}{\numberline {5.3}{\ignorespaces Étape 3 : le technicien clôture l'ordre de travail}}{78}{figure.caption.115}%
+\contentsline {figure}{\numberline {5.4}{\ignorespaces De bout en bout : alerte de pénurie de stock}}{79}{figure.caption.116}%
+\addvspace {10\p@ }

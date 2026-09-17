@@ -471,6 +471,13 @@ async def run_lifecycle_cycle(db, rng, planning, machine, tech, cheftech, admin,
     # intervention would belong to a CHEFTECH and each technician's own
     # "my interventions" queue (filtered on technician_id) would be empty.
     itv.technician_id = tech.id
+    # create_intervention_from_planning has no machine_category parameter (only
+    # the technician/chetop request-modal endpoints do), so this planning-driven
+    # path leaves it NULL unless set directly here — which is why every
+    # eam-staging intervention landed in the dashboard's "Non spécifié" bucket.
+    # Values must match what those two forms actually submit: 'Critique' /
+    # 'Non-critique' (see CheftechDashboard.tsx's MACHINE_CATEGORY_LABELS).
+    itv.machine_category = rng.choices(["Critique", "Non-critique"], weights=[30, 70])[0]
     await db.commit()
 
     # 2. CHEFTECH validates the request (statut: APPROVED).

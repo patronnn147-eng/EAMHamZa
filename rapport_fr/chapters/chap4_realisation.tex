@@ -1,0 +1,283 @@
+\chapter{Réalisation}
+
+\section{Réalisation du backend}
+
+Le backend est organisé en modules par domaine métier (utilisateurs, machines, ordres de travail, ordres d'intervention, alertes, planification, apprentissage automatique). Chaque module expose séparément ses routes API, ses schémas de validation et ses services métier, ce qui facilite la maintenance et les évolutions futures. Le contrôle d'accès par rôle est appliqué de façon centralisée sur chaque route. Les quatre flux ci-dessous (planification de la maintenance, demandes d'intervention, ordres de travail, et réservations de stock) illustrent cette organisation modulaire au niveau de la logique métier.
+
+\subsection{Flux de planification de la maintenance}
+
+Un Administrateur ouvre une fenêtre de planification en statut \emph{brouillon} ; le Chef Technicien la décompose ensuite en tâches de diagnostic ou de correction par machine et la soumet pour approbation. Ce n'est qu'une fois la planification approuvée par un Administrateur que les techniciens affectés sont notifiés, à la fois par une alerte dans l'application et par un e-mail.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/planning.png}
+\caption{Flux de planification de la maintenance}
+\label{fig:planning-workflow}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_planning.png}
+\caption{Écran de planification (Administrateur)}
+\label{fig:ss-planning}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_planning_2.png}
+\caption{Écran de planification : décomposition des tâches par machine}
+\label{fig:ss-planning-2}
+\end{figure}
+
+\subsection{Flux de demande d'intervention}
+
+La demande d'un technicien de terrain passe par une porte de validation unique du Chef Technicien, avec deux issues distinctes : l'approbation exige une machine associée et crée automatiquement un ordre de travail lié, tandis que le rejet exige un motif et libère toute réservation de pièces déjà effectuée. La clôture ultérieure de la boucle, une fois le travail terminé, exige toujours un diagnostic de cause racine avant que l'intervention puisse être marquée comme validée.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/intervention.png}
+\caption{Flux de demande d'intervention}
+\label{fig:intervention-workflow}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_intervention.png}
+\caption{Écran des ordres d'intervention}
+\label{fig:ss-intervention}
+\end{figure}
+
+\subsection{Cycle de vie de l'ordre de travail}
+
+Un ordre de travail traverse un cycle de vie séquentiel à dix états. Il peut être rejeté à l'étape d'approbation, ce qui libère toute réservation de stock liée, et ne peut être clôturé que par un Administrateur une fois qu'il a atteint l'état \emph{validé}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/workorder.png}
+\caption{Cycle de vie de l'ordre de travail}
+\label{fig:wo-lifecycle}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_workorder.png}
+\caption{Écran de gestion des ordres de travail}
+\label{fig:ss-workorder}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_wo_closer.png}
+\caption{Formulaire de clôture d'ordre de travail (Technicien)}
+\label{fig:ss-wo-closer}
+\end{figure}
+
+\subsection{Système de réservation de stock}
+
+Un service unique possède chaque mutation des quantités de stock pour le flux intervention/ordre de travail. Quatre déclencheurs indépendants (approbation, rejet, une tâche planifiée quotidienne, et la clôture par le technicien) invoquent chacun un processus dédié, lisant et écrivant tous les mêmes enregistrements de réservation ; les gestionnaires d'approbation ne touchent jamais directement aux tables de stock.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/inventory.png}
+\caption{Flux de données de réservation de stock}
+\label{fig:inventory-flow}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_stock.png}
+\caption{Écran d'inventaire des pièces détachées}
+\label{fig:ss-stock}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+Les quatre flux métier centraux (planification, demandes d'intervention, ordres de travail, réservations de stock) sont chacun possédés par un service dédié unique, empêchant les mutations de stock, la logique d'approbation et les transitions d'état de se propager vers des modules non concernés. Cette séparation par domaine est ce qui permet à un changement de règle dans un flux (par exemple, la façon dont le stock est réservé) d'être livré sans toucher aux autres.
+
+\section{Réalisation du frontend}
+
+Le frontend offre trois espaces applicatifs distincts, chacun adapté aux besoins du rôle correspondant : un espace Administrateur pour la gestion globale, un espace Chef Technicien pour la supervision et la planification, et un espace Technicien pour la réalisation des interventions sur le terrain. Un système de design cohérent (palette de couleurs, composants réutilisables) garantit une expérience uniforme entre les trois espaces.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_login.png}
+\caption{Écran de connexion}
+\label{fig:ss-login}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_dashboard_admin.png}
+\caption{Tableau de bord Administrateur}
+\label{fig:dashboard-admin}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_approval_users.png}
+\caption{Écran d'approbation des utilisateurs (Administrateur)}
+\label{fig:ss-approval-users}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_approval_itv.png}
+\caption{Écran d'approbation des interventions (Chef Technicien/administrateur)}
+\label{fig:ss-approval-itv}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_dashboard_cheftech.png}
+\caption{Tableau de bord Chef Technicien}
+\label{fig:dashboard-cheftech}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_technicien.png}
+\caption{Tableau de bord Technicien}
+\label{fig:ss-technicien}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_machine_detail.png}
+\caption{Écran de détail et de santé de la machine}
+\label{fig:ss-machine-detail}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+Trois espaces propres à chaque rôle (Administrateur, Chef Technicien, Technicien) partagent un même système de design, depuis l'écran de connexion commun jusqu'au tableau de bord, aux files d'approbation et aux vues de détail machine de chaque rôle. Le fait de rendre l'interface consciente du rôle au niveau du routage, et pas seulement visuellement, est ce qui applique côté client les frontières d'accès définies au Chapitre~2, en plus des contrôles côté serveur.
+
+\section{Réalisation du pipeline d'apprentissage automatique}
+
+Chaque modèle prédictif (P1 à P6) a été entraîné puis intégré au microservice de service de modèles, avec un chargement paresseux et mis en cache afin de limiter les temps de réponse. Une couche d'explicabilité (« Pourquoi ? ») a été ajoutée partout : chaque prédiction, alerte ou recommandation peut être développée en une explication en langage clair, exempte de terminologie d'apprentissage automatique, afin de rester compréhensible pour les techniciens de terrain.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_ml_dashboard.png}
+\caption{Écran des prédictions ML}
+\label{fig:ss-ml-dashboard}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_alerts.png}
+\caption{Écran des alertes prédictives}
+\label{fig:ss-alerts}
+\end{figure}
+
+Le module P7 de coordination des pièces détachées a été construit en six étapes progressives : un moteur de prévision de la demande, un routage des alertes de pénurie de stock, une adaptation de l'interface par rôle, une préparation guidée des commandes (jamais automatique), un score de disponibilité opérationnelle accompagné d'une chronologie d'événements, et une boucle de rétroaction comparant les prédictions aux pièces réellement consommées.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_procurement.png}
+\caption{Écran d'approvisionnement guidé}
+\label{fig:ss-procurement}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_explicabilite.png}
+\caption{Panneau d'explicabilité des prédictions}
+\label{fig:explicabilite}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+P1--P6 sont servis via un registre de modèles à chargement paresseux et mis en cache, chaque prédiction, alerte et recommandation pouvant être développée en une explication « Pourquoi ? » en langage clair, afin que les techniciens de terrain n'aient jamais à interpréter la sortie brute des modèles. Le flux d'approvisionnement guidé de P7 est l'expression la plus claire du principe d'humain-dans-la-boucle de la plateforme : le système prévoit et propose, mais ne passe jamais de commande de lui-même.
+
+\section{Réalisation du service RAG et du pont conversationnel}
+
+Le service RAG prend en charge l'importation de documents techniques (manuels, procédures) avec gestion des versions et suppression en cascade. Le pont entre le service RAG et le microservice ML a été conçu pour ne jamais laisser échouer une conversation : si le microservice ML est indisponible, une estimation de repli fondée sur des règles simples est utilisée à la place, de façon transparente pour l'utilisateur.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_ragdocs.png}
+\caption{Écran de gestion des documents de la base de connaissances}
+\label{fig:ss-ragdocs}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_chat.png}
+\caption{Écran de l'assistant conversationnel}
+\label{fig:ss-chat}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+La gestion documentaire (gestion des versions, suppression en cascade) et le pont ML ont été construits ensemble afin que les deux modes de défaillance restent indépendants : un mauvais téléversement de document ne casse jamais les prédictions, et un microservice ML hors service ne casse jamais le chat, puisque le pont se replie sur une estimation fondée sur des règles plutôt que de faire échouer la conversation.
+
+\section{Plan de déploiement pilote (PDCA)}
+
+Déployer six nouveaux modèles prédictifs directement sur toutes les machines de l'usine, sans boucle de rétroaction, risquerait à la fois de mauvaises prédictions et une perte de confiance des utilisateurs. Le déploiement a donc été planifié comme un cycle Plan-Do-Check-Act (PDCA) : un pilote contrôlé et mesurable couvrant les phases Plan et Do ci-dessous, avant toute décision de généralisation.
+
+\paragraph{Plan.} Le pilote a ciblé une seule zone fonctionnelle (le montage en surface, un goulot d'étranglement de production disposant de données de capteurs fiables et à haute fréquence) pendant huit semaines, réparties en trois semaines de \emph{mode fantôme} (prédictions calculées et journalisées, mais non montrées aux utilisateurs) suivies de cinq semaines de \emph{mode actif}, où le tableau de bord est dévoilé à deux responsables de maintenance et quatre techniciens seniors. Quatre critères de succès quantitatifs ont été fixés à l'avance : au moins 15\,\% de réduction des arrêts imprévus par rapport à une référence historique de trois mois ; au moins 80\,\% des machines signalées \emph{critiques} par le modèle de probabilité de panne confirmées comme un problème réel à l'inspection ; au moins 75\,\% d'accord entre le type de panne prédit et le type confirmé par le technicien ; et pas plus de 250\,ms de latence backend supplémentaire introduite par les appels d'inférence.
+
+\paragraph{Do.} Pendant le mode fantôme, chaque prédiction a été écrite dans une table de journalisation dédiée et comparée, à la fin des trois semaines, aux ordres d'intervention réellement créés par les responsables : une première vérification permettant de savoir si les modèles auraient effectivement détecté ce qui s'est réellement passé. Pendant le mode actif, les responsables devaient ouvrir un ordre d'intervention pour chaque machine signalée \emph{critique}, et les techniciens devaient, en clôturant un ordre de travail, enregistrer le type de panne réellement observé. Cette capture d'étiquette confirmée par le technicien est le précurseur direct de la boucle de rétroaction de production décrite au Chapitre~5 : des résultats réels, confirmés par le technicien, comparés aux prédictions passées, refermant la boucle entre le terrain et le modèle.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pdca.png}
+\caption{Tableau de bord de déploiement pilote (suivi PDCA)}
+\label{fig:ss-pdca}
+\end{figure}
+
+\section{Déploiement en production}
+
+Le développement s'est déroulé jusqu'ici entièrement sous Docker Compose. Afin de valider la plateforme dans des conditions plus proches d'un environnement d'exploitation réel (orchestration de conteneurs, base de données managée, gestion centralisée des secrets, et accès réseau public), l'ensemble de la pile a été déployé en supplément sur un cluster Kubernetes managé chez Microsoft Azure, provisionné en Infrastructure as Code. La Figure~\ref{fig:deployment-pipeline} résume le pipeline obtenu, depuis le provisionnement de l'infrastructure jusqu'à l'adresse web publique ; chaque étape est expliquée ci-dessous en termes simples.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\textwidth]{figures/deployment_pipeline.png}
+\caption{Pipeline de déploiement en production, de l'infrastructure à l'accès public}
+\label{fig:deployment-pipeline}
+\end{figure}
+
+\paragraph{Terraform.} Chaque ressource cloud sur laquelle cette plateforme s'exécute est déclarée en syntaxe HCL de Terraform plutôt que créée à la main dans le Portail Azure, de sorte qu'une copie complète de l'infrastructure peut être reconstruite à partir des mêmes fichiers texte déjà versionnés : aucune étape manuelle non documentée, et chaque changement passe par la même relecture plan/apply qu'un changement de code.
+
+\paragraph{Ressources Azure.} Trois ressources sortent de cette configuration Terraform : le cluster AKS sur lequel l'application s'exécute, le serveur PostgreSQL Flexible Server managé qui le seconde, et un Key Vault qui conserve le mot de passe de la base de données et les autres secrets à l'écart à la fois du code applicatif et des fichiers de valeurs Helm.
+
+\paragraph{Chart Helm.} Les sept composants applicatifs, backend, frontend, microservice ML, service RAG, worker Celery, beat Celery, RabbitMQ, sont regroupés en un seul chart Helm, de sorte qu'un environnement complet démarre avec une seule commande d'installation plutôt qu'en appliquant sept jeux de manifestes Kubernetes à la main et en les maintenant synchronisés manuellement.
+
+\paragraph{Staging vs.\ production.} Le même paquet est installé deux fois, dans deux environnements séparés et isolés. \emph{eam-staging} est chargé avec des données de démonstration réalistes et utilisé pour les tests et les captures d'écran. \emph{eam-prod} démarre au contraire à partir d'une base de données propre et vide, sans aucune donnée de démonstration mêlée, afin de refléter un déploiement de premier lancement authentique.
+
+\paragraph{Accès public.} L'exposition publique est volontairement limitée à la production. À l'intérieur de ce cluster, un agent tunnel léger maintient une connexion sortante permanente vers un service de relais ; c'est cette liaison sortante qui permet à un visiteur extérieur d'atteindre l'application en HTTPS à une adresse fixe, sans jamais ouvrir de port entrant sur le cluster lui-même.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/aks_deployment.png}
+\caption{Cluster Kubernetes de production (Portail Azure)}
+\label{fig:aks-deployment}
+\end{figure}
+
+Le cluster, le serveur PostgreSQL managé (avec l'extension pgvector activée pour le service RAG), et un Key Vault pour le stockage des secrets ont tous été provisionnés avec Terraform, avec un état distant conservé sur HCP Terraform pour offrir une visibilité sur chaque changement planifié et appliqué.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/terraform.png}
+\caption{Infrastructure gérée par Terraform (espace de travail HCP Terraform)}
+\label{fig:terraform-iac}
+\end{figure}
+
+Ce même ensemble, backend, frontend, microservice ML, service RAG, les deux processus Celery, et RabbitMQ, accompagné de MinIO pour le stockage d'objets, a été déployé deux fois à partir d'un seul chart avec des fichiers de valeurs différents : une fois dans un namespace de staging alimenté par des données de démonstration réalistes, et une fois dans un namespace de production séparé et propre, avec sa propre base de données et sans données de démonstration. Les pods s'authentifient auprès de Key Vault via Azure Workload Identity, en passant par le Secrets Store CSI Driver, de sorte qu'aucun identifiant n'est jamais stocké dans les valeurs du chart ni dans un Secret Kubernetes versionné dans le contrôle de source.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/helm.png}
+\caption{Releases Helm sur le cluster : staging et production côte à côte}
+\label{fig:helm-dashboard}
+\end{figure}
+
+L'accès public en HTTPS est assuré par un agent tunnel léger s'exécutant à l'intérieur du cluster, qui expose l'environnement de production sur une adresse publique stable. L'environnement de production est joignable publiquement en HTTPS via cette voie.
+
+\section{Difficultés techniques rencontrées}
+
+Plusieurs difficultés ont été rencontrées lors de la réalisation. La synchronisation des modèles entraînés entre l'environnement de recherche (notebooks) et l'environnement de production (microservice) a nécessité la mise en place d'une procédure stricte de copie et de vérification du nombre de caractéristiques attendues par chaque modèle, afin d'éviter le chargement d'un modèle obsolète incompatible avec le format des données envoyées en production.
+
+La disponibilité partielle de certains composants a également fait l'objet d'une attention particulière : certaines bibliothèques d'apprentissage profond n'étant pas installées dans l'environnement de production, l'autoencodeur du module d'anomalie a été rendu optionnel, avec une renormalisation automatique des poids de l'ensemble de détection en son absence. De même, le pont ML-RAG a été conçu pour se replier sur une estimation simple fondée sur des règles si le microservice ML est indisponible, garantissant qu'une réponse est toujours fournie à l'utilisateur.
+
+Enfin, la cohérence des données de test à grande échelle (plusieurs milliers d'enregistrements simulés) a nécessité une vérification systématique de la représentativité des scénarios de panne générés, afin que les métriques d'évaluation reflètent des cas réalistes.

@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { getAPIBaseURL } from './config';
 
 class RPApi {
-  private readonly client: AxiosInstance;
+  private client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
@@ -53,7 +53,7 @@ class RPApi {
         `${this.getBaseURL()}/api/v1/auth/logout`
       );
       // The backend will redirect to OIDC provider logout
-      globalThis.location.href = response.data.redirect_url;
+      window.location.href = response.data.redirect_url;
     } catch (error) {
       throw new Error(error.response?.data?.detail || 'Failed to logout');
     }

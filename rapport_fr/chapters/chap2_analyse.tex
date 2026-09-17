@@ -1,0 +1,499 @@
+\chapter{Analyse et Spécification des Besoins}
+
+\section{Identification des acteurs}
+
+La plateforme EAM distingue quatre rôles principaux :
+\begin{itemize}
+\item \textbf{Administrateur (Admin)} : gère les utilisateurs, les machines, les documents de la base de connaissances, et dispose d'une vue globale sur la plateforme ;
+\item \textbf{Responsable des Opérations (ChefOp)} : consultation et vue d'ensemble des étiquettes et des statuts ;
+\item \textbf{Chef Technicien (ChefTech)} : planifie les interventions, supervise les ordres de travail, arbitre les priorités et consulte les tableaux de bord de fiabilité ;
+\item \textbf{Technicien (Thech)} : exécute les ordres d'intervention, consulte l'état de santé des machines qui lui sont affectées, et interagit avec l'assistant conversationnel pour obtenir de l'aide sur le terrain.
+\end{itemize}
+
+\noindent
+Le diagramme de cas d'utilisation détaillé, montrant les interactions entre les quatre rôles et l'ensemble des fonctionnalités du système, est présenté au Chapitre~3 (Section~\ref{sec:use-case-diagram}), aux côtés du reste de la conception du système.
+
+\subsection{Récapitulatif}
+
+La plateforme dessert quatre rôles (Administrateur, Responsable des Opérations, Chef Technicien, Technicien), chacun cantonné à un périmètre distinct du système, depuis la gestion globale des utilisateurs et des documents jusqu'à l'exécution terrain et l'assistant conversationnel. Le diagramme de cas d'utilisation, détaillé au Chapitre~3, formalise ces frontières, en rattachant chaque fonctionnalité au(x) rôle(s) autorisé(s) à l'utiliser et en faisant passer l'ensemble par un portail d'authentification commun.
+
+\section{Besoins fonctionnels}
+
+\subsection{Authentification et gestion des accès}
+
+Le système doit exiger une authentification par identifiant et mot de passe avant d'accorder tout accès à la plateforme.
+Chaque utilisateur se voit attribuer un rôle unique (Administrateur, Responsable des Opérations, Chef Technicien, Technicien) qui détermine l'ensemble des fonctionnalités et des données accessibles.
+Toute tentative d'accès à une ressource non autorisée doit être rejetée par le serveur, indépendamment de tout contrôle côté interface.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_auth.png}
+\caption{Écran de connexion : accès refusé en attente d'approbation de l'administrateur}
+\label{fig:req-auth}
+\end{figure}
+
+\subsection{Gestion des utilisateurs et des rôles}
+
+L'administrateur doit pouvoir créer, modifier, désactiver et supprimer des comptes utilisateurs, et leur attribuer un rôle.
+Le système doit garantir qu'un compte désactivé ne peut plus s'authentifier, sans pour autant supprimer son historique d'actions associé.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_user_role.png}
+\caption{Écran de gestion des utilisateurs et des rôles}
+\label{fig:req-user-role-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_user_role_2.png}
+\caption{Écran de gestion des utilisateurs et des rôles : détail de l'affectation d'un rôle}
+\label{fig:req-user-role-2}
+\end{figure}
+
+\subsection{Gestion du parc machines}
+
+Le système doit permettre d'enregistrer des machines avec leurs caractéristiques techniques (identifiant, catégorie, emplacement, date de mise en service).
+Chaque machine dispose d'une fiche détaillée et consultable combinant son état de santé actuel, son historique de maintenance, ses alertes actives et ses prédictions en cours.
+L'administrateur peut ajouter, modifier ou archiver une machine sans affecter les ordres de travail existants qui lui sont rattachés.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_machine_asset.png}
+\caption{Écran de gestion du parc machines}
+\label{fig:req-machine-asset}
+\end{figure}
+
+\subsection{Étiquetage des machines}
+
+Le Responsable des Opérations doit pouvoir attacher des étiquettes descriptives à chaque machine afin de faciliter le classement et la recherche.
+Le système doit prendre en charge la création, la modification et la suppression d'étiquettes, ainsi que leur affectation à plusieurs machines à la fois.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_machine_labeling.png}
+\caption{Écran d'étiquetage des machines}
+\label{fig:req-machine-labeling}
+\end{figure}
+
+\subsection{Gestion des ordres de travail}
+
+Le système doit permettre la création d'un ordre de travail (OT) en spécifiant la machine concernée, la nature de l'intervention, la priorité et la date souhaitée.
+Un ordre de travail suit un cycle de vie défini : en attente, affecté, en cours, terminé, ou annulé. Chaque transition doit être journalisée avec l'identité de l'utilisateur et un horodatage.
+Le Chef Technicien peut consulter l'ensemble des ordres de travail, les filtrer par statut ou priorité, et les réaffecter en cas d'indisponibilité d'un technicien.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_work_order.png}
+\caption{Écran de gestion des ordres de travail}
+\label{fig:req-work-order}
+\end{figure}
+
+\subsection{Gestion des ordres d'intervention}
+
+Un ordre d'intervention (BT) est créé à partir d'un ordre de travail et affecté à un technicien précis avec un créneau horaire.
+Le technicien doit pouvoir consulter les ordres d'intervention qui lui sont affectés, enregistrer les actions réalisées et les pièces remplacées, et clôturer l'intervention.
+Lorsqu'une intervention est clôturée, le système doit automatiquement déclencher une mise à jour du score de santé de la machine et une évaluation rétroactive des prédictions antérieures.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_intervention_order.png}
+\caption{Écran de gestion des ordres d'intervention}
+\label{fig:req-intervention-order}
+\end{figure}
+
+\subsection{Planification des interventions}
+
+Le système doit fournir une vue calendaire des interventions planifiées, navigable par jour, par semaine et par mois.
+Le Chef Technicien doit pouvoir planifier une nouvelle intervention, modifier un créneau existant, et vérifier la disponibilité des techniciens avant toute affectation.
+Le planning doit signaler visuellement les conflits d'affectation (un technicien déjà réservé sur le même créneau).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_intervention_scheduling.png}
+\caption{Écran de planification des interventions}
+\label{fig:req-intervention-scheduling}
+\end{figure}
+
+\subsection{Collecte et supervision des données de télémétrie}
+
+Le système doit enregistrer les relevés de capteurs pour chaque machine : température de l'air, température du procédé, vitesse de rotation, couple, et usure de l'outil.
+Ces données constituent la source principale des modèles de prédiction et doivent être consultables sous forme d'historique horodaté par machine.
+En l'absence de données de télémétrie réelles pour une machine, le système doit explicitement signaler l'indisponibilité des prédictions plutôt que de substituer des valeurs par défaut.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_telemetry.png}
+\caption{Écran de collecte et supervision des données de télémétrie}
+\label{fig:req-telemetry-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_telemetry_2.png}
+\caption{Écran de collecte et supervision des données de télémétrie : détail de l'historique des capteurs}
+\label{fig:req-telemetry-2}
+\end{figure}
+
+\subsection{Prédictions par apprentissage automatique}
+
+Pour chaque machine disposant de données de télémétrie, le système doit exposer six indicateurs prédictifs calculés par des modèles d'apprentissage automatique :
+\begin{itemize}
+  \item \textbf{Probabilité de panne (P1)} : estimation du risque de panne à court terme ;
+  \item \textbf{Type de panne probable (P2)} : classification parmi les modes de panne connus ;
+  \item \textbf{Durée de vie utile restante (RUL, P3)} : estimation en jours avant la prochaine intervention requise, avec un intervalle de confiance ;
+  \item \textbf{Score d'anomalie comportementale (P4)} : détection d'un comportement anormal des capteurs via un ensemble de quatre méthodes (Isolation Forest, score Z, déviation par cluster, autoencodeur) ;
+  \item \textbf{Priorité de traitement (P5)} : niveau de priorité recommandé pour l'ordre de travail associé ;
+  \item \textbf{Calendrier de maintenance (P6)} : date optimale proposée pour la prochaine intervention préventive.
+\end{itemize}
+Chaque prédiction doit être accompagnée d'une explication en langage clair, exempte de jargon technique, accessible à un utilisateur non spécialiste.
+
+\subsection{Alertes et notifications}
+
+Le système doit générer automatiquement des alertes lorsqu'un modèle détecte un risque de panne élevé, une anomalie comportementale, ou une pénurie de pièces prévisible.
+Les alertes doivent être classées par niveau de criticité et consultables par le Chef Technicien, avec un filtrage par priorité.
+Une alerte déjà traitée (liée à un ordre de travail clôturé) doit être automatiquement archivée et ne plus apparaître dans la liste active.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_alerts.png}
+\caption{Écran des alertes et notifications}
+\label{fig:req-alerts-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_alerts_2.png}
+\caption{Écran des alertes et notifications : détail d'une alerte}
+\label{fig:req-alerts-2}
+\end{figure}
+
+\subsection{Coordination des pièces détachées}
+
+À partir des prédictions de panne, le système doit estimer les besoins futurs en pièces détachées par machine et générer des propositions d'approvisionnement.
+Ces propositions prennent la forme de brouillons de bons de commande soumis à une validation humaine explicite : aucune commande ne peut être émise automatiquement sans l'approbation du Chef Technicien.
+Le système expose également un score de disponibilité opérationnelle par machine, combinant l'état de santé, le niveau de stock et la proximité de la prochaine intervention.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_spare_parts.png}
+\caption{Écran de coordination des pièces détachées}
+\label{fig:req-spare-parts}
+\end{figure}
+
+\subsection{Base de connaissances et assistant conversationnel}
+
+L'administrateur doit pouvoir importer des documents de maintenance (manuels, fiches techniques, procédures) dans la base de connaissances de la plateforme.
+Le système doit permettre à tout utilisateur authentifié d'interroger cette base de connaissances en langage naturel via un assistant conversationnel.
+Les réponses de l'assistant doivent combiner les informations extraites des documents pertinents avec l'état de santé en temps réel de la machine concernée, afin de fournir un conseil contextualisé au technicien sur le terrain.
+
+\subsection{Tableaux de bord et rapports}
+
+Chaque rôle dispose d'un tableau de bord personnalisé : une vue d'ensemble du parc pour l'Administrateur et le Responsable des Opérations, une vue de supervision des interventions et des alertes pour le Chef Technicien, et une vue des tâches affectées pour le Technicien.
+Le système doit permettre la consultation de rapports de synthèse sur l'activité de maintenance, la performance des machines et l'évolution des indicateurs prédictifs.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_admin.png}
+\caption{Tableaux de bord et rapports : vue Administrateur}
+\label{fig:req-dashboard-admin}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_cheftech.png}
+\caption{Tableaux de bord et rapports : vue Chef Technicien}
+\label{fig:req-dashboard-cheftech}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_tech.png}
+\caption{Tableaux de bord et rapports : vue Technicien}
+\label{fig:req-dashboard-tech}
+\end{figure}
+
+\subsection{Archivage et traçabilité}
+
+Toute action réalisée sur un ordre de travail, un ordre d'intervention ou une alerte doit être journalisée dans une piste d'audit avec l'identité de l'auteur, la date et la nature de l'action.
+Les interventions clôturées et les alertes traitées doivent être conservées dans un historique consultable et non modifiable, servant de base à l'évaluation continue des modèles prédictifs.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_archiving.png}
+\caption{Écran d'archivage et de traçabilité}
+\label{fig:req-archiving}
+\end{figure}
+
+\subsection{Sécurité applicative}
+
+L'accès à la plateforme doit être protégé par une authentification par jeton (JWT), renouvelé à chaque session.
+Le contrôle d'autorisation doit être appliqué côté serveur sur chaque point d'API, indépendamment de l'interface utilisateur : aucune donnée sensible ne doit être accessible par simple manipulation de l'URL ou de la requête HTTP.
+Les mots de passe doivent être stockés sous forme hachée ; les secrets applicatifs (clés d'API, paramètres de connexion) doivent être isolés dans des variables d'environnement et ne jamais apparaître dans le code source.
+Toute action significative (création, modification ou clôture d'un ordre de travail ou d'intervention, validation d'une alerte) doit être journalisée dans une piste d'audit non modifiable.
+
+\subsection{Pipeline DevSecOps}
+
+La sécurité doit être intégrée au processus de développement via un pipeline GitLab CI/CD dédié, couvrant l'ensemble de la chaîne d'approvisionnement logicielle.
+Le pipeline comprend cinq étapes, exécutées automatiquement à chaque push de code, chacune illustrée ci-dessous.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_overview.png}
+\caption{Pipeline GitLab CI/CD : vue d'ensemble des étapes}
+\label{fig:ss-pipeline-overview}
+\end{figure}
+
+\paragraph{Analyse des secrets (Gitleaks).}
+Chaque commit est analysé à la recherche d'identifiants codés en dur par accident, clés d'API, jetons, mots de passe, certificats, où qu'ils apparaissent : dans l'arborescence actuelle comme dans l'historique Git passé.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.35cm and 1.3cm,
+  inbox/.style={draw=orange!80!black, fill=orange!8, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.4cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=orange!80!black, fill=orange!25, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=1.9cm, align=center, font=\normalsize\bfseries, thick},
+  leaf/.style={draw=orange!70!black, fill=orange!12, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=0.65cm, align=center, font=\small},
+  outbox/.style={draw=orange!80!black, fill=orange!30, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.4cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[inbox] (src) {Code source\\+ historique Git};
+\node[tool, right=of src] (tool) {Gitleaks\\\footnotesize scan regex + entropie};
+\node[leaf, right=2.1cm of tool, yshift=1.0cm] (l1) {Clés API et jetons};
+\node[leaf, right=2.1cm of tool, yshift=0cm]    (l2) {Mots de passe};
+\node[leaf, right=2.1cm of tool, yshift=-1.0cm] (l3) {Certificats et clés};
+\node[outbox, right=2.4cm of l2] (rep) {Rapport de\\sécurité};
+\draw[->, thick, orange!80!black] (src) -- (tool);
+\foreach \l in {l1,l2,l3} { \draw[->, thick, orange!70!black] (tool.east) -| ++(0.6,0) |- (\l.west); }
+\foreach \l in {l1,l2,l3} { \draw[->, thick, orange!70!black] (\l.east) -| ++(0.6,0) |- (rep.west); }
+\end{tikzpicture}%
+}
+\caption{Pipeline d'analyse des secrets (Gitleaks)}
+\label{fig:sec-gitleaks}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_gitleaks.png}
+\caption{Job GitLab CI : \texttt{scan-secrets} (Gitleaks)}
+\label{fig:ss-pipeline-gitleaks}
+\end{figure}
+
+\paragraph{Analyse de la composition logicielle (SCA), via pip-audit / pnpm audit.}
+Deux analyseurs parcourent l'arbre des dépendances à chaque build, \textit{pip-audit} pour le backend Python et les services ML, \textit{pnpm audit} pour le frontend, en confrontant chaque version de paquet aux CVE connues et en signalant toute licence incompatible avec le projet.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.35cm and 1.4cm,
+  py/.style={draw=blue!70!black, fill=blue!10, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.0cm, align=center, font=\normalsize, thick},
+  js/.style={draw=yellow!60!black, fill=yellow!18, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.0cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=teal!70!black, fill=teal!20, rectangle, rounded corners=3pt, minimum width=3.8cm, minimum height=2.4cm, align=center, font=\normalsize\bfseries, thick},
+  outbox/.style={draw=teal!70!black, fill=teal!32, rectangle, rounded corners=3pt, minimum width=3.4cm, minimum height=1.8cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[py] (pyreq) {\textit{requirements.txt}\\(dépendances Python)};
+\node[js, below=1.1cm of pyreq] (jslock) {\textit{package.json}\\(dépendances JS)};
+\node[tool, right=1.5cm of pyreq, yshift=-0.65cm] (tool) {Analyseurs SCA\\\footnotesize pip-audit + pnpm audit};
+\node[outbox, right=1.6cm of tool] (rep) {Rapport CVE\\+ conformité\\des licences};
+\draw[->, thick, blue!70!black]   (pyreq.east)  -| ++(0.4,0) |- (tool.west);
+\draw[->, thick, yellow!60!black] (jslock.east) -| ++(0.4,0) |- (tool.west);
+\draw[->, thick, teal!70!black] (tool) -- (rep);
+\end{tikzpicture}%
+}
+\caption{Pipeline d'analyse de la composition logicielle (pip-audit / pnpm audit)}
+\label{fig:sec-sca}
+\end{figure}
+
+\paragraph{Analyse statique de sécurité applicative (SAST), via SonarQube.}
+Une instance auto-hébergée de SonarQube Community Edition relit l'intégralité de l'arborescence backend et frontend à chaque push, en signalant quatre catégories de risque récurrentes : la construction de requêtes propice à l'injection, la gestion d'exceptions trop large ou avalée silencieusement, les primitives cryptographiques faibles, et les points d'accès susceptibles de renvoyer plus de données que le rôle appelant ne devrait en voir.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.7cm and 1.6cm,
+  inbox/.style={draw=blue!60!black, fill=blue!8, rectangle, rounded corners=3pt, minimum width=3.1cm, minimum height=1.6cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=blue!60!black, fill=blue!20, rectangle, rounded corners=3pt, minimum width=3.9cm, minimum height=4.6cm, align=center, font=\normalsize\bfseries, thick},
+  c1/.style={draw=violet!70!black, fill=violet!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c2/.style={draw=purple!70!black, fill=purple!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c3/.style={draw=magenta!70!black, fill=magenta!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  c4/.style={draw=cyan!80!black, fill=cyan!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.9cm, align=center, font=\normalsize},
+  outbox/.style={draw=blue!60!black, fill=blue!28, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=2.2cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[inbox] (src) {Code source\\backend +\\frontend};
+\node[tool, right=2.6cm of src] (tool) {SonarQube CE\\[4pt]\footnotesize auto-hébergé\\\footnotesize analyse statique};
+\node[c1, right=3.1cm of tool, yshift=2.05cm]  (l1) {Failles d'injection};
+\node[c2, right=3.1cm of tool, yshift=0.68cm]  (l2) {Gestion des erreurs};
+\node[c3, right=3.1cm of tool, yshift=-0.68cm] (l3) {Qualité cryptographique};
+\node[c4, right=3.1cm of tool, yshift=-2.05cm] (l4) {Exposition de données};
+\node[outbox, right=2.0cm of l2, yshift=-0.68cm] (gate) {Quality\\Gate};
+\draw[->, thick, blue!60!black] (src) -- (tool);
+\foreach \l in {l1,l2,l3,l4} { \draw[->, thick, blue!50!black] (tool.east) -| ++(0.8,0) |- (\l.west); }
+\foreach \l in {l1,l2,l3,l4} { \draw[->, thick, blue!50!black] (\l.east) -| ++(0.8,0) |- (gate.west); }
+\end{tikzpicture}%
+}
+\caption{Pipeline d'analyse statique de sécurité applicative (SonarQube)}
+\label{fig:sec-sast}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_sast.png}
+\caption{Liste des anomalies SonarQube : code smells et constats de maintenabilité}
+\label{fig:ss-pipeline-sast}
+\end{figure}
+
+\paragraph{Analyse des images Docker et de l'infrastructure (Trivy).}
+Les cinq images Docker produites par le build, ainsi que les fichiers Compose eux-mêmes, sont analysés pour deux catégories de risque distinctes : les CVE présentes dans les couches du système d'exploitation, et les erreurs de configuration dans les définitions Compose. Le volet infrastructure-as-code (IaC) de cette analyse (\texttt{trivy config}) inspecte les fichiers Compose eux-mêmes, et non le code applicatif, à la recherche de risques de configuration tels que des limites de ressources absentes, des conteneurs exécutés en tant que root, des tests de santé absents, ou des ports exposés au-delà du nécessaire ; elle couvre actuellement \texttt{docker-compose.yml}, \texttt{docker-compose.sonarqube.yml} et \texttt{docker-compose.notebooks.yml}, chacun produisant un rapport JSON/SARIF/HTML en tant qu'artefact de pipeline.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.4cm and 1.4cm,
+  img/.style={draw=red!70!black, fill=red!10, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=0.7cm, align=center, font=\small},
+  cfg/.style={draw=red!70!black, fill=red!16, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=0.7cm, align=center, font=\small},
+  tool/.style={draw=red!70!black, fill=red!24, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=3.2cm, align=center, font=\normalsize\bfseries, thick},
+  outbox/.style={draw=red!70!black, fill=red!32, rectangle, rounded corners=3pt, minimum width=3.0cm, minimum height=1.6cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[img] (i1) {Image frontend};
+\node[img, below=of i1] (i2) {Image backend};
+\node[img, below=of i2] (i3) {Image microservice ML};
+\node[img, below=of i3] (i4) {Image service RAG};
+\node[cfg, below=of i4] (i5) {Image worker Celery\\+ fichiers Compose};
+\node[tool, right=2.0cm of i3] (tool) {Scanner Trivy\\\footnotesize couches OS + config IaC};
+\node[outbox, right=1.8cm of tool, yshift=0.9cm]  (cve) {CVE dans les\\couches système};
+\node[outbox, right=1.8cm of tool, yshift=-0.9cm] (mis) {Mauvaises configurations\\d'infrastructure};
+\foreach \i in {i1,i2,i3,i4,i5} { \draw[->, thick, red!60!black] (\i.east) -| ++(0.6,0) |- (tool.west); }
+\draw[->, thick, red!70!black] (tool.east) -| ++(0.5,0) |- (cve.west);
+\draw[->, thick, red!70!black] (tool.east) -| ++(0.5,0) |- (mis.west);
+\end{tikzpicture}%
+}
+\caption{Pipeline d'analyse des images Docker et de l'infrastructure (Trivy)}
+\label{fig:sec-trivy}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_trivy.png}
+\caption{Tableau de bord de sécurité des conteneurs (Trivy) : vulnérabilités par sévérité, Grafana}
+\label{fig:ss-pipeline-trivy}
+\end{figure}
+
+\paragraph{Tests dynamiques de sécurité applicative (DAST), via OWASP ZAP.}
+Le framework d'automatisation OWASP ZAP pilote directement la pile en cours d'exécution : il se connecte successivement avec chacun des quatre rôles (Administrateur, Chef Technicien, Responsable des Opérations, Technicien) pour sonder les routes authentifiées, puis sonde séparément les trois services situés hors de toute barrière de connexion (microservice ML, service RAG, frontend), en recherchant dans les deux cas les catégories du Top 10 OWASP les plus pertinentes ici : injection SQL, XSS, en-têtes de sécurité absents ou mal configurés, et contournement de l'authentification.
+
+\begin{figure}[H]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=0.45cm and 1.5cm,
+  app/.style={draw=violet!70!black, fill=violet!10, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=1.8cm, align=center, font=\normalsize, thick},
+  tool/.style={draw=violet!70!black, fill=violet!22, rectangle, rounded corners=3pt, minimum width=3.9cm, minimum height=6.0cm, align=center, font=\normalsize\bfseries, thick},
+  role/.style={draw=teal!70!black, fill=teal!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.75cm, align=center, font=\normalsize},
+  svc/.style={draw=orange!70!black, fill=orange!13, rectangle, rounded corners=3pt, minimum width=3.6cm, minimum height=0.75cm, align=center, font=\normalsize},
+  outbox/.style={draw=violet!70!black, fill=violet!30, rectangle, rounded corners=3pt, minimum width=3.2cm, minimum height=6.0cm, align=center, font=\normalsize\bfseries, thick}
+]
+\node[app] (app) {Application\\en cours\\d'exécution};
+\node[tool, right=2.6cm of app] (tool) {OWASP ZAP\\[4pt]\footnotesize framework\\\footnotesize d'automatisation};
+\node[role, right=3.2cm of tool, yshift=2.55cm]  (r1) {Authentifié : Administrateur};
+\node[role, right=3.2cm of tool, yshift=1.70cm]  (r2) {Authentifié : Chef Technicien};
+\node[role, right=3.2cm of tool, yshift=0.85cm]  (r3) {Authentifié : Resp. Opérations};
+\node[role, right=3.2cm of tool, yshift=0cm]     (r4) {Authentifié : Technicien};
+\node[svc,  right=3.2cm of tool, yshift=-0.85cm] (s1) {Non auth. : microservice ML};
+\node[svc,  right=3.2cm of tool, yshift=-1.70cm] (s2) {Non auth. : service RAG};
+\node[svc,  right=3.2cm of tool, yshift=-2.55cm] (s3) {Non auth. : Frontend};
+\node[outbox, right=3.0cm of r4] (rep) {Constats\\OWASP Top 10\\[6pt]\footnotesize injections SQL, XSS,\\\footnotesize en-têtes, failles d'auth};
+\draw[->, thick, violet!70!black] (app) -- (tool);
+\foreach \r in {r1,r2,r3,r4} { \draw[->, thick, teal!60!black]   (tool.east) -| ++(0.8,0) |- (\r.west); }
+\foreach \s in {s1,s2,s3}     { \draw[->, thick, orange!70!black] (tool.east) -| ++(0.8,0) |- (\s.west); }
+\draw[->, thick, violet!50!black] (r1.east) -- ($(rep.west)+(0,2.55cm)$);
+\draw[->, thick, violet!50!black] (r2.east) -- ($(rep.west)+(0,1.70cm)$);
+\draw[->, thick, violet!50!black] (r3.east) -- ($(rep.west)+(0,0.85cm)$);
+\draw[->, thick, violet!50!black] (r4.east) -- ($(rep.west)+(0,0cm)$);
+\draw[->, thick, violet!50!black] (s1.east) -- ($(rep.west)+(0,-0.85cm)$);
+\draw[->, thick, violet!50!black] (s2.east) -- ($(rep.west)+(0,-1.70cm)$);
+\draw[->, thick, violet!50!black] (s3.east) -- ($(rep.west)+(0,-2.55cm)$);
+\end{tikzpicture}%
+}
+\caption{Pipeline de tests dynamiques de sécurité applicative (OWASP ZAP)}
+\label{fig:sec-zap}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_pipeline_zap.png}
+\caption{Tableau de bord DAST (OWASP ZAP) : alertes par sévérité, Grafana}
+\label{fig:ss-pipeline-zap}
+\end{figure}
+
+Les résultats de chaque analyseur sont consolidés par un script de reporting centralisé (\texttt{security\_report.py}) qui produit un rapport structuré dans le terminal à chaque exécution du pipeline.
+Toutes les étapes de sécurité sont configurées en mode non bloquant (\textit{allow\_failure: true}), offrant une visibilité immédiate sur les résultats sans bloquer la livraison, tout en conservant les constats dans un rapport disponible pour relecture après chaque exécution.
+
+À la date de la dernière analyse, le Quality Gate SonarQube est entièrement au vert sur ses quatre conditions : zéro nouvelle violation, 100\,\% des nouveaux points chauds de sécurité relus, 2,6\,\% de duplication de code sur le nouveau code (contre 10,3\,\% initialement), et 74,8\,\% de couverture du nouveau code par les tests automatisés, au-dessus du seuil requis de 70\,\%. La duplication a été réduite en extrayant la logique copiée-collée entre plusieurs fichiers vers des modules partagés et réutilisables, plutôt qu'en excluant le code dupliqué de l'analyse ; par exemple, un module partagé unique alimente désormais les quatre scripts d'amorçage de données, et un composant de formulaire partagé a remplacé trois copies quasi identiques dans le frontend.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_sonarqube_quality_gate.png}
+\caption{Quality Gate SonarQube : tableau de bord du projet}
+\label{fig:ss-sonarqube-quality-gate}
+\end{figure}
+
+\subsection{Récapitulatif}
+
+Quatorze domaines de besoins ont été spécifiés, couvrant les opérations EAM classiques (utilisateurs, machines, ordres de travail, interventions, planification), la couche pilotée par le ML construite par-dessus (six indicateurs prédictifs, alertes, coordination des pièces détachées, assistant conversationnel), et le volet sécurité de la plateforme elle-même (protections applicatives et pipeline DevSecOps qui les impose à chaque push). Deux contraintes reviennent dans la quasi-totalité d'entre eux : chaque prédiction doit être accompagnée d'une explication en langage clair, et le système doit se dégrader honnêtement, en signalant la télémétrie manquante plutôt qu'en fabriquant une réponse d'apparence plausible.
+
+\section{Besoins non fonctionnels}
+
+\subsection{Piles Docker Compose}
+
+Le projet est réparti en quatre piles Docker Compose indépendantes, chacune couvrant une préoccupation distincte et pouvant être démarrée seule :
+
+\begin{itemize}
+\item \texttt{docker-compose.yml}, la pile applicative principale : Postgres, RabbitMQ, MinIO, l'API backend, le worker et le scheduler Celery, le service RAG, le microservice ML, le frontend, et pgAdmin.
+\item \texttt{docker-compose.sonarqube.yml}, le serveur SonarQube Community Edition auto-hébergé et sa base de données, utilisé par l'étape SAST du pipeline.
+\item \texttt{docker-compose.monitoring.yml}, Prometheus, Grafana, et une Pushgateway, utilisés pour collecter et visualiser dans le temps les métriques du pipeline et des analyses de sécurité.
+\item \texttt{docker-compose.notebooks.yml}, l'environnement de recherche Jupyter utilisé pour entraîner et évaluer les modèles d'apprentissage automatique hors ligne.
+\end{itemize}
+
+Le fait de séparer ces quatre piles permet de démarrer, arrêter ou reconstruire indépendamment le serveur SonarQube, la pile de supervision, ou les notebooks de recherche, sans affecter l'application en cours d'exécution.
+
+\subsection{Performance}
+
+Le temps de réponse des opérations courantes (consultation d'une fiche machine, listage des ordres de travail, mise à jour d'un statut) doit rester inférieur à deux secondes en conditions d'utilisation normales.
+L'inférence des modèles d'apprentissage automatique, qui met en jeu plusieurs pipelines de calcul, doit s'achever en moins de cinq secondes pour les six indicateurs d'une machine.
+L'interface doit rester réactive pendant les appels asynchrones au microservice ML, en affichant un indicateur de chargement plutôt qu'en bloquant l'utilisateur.
+
+\subsection{Disponibilité et résilience}
+
+Les fonctionnalités de gestion classiques (ordres de travail, ordres d'intervention, planification) doivent rester pleinement opérationnelles même si le microservice d'apprentissage automatique est indisponible.
+Si les données de télémétrie sont manquantes pour une machine, le système doit le signaler explicitement et fournir un score de santé calculé à partir de l'historique de maintenance, sans substituer de valeurs fictives.
+Les différents services de la plateforme (backend, microservice ML, service RAG, stockage d'objets) doivent être déployés sous forme de conteneurs indépendants, permettant à chacun d'être redémarré ou mis à jour sans interrompre les autres.
+
+\subsection{Maintenabilité et évolutivité}
+
+L'architecture doit clairement séparer les responsabilités entre les couches de présentation, de logique métier et d'accès aux données, afin de faciliter l'ajout de nouveaux modèles prédictifs ou de nouveaux rôles sans refonte complète.
+Les migrations de base de données doivent être versionnées et appliquées de façon incrémentale via un outil dédié (Alembic), garantissant la traçabilité de l'évolution du schéma.
+Le code des modèles ML doit être organisé de sorte qu'un modèle individuel puisse être remplacé ou mis à jour sans affecter les autres pipelines de prédiction.
+
+\subsection{Portabilité et déploiement}
+
+L'ensemble de la plateforme doit pouvoir s'exécuter sur tout environnement disposant de Docker et Docker Compose, sans installation manuelle de dépendances.
+La configuration spécifique à l'environnement (URL, clés, paramètres de connexion) doit être centralisée dans un fichier \texttt{.env} unique, séparé du code source.
+
+\subsection{Ergonomie et utilisabilité}
+
+L'interface doit adapter ses menus, tableaux de bord et actions disponibles au rôle de l'utilisateur connecté, sans exposer de fonctionnalités au-delà de son périmètre.
+Les informations issues des modèles prédictifs doivent être présentées en langage métier (probabilité de panne, durée de vie utile restante, pièces nécessaires) sans terminologie algorithmique (noms de modèles, métriques statistiques brutes).
+L'interface doit être utilisable depuis un poste de travail de bureau comme depuis une tablette utilisée sur le terrain, avec une mise en page adaptée à chaque format d'écran.
+
+\subsection{Intégrité et confidentialité des données}
+
+Les données de chaque machine ne doivent être accessibles qu'aux utilisateurs dont le rôle les y autorise explicitement ; un technicien ne doit pas pouvoir consulter les données d'une machine qui ne lui est pas affectée.
+L'historique des interventions, des alertes et des prédictions doit être conservé avec intégrité : aucune modification rétroactive n'est autorisée une fois un ordre ou une alerte clôturé.
+
+\subsection{Récapitulatif}
+
+Au-delà des fonctionnalités, la plateforme est encadrée par des contraintes de qualité explicites : temps de réponse inférieurs à deux secondes, dégradation gracieuse des fonctionnalités dépendantes du ML et de la télémétrie lorsqu'une dépendance est indisponible, et une séparation stricte des responsabilités qui garde chaque service déployable indépendamment. Ces contraintes, et pas seulement la liste fonctionnelle, ont orienté plusieurs décisions d'implémentation décrites au Chapitre~4 (conteneurs indépendants, portes de sécurité non bloquantes, mécanisme de repli du score de santé).
+

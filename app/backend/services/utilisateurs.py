@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.utilisateurs import Utilisateurs
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -66,17 +65,40 @@ class UtilisateursService:
     ) -> Dict[str, Any]:
         """Get paginated list of utilisateurss (user can only see their own records)"""
         try:
-            query, count_query = _apply_filters(
-                select(Utilisateurs),
-                select(func.count(Utilisateurs.id)),
-                Utilisateurs,
-                query_dict,
-            )
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Utilisateurs)
+            query = select(Utilisateurs)
+            count_query = select(func.count(Utilisateurs.id))
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Utilisateurs, field):
+                        query = query.where(getattr(Utilisateurs, field) == value)
+                        count_query = count_query.where(
+                            getattr(Utilisateurs, field) == value
+                        )
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Utilisateurs, field_name):
+                        query = query.order_by(getattr(Utilisateurs, field_name).desc())
+                else:
+                    if hasattr(Utilisateurs, sort):
+                        query = query.order_by(getattr(Utilisateurs, sort))
+            else:
+                query = query.order_by(Utilisateurs.id.desc())
+
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching utilisateurs list: {str(e)}")
             raise

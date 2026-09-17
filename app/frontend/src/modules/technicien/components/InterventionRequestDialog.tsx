@@ -123,7 +123,7 @@ export const InterventionRequestDialog: React.FC<Props> = ({
 
         const mData = mResponseData.data || mResponseData;
 
-        if (mData?.id) {
+        if (mData && mData.id) {
           console.log('✅ Setting restricted machine:', mData.nom);
           setMachines([mData]);
           setForm(prev => ({ ...prev, machine_id: mData.id }));

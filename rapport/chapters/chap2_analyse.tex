@@ -11,110 +11,11 @@ The EAM platform distinguishes four main roles:
 \end{itemize}
 
 \noindent
-Figure~\ref{fig:use-case-diagram} presents the detailed use case diagram, showing the interactions between the four roles and the complete set of system features.
-
-\begin{figure}[H]
-\centering
-\begin{tikzpicture}[scale=0.74,
-  uc/.style={ellipse, draw, align=center, font=\footnotesize,
-             text width=2.8cm, inner sep=3pt},
-  uca/.style={ellipse, draw, align=center, font=\scriptsize,
-              text width=2.0cm, inner sep=2pt},
-  inc/.style={dashed, -{Latex}},
-  ext/.style={dashed, -{Latex}},
-]
-
-%% ---- SYSTEM BOUNDARY ----
-\draw[thick] (3.5,-2.2) rectangle (19.0,22.5);
-\node[above, font=\small\bfseries] at (11.25,22.5) {EAM APP};
-
-%% ---- ACTOR: Chefop (centered at y≈20.8) ----
-\draw (1.5,21.4) circle (0.32);
-\draw (1.5,21.08) -- (1.5,20.35);
-\draw (1.1,20.72) -- (1.9,20.72);
-\draw (1.5,20.35) -- (1.2,19.75) (1.5,20.35) -- (1.8,19.75);
-\node[below, font=\footnotesize] at (1.5,19.75) {Chefop};
-
-%% ---- ACTOR: Thech (centered at y≈13.5) ----
-\draw (1.5,14.1) circle (0.32);
-\draw (1.5,13.78) -- (1.5,13.05);
-\draw (1.1,13.42) -- (1.9,13.42);
-\draw (1.5,13.05) -- (1.2,12.45) (1.5,13.05) -- (1.8,12.45);
-\node[below, font=\footnotesize] at (1.5,12.45) {Thech};
-
-%% ---- ACTOR: ChefTech (centered at y≈6.5) ----
-\draw (1.5,7.1) circle (0.32);
-\draw (1.5,6.78) -- (1.5,6.05);
-\draw (1.1,6.42) -- (1.9,6.42);
-\draw (1.5,6.05) -- (1.2,5.45) (1.5,6.05) -- (1.8,5.45);
-\node[below, font=\footnotesize] at (1.5,5.45) {ChefTech};
-
-%% ---- ACTOR: Admin (centered at y≈0.5) ----
-\draw (1.5,1.1) circle (0.32);
-\draw (1.5,0.78) -- (1.5,0.05);
-\draw (1.1,0.42) -- (1.9,0.42);
-\draw (1.5,0.05) -- (1.2,-0.55) (1.5,0.05) -- (1.8,-0.55);
-\node[below, font=\footnotesize] at (1.5,-0.55) {Admin};
-
-%% ---- USE CASES (main column x=8.5) ----
-\node[uc] (eth)    at (8.5, 21.5) {manage\\labels};
-\node[uc] (stat)   at (8.5, 19.6) {view machine\\status};
-\node[uc] (bt)     at (8.5, 17.6) {manage\\intervention orders};
-\node[uc] (plan)   at (8.5, 15.6) {view\\schedule};
-  \node[uca] (jr)   at (5.5, 13.4) {by day};
-  \node[uca] (sem)  at (8.5, 13.4) {by week};
-  \node[uca] (mois) at (11.5,13.4) {by month};
-\node[uc] (rap)    at (8.5, 11.5) {view\\reports};
-\node[uc] (arch)   at (8.5,  9.7) {manage archive};
-\node[uc] (ot)     at (8.5,  7.8) {manage\\work order tasks};
-\node[uc] (alerte) at (8.5,  5.9) {manage\\alerts};
-  \node[uca] (prio) at (5.5,  4.0) {by priority};
-\node[uc] (gplan)  at (8.5,  2.3) {manage\\schedule};
-\node[uc] (roles)  at (8.5,  0.5) {manage\\roles/users};
-
-%% ---- AUTHENTICATION (right side, large ellipse) ----
-\node[uc, text width=3.2cm, minimum height=3.2cm]
-  (auth) at (16.0, 11.0) {authentication};
-
-%% ---- ASSOCIATIONS actor -> use case ----
-\draw (1.5,21.4) -- (eth);
-\draw (1.5,21.4) -- (stat);
-\draw (1.5,14.1) -- (bt);
-\draw (1.5,14.1) -- (plan);
-\draw (1.5,14.1) -- (rap);
-\draw (1.5,14.1) -- (arch);
-\draw (1.5,7.1)  -- (ot);
-\draw (1.5,7.1)  -- (alerte);
-\draw (1.5,1.1)  -- (gplan);
-\draw (1.5,1.1)  -- (roles);
-
-%% ---- <<extends>> RELATIONS ----
-\draw[ext] (plan) -- node[midway, above left,  font=\tiny]{<<extends>>} (jr);
-\draw[ext] (plan) -- node[midway, right,        font=\tiny]{<<extends>>} (sem);
-\draw[ext] (plan) -- node[midway, above right,  font=\tiny]{<<extends>>} (mois);
-\draw[ext] (alerte) -- node[midway, left, font=\tiny]{<<extends>>} (prio);
-
-%% ---- <<includes>> RELATIONS to authentication ----
-%% A single label on the middle arrow for readability
-\draw[inc] (eth)    -- (auth);
-\draw[inc] (stat)   -- (auth);
-\draw[inc] (bt)     -- (auth);
-\draw[inc] (plan)   -- node[midway, above, sloped, font=\tiny]{<<includes>>} (auth);
-\draw[inc] (rap)    -- (auth);
-\draw[inc] (arch)   -- (auth);
-\draw[inc] (ot)     -- (auth);
-\draw[inc] (alerte) -- (auth);
-\draw[inc] (gplan)  -- (auth);
-\draw[inc] (roles)  -- (auth);
-
-\end{tikzpicture}
-\caption{Use case diagram of the EAM platform}
-\label{fig:use-case-diagram}
-\end{figure}
+The detailed use case diagram, showing the interactions between the four roles and the complete set of system features, is presented in Chapter~3 (Section~\ref{sec:use-case-diagram}), alongside the rest of the system design.
 
 \subsection{Summary}
 
-The platform serves four roles --- Administrator, Operations Manager, Head Technician, Technician --- each scoped to a distinct slice of the system, from global user and document management down to field execution and the conversational assistant. The use case diagram formalizes these boundaries, tying every feature to the role(s) authorized to use it and routing all of them through a shared authentication gate.
+The platform serves four roles (Administrator, Operations Manager, Head Technician, Technician), each scoped to a distinct slice of the system, from global user and document management down to field execution and the conversational assistant. The use case diagram, detailed in Chapter~3, formalizes these boundaries, tying every feature to the role(s) authorized to use it and routing all of them through a shared authentication gate.
 
 \section{Functional requirements}
 
@@ -124,10 +25,31 @@ The system must require authentication with a username and password before grant
 Each user is assigned a single role (Administrator, Operations Manager, Head Technician, Technician) that determines the full set of accessible features and data.
 Any attempt to access an unauthorized resource must be rejected by the server, independently of any interface-side control.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_auth.png}
+\caption{Login screen: access rejected pending administrator approval}
+\label{fig:req-auth}
+\end{figure}
+
 \subsection{User and role management}
 
 The administrator must be able to create, edit, deactivate, and delete user accounts, and assign them a role.
 The system must guarantee that a deactivated account can no longer authenticate, without deleting its associated action history.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_user_role.png}
+\caption{User and role management screen}
+\label{fig:req-user-role-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_user_role_2.png}
+\caption{User and role management screen: role assignment detail}
+\label{fig:req-user-role-2}
+\end{figure}
 
 \subsection{Machine asset management}
 
@@ -135,10 +57,24 @@ The system must allow machines to be registered with their technical characteris
 Each machine has a detailed, viewable record combining its current health status, maintenance history, active alerts, and ongoing predictions.
 The administrator can add, edit, or archive a machine without affecting the existing work orders attached to it.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_machine_asset.png}
+\caption{Machine asset management screen}
+\label{fig:req-machine-asset}
+\end{figure}
+
 \subsection{Machine labeling}
 
 The Operations Manager must be able to attach descriptive labels to each machine to facilitate classification and search.
 The system must support creating, editing, and deleting labels, as well as assigning them to several machines at once.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_machine_labeling.png}
+\caption{Machine labeling screen}
+\label{fig:req-machine-labeling}
+\end{figure}
 
 \subsection{Work order management}
 
@@ -146,11 +82,25 @@ The system must support creating a work order (OT) by specifying the machine con
 A work order follows a defined lifecycle: pending, assigned, in progress, completed, or cancelled. Every transition must be logged with the identity of the user and a timestamp.
 The Head Technician can view all work orders, filter them by status or priority, and reassign them in the event a technician is unavailable.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_work_order.png}
+\caption{Work order management screen}
+\label{fig:req-work-order}
+\end{figure}
+
 \subsection{Intervention order management}
 
 An intervention order (BT) is created from a work order and assigned to a specific technician with a time slot.
 The technician must be able to view their assigned intervention orders, record the actions performed and the parts replaced, and close the intervention.
 When an intervention is closed, the system must automatically trigger an update of the machine's health score and a retroactive evaluation of earlier predictions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_intervention_order.png}
+\caption{Intervention order management screen}
+\label{fig:req-intervention-order}
+\end{figure}
 
 \subsection{Intervention scheduling}
 
@@ -158,11 +108,32 @@ The system must provide a calendar view of planned interventions, navigable by d
 The Head Technician must be able to schedule a new intervention, modify an existing time slot, and check technician availability before any assignment.
 The schedule must visually flag assignment conflicts (a technician already booked for the same time slot).
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_intervention_scheduling.png}
+\caption{Intervention scheduling screen}
+\label{fig:req-intervention-scheduling}
+\end{figure}
+
 \subsection{Telemetry data collection and monitoring}
 
 The system must record sensor readings for each machine: air temperature, process temperature, rotational speed, torque, and tool wear.
 This data constitutes the primary source for the prediction models and must be viewable as a timestamped history per machine.
 In the absence of real telemetry data for a machine, the system must explicitly report the unavailability of predictions rather than substituting default values.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_telemetry.png}
+\caption{Telemetry data collection and monitoring screen}
+\label{fig:req-telemetry-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_telemetry_2.png}
+\caption{Telemetry data collection and monitoring screen: sensor history detail}
+\label{fig:req-telemetry-2}
+\end{figure}
 
 \subsection{Machine learning predictions}
 
@@ -183,11 +154,32 @@ The system must automatically generate alerts when a model detects a high failur
 Alerts must be classified by criticality level and viewable by the Head Technician, with filtering by priority.
 An alert that has already been handled (linked to a closed work order) must be automatically archived and no longer appear in the active list.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_alerts.png}
+\caption{Alerts and notifications screen}
+\label{fig:req-alerts-1}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_alerts_2.png}
+\caption{Alerts and notifications screen: alert detail}
+\label{fig:req-alerts-2}
+\end{figure}
+
 \subsection{Spare parts coordination}
 
 Based on failure predictions, the system must estimate future spare parts needs per machine and generate provisioning proposals.
 These proposals take the form of draft purchase orders subject to explicit human validation: no order can be issued automatically without approval from the Head Technician.
 The system also exposes an operational readiness score per machine, combining health status, stock level, and proximity to the next intervention.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_spare_parts.png}
+\caption{Spare parts coordination screen}
+\label{fig:req-spare-parts}
+\end{figure}
 
 \subsection{Knowledge base and conversational assistant}
 
@@ -200,38 +192,60 @@ The assistant's responses must combine information extracted from relevant docum
 Each role has a personalized dashboard: a fleet-wide overview for the Administrator and the Operations Manager, an intervention and alert monitoring view for the Head Technician, and an assigned-tasks view for the Technician.
 The system must support viewing summary reports on maintenance activity, machine performance, and the evolution of predictive indicators.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_admin.png}
+\caption{Dashboards and reports: Administrator view}
+\label{fig:req-dashboard-admin}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_cheftech.png}
+\caption{Dashboards and reports: Head Technician view}
+\label{fig:req-dashboard-cheftech}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_dashboard_tech.png}
+\caption{Dashboards and reports: Technician view}
+\label{fig:req-dashboard-tech}
+\end{figure}
+
 \subsection{Archiving and traceability}
 
 Every action performed on a work order, an intervention order, or an alert must be logged in an audit trail with the identity of the author, the date, and the nature of the action.
 Closed interventions and handled alerts must be preserved in a viewable, non-modifiable history, serving as the basis for the continuous evaluation of the predictive models.
 
-\subsection{Summary}
-
-Twelve requirement areas were specified, spanning classic EAM operations (users, machines, work orders, interventions, scheduling) and the ML-driven layer built on top of them (six predictive indicators, alerts, spare-parts coordination, the conversational assistant). Two constraints recur across nearly all of them: every prediction must ship with a plain-language explanation, and the system must degrade honestly --- reporting missing telemetry rather than fabricating a plausible-looking answer.
-
-\section{Non-functional requirements}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{figures/ss_req_archiving.png}
+\caption{Archiving and traceability screen}
+\label{fig:req-archiving}
+\end{figure}
 
 \subsection{Application security}
 
-Access to the platform must be protected by token-based authentication (JWT), renewed at each session.
+Access to the platform must be protected by token-based authentication (JSON Web Token, JWT), renewed at each session.
 Authorization control must be enforced server-side on every API endpoint, independently of the user interface: no sensitive data must be accessible through simple manipulation of the URL or the HTTP request.
 Passwords must be stored in hashed form; application secrets (API keys, connection parameters) must be isolated in environment variables and must never appear in the source code.
 Every significant action (creating, editing, or closing a work order or intervention order, validating an alert) must be logged in a non-modifiable audit trail.
 
 \subsection{DevSecOps pipeline}
 
-Security must be built into the development process through a dedicated GitLab CI/CD pipeline, covering the entire software supply chain.
+Security must be built into the development process through a dedicated GitLab CI/CD (\textit{Continuous Integration / Continuous Deployment}) pipeline, covering the entire software supply chain.
 The pipeline includes five stages, run automatically on every code push, each illustrated below.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_pipeline_overview.png}
-\caption{GitLab CI/CD pipeline --- overview of all stages}
+\caption{GitLab CI/CD pipeline: overview of all stages}
 \label{fig:ss-pipeline-overview}
 \end{figure}
 
 \paragraph{Secret scanning (Gitleaks).}
-Detection of any secret or sensitive credential accidentally present in the source code or the Git history.
+Every commit is scanned for accidentally hard-coded credentials, API keys, tokens, passwords, and certificates, wherever they appear: the current tree or past Git history.
 
 \begin{figure}[H]
 \centering
@@ -261,12 +275,12 @@ Detection of any secret or sensitive credential accidentally present in the sour
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_pipeline_gitleaks.png}
-\caption{GitLab CI job --- \texttt{scan-secrets} (Gitleaks)}
+\caption{GitLab CI job: \texttt{scan-secrets} (Gitleaks)}
 \label{fig:ss-pipeline-gitleaks}
 \end{figure}
 
 \paragraph{Software composition analysis (SCA), via pip-audit / pnpm audit.}
-Audit of Python (\textit{pip-audit}) and JavaScript (\textit{pnpm audit}) dependencies to identify known vulnerabilities (CVEs) and non-compliant licenses.
+Two scanners walk the dependency tree on every build, \textit{pip-audit} for the Python backend and ML services, \textit{pnpm audit} for the frontend, cross-referencing each package version against known Common Vulnerabilities and Exposures (CVE) and flagging any license incompatible with the project.
 
 \begin{figure}[H]
 \centering
@@ -292,7 +306,7 @@ Audit of Python (\textit{pip-audit}) and JavaScript (\textit{pnpm audit}) depend
 \end{figure}
 
 \paragraph{Static application security testing (SAST), via SonarQube.}
-Source code inspection by SonarQube Community Edition (self-hosted instance), covering injection vulnerabilities, error handling, cryptographic quality, and data exposure.
+A self-hosted SonarQube Community Edition instance re-reads the full backend and frontend tree on every push, flagging four recurring risk categories: injection-prone query construction, swallowed or overly broad exception handling, weak cryptographic primitives, and endpoints that could return more data than the calling role should see.
 
 \begin{figure}[H]
 \centering
@@ -326,12 +340,12 @@ Source code inspection by SonarQube Community Edition (self-hosted instance), co
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_pipeline_sast.png}
-\caption{SonarQube issues list --- code smells and maintainability findings}
+\caption{SonarQube issues list: code smells and maintainability findings}
 \label{fig:ss-pipeline-sast}
 \end{figure}
 
 \paragraph{Docker image and infrastructure analysis (Trivy).}
-Scanning of the five Docker images produced by the build, as well as the Docker Compose files, looking for CVEs in system layers and infrastructure misconfigurations. The infrastructure-as-code (IaC) part of this scan (\texttt{trivy config}) inspects the Compose files themselves, not the application code, for configuration risks such as missing resource limits, containers running as root, absent health checks, or ports exposed beyond what is required; it currently covers \texttt{docker-compose.yml}, \texttt{docker-compose.sonarqube.yml}, and \texttt{docker-compose.notebooks.yml}, each producing a JSON/SARIF/HTML report as a pipeline artifact.
+The five Docker images produced by the build, plus the Compose files themselves, are checked for two different risk classes: known CVEs baked into the OS layers, and misconfiguration in the Compose definitions. The infrastructure-as-code (Infrastructure as Code, IaC) part of this scan (\texttt{trivy config}) inspects the Compose files themselves, not the application code, for configuration risks such as missing resource limits, containers running as root, absent health checks, or ports exposed beyond what is required; it currently covers \texttt{docker-compose.yml}, \texttt{docker-compose.sonarqube.yml}, and \texttt{docker-compose.notebooks.yml}, each producing a JSON/SARIF/HTML report as a pipeline artifact.
 
 \begin{figure}[H]
 \centering
@@ -363,12 +377,12 @@ Scanning of the five Docker images produced by the build, as well as the Docker 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_pipeline_trivy.png}
-\caption{Container security dashboard (Trivy) --- vulnerabilities by severity, Grafana}
+\caption{Container security dashboard (Trivy): vulnerabilities by severity, Grafana}
 \label{fig:ss-pipeline-trivy}
 \end{figure}
 
 \paragraph{Dynamic application security testing (DAST), via OWASP ZAP.}
-Active scanning of the running application via the ZAP automation framework, covering authenticated contexts (four roles: Administrator, Head Technician, Operations Manager, Technician) and unauthenticated services (ML microservice, RAG service, frontend), targeting OWASP Top 10 vulnerabilities such as SQL injection, XSS, HTTP header misconfiguration, and authentication flaws.
+The Open Worldwide Application Security Project (OWASP) ZAP (Zed Attack Proxy) automation framework drives the running stack directly: it logs in as each of the four roles in turn (Administrator, Head Technician, Operations Manager, Technician) to probe authenticated routes, then separately probes the three services that sit outside any login wall (ML microservice, RAG service, frontend), hunting in both cases for the OWASP Top 10 categories most relevant here, SQL injection, Cross-Site Scripting (XSS), missing or misconfigured security headers, and authentication bypass.
 
 \begin{figure}[H]
 \centering
@@ -410,7 +424,7 @@ Active scanning of the running application via the ZAP automation framework, cov
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_pipeline_zap.png}
-\caption{DAST dashboard (OWASP ZAP) --- alerts by severity, Grafana}
+\caption{DAST dashboard (OWASP ZAP): alerts by severity, Grafana}
 \label{fig:ss-pipeline-zap}
 \end{figure}
 
@@ -422,19 +436,25 @@ As of the latest scan, the SonarQube quality gate is fully green on all four of 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\textwidth]{figures/ss_sonarqube_quality_gate.png}
-\caption{SonarQube quality gate --- project dashboard}
+\caption{SonarQube quality gate: project dashboard}
 \label{fig:ss-sonarqube-quality-gate}
 \end{figure}
+
+\subsection{Summary}
+
+Fourteen requirement areas were specified, spanning classic EAM operations (users, machines, work orders, interventions, scheduling), the ML-driven layer built on top of them (six predictive indicators, alerts, spare-parts coordination, the conversational assistant), and the security posture of the platform itself (application-level protections and the DevSecOps pipeline that enforces them on every push). Two constraints recur across nearly all of them: every prediction must ship with a plain-language explanation, and the system must degrade honestly, reporting missing telemetry rather than fabricating a plausible-looking answer.
+
+\section{Non-functional requirements}
 
 \subsection{Docker Compose stacks}
 
 The project is split into four independent Docker Compose stacks, each covering a distinct concern and startable on its own:
 
 \begin{itemize}
-\item \texttt{docker-compose.yml} --- the core application stack: Postgres, RabbitMQ, MinIO, the backend API, the Celery worker and scheduler, the RAG service, the ML microservice, the frontend, and pgAdmin.
-\item \texttt{docker-compose.sonarqube.yml} --- the self-hosted SonarQube Community Edition server and its database, used by the SAST stage of the pipeline.
-\item \texttt{docker-compose.monitoring.yml} --- Prometheus, Grafana, and a Pushgateway, used to collect and visualize pipeline and security-scan metrics over time.
-\item \texttt{docker-compose.notebooks.yml} --- the Jupyter research environment used to train and evaluate the Machine Learning models offline.
+\item \texttt{docker-compose.yml}, the core application stack: Postgres, RabbitMQ, MinIO, the backend API, the Celery worker and scheduler, the RAG service, the ML microservice, the frontend, and pgAdmin.
+\item \texttt{docker-compose.sonarqube.yml}, the self-hosted SonarQube Community Edition server and its database, used by the SAST stage of the pipeline.
+\item \texttt{docker-compose.monitoring.yml}, Prometheus, Grafana, and a Pushgateway, used to collect and visualize pipeline and security-scan metrics over time.
+\item \texttt{docker-compose.notebooks.yml}, the Jupyter research environment used to train and evaluate the Machine Learning models offline.
 \end{itemize}
 
 Keeping these four stacks separate means the SonarQube server, the monitoring stack, or the research notebooks can each be started, stopped, or rebuilt independently, without affecting the running application.
@@ -448,7 +468,7 @@ The interface must remain responsive during asynchronous calls to the ML microse
 \subsection{Availability and resilience}
 
 Classic management features (work orders, intervention orders, scheduling) must remain fully operational even if the Machine Learning microservice is unavailable.
-If telemetry data is missing for a machine, the system must explicitly report it and provide a health score computed from maintenance history, without substituting fictitious values.
+Should a machine have no telemetry on record, the platform must say so outright and fall back to a health score built from maintenance history alone, never inventing sensor values to keep the pipeline running.
 The platform's various services (backend, ML microservice, RAG service, object storage) must be deployed as independent containers, allowing any one of them to be restarted or updated without interrupting the others.
 
 \subsection{Maintainability and extensibility}
@@ -475,23 +495,4 @@ The history of interventions, alerts, and predictions must be preserved with int
 
 \subsection{Summary}
 
-Beyond features, the platform is bound by explicit quality constraints: server-side authorization on every route, a five-stage DevSecOps pipeline run on every push (secrets, dependencies, static analysis, container/IaC scanning, dynamic testing), sub-two-second response times, and graceful degradation of both ML and telemetry-dependent features when a dependency is unavailable. These constraints, not just the functional list, shaped several implementation decisions described in Chapter~4 (independent containers, non-blocking security gates, the health-score fallback path).
-
-\section{Use case diagram}
-
-\begin{table}[h]
-\centering
-\begin{tabularx}{\textwidth}{|l|X|}
-\toprule
-\textbf{Actor} & \textbf{Main use cases} \\
-\midrule
-Administrator & Manage users, manage machines, manage the knowledge base, view global statistics \\
-\midrule
-Head Technician & Plan interventions, oversee work orders, arbitrate priorities, review reliability dashboards, validate provisioning proposals \\
-\midrule
-Technician & View assigned intervention orders, close an intervention, view a machine's health status, query the conversational assistant \\
-\bottomrule
-\end{tabularx}
-\caption{Use cases by actor}
-\label{fig:cas-utilisation}
-\end{table}
+Beyond features, the platform is bound by explicit quality constraints: sub-two-second response times, graceful degradation of both ML and telemetry-dependent features when a dependency is unavailable, and a strict separation of concerns that keeps every service independently deployable. These constraints, not just the functional list, shaped several implementation decisions described in Chapter~4 (independent containers, non-blocking security gates, the health-score fallback path).

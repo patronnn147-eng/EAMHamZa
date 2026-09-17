@@ -41,6 +41,7 @@ interface WorkOrderFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingWorkOrder: OrdreTravail | null;
+  machines: Machine[];
   plannings: PlanningOption[];
   attachments: File[];
   setAttachments: (files: File[]) => void;

@@ -33,7 +33,7 @@ The whole system is orchestrated by Docker, with object storage (MinIO) for docu
 
 \subsection{Summary}
 
-The platform is a four-component system --- Next.js frontend, FastAPI backend, Flask ML microservice, RAG service --- communicating over HTTP, with PostgreSQL and MinIO as shared storage and Docker as the deployment substrate. The backend sits at the center, acting as the sole point of contact for the frontend and fanning out to the two specialist services as needed.
+The platform is a four-component system (Next.js frontend, FastAPI backend, Flask ML microservice, RAG service) communicating over HTTP, with PostgreSQL and MinIO as shared storage and Docker as the deployment substrate. The backend sits at the center, acting as the sole point of contact for the frontend and fanning out to the two specialist services as needed.
 
 \section{Global business process flow}
 
@@ -90,14 +90,141 @@ Figure~\ref{fig:class-diagram} details this model at the class level, with the f
 
 \subsection{Summary}
 
-Four entities --- User, Machine, WorkOrder, InterventionOrder --- anchor the relational schema, with Alert bridging that operational core to the ML microservice's predictions. The full class diagram (Figure~\ref{fig:class-diagram}) expands this into the complete set of attributes, methods, enumerations, and cardinalities actually implemented.
+Four entities (User, Machine, WorkOrder, InterventionOrder) anchor the relational schema, with Alert bridging that operational core to the ML microservice's predictions. The full class diagram (Figure~\ref{fig:class-diagram}) expands this into the complete set of attributes, methods, enumerations, and cardinalities actually implemented.
+
+\section{Use Case Diagram}
+\label{sec:use-case-diagram}
+
+Figure~\ref{fig:use-case-diagram} presents the detailed use case diagram, showing the interactions between the four roles identified in Chapter~2 and the complete set of system features.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[scale=0.74,
+  uc/.style={ellipse, draw, align=center, font=\footnotesize,
+             text width=2.8cm, inner sep=3pt},
+  uca/.style={ellipse, draw, align=center, font=\scriptsize,
+              text width=2.0cm, inner sep=2pt},
+  inc/.style={dashed, -{Latex}},
+  ext/.style={dashed, -{Latex}},
+]
+
+%% ---- SYSTEM BOUNDARY ----
+\draw[thick] (3.5,-2.2) rectangle (19.0,22.5);
+\node[above, font=\small\bfseries] at (11.25,22.5) {EAM APP};
+
+%% ---- ACTOR: Chefop (centered at y≈20.8) ----
+\draw (1.5,21.4) circle (0.32);
+\draw (1.5,21.08) -- (1.5,20.35);
+\draw (1.1,20.72) -- (1.9,20.72);
+\draw (1.5,20.35) -- (1.2,19.75) (1.5,20.35) -- (1.8,19.75);
+\node[below, font=\footnotesize] at (1.5,19.75) {Chefop};
+
+%% ---- ACTOR: Thech (centered at y≈13.5) ----
+\draw (1.5,14.1) circle (0.32);
+\draw (1.5,13.78) -- (1.5,13.05);
+\draw (1.1,13.42) -- (1.9,13.42);
+\draw (1.5,13.05) -- (1.2,12.45) (1.5,13.05) -- (1.8,12.45);
+\node[below, font=\footnotesize] at (1.5,12.45) {Thech};
+
+%% ---- ACTOR: ChefTech (centered at y≈6.5) ----
+\draw (1.5,7.1) circle (0.32);
+\draw (1.5,6.78) -- (1.5,6.05);
+\draw (1.1,6.42) -- (1.9,6.42);
+\draw (1.5,6.05) -- (1.2,5.45) (1.5,6.05) -- (1.8,5.45);
+\node[below, font=\footnotesize] at (1.5,5.45) {ChefTech};
+
+%% ---- ACTOR: Admin (centered at y≈0.5) ----
+\draw (1.5,1.1) circle (0.32);
+\draw (1.5,0.78) -- (1.5,0.05);
+\draw (1.1,0.42) -- (1.9,0.42);
+\draw (1.5,0.05) -- (1.2,-0.55) (1.5,0.05) -- (1.8,-0.55);
+\node[below, font=\footnotesize] at (1.5,-0.55) {Admin};
+
+%% ---- USE CASES (main column x=8.5) ----
+\node[uc] (eth)    at (8.5, 21.5) {manage\\labels};
+\node[uc] (stat)   at (8.5, 19.6) {view machine\\status};
+\node[uc] (bt)     at (8.5, 17.6) {manage\\intervention orders};
+\node[uc] (plan)   at (8.5, 15.6) {view\\schedule};
+  \node[uca] (jr)   at (5.5, 13.4) {by day};
+  \node[uca] (sem)  at (8.5, 13.4) {by week};
+  \node[uca] (mois) at (11.5,13.4) {by month};
+\node[uc] (rap)    at (8.5, 11.5) {view\\reports};
+\node[uc] (arch)   at (8.5,  9.7) {manage archive};
+\node[uc] (ot)     at (8.5,  7.8) {manage\\work order tasks};
+\node[uc] (alerte) at (8.5,  5.9) {manage\\alerts};
+  \node[uca] (prio) at (5.5,  4.0) {by priority};
+\node[uc] (gplan)  at (8.5,  2.3) {manage\\schedule};
+\node[uc] (roles)  at (8.5,  0.5) {manage\\roles/users};
+
+%% ---- AUTHENTICATION (right side, large ellipse) ----
+\node[uc, text width=3.2cm, minimum height=3.2cm]
+  (auth) at (16.0, 11.0) {authentication};
+
+%% ---- ASSOCIATIONS actor -> use case ----
+\draw (1.5,21.4) -- (eth);
+\draw (1.5,21.4) -- (stat);
+\draw (1.5,14.1) -- (bt);
+\draw (1.5,14.1) -- (plan);
+\draw (1.5,14.1) -- (rap);
+\draw (1.5,14.1) -- (arch);
+\draw (1.5,7.1)  -- (ot);
+\draw (1.5,7.1)  -- (alerte);
+\draw (1.5,1.1)  -- (gplan);
+\draw (1.5,1.1)  -- (roles);
+
+%% ---- <<extends>> RELATIONS ----
+\draw[ext] (plan) -- node[midway, above left,  font=\tiny]{<<extends>>} (jr);
+\draw[ext] (plan) -- node[midway, right,        font=\tiny]{<<extends>>} (sem);
+\draw[ext] (plan) -- node[midway, above right,  font=\tiny]{<<extends>>} (mois);
+\draw[ext] (alerte) -- node[midway, left, font=\tiny]{<<extends>>} (prio);
+
+%% ---- <<includes>> RELATIONS to authentication ----
+%% A single label on the middle arrow for readability
+\draw[inc] (eth)    -- (auth);
+\draw[inc] (stat)   -- (auth);
+\draw[inc] (bt)     -- (auth);
+\draw[inc] (plan)   -- node[midway, above, sloped, font=\tiny]{<<includes>>} (auth);
+\draw[inc] (rap)    -- (auth);
+\draw[inc] (arch)   -- (auth);
+\draw[inc] (ot)     -- (auth);
+\draw[inc] (alerte) -- (auth);
+\draw[inc] (gplan)  -- (auth);
+\draw[inc] (roles)  -- (auth);
+
+\end{tikzpicture}
+\caption{Use case diagram of the EAM platform}
+\label{fig:use-case-diagram}
+\end{figure}
+
+Table~\ref{fig:cas-utilisation} summarizes the main use cases handled by each actor.
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\toprule
+\textbf{Actor} & \textbf{Main use cases} \\
+\midrule
+Administrator & Manage users, manage machines, manage the knowledge base, view global statistics \\
+\midrule
+Head Technician & Plan interventions, oversee work orders, arbitrate priorities, review reliability dashboards, validate provisioning proposals \\
+\midrule
+Technician & View assigned intervention orders, close an intervention, view a machine's health status, query the conversational assistant \\
+\bottomrule
+\end{tabularx}
+\caption{Use cases by actor}
+\label{fig:cas-utilisation}
+\end{table}
+
+\subsection{Summary}
+
+The use case diagram and its accompanying table translate the role boundaries introduced in Chapter~2 into a single visual and tabular reference: every feature is tied to the role(s) authorized to use it, and every path to a protected feature routes through the shared authentication gate.
 
 \section{Machine Learning pipeline architecture}
 \label{sec:ml-pipeline-architecture}
 
 \subsection{Problem framing and maintenance strategy}
 
-Industrial equipment fails along a degradation curve that is, in most cases, measurable long before the failure itself becomes visible. Three maintenance strategies exist. \textbf{Reactive maintenance} waits for failure before acting: unplanned downtime, emergency parts orders, and production losses are its defining characteristics, and it represents the worst operating mode in terms of total cost. \textbf{Preventive maintenance} acts on a fixed calendar, replacing components that may still have significant life remaining while missing failures that occur between scheduled intervals. \textbf{Predictive maintenance} is the target of this platform: it uses sensor data and ML models to estimate when a machine will fail, which failure type is developing, and what parts will be needed, and it does this before the failure occurs, so that maintenance can be triggered at the right moment rather than too early or too late.
+Every machine on the line degrades before it breaks, and that degradation is, in most cases, visible in the sensor data well ahead of the actual stoppage, which is the premise this ML pipeline is built on. The platform is designed against the two maintenance modes it replaces. Left purely reactive, a line only gets attention once it has already stopped: technicians scramble, parts get ordered on emergency terms, and the line sits idle in the meantime, the most expensive mode measured in total cost, not just repair cost. A fixed preventive calendar avoids the worst of that but trades it for its own waste: a part gets swapped on schedule whether it needed it or not, and a machine degrading faster than the calendar assumes still fails between two scheduled visits. What this platform does instead is read the machine's own signals, temperature, torque, tool wear, rotational speed, continuously, and use that to answer three questions before a failure happens: is this machine about to fail, what kind of failure is developing, and which parts will the technician need on hand. Timing the intervention off the machine's actual condition rather than off a clock is the point of the seven-model pipeline described in the rest of this section.
 
 The core question every component of the ML service is designed to answer is: \emph{given a machine's current sensor readings and history, how healthy is it right now, how long before it needs intervention, and what should the team prepare?}
 
@@ -149,6 +276,150 @@ The most significant data quality issue found during development was \emph{targe
 
 \paragraph{Group-holdout validation.}
 For time-series machine data, a random 80/20 row split is unsound: both sets contain readings from the same machines, which means the model sees data from a machine's own degradation trajectory in both training and test. This inflates test scores by memorisation rather than generalisation. The correct procedure is to hold out entire machines during training (for example, withholding machines with IDs 70--79 entirely) so that evaluation is always performed on machines the model has never encountered. This is the methodology used for P3, and it is the reason its validation metrics are considered reliable while the others' are not.
+
+\subsection{The six initial problem definitions}
+
+This subsection reproduces the six problem definitions exactly as originally specified for the project, before any implementation work began.
+
+\paragraph{Problem 1: Predictive Maintenance.}
+\emph{"Will this machine fail soon?"}
+
+\textbf{Type:} Binary Classification (0 = Healthy, 1 = Failed)
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|l|X|}
+\toprule
+\textbf{Pipeline Step} & \textbf{What We Do} \\
+\midrule
+Define the problem & Predict if a machine will fail based on sensor telemetry \\
+\midrule
+Collect data & \texttt{ai4i2020.csv}: 10,000 rows (Kaggle AI4I 2020 dataset) \\
+\midrule
+Prepare \& clean & Select 5 features: Air Temp, Process Temp, RPM, Torque, Tool Wear \\
+\midrule
+Split data & 80/20 train-test split with \texttt{stratify=y} \\
+\midrule
+Choose a model & \texttt{RandomForestClassifier} (handles non-linear sensor data) \\
+\midrule
+Train the model & \texttt{ml\_train\_basic.py} with sur\'{e}chantillonnage SMOTE (\textit{Synthetic Minority Over-sampling Technique}) + GridSearchCV tuning \\
+\midrule
+Evaluate & Confusion matrix: 98\% accuracy, 63\% recall on failures \\
+\midrule
+Tune \& improve & \texttt{class\_weight='balanced'}, SMOTE, GridSearchCV (done) \\
+\midrule
+Save the model & \texttt{basic\_machine\_model.pkl} \\
+\midrule
+Deploy & \texttt{GET /api/v1/ml/machines/\{id\}/prediction} $\rightarrow$ displayed in \texttt{PredictivePanel.tsx} \\
+\bottomrule
+\end{tabularx}
+\caption{Problem 1 pipeline walkthrough}
+\label{tab:p1-walkthrough}
+\end{table}
+
+\paragraph{Problem 2: Failure Type Classification.}
+\emph{"What TYPE of failure is likely?"}
+
+\textbf{Type:} Multi-label Classification
+
+The dataset includes 5 failure sub-labels:
+\begin{itemize}
+\item \texttt{TWF}: Tool Wear Failure
+\item \texttt{HDF}: Heat Dissipation Failure (\textbf{57\% correlation} with failure, the strongest predictor)
+\item \texttt{PWF}: Power Failure
+\item \texttt{OSF}: Overstrain Failure
+\item \texttt{RNF}: Random Failure
+\end{itemize}
+
+\textbf{Benefit for EAM:} Auto-suggest work order type (mechanical, electrical, thermal) so the ChefTech assigns the right technician.
+
+\paragraph{Problem 3: Remaining Useful Life (RUL) Estimation.}
+\emph{"How many days before this machine needs maintenance?"}
+
+\textbf{Type:} Regression (\texttt{RandomForestRegressor} or XGBoost)
+
+\begin{itemize}
+\item \textbf{Input:} Tool wear progression over time + intervention history
+\item \textbf{Output:} \texttt{rul\_days} $\leftarrow$ already displayed in \texttt{PredictivePanel.tsx}
+\item \textbf{Data source:} Real operational data from the PostgreSQL \texttt{interventions} table
+\end{itemize}
+
+\paragraph{Problem 4: Anomaly Detection.}
+\emph{"Is this machine behaving abnormally right now?"}
+
+\textbf{Type:} Unsupervised Learning (no labels needed)
+
+\begin{itemize}
+\item \textbf{Model:} Isolation Forest or Autoencoder
+\item \textbf{Input:} Real-time telemetry (temperature, RPM, torque)
+\item \textbf{Benefit for EAM:} Trigger SSE alerts via \texttt{core/notifications.py} when anomaly is detected, even before a failure is predicted
+\end{itemize}
+
+\paragraph{Problem 5: Work Order Priority Prediction.}
+\emph{"How urgent should this work order be?"}
+
+\textbf{Type:} Multi-class Classification
+
+\begin{itemize}
+\item \textbf{Classes:} \texttt{LOW}, \texttt{MEDIUM}, \texttt{HIGH}, \texttt{CRITICAL}
+\item \textbf{Features:} Machine age, time since last maintenance, number of previous interventions, machine zone
+\item \textbf{Data source:} PostgreSQL \texttt{work\_orders} and \texttt{interventions} tables
+\end{itemize}
+
+\paragraph{Problem 6: Maintenance Schedule Optimization.}
+\emph{"When is the BEST time to schedule maintenance for all machines?"}
+
+\textbf{Type:} Time-series forecasting (ARIMA, Prophet, or LSTM)
+
+\begin{itemize}
+\item \textbf{Input:} Historical planning data + failure rates per machine
+\item \textbf{Benefit for EAM:} Fewer unexpected breakdowns, better technician allocation across zones
+\end{itemize}
+
+\paragraph{Summary.}
+
+\begin{table}[h]
+\centering
+\begin{tabularx}{\textwidth}{|c|X|X|X|X|}
+\toprule
+\textbf{\#} & \textbf{Problem} & \textbf{ML Type} & \textbf{Priority} & \textbf{Data Source} \\
+\midrule
+1 & Binary failure prediction & Classification & Done & \texttt{ai4i2020.csv} \\
+\midrule
+2 & Failure type (TWF/HDF/PWF\ldots) & Multi-label & High & \texttt{ai4i2020.csv} \\
+\midrule
+3 & RUL estimation & Regression & High & PostgreSQL DB + Kaggle \\
+\midrule
+4 & Anomaly detection & Unsupervised & Medium & Sensor telemetry \\
+\midrule
+5 & Work order priority & Classification & Medium & PostgreSQL DB \\
+\midrule
+6 & Maintenance scheduling & Time-series & Advanced & Planning history \\
+\bottomrule
+\end{tabularx}
+\caption{Summary of the six initial ML problems}
+\label{tab:six-problems-summary}
+\end{table}
+
+\subsection{Eight-step model development pipeline}
+
+Every feature followed the same disciplined loop: written specification, implementation plan, build, then verification. For the six originally scoped ML problems, this loop took the concrete shape of an eight-step pipeline: Step 1: define, Step 2: collect, Step 3: prepare, Step 4: split, Step 5: choose, Step 6: train, Step 7: evaluate, and Step 8: tune. This pipeline was applied identically to each one; two of the choices made at this early stage (a random train/test split and features that were later found to leak the label) were revised once productionisation surfaced the issue in Chapter~5. Parts-demand forecasting (P7) came later, folded in only once the data model underneath the platform could actually support a seventh prediction target.
+
+Each of the six initial problems (binary failure prediction, failure-type classification, remaining useful-life estimation, anomaly detection, work-order priority, and maintenance scheduling) was carried through the same eight stages, summarized in Table~\ref{tab:pipeline-steps}.
+
+\textbf{Step 1: Define and Step 2: Collect.} Each problem was first defined according to its prediction objective, followed by the collection of the data required for its development.
+
+\textbf{Step 3: Prepare.} At the data-preparation stage, a first, self-imposed warning was already recorded for the failure-prediction problem: the five failure sub-labels (TWF, HDF, PWF, OSF, RNF) are deterministic sub-causes of the overall failure flag and must not be used as input features, on pain of artificially inflating accuracy. This is the same class of issue (input features encoding the target) that the later, systematic label-leakage audit formally confirmed and tagged as \texttt{validation\_status: "leaked"} in production (Section~\ref{sec:validation}); it had already been anticipated qualitatively at this earlier stage of the project, but not yet proven or acted upon.
+
+\textbf{Step 4: Split.} Because the failure class represents only 3.39\% of the benchmark dataset, step 4 applied stratified splitting together with SMOTE oversampling (synthetic minority over-sampling, applied strictly after the split to avoid leaking test information into the synthetic samples) for the classification problems, while the maintenance-scheduling problem (being a time series) was split chronologically, since a random shuffle would let the model train on data from after the point it is tested on.
+
+\textbf{Step 5: Choose.} Table~\ref{tab:initial-choices} summarizes the model initially selected for each problem at step 5, and the evaluation target fixed for it at step 7.
+
+\textbf{Step 6: Train and Step 7: Evaluate.} The selected models were trained and evaluated according to the predefined evaluation targets for each problem.
+
+\textbf{Step 8: Tune and improve.} Step 8 defined, for every problem, a concrete lever to close the gap between the measured and the target metric: hyperparameter search via \texttt{GridSearchCV}, classification-threshold adjustment to trade precision for recall, alternative resampling strategies (SMOTE, ADASYN, or undersampling), targeted feature engineering (for instance, a temperature-delta feature to strengthen the heat-dissipation-failure signal), class-weighting of rare priority levels, and early stopping to prevent overfitting on the boosted-tree models.
+
+Several of these initial choices were revised during productionisation, once the label-leakage and validation-methodology issues described in Chapter~5 were identified: Random Forest gave way to XGBoost with group-holdout validation for P1, and the scheduling problem was reworked away from a pure Prophet time-series forecast towards the classifier-based approach and the broader Wave~2 signal-fusion layer presented in this chapter. A seventh problem, spare-parts demand forecasting (P7), was added beyond this original six-problem scope once the platform's data model matured enough to support it.
 
 \subsection{The seven prediction models}
 
@@ -211,7 +482,7 @@ A multi-output XGBoost classifier that predicts which failure mode is developing
 An XGBoost regressor that estimates how many operational cycles remain before the machine requires intervention. It is the only model in the pipeline with a validated, non-leaked signal: after switching from a random row split to group-holdout validation (machines 70--79 withheld entirely from training), the model achieves a mean absolute error of 14.95 cycles and a concordance index of 0.620. A quantile regression head trained alongside the point estimator provides a calibrated prediction interval (P10 to P90), so the dashboard displays a range rather than a single number, reflecting the true uncertainty in the estimate.
 
 \paragraph{P4: Behavioral Anomaly Detection.}
-A four-method ensemble that detects abnormal sensor behaviour. Isolation Forest contributes 30\% of the combined score, Z-Score normalization 20\%, cluster deviation 10\%, and a trained neural autoencoder 40\%. The ensemble score is normalized to $[0,1]$; a score above 0.5 is classified as an anomaly. Using TensorFlow CPU, the autoencoder was trained exclusively on failure-free machine cycles and a separate \texttt{.keras} artifact is loaded at startup alongside the classical methods.
+A four-method ensemble that detects abnormal sensor behaviour. An \textbf{Isolation Forest (IF)} contributes 30\% of the combined score, \textbf{Z-Score} normalization 20\%, cluster deviation 10\%, and a trained neural \textbf{autoencoder (AE)} 40\%. The ensemble score is normalized to $[0,1]$; a score above 0.5 is classified as an anomaly. Using TensorFlow CPU, the autoencoder was trained exclusively on failure-free machine cycles and a separate \texttt{.keras} artifact is loaded at startup alongside the classical methods.
 
 \paragraph{P5: Work Order Priority.}
 An XGBoost classifier that assigns a priority level (LOW, MEDIUM, HIGH, CRITICAL) to a predicted failure, allowing the maintenance scheduler to sequence the work queue. Like P1, its labels in the current training set are derived from the same sensor features, making its accuracy figure unreliable until real priority judgements from technicians are accumulated.
@@ -220,7 +491,7 @@ An XGBoost classifier that assigns a priority level (LOW, MEDIUM, HIGH, CRITICAL
 An XGBoost classifier that recommends the appropriate scheduling window: immediate, within the week, or planned. It enables the platform to distinguish between a machine that needs intervention today and one that can be included in the next scheduled maintenance cycle without risk.
 
 \paragraph{P7: Parts Demand Forecasting.}
-A statistical forecasting module that predicts which spare parts will be needed and when. It combines survival analysis (estimating the probability that a machine will require each part within a future window) with Croston's method for intermittent demand forecasting (suited to parts that are replaced in occasional bursts rather than steadily). When forecast demand exceeds current stock, a shortage alert is raised and a draft procurement request is generated for human approval.
+A statistical forecasting module that predicts which spare parts will be needed and when. It pairs two forecasting logics for two different questions: a survival model estimates the odds that a given machine will need a given part within an upcoming window, while Croston's method, built for demand arriving in occasional bursts rather than a steady trickle, which is how spare parts actually get consumed here, estimates how much of that part will be needed when it is. When forecast demand exceeds current stock, a shortage alert is raised and a draft procurement request is generated for human approval.
 
 \subsection{Wave 2 signal processing models}
 
@@ -228,14 +499,14 @@ A second, parallel pipeline (referred to as Wave 2) processes each machine's tel
 
 \begin{itemize}
 \item a \textbf{Physics-Informed Neural Network (PINN)} that encodes degradation physics as soft constraints in the loss function, preventing the model from producing physically impossible RUL estimates;
-\item a \textbf{Cox Proportional Hazards survival model} that estimates the probability of failure over a future time window while explicitly handling right-censored machines (those still running at the observation cutoff, whose future fate is unknown);
+\item a \textbf{Cox Proportional Hazards (Cox PH) survival model} that estimates the probability of failure over a future time window while explicitly handling right-censored machines (those still running at the observation cutoff, whose future fate is unknown);
 \item a \textbf{Mahalanobis Health Index} that measures how far current sensor readings deviate from that specific machine's own healthy baseline, excluding the tool-wear reset event from computation to avoid false alarms immediately after a tool replacement;
-\item a \textbf{CUSUM anomaly detector} smoothed by a \textbf{Kalman filter} to detect slow cumulative drift that point-in-time snapshots miss.
+\item a \textbf{CUSUM (Cumulative Sum) anomaly detector} smoothed by a \textbf{Kalman filter} to detect slow cumulative drift that point-in-time snapshots miss.
 \end{itemize}
 
 \subsection{Dempster-Shafer evidence fusion}
 
-The outputs of the Wave 2 models are combined through Dempster-Shafer evidence theory (DST), a mathematical framework for combining uncertain, potentially conflicting evidence from independent sources. The frame of discernment is $\Theta = \{\mathrm{Healthy},\, \mathrm{Degrading},\, \mathrm{Critical},\, \mathrm{Unknown}\}$.
+Rather than letting one of the four Wave~2 signals silently override the others, their outputs are reconciled with Dempster-Shafer evidence theory (DST): each signal casts a vote across the same four possible machine states, $\Theta = \{\mathrm{Healthy},\, \mathrm{Degrading},\, \mathrm{Critical},\, \mathrm{Unknown}\}$, and the combination rule is what lets four independently trained models, none of them aware of the others, still produce one defensible answer even when two of them disagree.
 
 Each model converts its output into a \emph{Basic Probability Assignment} (BPA) over $\Theta$ using piecewise-linear membership functions. A model with high confidence contributes most of its mass to one of the three substantive hypotheses; a model that is unavailable or disagrees strongly with the others contributes its mass to \textit{Unknown} rather than distorting the combined estimate. The combination rule switches between Dempster's rule (when conflict $K \leq 0.8$) and the more conservative Yager's rule (when $K > 0.8$), so that genuine disagreement between sources is reported as uncertainty rather than silently overridden.
 
@@ -298,7 +569,7 @@ P7 acts as a smart shopping list rather than an automated buyer. Every spare par
 
 \subsection{Summary}
 
-Seven independent models (P1--P7) each answer one question from a shared telemetry snapshot, feeding a second, history-aware pipeline (Wave~2: PINN, Cox PH, Mahalanobis, CUSUM/Kalman) whose outputs are reconciled through Dempster-Shafer evidence fusion into a single health score and verdict --- reporting genuine uncertainty rather than a false consensus when sources disagree. Three data-quality safeguards run ahead of every prediction (synthetic-data quarantine, null-telemetry handling, group-holdout validation), and the resulting health score, together with parts-demand forecasting, drives the readiness, alerting, and procurement logic described at the end of this section.
+Seven independent models (P1--P7) each answer one question from a shared telemetry snapshot, feeding a second, history-aware pipeline (Wave~2: PINN, Cox PH, Mahalanobis, CUSUM\,/\,Kalman) whose outputs are reconciled through Dempster-Shafer evidence fusion into a single health score and verdict, reporting genuine uncertainty rather than a false consensus when sources disagree. Three data-quality safeguards run ahead of every prediction (synthetic-data quarantine, null-telemetry handling, group-holdout validation), and the resulting health score, together with parts-demand forecasting, drives the readiness, alerting, and procurement logic described at the end of this section.
 
 \section{RAG service and ML bridge architecture}
 
@@ -314,7 +585,7 @@ The RAG service ingests technical documentation (maintenance manuals, safety pro
   qbox/.style={box, fill=orange!12, draw=orange!70!black, minimum width=6.8cm},
   abox/.style={box, fill=green!10, draw=green!50!black}
 ]
-\node[docbox] (docs) {\textbf{Documents}\\{\scriptsize (manuals, procedures) --- stored in MinIO}};
+\node[docbox] (docs) {\textbf{Documents}\\{\scriptsize (manuals, procedures), stored in MinIO}};
 \node[ragbox, below=of docs] (ragin) {\textbf{RAG ingestion}\\{\scriptsize chunks + embeddings}};
 \node[ragbox, right=2.6cm of docs] (mlctx) {\textbf{Real-time ML snapshot}\\{\scriptsize health, alerts, parts for the machine}};
 \node[qbox, below=1.6cm of $(ragin)!0.5!(mlctx)$] (question) {\textbf{Question from technician / CHEFTECH}\\{\scriptsize both sources fetched in parallel}};
@@ -331,7 +602,7 @@ The RAG service ingests technical documentation (maintenance manuals, safety pro
 
 \subsection{Summary}
 
-Documentation retrieval and real-time machine health are fetched in parallel and merged before reaching the language model, so a technician's question is always answered from both sources at once rather than one after the other. Because the two fetches are independent, the assistant keeps responding --- from documentation alone --- even if the ML microservice is down.
+Documentation retrieval and real-time machine health are fetched in parallel and merged before reaching the language model, so a technician's question is always answered from both sources at once rather than one after the other. Because the two fetches are independent, the assistant keeps responding, from documentation alone, even if the ML microservice is down.
 
 \section{Document ingestion pipeline}
 
@@ -362,7 +633,7 @@ Every document submitted to the RAG service (PDF, scanned image, Word document, 
 
 \subsection{Summary}
 
-Every uploaded document passes through the same six deterministic stages --- format check, text extraction with OCR fallback, SHA-256 deduplication, sentence-aware chunking, batch embedding, and pgvector storage --- before it becomes searchable. OCR and deduplication in particular close two failure modes that existed in earlier iterations of the service: scanned PDFs producing zero chunks, and duplicate uploads being re-processed from scratch.
+Every uploaded document passes through the same six deterministic stages (format check, text extraction with OCR fallback, SHA-256 deduplication, sentence-aware chunking, batch embedding, and pgvector storage) before it becomes searchable. OCR and deduplication in particular close two failure modes that existed in earlier iterations of the service: scanned PDFs producing zero chunks, and duplicate uploads being re-processed from scratch.
 
 \section{End-to-end request flow}
 

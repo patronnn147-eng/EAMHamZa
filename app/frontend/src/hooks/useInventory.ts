@@ -193,7 +193,7 @@ export function usePieceSuggestions(query: string, machineId?: number | null) {
       setData([]);
       return;
     }
-    const handle = globalThis.setTimeout(async () => {
+    const handle = window.setTimeout(async () => {
       setLoading(true);
       try {
         const params = new URLSearchParams({ q: query.trim() });
@@ -211,7 +211,7 @@ export function usePieceSuggestions(query: string, machineId?: number | null) {
         setLoading(false);
       }
     }, 300);
-    return () => globalThis.clearTimeout(handle);
+    return () => window.clearTimeout(handle);
   }, [query, machineId]);
 
   return { data, loading };

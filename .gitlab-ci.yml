@@ -1,41 +1,21 @@
 # EAMSagemCom — Source Code Security Pipeline
-# Stages: secret-scan → sca-deps → sast → build → image-scan → dast → lint → gate
-# Blocking: build-images, quality-gate
-# Non-blocking (allow_failure: true, visibility over gating): scan-secrets,
-# audit-backend, audit-frontend, license-scan-backend, license-scan-frontend,
-# sonarqube-scan, iac-scan, image-scan, dast-scan, lint-backend, lint-frontend
-# dast-scan (OWASP ZAP) assumes `make up` is already running on the self-hosted
-# runner host (same convention as sonarqube-scan) — see
-# docs/superpowers/specs/2026-07-20-owasp-zap-dast-design.md
-# SonarQube is the sole SAST tool (Semgrep removed). sonarqube-scan requires a
-# self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
-# SonarQube Community Edition has no branch analysis — the project key is suffixed
-# with $CI_COMMIT_REF_SLUG so each branch gets its own project (poor-man's branch
-# separation, works within CE's free-tier limits).
+# Stages: secret-scan → sca-deps → sast → sonarqube → build → image-scan → lint → gate
+# Blocking: secret-scan, sca-deps, sast, sonarqube, build, image-scan, gate
+# Non-blocking: lint (allow_failure: true)
+# sonarqube-scan requires a self-hosted runner tagged "local" + local SonarQube on http://host.docker.internal:9090
 
 stages:
   - secret-scan
   - sca-deps
-  - test
   - sast
+  - sonarqube
   - build
   - image-scan
-  - dast
   - lint
   - gate
-  - registry-push
-  - deploy
-  - verify
 
 variables:
   GIT_LFS_SKIP_SMUDGE: "1"
-
-# Shared branch/MR trigger condition. Matches "main", any "clean_Phase_N",
-# and any "Phase_N" branch — so Phase_3, Phase_4, etc. get full pipeline
-# coverage automatically, with zero edits to this file.
-.branch-rules: &branch-rules
-  - if: $CI_COMMIT_BRANCH =~ /^(main|clean_Phase_\d+|Phase_\d+)$/
-  - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 default:
   interruptible: true
@@ -53,8 +33,6 @@ scan-secrets:
     entrypoint: [""]
   variables:
     GIT_DEPTH: "0"
-  before_script:
-    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
   script:
     - |
       if [ -n "$CI_MERGE_REQUEST_DIFF_BASE_SHA" ]; then
@@ -64,24 +42,12 @@ scan-secrets:
       else
         RANGE="$CI_COMMIT_SHA"
       fi
-      gitleaks detect \
-        --source . \
-        --config .gitleaks.toml \
-        --verbose \
-        --redact \
-        --log-opts="$RANGE" \
-        --report-format json \
-        --report-path gitleaks-report.json \
-        --exit-code 0
-      python3 monitoring/scripts/security_report.py gitleaks gitleaks-report.json "$CI_COMMIT_REF_NAME" || true
-  artifacts:
-    paths:
-      - gitleaks-report.json
-    expire_in: 1 week
-    when: always
-  rules: *branch-rules
+      gitleaks detect --source . --config .gitleaks.toml --verbose --redact --log-opts="$RANGE"
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
 # ─── Stage 2: SCA Dependencies ───────────────────────────────────────────────
 
@@ -92,196 +58,135 @@ audit-backend:
   before_script:
     - pip install pip-audit --quiet
   script:
-    - |
-      pip-audit -r app/backend/requirements.txt -f json -o pip-audit-report.json || true
-      python3 monitoring/scripts/security_report.py pip-audit pip-audit-report.json "app/backend/requirements.txt"
-  artifacts:
-    paths:
-      - pip-audit-report.json
-    expire_in: 1 week
-    when: always
-  rules: *branch-rules
+    - pip-audit -r app/backend/requirements.txt
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
 audit-frontend:
   stage: sca-deps
   needs: [scan-secrets]
   image: node:18-alpine
   before_script:
-    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
     - npm install -g pnpm --quiet
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
-    - |
-      cd app/frontend
-      pnpm audit --json > pnpm-audit.json || true
-      python3 ../../monitoring/scripts/security_report.py pnpm-audit pnpm-audit.json "app/frontend/package.json"
+    - pnpm audit --json > pnpm-audit.json || true
+    - pnpm audit --audit-level=high
   artifacts:
     paths:
       - app/frontend/pnpm-audit.json
     expire_in: 1 week
     when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
-# ─── Stage: Test + Coverage ──────────────────────────────────────────────────
-# Runs the existing test suites with coverage instrumentation so sonarqube-scan
-# has real new_coverage data instead of reporting 0% (no coverage tooling was
-# ever wired up before). Non-blocking: a coverage regression is visible in the
-# Sonar gate report, it doesn't need to also fail this job.
+# ─── Stage 3: SAST (Semgrep) ─────────────────────────────────────────────────
 
-test-backend:
-  stage: test
-  needs: [scan-secrets]
+sast-auto:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
   image: python:3.11-slim
   before_script:
-    - pip install --quiet -r app/backend/requirements.txt -r app/ml-microservice/requirements.txt
+    - pip install semgrep --quiet
   script:
-    - python -m pytest tests/ --ignore=tests/backend/fleet_dashboard_cache.test.py --continue-on-collection-errors -q --cov=app/backend --cov=app/ml-microservice/src --cov-report=xml:coverage.xml --cov-report=term || true
+    - semgrep scan --config auto --severity WARNING --severity ERROR --sarif -o sast-auto.sarif app/backend app/frontend app/ml-microservice app/rag-service
   artifacts:
     paths:
-      - coverage.xml
+      - sast-auto.sarif
     expire_in: 1 week
     when: always
-  rules: *branch-rules
-  timeout: 15 minutes
-  allow_failure: true
-
-test-frontend:
-  stage: test
-  needs: [scan-secrets]
-  image: node:18-alpine
-  before_script:
-    - npm install -g pnpm --quiet
-    - cd app/frontend && pnpm install --frozen-lockfile
-  script:
-    - cd app/frontend && pnpm test:coverage || true
-  artifacts:
-    paths:
-      - app/frontend/coverage/lcov.info
-    expire_in: 1 week
-    when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
-license-scan-backend:
-  stage: sca-deps
-  needs: [scan-secrets]
+sast-explicit:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
   image: python:3.11-slim
   before_script:
-    - pip install --quiet pip-licenses
-    - pip install --quiet -r app/backend/requirements.txt
+    - pip install semgrep --quiet
   script:
-    - |
-      echo "================================================================"
-      echo "  LICENSE COMPLIANCE — Backend (Python)"
-      echo "================================================================"
-      pip-licenses --format=json --with-urls --output-file=licenses-backend.json
-      pip-licenses --format=plain-vertical --with-urls
-      echo "================================================================"
+    - semgrep scan --config p/owasp-top-ten --config p/python --config p/typescript --severity WARNING --severity ERROR --sarif -o sast-explicit.sarif app/backend app/frontend app/ml-microservice app/rag-service
   artifacts:
     paths:
-      - licenses-backend.json
+      - sast-explicit.sarif
     expire_in: 1 week
     when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
-license-scan-frontend:
-  stage: sca-deps
-  needs: [scan-secrets]
-  image: node:18-alpine
+sast-custom:
+  stage: sast
+  needs: [audit-backend, audit-frontend]
+  image: python:3.11-slim
   before_script:
-    - npm install -g pnpm license-checker --quiet
-    - cd app/frontend && pnpm install --frozen-lockfile
+    - pip install semgrep --quiet
   script:
-    - |
-      cd app/frontend
-      echo "================================================================"
-      echo "  LICENSE COMPLIANCE — Frontend (npm)"
-      echo "================================================================"
-      license-checker --json --out ../../licenses-frontend.json
-      license-checker --summary
-      echo "================================================================"
+    - semgrep scan --config .semgrep/custom.yml --severity WARNING --severity ERROR --sarif -o sast-custom.sarif app/backend app/frontend app/ml-microservice app/rag-service
   artifacts:
     paths:
-      - licenses-frontend.json
+      - sast-custom.sarif
     expire_in: 1 week
     when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
-# ─── Stage 3: SonarQube (self-hosted, local runner only) — sole SAST tool ───
-# Community Edition has no branch analysis: each branch gets its own SonarQube
-# project (projectKey suffixed with $CI_COMMIT_REF_SLUG) so results don't get
-# overwritten cross-branch. Dashboards live at
-# http://host.docker.internal:9090/dashboard?id=eamsagemcom-<branch-slug>
-# allow_failure: true — quality gate failures are surfaced via sonar_report.py's
-# terminal output and the job's warning icon, not a pipeline block.
+# ─── Stage 4: SonarQube (self-hosted, local runner only) ────────────────────
 
 sonarqube-scan:
-  stage: sast
-  needs: [audit-backend, audit-frontend, test-backend, test-frontend]
+  stage: sonarqube
+  needs: [sast-auto, sast-explicit, sast-custom]
   tags: [local]
   image: sonarsource/sonar-scanner-cli:latest
   variables:
     SONAR_HOST_URL: "http://host.docker.internal:9090"
-    SONAR_PROJECT_KEY: "eamsagemcom-$CI_COMMIT_REF_SLUG"
     GIT_DEPTH: "0"
-  before_script:
-    - '(apt-get update -qq && apt-get install -y -qq python3 2>/dev/null) || (apk add --no-cache python3 2>/dev/null) || echo "WARN: could not install python3, issue-detail report will be skipped"'
   script:
-    - |
-      sonar-scanner \
-        -Dsonar.projectKey=$SONAR_PROJECT_KEY \
-        -Dsonar.projectName="EAMSagemCom ($CI_COMMIT_REF_SLUG)" \
-        -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service \
-        -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**,**/__pycache__/**,**/.venv/**,**/*.egg-info/**,**/.ipynb_checkpoints/**,app/ml-microservice/ml_research/retrain_pipeline_debug_log.ipynb \
-        -Dsonar.coverage.exclusions=app/backend/seed_ml_data*.py,app/ml-microservice/ml_research/**,app/frontend/src/**/*.test.ts,app/frontend/src/**/*.test.tsx \
-        -Dsonar.python.coverage.reportPaths=coverage.xml \
-        -Dsonar.javascript.lcov.reportPaths=app/frontend/coverage/lcov.info \
-        -Dsonar.issue.ignore.multicriteria=r3f \
-        -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747 \
-        -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx \
-        -Dsonar.host.url=$SONAR_HOST_URL \
-        -Dsonar.token=$sonar \
-        -Dsonar.qualitygate.wait=true \
-        -Dsonar.qualitygate.timeout=300 || true
-      # SONAR_REPORT_TOKEN must be a *User Token* (My Account → Security → Generate Tokens).
-      # Project Analysis Tokens ($sonar) return 403 on browse APIs — if SONAR_REPORT_TOKEN
-      # is unset the script falls back to $sonar, prints the dashboard URL, and exits 0.
-      REPORT_TOKEN="${SONAR_REPORT_TOKEN:-$sonar}"
-      python3 monitoring/scripts/sonar_report.py "$SONAR_HOST_URL" "$SONAR_PROJECT_KEY" "$REPORT_TOKEN" sonar-issues.json || true
-  artifacts:
-    paths:
-      - sonar-issues.json
-    expire_in: 1 week
-    when: always
-  rules: *branch-rules
+    - sonar-scanner
+      -Dsonar.projectKey=eamsagemcom
+      -Dsonar.sources=app/backend,app/frontend,app/ml-microservice,app/rag-service
+      -Dsonar.exclusions=app/frontend/seo-scripts/**,**/node_modules/**,**/dist/**
+      -Dsonar.issue.ignore.multicriteria=r3f
+      -Dsonar.issue.ignore.multicriteria.r3f.ruleKey=typescript:S6747
+      -Dsonar.issue.ignore.multicriteria.r3f.resourceKey=app/frontend/src/modules/shared/machines/components/3d/**/*.tsx
+      -Dsonar.host.url=$SONAR_HOST_URL
+      -Dsonar.token=$sonar
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 15 minutes
-  allow_failure: true
+  allow_failure: false
 
-# ─── Stage 4: Build images + IaC scan (parallel, self-hosted local runner) ──
+# ─── Stage 5: Build images + IaC scan (parallel, self-hosted local runner) ──
 
 build-images:
   stage: build
   needs: [sonarqube-scan]
   tags: [local]
   image: docker:24-cli
-  variables:
-    DOCKER_BUILDKIT: "1"
   script:
-    - docker build --cache-from eam-backend:ci        -t eam-backend:ci        ./app/backend
-    - docker build --cache-from eam-frontend:ci       -t eam-frontend:ci       --build-arg VITE_API_BASE_URL=http://localhost:8000 ./app/frontend
-    - docker build --cache-from eam-ml-microservice:ci -t eam-ml-microservice:ci ./app/ml-microservice
-    - docker build --cache-from eam-rag-service:ci    -t eam-rag-service:ci    ./app/rag-service
-    - docker build --cache-from eam-ml-research:ci    -t eam-ml-research:ci    -f app/ml-microservice/ml_research/Dockerfile .
-  rules: *branch-rules
+    - docker build -t eam-backend:ci ./app/backend
+    - docker build -t eam-frontend:ci --build-arg VITE_API_BASE_URL=http://localhost:8000 ./app/frontend
+    - docker build -t eam-ml-microservice:ci ./app/ml-microservice
+    - docker build -t eam-rag-service:ci ./app/rag-service
+    - docker build -t eam-ml-research:ci -f app/ml-microservice/ml_research/Dockerfile .
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 30 minutes
   allow_failure: false
 
@@ -289,193 +194,55 @@ iac-scan:
   stage: build
   needs: [sonarqube-scan]
   tags: [local]
-  image:
-    name: aquasec/trivy:latest
-    entrypoint: [""]
-  before_script:
-    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
+  image: aquasec/trivy:latest
   script:
     - |
+      FAILED=0
       for f in docker-compose.yml docker-compose.sonarqube.yml docker-compose.notebooks.yml; do
         BASENAME=$(echo "$f" | sed 's/\.yml$//' | sed 's/[^a-zA-Z0-9_-]/-/g')
-        trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format json --output "trivy-iac-${BASENAME}.json" "$f" || true
-        trivy convert --format sarif --output "trivy-iac-${BASENAME}.sarif" "trivy-iac-${BASENAME}.json" || echo "  WARN: sarif conversion failed for $f"
-        trivy convert --format template --template "@contrib/html.tpl" --output "trivy-iac-${BASENAME}.html" "trivy-iac-${BASENAME}.json" || echo "  WARN: html conversion failed for $f (template may be unavailable)"
-        python3 monitoring/scripts/security_report.py trivy "trivy-iac-${BASENAME}.json" "$f" || true
+        trivy config --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-iac-${BASENAME}.sarif" --exit-code 1 "$f" || FAILED=1
       done
+      exit $FAILED
   artifacts:
     paths:
       - trivy-iac-*.sarif
-      - trivy-iac-*.json
-      - trivy-iac-*.html
     expire_in: 1 week
     when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 10 minutes
-  allow_failure: true
+  allow_failure: false
 
 
-# ─── Stage 5: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
+# ─── Stage 6: Image Vulnerability Scan (Trivy, self-hosted local runner) ────
 
 image-scan:
   stage: image-scan
   needs: [build-images]
   tags: [local]
-  image:
-    name: aquasec/trivy:latest
-    entrypoint: [""]
-  before_script:
-    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
+  image: aquasec/trivy:latest
   script:
     - |
+      FAILED=0
       for img in eam-backend:ci eam-frontend:ci eam-ml-microservice:ci eam-rag-service:ci eam-ml-research:ci; do
         TAGNAME=$(echo "$img" | cut -d: -f1)
-        trivy image \
-          --severity CRITICAL,HIGH,MEDIUM,LOW \
-          --ignore-unfixed \
-          --ignorefile monitoring/scanner/.trivyignore \
-          --format json \
-          --output "trivy-image-${TAGNAME}.json" \
-          "$img" || true
-        trivy convert --format sarif --output "trivy-image-${TAGNAME}.sarif" "trivy-image-${TAGNAME}.json" || echo "  WARN: sarif conversion failed for $img"
-        trivy convert --format template --template "@contrib/html.tpl" --output "trivy-image-${TAGNAME}.html" "trivy-image-${TAGNAME}.json" || echo "  WARN: html conversion failed for $img (template may be unavailable)"
-        python3 monitoring/scripts/security_report.py trivy "trivy-image-${TAGNAME}.json" "$img" || true
+        trivy image --severity CRITICAL,HIGH,MEDIUM,LOW --format sarif -o "trivy-image-${TAGNAME}.sarif" --exit-code 1 "$img" || FAILED=1
       done
+      exit $FAILED
   artifacts:
     paths:
       - trivy-image-*.sarif
-      - trivy-image-*.json
-      - trivy-image-*.html
     expire_in: 1 week
     when: always
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 15 minutes
-  allow_failure: true
-
-# Push Trivy scan results to Prometheus Pushgateway for continuous monitoring.
-# Uses JSON artifacts from image-scan.  allow_failure=true so a down monitoring
-# stack never blocks the pipeline.
-push-vuln-metrics:
-  stage: image-scan
-  needs: [image-scan]
-  when: always
-  tags: [local]
-  image: python:3.11-slim
-  script:
-    - |
-      export PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
-      echo "Pushing Trivy scan metrics to Pushgateway at ${PUSHGATEWAY_URL} ..."
-      for img in eam-backend eam-frontend eam-ml-microservice eam-rag-service eam-ml-research; do
-        JSON_FILE="trivy-image-${img}.json"
-        if [ -f "$JSON_FILE" ]; then
-          echo "  → ${img}"
-          python3 monitoring/scripts/trivy_push_metrics.py \
-            "$JSON_FILE" \
-            "${img}:ci" \
-            "$PUSHGATEWAY_URL"
-        else
-          echo "  WARN: ${JSON_FILE} not found (scan may have failed), skipping"
-        fi
-      done
-  rules: *branch-rules
-  timeout: 5 minutes
-  allow_failure: true
+  allow_failure: false
 
 
-# Restart continuous Trivy scanner so it immediately re-scans the freshly built
-# :ci images instead of waiting up to 6h for the next scheduled cycle.
-# allow_failure=true — a stopped monitoring stack must not block the pipeline.
-restart-scanner:
-  stage: image-scan
-  needs: [push-vuln-metrics]
-  when: always
-  tags: [local]
-  image: docker:24-cli
-  script:
-    - |
-      if docker restart eam_trivy_scanner; then
-        echo "Scanner restarted - rescan cycle started."
-      else
-        echo "WARN: could not restart scanner (monitoring stack may be down)."
-      fi
-  rules: *branch-rules
-  timeout: 2 minutes
-  allow_failure: true
-
-# ─── Stage 5b: DAST (OWASP ZAP, self-hosted local runner) ───────────────────
-# Assumes `make up` is already running on the runner host (same convention as
-# sonarqube-scan — this runner IS the dev machine, not an ephemeral cloud
-# runner). Full active scan: real attack traffic, real write/delete calls.
-# Two-layer safety guard before any attack traffic is sent:
-#   1. Targets are hardcoded Docker-internal service names in
-#      zap-automation.yaml (not parameterized) — cannot be pointed anywhere
-#      else via CI variables.
-#   2. Pre-flight query confirms the known seeded test accounts exist in the
-#      target DB before proceeding, so this never runs against an unexpected
-#      or wiped database.
-
-dast-scan:
-  stage: dast
-  needs: [image-scan]
-  tags: [local]
-  image: docker:24-cli
-  before_script:
-    - 'apk add --no-cache python3 2>/dev/null || echo "WARN: could not install python3, terminal report will be skipped"'
-  script:
-    - |
-      echo "=== Pre-flight: checking target services are reachable ==="
-      for svc_check in \
-        "asset_management_backend|http://localhost:8000/api/v1/health" \
-        "asset_management_ml_service|http://localhost:8000/health" \
-        "asset_management_rag|http://localhost:8003/health" \
-        "asset_management_frontend|http://localhost:80/"; do
-        CONTAINER="${svc_check%%|*}"
-        URL="${svc_check##*|}"
-        if ! docker exec "$CONTAINER" curl -sf "$URL" > /dev/null 2>&1; then
-          echo "FAIL: $CONTAINER not reachable at $URL — is 'make up' running on this host?"
-          exit 1
-        fi
-        echo "  OK: $CONTAINER"
-      done
-
-      echo "=== Pre-flight: verifying known seeded test accounts exist ==="
-      SEED_COUNT=$(docker exec asset_management_db psql -U postgres -d asset_management -tAc \
-        "SELECT count(*) FROM utilisateurs WHERE email IN ('hamza.mbarki2002@gmail.com','hamza.mbarki@esprit.tn','mbarkih92@gmail.com','hamedikilani44@gmail.com');")
-      if [ "$SEED_COUNT" -ne 4 ]; then
-        echo "FAIL: expected 4 seeded test accounts, found $SEED_COUNT — refusing to run active scan against unexpected data."
-        exit 1
-      fi
-      echo "  OK: all 4 seeded test accounts present"
-
-      echo "=== Running ZAP full active scan ==="
-      docker run --rm \
-        --network eamsagemcom_asset_management_network \
-        -e ZAP_LOGIN_PASSWORD="${ZAP_LOGIN_PASSWORD}" \
-        -v "$CI_PROJECT_DIR/security/zap:/zap/wrk:rw" \
-        ghcr.io/zaproxy/zaproxy:stable \
-        zap.sh -cmd -autorun /zap/wrk/zap-automation.yaml || true
-
-      cp security/zap/zap-report.html ./zap-report.html || echo "WARN: zap-report.html not found"
-      cp security/zap/zap-report.json ./zap-report.json || echo "WARN: zap-report.json not found"
-
-      if [ -f zap-report.json ]; then
-        python3 monitoring/scripts/security_report.py zap zap-report.json "DAST — backend/ml-service/rag-service/frontend" || true
-
-        export PUSHGATEWAY_URL="${PUSHGATEWAY_URL:-http://host.docker.internal:9091}"
-        echo "Pushing ZAP scan metrics to Pushgateway at ${PUSHGATEWAY_URL} ..."
-        python3 monitoring/scripts/zap_push_metrics.py zap-report.json "$PUSHGATEWAY_URL" || true
-      fi
-  artifacts:
-    paths:
-      - zap-report.html
-      - zap-report.json
-    expire_in: 1 week
-    when: always
-  rules: *branch-rules
-  timeout: 45 minutes
-  allow_failure: true
-
-# ─── Stage 6: Lint (non-blocking) ────────────────────────────────────────────
+# ─── Stage 7: Lint (non-blocking) ────────────────────────────────────────────
 
 lint-backend:
   stage: lint
@@ -485,7 +252,9 @@ lint-backend:
   script:
     - ruff check app/backend/ --output-format=github
     - ruff format --check app/backend/
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 5 minutes
   allow_failure: true
 
@@ -497,11 +266,13 @@ lint-frontend:
     - cd app/frontend && pnpm install --frozen-lockfile
   script:
     - pnpm run lint
-  rules: *branch-rules
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 5 minutes
   allow_failure: true
 
-# ─── Stage 7: Quality Gate ───────────────────────────────────────────────────
+# ─── Stage 8: Quality Gate ───────────────────────────────────────────────────
 
 quality-gate:
   stage: gate
@@ -510,144 +281,31 @@ quality-gate:
     - scan-secrets
     - audit-backend
     - audit-frontend
+    - sast-auto
+    - sast-explicit
+    - sast-custom
     - sonarqube-scan
     - build-images
     - iac-scan
     - image-scan
-    - job: dast-scan
-      optional: true
-    - job: license-scan-backend
-      optional: true
-    - job: license-scan-frontend
-      optional: true
-    - job: push-vuln-metrics
-      optional: true
     - job: lint-backend
       optional: true
     - job: lint-frontend
       optional: true
   script:
     - |
-      echo "All required pipeline stages completed."
-      echo "  Secret scan          -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  Backend SCA          -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  Frontend SCA         -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  License compliance   -- RAN (informational)"
-      echo "  SonarQube (SAST)     -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  Image build          -- PASSED (blocking)"
-      echo "  IaC scan (Trivy)     -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  Image scan (Trivy)   -- RAN (findings, if any, shown above; non-blocking)"
-      echo "  DAST (OWASP ZAP)     -- RAN (findings, if any, shown above; non-blocking)"
-      echo ""
-      echo "Security jobs provide visibility, not gating — review terminal output"
-      echo "and job artifacts (SARIF/JSON/HTML) above for full details."
-  rules: *branch-rules
+      echo "All blocking security gates passed."
+      echo "  Secret scan   -- PASSED"
+      echo "  Backend SCA   -- PASSED"
+      echo "  Frontend SCA  -- PASSED"
+      echo "  SAST (auto/explicit/custom) -- PASSED"
+      echo "  SonarQube     -- PASSED"
+      echo "  Image build   -- PASSED"
+      echo "  IaC scan (Trivy)    -- PASSED"
+      echo "  Image scan (Trivy)  -- PASSED"
+      echo "  Lint jobs are non-blocking (warn only)"
+  rules:
+    - if: $CI_COMMIT_BRANCH =~ /^(Phase_1|clean_Phase_1|main|Phase_2)$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   timeout: 2 minutes
-  allow_failure: false
-
-# ─── Stage 8: Registry Push (Azure demo deployment, ~6-day window) ─────────
-# The demo VM is ARM64 (Standard_B4ps_v2) — the only VM family with real
-# quota on this Azure-for-Students subscription (StandardDasv7Family and
-# every other x86 family: 0 quota; x86 B-series: NotAvailableForSubscription
-# outright). The :ci images build-images already built are amd64 (built on
-# the x86 local runner) and won't run on an ARM64 host, so every service is
-# rebuilt here for linux/arm64 via buildx+QEMU rather than re-tagged.
-# One-time host setup required (already done manually, not part of this
-# job): `docker run --privileged --rm tonistiigi/binfmt --install arm64`
-# registers ARM64 emulation with the daemon's kernel — that registration is
-# daemon-wide and persists across jobs. The buildx builder itself is
-# recreated every run (idempotent, cheap) since CI jobs don't share a
-# persistent $HOME with the host.
-
-# Split into one job per service (was a single sequential loop) — QEMU
-# emulation makes each build 40min+ on its own (apt-get/venv-creation is
-# disproportionately slow under emulation even though pip finds real
-# aarch64 wheels, no source compiling involved). Parallel jobs bring total
-# wall-clock down to roughly the slowest single service instead of the sum
-# of all four. Requires GitLab Runner's `concurrent` setting (in
-# C:\GitLab-Runner\config.toml) to be >1 or these still run sequentially
-# despite being independent jobs.
-
-.registry_push_base: &registry_push_base
-  stage: registry-push
-  needs: [quality-gate]
-  tags: [local]
-  image: docker:24-cli
-  rules: *branch-rules
-  timeout: 2 hours
-  allow_failure: false
-
-registry-push-backend:
-  <<: *registry_push_base
-  script:
-    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/backend:demo" -t "$ACR_LOGIN_SERVER/backend:demo" --push ./app/backend
-
-registry-push-ml-service:
-  <<: *registry_push_base
-  script:
-    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/ml-service:demo" -t "$ACR_LOGIN_SERVER/ml-service:demo" --push ./app/ml-microservice
-
-registry-push-rag-service:
-  <<: *registry_push_base
-  script:
-    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-    - docker buildx build --platform linux/arm64 -t "$CI_REGISTRY_IMAGE/rag-service:demo" -t "$ACR_LOGIN_SERVER/rag-service:demo" --push ./app/rag-service
-
-registry-push-frontend:
-  <<: *registry_push_base
-  script:
-    - docker buildx create --name eamdemobuilder --use 2>/dev/null || docker buildx use eamdemobuilder
-    - echo "$CI_REGISTRY_PASSWORD" | docker login $CI_REGISTRY -u $CI_REGISTRY_USER --password-stdin
-    - echo "$ACR_PASSWORD" | docker login $ACR_LOGIN_SERVER -u $ACR_USERNAME --password-stdin
-    - docker buildx build --platform linux/arm64 --build-arg VITE_API_BASE_URL=https://${AZURE_VM_HOST} -t "$CI_REGISTRY_IMAGE/frontend:demo" -t "$ACR_LOGIN_SERVER/frontend:demo" --push ./app/frontend
-
-# ─── Stage 9: Deploy (SSH to Azure demo VM) ─────────────────────────────────
-
-deploy:
-  stage: deploy
-  needs: [registry-push-backend, registry-push-ml-service, registry-push-rag-service, registry-push-frontend]
-  tags: [local]
-  image: alpine:3.19
-  before_script:
-    - apk add --no-cache openssh-client bash git
-  script:
-    - bash scripts/deploy-to-vm.sh
-  rules: *branch-rules
-  timeout: 15 minutes
-  allow_failure: false
-
-# ─── Stage 10: Verify (curl the live demo URL) ──────────────────────────────
-
-verify:
-  stage: verify
-  needs: [deploy]
-  tags: [local]
-  image: alpine:3.19
-  before_script:
-    - apk add --no-cache curl
-  script:
-    - |
-      for i in $(seq 1 10); do
-        if curl -sf "https://${AZURE_VM_HOST}/api/v1/health"; then
-          echo "Backend healthy."
-          break
-        fi
-        echo "Attempt $i/10 failed, retrying in 10s..."
-        sleep 10
-        if [ "$i" -eq 10 ]; then
-          echo "FAIL: backend never became healthy at https://${AZURE_VM_HOST}/api/v1/health"
-          exit 1
-        fi
-      done
-      curl -sf "https://${AZURE_VM_HOST}/" -o /dev/null && echo "Frontend reachable at https://${AZURE_VM_HOST}/"
-  rules: *branch-rules
-  timeout: 5 minutes
   allow_failure: false

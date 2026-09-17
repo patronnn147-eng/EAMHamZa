@@ -1,19 +1,17 @@
-﻿import logging
+import logging
 from datetime import datetime, timezone
 from typing import List, Optional, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from schemas.pagination import PaginatedResponse
 
 from core.database import get_db
 from models.utilisateurs import Utilisateurs
-from models.utilisateur_zones import UtilisateurZone
-from models.ordres_intervention import OrdresIntervention
-from models.ordres_travail import OrdresTravail
-from models.machines import Machines
+from models.ordres_intervention import Ordres_intervention
+from models.ordres_travail import Ordres_travail
 from ..schemas import InterventionResponse
 from ..dependencies import verify_cheftech
 
@@ -33,48 +31,51 @@ async def get_interventions(
     try:
         skip = (page - 1) * size
 
-        # Zone-scope: a CHEFTECH sees interventions for machines in any zone
-        # they're assigned to (utilisateur_zones). Unassigned CHEFTECHs (no
-        # zone rows yet) see everything — avoids breaking oversight before
-        # zones are configured.
-        zone_rows = await db.execute(
-            select(UtilisateurZone.zone).where(
-                UtilisateurZone.utilisateur_id == current_user.id
+        # Count total - show interventions where current user is involved OR pending approval
+        count_query = (
+            select(func.count(Ordres_intervention.id))
+            .where(Ordres_intervention.archived_at.is_(None))
+            .outerjoin(
+                Ordres_travail,
+                Ordres_intervention.ordre_travail_id == Ordres_travail.id,
+            )
+            .where(
+                or_(
+                    Ordres_intervention.technician_id == current_user.id,
+                    Ordres_travail.created_by == current_user.id,
+                    Ordres_intervention.statut == "PENDING_APPROVAL",
+                )
             )
         )
-        my_zones = [z for (z,) in zone_rows.all()]
-        zone_filter = (
-            OrdresIntervention.machine_id.in_(
-                select(Machines.id).where(Machines.zone.in_(my_zones))
-            )
-            if my_zones
-            else None
-        )
-
-        count_query = select(func.count(OrdresIntervention.id)).where(
-            OrdresIntervention.archived_at.is_(None)
-        )
-        if zone_filter is not None:
-            count_query = count_query.where(zone_filter)
         if statut:
-            count_query = count_query.where(OrdresIntervention.statut == statut)
+            count_query = count_query.where(Ordres_intervention.statut == statut)
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
-        query = select(OrdresIntervention).where(
-            OrdresIntervention.archived_at.is_(None)
+        query = (
+            select(Ordres_intervention)
+            .where(Ordres_intervention.archived_at.is_(None))
+            .outerjoin(
+                Ordres_travail,
+                Ordres_intervention.ordre_travail_id == Ordres_travail.id,
+            )
+            .where(
+                or_(
+                    Ordres_intervention.technician_id == current_user.id,
+                    Ordres_travail.created_by == current_user.id,
+                    Ordres_intervention.statut == "PENDING_APPROVAL",
+                )
+            )
         )
-        if zone_filter is not None:
-            query = query.where(zone_filter)
         if statut:
-            query = query.where(OrdresIntervention.statut == statut)
+            query = query.where(Ordres_intervention.statut == statut)
         query = query.options(
-            selectinload(OrdresIntervention.machine),
-            selectinload(OrdresIntervention.technician),
-            selectinload(OrdresIntervention.ordre_travail),
+            selectinload(Ordres_intervention.machine),
+            selectinload(Ordres_intervention.technician),
+            selectinload(Ordres_intervention.ordre_travail),
         )
         query = (
-            query.order_by(OrdresIntervention.date_intervention.desc())
+            query.order_by(Ordres_intervention.date_intervention.desc())
             .offset(skip)
             .limit(size)
         )
@@ -90,19 +91,11 @@ async def get_interventions(
         due_map = {}
         if ordre_ids:
             ordres_res = await db.execute(
-                select(OrdresTravail.id, OrdresTravail.date_echeance).where(
-                    OrdresTravail.id.in_(ordre_ids)
+                select(Ordres_travail.id, Ordres_travail.date_echeance).where(
+                    Ordres_travail.id.in_(ordre_ids)
                 )
             )
             due_map = {row.id: row.date_echeance for row in ordres_res.all()}
-
-        approver_ids = {i.approved_by for i in interventions if i.approved_by is not None}
-        approver_id_to_nom: dict = {}
-        if approver_ids:
-            approver_rows = await db.execute(
-                select(Utilisateurs.id, Utilisateurs.nom).where(Utilisateurs.id.in_(approver_ids))
-            )
-            approver_id_to_nom = {row.id: row.nom for row in approver_rows.all()}
 
         now = datetime.now(timezone.utc)
         enriched: List[dict] = []
@@ -118,8 +111,6 @@ async def get_interventions(
                     **InterventionResponse.model_validate(i).model_dump(),
                     "work_order_due_date": due,
                     "is_overdue": overdue,
-                    "technicien_nom": i.technician.nom if i.technician else None,
-                    "approved_by_nom": approver_id_to_nom.get(i.approved_by) if i.approved_by else None,
                 }
             )
 

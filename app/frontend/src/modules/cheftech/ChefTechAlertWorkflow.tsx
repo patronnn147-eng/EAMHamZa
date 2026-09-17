@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { client } from '@/lib/api';
 import { Alert, Technician, severityConfig, getRelativeTime } from '@/lib/alertUtils';
@@ -65,9 +66,9 @@ const AlertCard: React.FC<AlertCardProps> = ({
 }) => {
   const config = severityConfig[alert.severity] || severityConfig.LOW;
   const failurePct =
-    alert.failure_probability == null
-      ? null
-      : Math.round(alert.failure_probability * 100);
+    alert.failure_probability != null
+      ? Math.round(alert.failure_probability * 100)
+      : null;
 
   let failurePctClass = 'text-yellow-400';
   if (failurePct != null && failurePct >= 80) {
@@ -205,6 +206,7 @@ const LaneHeader: React.FC<{
 
 export default function ChefTechAlertWorkflow() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -295,7 +297,7 @@ export default function ChefTechAlertWorkflow() {
     try {
       const res = await fetch(
         `${API}/api/v1/entities/ordres_travail?query=${encodeURIComponent(
-          JSON.stringify({ assigned_to: Number.parseInt(techId) })
+          JSON.stringify({ assigned_to: parseInt(techId) })
         )}&limit=100`,
         { headers: { Authorization: `Bearer ${getToken()}` } }
       );
@@ -356,8 +358,8 @@ export default function ChefTechAlertWorkflow() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            created_by: Number.parseInt(user?.id || '0'),
-            assigned_to: Number.parseInt(triageForm.technicienId),
+            created_by: parseInt(user?.id || '0'),
+            assigned_to: parseInt(triageForm.technicienId),
             priority: triageForm.priority || undefined,
             due_date: triageForm.dueDate?.toISOString() || undefined,
           }),
@@ -423,7 +425,7 @@ export default function ChefTechAlertWorkflow() {
               Authorization: `Bearer ${getToken()}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ user_id: Number.parseInt(user?.id || '0') }),
+            body: JSON.stringify({ user_id: parseInt(user?.id || '0') }),
           });
         } catch {
           // Silent fail — alert already removed from UI
@@ -451,7 +453,7 @@ export default function ChefTechAlertWorkflow() {
         <div className="flex items-center gap-2">
           <Bell className="h-6 w-6 text-white/70" />
           <h1 className="text-2xl font-bold text-white">Centre des Alertes</h1>
-          {alerts.some((a) => !a.is_linked_to_wo) && (
+          {alerts.filter((a) => !a.is_linked_to_wo).length > 0 && (
             <Badge
               variant="outline"
               className="border-white/10 text-white/50 text-xs"
@@ -779,6 +781,3 @@ export default function ChefTechAlertWorkflow() {
 // Export types for extension
 export type { AlertCardProps };
 export { API, getToken };
-
-
-

@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 import sys
 import os
 from typing import Optional, Dict, Any, List
@@ -16,8 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from models.alertes import Alert, AlertConfig, AlertType, AlertSeverity  # noqa: E402
 from models.machines import Machines  # noqa: E402
 from models.machine_telemetry import MachineTelemetry  # noqa: E402
-from models.ordres_intervention import OrdresIntervention  # noqa: E402
-from models.ordres_travail import OrdresTravail  # noqa: E402
+from models.ordres_intervention import Ordres_intervention  # noqa: E402
+from models.ordres_travail import Ordres_travail  # noqa: E402
 from core.notifications import broadcaster  # noqa: E402
 
 logger = logging.getLogger(__name__)
@@ -242,76 +242,121 @@ class AlertService:
             logger.exception(f"Error updating alert config: {str(e)}")
             raise
 
-    async def _get_machine_inputs(self, machine_id: int):
-        """Return (interventions, telemetry_entries, air, proc, rpm, torq, wear)."""
-        itv_result = await self.db.execute(
-            select(OrdresIntervention).where(OrdresIntervention.machine_id == machine_id)
-        )
-        interventions = itv_result.scalars().all()
-        tel_result = await self.db.execute(
-            select(MachineTelemetry)
-            .where(MachineTelemetry.machine_id == machine_id)
-            .order_by(MachineTelemetry.recorded_at.desc())
-            .limit(10)
-        )
-        telemetry_entries = list(reversed(tel_result.scalars().all()))
-        if telemetry_entries:
-            latest = telemetry_entries[-1]
-            return interventions, telemetry_entries, float(latest.air_temperature), float(latest.process_temperature), int(latest.rotational_speed), float(latest.torque), int(latest.tool_wear)
-        return interventions, telemetry_entries, 300.0, 310.0, 1500, 40.0, 0
-
-    async def _process_machine_alerts(self, machine, config, _ml_available: bool) -> Dict[str, int]:
-        """Run ML prediction for one machine and emit any threshold alerts. Returns per-type counts."""
-        from modules.ml.rul_calculator import RULCalculator
-        from core.ml_client import ml_client
-        counts = {"rul_warnings": 0, "failure_predicted": 0}
-        try:
-            interventions, telemetry_entries, air, proc, rpm, torq, wear = await self._get_machine_inputs(machine.id)
-            fusion_result = None
-            try:
-                if _ml_available:
-                    fusion_result = await ml_client.predict_all(
-                        air_temperature=air, process_temperature=proc, rotational_speed=rpm,
-                        torque=torq, tool_wear=wear, machine_id=machine.id,
-                    )
-            except Exception:
-                pass
-            prediction = RULCalculator.calculate_rul(machine, list(interventions), telemetry_entries=telemetry_entries, fusion_result=fusion_result)
-            rul_days = prediction.get("rul_days")
-            failure_prob = prediction.get("failure_probability", 0) / 100
-            if config.enable_rul_alerts and rul_days is not None and rul_days < config.rul_threshold_days:
-                await self.create_alert(
-                    machine_id=machine.id, alert_type=AlertType.RUL_WARNING,
-                    severity=self._get_rul_severity(rul_days),
-                    message=f"RUL prediction: {rul_days:.1f} days remaining (threshold: {config.rul_threshold_days} days)",
-                    rul_days=rul_days,
-                )
-                counts["rul_warnings"] += 1
-            if config.enable_failure_alerts and failure_prob > config.failure_probability_threshold:
-                await self.create_alert(
-                    machine_id=machine.id, alert_type=AlertType.FAILURE_PREDICTED,
-                    severity=AlertSeverity.HIGH,
-                    message=f"Failure probability: {failure_prob * 100:.1f}% (threshold: {config.failure_probability_threshold * 100:.1f}%)",
-                    failure_probability=failure_prob,
-                )
-                counts["failure_predicted"] += 1
-        except Exception as e:
-            logger.exception(f"Error processing machine {machine.id}: {e}")
-        return counts
-
     async def check_and_create_alerts(self) -> Dict[str, Any]:
         """Run ML predictions and create alerts for machines crossing thresholds"""
         try:
-            from core.ml_client import is_ml_service_available
             config = await self.get_config()
+
+            # Get all machines
             machines_result = await self.db.execute(select(Machines))
             machines = list(machines_result.scalars().all())
+
+            alerts_created = {
+                "rul_warnings": 0,
+                "failure_predicted": 0,
+                "anomaly_detected": 0,
+            }
+
+            # Check ML microservice availability ONCE before iterating machines.
+            # Calling is_ml_service_available() per machine = N health-check HTTP requests.
+            from modules.ml.rul_calculator import RULCalculator
+            from core.ml_client import ml_client, is_ml_service_available
+
             _ml_available = await is_ml_service_available()
-            alerts_created = {"rul_warnings": 0, "failure_predicted": 0, "anomaly_detected": 0}
+
             for machine in machines:
-                per_machine = await self._process_machine_alerts(machine, config, _ml_available)
-                for k, v in per_machine.items():
-                    alerts_created[k] = alerts_created.get(k, 0) + v
+                try:
+                    # Get intervention history
+                    interventions_query = select(Ordres_intervention).where(
+                        Ordres_intervention.machine_id == machine.id
+                    )
+                    itv_result = await self.db.execute(interventions_query)
+                    interventions = list(itv_result.scalars().all())
+
+                    # Get latest telemetry reading for this machine
+                    telemetry_query = (
+                        select(MachineTelemetry)
+                        .where(MachineTelemetry.machine_id == machine.id)
+                        .order_by(MachineTelemetry.recorded_at.desc())
+                        .limit(10)
+                    )
+                    tel_result = await self.db.execute(telemetry_query)
+                    telemetry_entries = list(reversed(tel_result.scalars().all()))
+
+                    # Use latest telemetry values if available, else nominal defaults
+                    if telemetry_entries:
+                        latest = telemetry_entries[-1]
+                        air = float(latest.air_temperature)
+                        proc = float(latest.process_temperature)
+                        rpm = int(latest.rotational_speed)
+                        torq = float(latest.torque)
+                        wear = int(latest.tool_wear)
+                    else:
+                        air, proc, rpm, torq, wear = 300.0, 310.0, 1500, 40.0, 0
+
+                    # Best-effort microservice call; fall back to formula if unavailable
+                    fusion_result = None
+                    try:
+                        if _ml_available:
+                            fusion_result = await ml_client.predict_all(
+                                air_temperature=air,
+                                process_temperature=proc,
+                                rotational_speed=rpm,
+                                torque=torq,
+                                tool_wear=wear,
+                                machine_id=machine.id,
+                            )
+                    except Exception:
+                        pass
+
+                    prediction = RULCalculator.calculate_rul(
+                        machine,
+                        list(interventions),
+                        telemetry_entries=telemetry_entries,
+                        fusion_result=fusion_result,
+                    )
+
+                    rul_days = prediction.get("rul_days")
+                    failure_prob = (
+                        prediction.get("failure_probability", 0) / 100
+                    )  # Convert from percentage
+
+                    # Check RUL threshold
+                    if (
+                        config.enable_rul_alerts
+                        and rul_days is not None
+                        and rul_days < config.rul_threshold_days
+                    ):
+                        severity = self._get_rul_severity(rul_days)
+                        message = f"RUL prediction: {rul_days:.1f} days remaining (threshold: {config.rul_threshold_days} days)"
+
+                        await self.create_alert(
+                            machine_id=machine.id,
+                            alert_type=AlertType.RUL_WARNING,
+                            severity=severity,
+                            message=message,
+                            rul_days=rul_days,
+                        )
+                        alerts_created["rul_warnings"] += 1
+
+                    # Check failure probability threshold
+                    if (
+                        config.enable_failure_alerts
+                        and failure_prob > config.failure_probability_threshold
+                    ):
+                        await self.create_alert(
+                            machine_id=machine.id,
+                            alert_type=AlertType.FAILURE_PREDICTED,
+                            severity=AlertSeverity.HIGH,
+                            message=f"Failure probability: {failure_prob * 100:.1f}% (threshold: {config.failure_probability_threshold * 100:.1f}%)",
+                            failure_probability=failure_prob,
+                        )
+                        alerts_created["failure_predicted"] += 1
+
+                except Exception as e:
+                    logger.exception(f"Error processing machine {machine.id}: {e}")
+                    continue
+
             logger.info(f"Alert check complete: {alerts_created}")
             return alerts_created
         except Exception as e:
@@ -333,7 +378,7 @@ class AlertService:
         self,
         alert_id: int,
         wo_data: Dict[str, Any],
-    ) -> Optional[OrdresTravail]:
+    ) -> Optional[Ordres_travail]:
         """Create a work order linked to an alert"""
         try:
             alert_result = await self.db.execute(
@@ -350,8 +395,8 @@ class AlertService:
                     f"Alert {alert_id} already linked to work order {alert.work_order_id}"
                 )
                 existing_wo = await self.db.execute(
-                    select(OrdresTravail).where(
-                        OrdresTravail.id == alert.work_order_id
+                    select(Ordres_travail).where(
+                        Ordres_travail.id == alert.work_order_id
                     )
                 )
                 return existing_wo.scalar_one_or_none()
@@ -363,7 +408,7 @@ class AlertService:
                 "CRITICAL": "URGENTE",
             }
 
-            wo = OrdresTravail(
+            wo = Ordres_travail(
                 titre=wo_data.get(
                     "title",
                     f"Maintenance - {alert.machine.name if alert.machine else 'Machine #' + str(alert.machine_id)}",
@@ -417,7 +462,7 @@ class AlertService:
                 return None
 
             wo_result = await self.db.execute(
-                select(OrdresTravail).where(OrdresTravail.id == work_order_id)
+                select(Ordres_travail).where(Ordres_travail.id == work_order_id)
             )
             wo = wo_result.scalar_one_or_none()
 

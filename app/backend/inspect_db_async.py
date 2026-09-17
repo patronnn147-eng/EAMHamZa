@@ -1,4 +1,4 @@
-﻿import asyncio
+import asyncio
 import os
 import asyncpg
 
@@ -15,20 +15,20 @@ async def main():
     try:
         conn = await asyncpg.connect(pg_url)
 
-        print("Columns in OrdresIntervention:")
+        print("Columns in ordres_intervention:")
         rows = await conn.fetch("""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'OrdresIntervention'
+            WHERE table_name = 'ordres_intervention'
         """)
         for row in rows:
             print(f"- {row['column_name']}")
 
-        print("\nColumns in OrdresTravail:")
+        print("\nColumns in ordres_travail:")
         rows = await conn.fetch("""
             SELECT column_name 
             FROM information_schema.columns 
-            WHERE table_name = 'OrdresTravail'
+            WHERE table_name = 'ordres_travail'
         """)
         for row in rows:
             print(f"- {row['column_name']}")

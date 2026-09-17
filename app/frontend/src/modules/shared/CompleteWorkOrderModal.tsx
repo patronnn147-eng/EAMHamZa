@@ -28,7 +28,6 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from '@/contexts/AuthContext';
 import { MachineMetricsForm, TelemetryFormData } from '@/components/technicien/MachineMetricsForm';
-import { MACHINE_STATUS_OPTIONS } from '@/lib/constants';
 
 interface CompleteWorkOrderModalProps {
   open: boolean;
@@ -103,7 +102,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
     actions_performed: '',
     parts_replaced: '',
     tools_used: '',
-    machine_status_after: 'OPERATIONNELLE',
+    machine_status_after: 'EN_MARCHE',
   });
 
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -132,7 +131,7 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
         actions_performed: '',
         parts_replaced: '',
         tools_used: '',
-        machine_status_after: 'OPERATIONNELLE',
+        machine_status_after: 'EN_MARCHE',
       });
       setAttachments([]);
       setSymptoms([]);
@@ -247,14 +246,6 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
     }
   };
 
-  const toggleSymptom = (symptom: string, checked: boolean) => {
-    if (checked) {
-      setSymptoms(prev => [...prev, symptom]);
-    } else {
-      setSymptoms(prev => prev.filter(x => x !== symptom));
-    }
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
@@ -315,11 +306,9 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
                     >
                       <SelectTrigger id="m_status"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        {MACHINE_STATUS_OPTIONS.map((status) => (
-                          <SelectItem key={status.value} value={status.value}>
-                            {status.label}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="EN_MARCHE">En marche (Fonctionnel)</SelectItem>
+                        <SelectItem value="ARRETEE">Arrêtée (En attente/HS)</SelectItem>
+                        <SelectItem value="FONCTIONNEMENT_RESTREINT">Fonctionnement restreint</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -357,7 +346,10 @@ export function CompleteWorkOrderModal({ open, onOpenChange, workOrderId, machin
                         <Checkbox
                           id={`sym-modal-${s}`}
                           checked={symptoms.includes(s)}
-                          onCheckedChange={(checked) => toggleSymptom(s, !!checked)}
+                          onCheckedChange={(checked) => {
+                            if (checked) setSymptoms(prev => [...prev, s]);
+                            else setSymptoms(prev => prev.filter(x => x !== s));
+                          }}
                         />
                         <label htmlFor={`sym-modal-${s}`} className="text-xs font-medium cursor-pointer">{s}</label>
                       </div>

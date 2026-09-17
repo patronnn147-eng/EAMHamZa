@@ -1,10 +1,73 @@
 \chapter*{General Conclusion}
+\markboth{General Conclusion}{}
 \addcontentsline{toc}{chapter}{General Conclusion}
 
-This end-of-studies project made it possible to design and implement an asset management and predictive maintenance platform for industrial equipment, addressing the problem stated in the introduction: unifying, within a single system, traditional operational asset management, machine-learning-based failure prediction capabilities, and intelligent support for maintenance teams.
+The introduction asked whether a single system could hold the operational plumbing of industrial asset management (users, machines, work orders, interventions) together with a genuine predictive layer, without one dragging the other down. It held: the seven ML modules (P1 to P7) sit inside the same work-order and intervention-order lifecycle a technician already uses, not bolted alongside it, and every one of their outputs ships with a plain-language explanation rather than a raw model score, which was the condition for the platform being trusted enough to actually use. Getting there followed a deliberately unglamorous path, requirements first, then a modular architecture, then implementation in slices, then testing against what the requirements actually demanded, rather than jumping straight to the models. That order is what kept the ML layer from becoming a demo bolted onto a working EAM system instead of a genuine part of it.
 
-The approach followed \textemdash{} requirements analysis, design of a modular architecture, iterative implementation, then validation through testing \textemdash{} made it possible to deliver a coherent system in which each Machine Learning module (P1 to P7) is seamlessly integrated into the day-to-day management of work and intervention orders, with systematic explainability to remain accessible to non-specialist users.
+Technically, the internship forced a real reckoning with microservices boundaries, with applying ML to problems that do not resemble a textbook dataset (survival-based regression, anomaly detection, reconciling several disagreeing evidence sources), and with building a Retrieval-Augmented Generation pipeline end to end rather than wiring up an existing one. Less technically, it meant owning a six-month scope alone: deciding what to build next, writing down why, and refusing to call a component done until it had actually been checked against real behaviour rather than assumed to work. What is left undone says as much as what shipped: the RAG service should read more formats, the models need real technician-confirmed outcomes, and the spare-parts automation should stay exactly as human-gated as it is now, or more so, not less, as it matures.
 
-On the technical side, this internship deepened my understanding of microservices architecture design, the application of Machine Learning techniques to concrete industrial problems (classification, regression on survival data, anomaly detection, fusion of multiple sources of evidence), as well as the implementation of Retrieval-Augmented Generation (RAG) systems. On a personal level, this internship strengthened my autonomy in running a project end to end, my ability to document and justify technical choices, and my rigor in systematically validating each component before integrating it.
+\vspace{1em}
+\noindent\rule{\textwidth}{0.4pt}
 
-Several avenues for improvement emerge from this work: extending the RAG service to new document formats, training the models on real production data rather than simulated data, and strengthening human oversight in the automation of spare parts provisioning.
+\section*{Bibliography / Web References}
+\markboth{Bibliography / Web References}{}
+\addcontentsline{toc}{chapter}{Bibliography / Web References}
+
+\small
+\begin{thebibliography}{9}
+\setlength{\itemsep}{0pt}
+\setlength{\parsep}{0pt}
+\setlength{\parskip}{0pt}
+
+\bibitem{fastapi}
+FastAPI,\emph{FastAPI documentation}. \url{https://fastapi.tiangolo.com/} (accessed 2026).
+
+\bibitem{nextjs}
+Vercel,\emph{Next.js documentation}. \url{https://nextjs.org/docs} (accessed 2026).
+
+\bibitem{sklearn}
+Pedregosa, F. \emph{et al.},\emph{Scikit-learn: ML in Python}. JMLR, 2011. \url{https://www.jmlr.org/papers/v12/pedregosa11a.html} (accessed 2026).
+
+\bibitem{dst}
+Shafer, G.,\emph{A Mathematical Theory of Evidence}. Princeton University Press, 1976. \url{https://doi.org/10.1515/9780691214696} (accessed 2026).
+
+\bibitem{xgboost}
+Chen, T. \& Guestrin, C.,\emph{XGBoost: A Scalable Tree Boosting System}. KDD, 2016. \url{https://doi.org/10.1145/2939672.2939785} (accessed 2026).
+
+\bibitem{croston}
+Croston, J.D.,\emph{Forecasting and stock control for intermittent demands}. Operational Research Quarterly, 1972. \url{https://doi.org/10.1057/jors.1972.50} (accessed 2026).
+
+\bibitem{sentence-transformers}
+Reimers, N. \& Gurevych, I.,\emph{Sentence-BERT: Sentence Embeddings using Siamese BERT-Networks}. \url{https://www.sbert.net/} (accessed 2026).
+
+\bibitem{ai4i2020}
+Matzka, S.,\emph{AI4I 2020 Predictive Maintenance Dataset}. UCI ML Repository, 2020. \url{https://archive.ics.uci.edu/dataset/601/ai4i+2020+predictive+maintenance+dataset} (accessed 2026).
+
+\bibitem{docker}
+Docker Inc.,\emph{Docker documentation}. \url{https://docs.docker.com/} (accessed 2026).
+
+\bibitem{kubernetes}
+The Kubernetes Authors,\emph{Kubernetes documentation}. \url{https://kubernetes.io/docs/} (accessed 2026).
+
+\bibitem{helm}
+The Helm Authors,\emph{Helm documentation}. \url{https://helm.sh/docs/} (accessed 2026).
+
+\bibitem{owasp-top10}
+OWASP Foundation,\emph{OWASP Top 10}. \url{https://owasp.org/Top10/} (accessed 2026).
+
+\bibitem{sonarqube}
+SonarSource,\emph{SonarQube Community Edition documentation}. \url{https://docs.sonarsource.com/} (accessed 2026).
+
+\bibitem{trivy}
+Aqua Security,\emph{Trivy documentation}. \url{https://trivy.dev/} (accessed 2026).
+
+\bibitem{gitleaks}
+Rice, Z.,\emph{Gitleaks: SAST tool for detecting secrets}. \url{https://github.com/gitleaks/gitleaks} (accessed 2026).
+
+\bibitem{cox}
+Cox, D.R.,\emph{Regression Models and Life-Tables}. JRSS B, 1972. \url{https://doi.org/10.1111/j.2517-6161.1972.tb00899.x} (accessed 2026).
+
+\bibitem{kalman}
+Kalman, R.E.,\emph{A New Approach to Linear Filtering and Prediction Problems}. J. Basic Engineering, 1960. \url{https://doi.org/10.1115/1.3662552} (accessed 2026).
+
+\end{thebibliography}

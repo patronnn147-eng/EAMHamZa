@@ -5,7 +5,6 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.ordres import Ordres
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +49,38 @@ class OrdresService:
     ) -> Dict[str, Any]:
         """Get paginated list of ordress"""
         try:
-            query, count_query = _apply_filters(
-                select(Ordres), select(func.count(Ordres.id)), Ordres, query_dict
-            )
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Ordres)
+            query = select(Ordres)
+            count_query = select(func.count(Ordres.id))
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Ordres, field):
+                        query = query.where(getattr(Ordres, field) == value)
+                        count_query = count_query.where(getattr(Ordres, field) == value)
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Ordres, field_name):
+                        query = query.order_by(getattr(Ordres, field_name).desc())
+                else:
+                    if hasattr(Ordres, sort):
+                        query = query.order_by(getattr(Ordres, sort))
+            else:
+                query = query.order_by(Ordres.id.desc())
+
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching ordres list: {str(e)}")
             raise

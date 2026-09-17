@@ -6,14 +6,10 @@ WORKDIR /app
 #   gcc          — pip-compile time (native extensions in asyncpg, etc.)
 #   curl         — runtime HEALTHCHECK
 #   tesseract-ocr + fra/eng — runtime OCR for scanned/image-only PDFs
-# Upgrade OS packages, install runtime deps, then remove linux-libc-dev
-# (kernel headers — never needed at runtime, but pulled in by python:3.11-slim base).
 RUN apt-get update && \
-    apt-get upgrade -y && \
     apt-get install -y --no-install-recommends \
         gcc curl \
         tesseract-ocr tesseract-ocr-fra tesseract-ocr-eng && \
-    apt-get purge -y --auto-remove linux-libc-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -22,10 +18,9 @@ COPY requirements.txt .
 #    Without this, pip resolves torch with CUDA (~3.5 GB of nvidia-* packages).
 # 2. Install remaining requirements.
 # 3. Purge gcc — no longer needed at runtime; reduces final image ~30 MB.
-RUN pip install --no-cache-dir "pip>=26.1.2" && \
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir torch --index-url https://download.pytorch.org/whl/cpu && \
     pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2" && \
     apt-get purge -y --auto-remove gcc && \
     rm -rf /var/lib/apt/lists/*
 
@@ -39,11 +34,12 @@ COPY . .
 
 # Pre-create cache dirs BEFORE chown so the named volume inherits raguser ownership.
 # Without this, Docker creates the mount point as root → "Permission denied" at runtime.
+RUN mkdir -p /app/.cache/huggingface /app/.cache/sentence_transformers
+
 # Non-root user — security baseline; never run ML inference as root.
-RUN mkdir -p /app/.cache/huggingface /app/.cache/sentence_transformers \
-    && addgroup --gid 1001 raguser \
-    && adduser --disabled-password --gecos "" --uid 1001 --ingroup raguser raguser \
-    && chown -R raguser:raguser /app
+RUN addgroup --gid 1001 raguser && \
+    adduser --disabled-password --gecos "" --uid 1001 --ingroup raguser raguser && \
+    chown -R raguser:raguser /app
 
 USER raguser
 

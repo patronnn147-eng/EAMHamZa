@@ -1,13 +1,13 @@
-﻿from datetime import datetime
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
 
-class OrdresInterventionData(BaseModel):
+class Ordres_interventionData(BaseModel):
     """Entity data schema (for create/update)"""
 
     date_intervention: datetime
-    rapport: Optional[str] = None
+    rapport: str = None
     ordre_travail_id: Optional[int] = None
     technicien_id: Optional[int] = None
     statut: Optional[str] = None
@@ -27,7 +27,7 @@ class OrdresInterventionData(BaseModel):
     ml_prediction_matched: Optional[bool] = None
 
 
-class OrdresInterventionUpdateData(BaseModel):
+class Ordres_interventionUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
 
     date_intervention: Optional[datetime] = None
@@ -51,7 +51,7 @@ class OrdresInterventionUpdateData(BaseModel):
     ml_prediction_matched: Optional[bool] = None
 
 
-class OrdresInterventionResponse(BaseModel):
+class Ordres_interventionResponse(BaseModel):
     """Entity response schema"""
 
     id: int
@@ -79,41 +79,41 @@ class OrdresInterventionResponse(BaseModel):
         from_attributes = True
 
 
-class OrdresInterventionValidationData(BaseModel):
+class Ordres_interventionValidationData(BaseModel):
     action: str  # "APPROVE" or "REJECT"
     technicien_id: Optional[int] = None  # Technician to assign
     rejection_reason: Optional[str] = None
 
 
-class OrdresInterventionListResponse(BaseModel):
+class Ordres_interventionListResponse(BaseModel):
     """List response schema"""
 
-    items: List[OrdresInterventionResponse]
+    items: List[Ordres_interventionResponse]
     total: int
     skip: int
     limit: int
 
 
-class OrdresInterventionBatchCreateRequest(BaseModel):
+class Ordres_interventionBatchCreateRequest(BaseModel):
     """Batch create request"""
 
-    items: List[OrdresInterventionData]
+    items: List[Ordres_interventionData]
 
 
-class OrdresInterventionBatchUpdateItem(BaseModel):
+class Ordres_interventionBatchUpdateItem(BaseModel):
     """Batch update item"""
 
     id: int
-    updates: OrdresInterventionUpdateData
+    updates: Ordres_interventionUpdateData
 
 
-class OrdresInterventionBatchUpdateRequest(BaseModel):
+class Ordres_interventionBatchUpdateRequest(BaseModel):
     """Batch update request"""
 
-    items: List[OrdresInterventionBatchUpdateItem]
+    items: List[Ordres_interventionBatchUpdateItem]
 
 
-class OrdresInterventionBatchDeleteRequest(BaseModel):
+class Ordres_interventionBatchDeleteRequest(BaseModel):
     """Batch delete request"""
 
     ids: List[int]

@@ -1,0 +1,45 @@
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[english,french]{babel}
+\shorthandoff{:;!?}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}
+\usepackage{titlesec}
+\titleformat{\chapter}[hang]{\bfseries\Large}{\thechapter}{0.20cm}{}
+\titleformat{\section}[hang]{\bfseries\large}{\thesection}{0.20cm}{}
+\titleformat{\subsection}[hang]{\bfseries\normalsize}{\thesubsection}{0.20cm}{}
+\usepackage{caption}
+\captionsetup{labelfont=bf}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\nouppercase{\leftmark}}
+\fancyfoot[R]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\chaptermark}[1]{\markboth{Chapitre~\thechapter~: #1}{}}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{tabularx}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usetikzlibrary{positioning, arrows.meta, matrix, calc}
+\usepackage{pgfgantt}
+\usepackage[hidelinks]{hyperref}
+\setlength{\parindent}{0.5cm}
+
+% Screenshot placeholder box: #1 = label, #2 = caption, #3 = description of what to capture
+\newcommand{\screenshotph}[3]{%
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.85\textwidth}
+\centering
+\vspace{1cm}
+\textit{#3}
+\vspace{1cm}
+\end{minipage}}
+\caption{#2}
+\label{#1}
+\end{figure}
+}

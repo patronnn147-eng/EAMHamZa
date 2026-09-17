@@ -56,22 +56,6 @@ def format_traceback() -> str:
     return traceback.format_exc().replace(chr(10), "\\n")
 
 
-def _scan_seo_routes(dist_path: str) -> set:
-    """Walk dist_path and return the set of /blog* URL paths that contain index.html."""
-    found = set()
-    for root, _dirs, files in os.walk(dist_path):
-        if INDEX_HTML_FILENAME not in files:
-            continue
-        rel_path = os.path.relpath(root, dist_path)
-        if rel_path == ".":
-            continue
-        url_path = "/" + rel_path.replace(os.sep, "/")
-        if url_path == "/blog" or url_path.startswith("/blog/"):
-            found.add(url_path)
-            logger.info(f"Registered SEO route: {url_path}")
-    return found
-
-
 def initialize_dynamic_routes():
     """Initialize dynamic routes by scanning frontend dist directory"""
     global dynamic_routes_initialized, seo_paths
@@ -79,13 +63,32 @@ def initialize_dynamic_routes():
     if dynamic_routes_initialized:
         return
 
+    dist_path = FRONTEND_DIST_DIR
+
     try:
-        if os.path.exists(FRONTEND_DIST_DIR):
-            seo_paths = _scan_seo_routes(FRONTEND_DIST_DIR)
+        if os.path.exists(dist_path):
+            for root, dirs, files in os.walk(dist_path):
+                if INDEX_HTML_FILENAME in files:
+                    rel_path = os.path.relpath(root, dist_path)
+
+                    # Skip root index.html (for SPA)
+                    if rel_path == ".":
+                        continue
+
+                    url_path = "/" + rel_path.replace(os.sep, "/")
+
+                    # Only register SEO paths
+                    if url_path == "/blog" or url_path.startswith("/blog/"):
+                        seo_paths.add(url_path)
+                        logger.info(f"Registered SEO route: {url_path}")
+
         dynamic_routes_initialized = True
         logger.info(f"Dynamic routes initialized: seo_paths={len(seo_paths)}")
+
     except Exception as e:
-        logger.exception(f"Failed to initialize dynamic routes: {e}\n{format_traceback()}")
+        logger.exception(
+            f"Failed to initialize dynamic routes: {e}\n{format_traceback()}"
+        )
         dynamic_routes_initialized = True
 
 
@@ -182,83 +185,50 @@ def get_mangum_handler_sync():
     return mangum_handler
 
 
-def _parse_event_path_headers(event: Dict[str, Any]) -> tuple:
-    """Extract (path, headers) from API Gateway v1 or v2 event format."""
-    if "version" in event and event["version"] == "2.0":
-        path = event.get("rawPath", "/")
-        headers = event.get("headers", {})
-        if headers:
-            headers = {k.lower(): v for k, v in headers.items()}
-    elif "httpMethod" in event:
-        path = event.get("path", "/")
-        headers = event.get("headers", {})
-    else:
-        path = "/"
-        headers = {}
-    return path, headers
-
-
-def _update_event_path(event: Dict[str, Any], path: str) -> None:
-    """Write the normalized path back into the event for downstream handlers."""
-    if "version" in event and event["version"] == "2.0":
-        event["rawPath"] = path
-    elif "httpMethod" in event:
-        event["path"] = path
-
-
-def _dispatch_route(
-    path: str,
-    event: Dict[str, Any],
-    context: Any,
-    headers: Dict[str, str],
-    request_domain: str,
-) -> Dict[str, Any]:
-    """Route a normalized path to the correct handler and return its response."""
-    if path == "/api/config":
-        return handle_config_request(headers)
-    if path.startswith("/api/v1/"):
-        return handle_backend_request_sync(event, context)
-    if path == "/health":
-        return {
-            "statusCode": 200,
-            "headers": {"Content-Type": CONTENT_TYPE_JSON, "Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"status": "healthy"}),
-        }
-    if path.startswith("/database"):
-        return {
-            "statusCode": 404,
-            "headers": {"Content-Type": CONTENT_TYPE_JSON, "Access-Control-Allow-Origin": "*"},
-            "body": json.dumps({"error": "Not found"}),
-        }
-    if path.endswith((".js", ".css", ".png", ".jpg", ".jpeg", ".gif", ".ico",
-                       ".svg", ".woff", ".woff2", ".ttf", ".eot")):
-        return serve_static_file(path)
-    if path == "/sitemap.xml":
-        return serve_sitemap(request_domain)
-    if path == "/robots.txt":
-        return serve_robots()
-    if path.rstrip("/") in seo_paths:
-        return serve_seo_html(path, request_domain)
-    return serve_frontend()
-
-
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
     AWS Lambda handler function that simulates Nginx routing
     """
     try:
+        # Initialize dynamic routes on first request (cold start)
         initialize_dynamic_routes()
 
-        path, headers = _parse_event_path_headers(event)
+        # Extract request information from the event
+        # Support both API Gateway v1 and v2 event formats
+        if "version" in event and event["version"] == "2.0":
+            # API Gateway v2 format
+            path = event.get("rawPath", "/")
+            headers = event.get("headers", {})
+            query_params = event.get("queryStringParameters", {})
+            # API Gateway v2 uses different header format
+            if headers:
+                # Convert v2 headers to v1 format for Mangum
+                headers = {k.lower(): v for k, v in headers.items()}
+        elif "httpMethod" in event:
+            # API Gateway v1 format
+            path = event.get("path", "/")
+            headers = event.get("headers", {})
+            query_params = event.get("queryStringParameters", {})
+        else:
+            # Fallback for empty or malformed events
+            path = "/"
+            headers = {}
+            query_params = {}
 
+        # Decode URL-encoded path to handle non-ASCII characters (UTF-8 decode)
+        # This ensures non-English characters in URLs are properly decoded
         try:
             path = unquote(path, encoding="utf-8")
         except Exception as e:
             logger.warning(f"Failed to decode path '{path}': {e}, using original path")
+            # If decoding fails, use original path
 
+        # Normalize path - ensure it starts with /
         if not path.startswith("/"):
             path = "/" + path
 
+        # Extract real request domain for SEO content replacement
+        # Priority: mgx-external-domain > x-forwarded-host > host
         proto = headers.get("x-forwarded-proto", "https")
         host = (
             headers.get("mgx-external-domain")
@@ -267,8 +237,76 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         )
         request_domain = f"{proto}://{host}" if host else ""
 
-        _update_event_path(event, path)
-        return _dispatch_route(path, event, context, headers, request_domain)
+        # Update the event with decoded and normalized path for downstream handlers
+        if "version" in event and event["version"] == "2.0":
+            event["rawPath"] = path
+        elif "httpMethod" in event:
+            event["path"] = path
+
+        # Handle /api/config endpoint
+        if path == "/api/config":
+            return handle_config_request(headers)
+
+        # Route API requests to backend
+        elif path.startswith("/api/v1/"):
+            result = handle_backend_request_sync(event, context)
+            return result
+
+        # Handle health check
+        elif path == "/health":
+            return {
+                "statusCode": 200,
+                "headers": {
+                    "Content-Type": CONTENT_TYPE_JSON,
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({"status": "healthy"}),
+            }
+
+        # Block database routes
+        elif path.startswith("/database"):
+            return {
+                "statusCode": 404,
+                "headers": {
+                    "Content-Type": CONTENT_TYPE_JSON,
+                    "Access-Control-Allow-Origin": "*",
+                },
+                "body": json.dumps({"error": "Not found"}),
+            }
+        elif path.endswith(
+            (
+                ".js",
+                ".css",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".gif",
+                ".ico",
+                ".svg",
+                ".woff",
+                ".woff2",
+                ".ttf",
+                ".eot",
+            )
+        ):
+            # Serve static files
+            return serve_static_file(path)
+
+        elif path == "/sitemap.xml":
+            return serve_sitemap(request_domain)
+
+        elif path == "/robots.txt":
+            return serve_robots()
+
+        # Dynamically registered routes: SEO HTML pages (only if exact path is registered)
+        # Normalize path by removing trailing slash for matching
+        elif path.rstrip("/") in seo_paths:
+            return serve_seo_html(path, request_domain)
+
+        else:
+            # Route to frontend (SPA) - ALL other paths go to frontend
+            result = serve_frontend()
+            return result
 
     except Exception as e:
         error_info = (

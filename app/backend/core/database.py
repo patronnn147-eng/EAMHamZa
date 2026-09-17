@@ -4,7 +4,6 @@ import os
 import re
 import time
 from pathlib import Path
-from typing import AsyncGenerator
 
 from asyncpg.exceptions import (
     DuplicateTableError,
@@ -160,14 +159,6 @@ class DatabaseManager:
                     "pool_pre_ping",
                 ]:
                     engine_kwargs.pop(key, None)
-            elif "?sslmode=require" in database_url or "?ssl=require" in database_url:
-                # asyncpg's Python connect() only accepts ssl=, not sslmode= --
-                # passing sslmode as a URL query param makes SQLAlchemy's
-                # asyncpg dialect forward it verbatim as an unrecognized
-                # kwarg, raising TypeError. Strip it from the URL and pass
-                # the equivalent via connect_args instead.
-                database_url = database_url.split("?")[0]
-                engine_kwargs["connect_args"] = {"ssl": "require"}
 
             # Create async engine
             self.engine = create_async_engine(database_url, **engine_kwargs)
@@ -531,22 +522,6 @@ class DatabaseManager:
 
         return missing
 
-    def _default_clause(self, default: str, column_type: str) -> str:
-        """Return a ' DEFAULT ...' SQL fragment for the given value and column type."""
-        upper = column_type.upper()
-        if default == "":
-            if upper in ("TEXT", "VARCHAR", "STRING"):
-                return " DEFAULT ''"
-            if upper in ("INTEGER", "BIGINT"):
-                return " DEFAULT 0"
-            if upper in ("BOOLEAN",):
-                return " DEFAULT false"
-            return " DEFAULT ''"
-        # Non-empty default value
-        if upper in ("TEXT", "VARCHAR", "STRING") and not default.isdigit():
-            return f" DEFAULT '{default}'"
-        return f" DEFAULT {default}"
-
     def _generate_add_column_sql(self, table_name: str, column_info: dict):
         """Generate ALTER TABLE ADD COLUMN SQL statement"""
         column_name = column_info["name"]
@@ -573,7 +548,27 @@ class DatabaseManager:
             sql += " NOT NULL"
 
         if default is not None:
-            sql += self._default_clause(default, column_type)
+            # Handle different data types for default values
+            if default == "":
+                if column_type.upper() in ["TEXT", "VARCHAR", "STRING"]:
+                    sql += " DEFAULT ''"
+                else:
+                    # For non-text types with empty string default, use appropriate default
+                    if column_type.upper() in ["INTEGER", "BIGINT"]:
+                        sql += " DEFAULT 0"
+                    elif column_type.upper() in ["BOOLEAN"]:
+                        sql += " DEFAULT false"
+                    else:
+                        sql += " DEFAULT ''"
+            else:
+                # Quote string values for text types
+                if (
+                    column_type.upper() in ["TEXT", "VARCHAR", "STRING"]
+                    and not default.isdigit()
+                ):
+                    sql += f" DEFAULT '{default}'"
+                else:
+                    sql += f" DEFAULT {default}"
         logger.debug(f"ALTER SQL: {sql}")
 
         return sql
@@ -612,7 +607,7 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
+async def get_db() -> AsyncSession:
     """FastAPI dependency for database session with lazy initialization support"""
     start_time = time.time()
     logger.debug("[DB_OP] Starting get_db session creation")

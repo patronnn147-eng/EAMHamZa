@@ -20,7 +20,7 @@ export async function loadRuntimeConfig(): Promise<void> {
     if (response.ok) {
       const contentType = response.headers.get('content-type');
       // Only parse as JSON if the response is actually JSON
-      if (contentType?.includes('application/json')) {
+      if (contentType && contentType.includes('application/json')) {
         runtimeConfig = await response.json();
         console.log('Runtime config loaded successfully');
       } else {
@@ -46,18 +46,20 @@ export async function loadRuntimeConfig(): Promise<void> {
 
 // Get current configuration
 export function getConfig() {
-  // Runtime config (fetched from /api/config, e.g. for Lambda) wins once loaded.
+  // If config is still loading, return default config to avoid using stale Vite env vars
+  if (configLoading) {
+    console.log('Config still loading, using default config');
+    return defaultConfig;
+  }
+
+  // First try runtime config (for Lambda)
   if (runtimeConfig) {
     console.log('Using runtime config');
     return runtimeConfig;
   }
 
-  // Vite env vars are baked in at build time -- known synchronously, so
-  // there's no reason to wait on the async /api/config fetch for this.
-  // Checked via !== undefined, not truthiness -- an explicitly empty
-  // string means "same-origin relative paths" (e.g. behind nginx's own
-  // /api/ proxy) and must be honored, not treated as "unset".
-  if (import.meta.env.VITE_API_BASE_URL !== undefined) {
+  // Then try Vite environment variables (for local development)
+  if (import.meta.env.VITE_API_BASE_URL) {
     const viteConfig = {
       API_BASE_URL: import.meta.env.VITE_API_BASE_URL,
     };
@@ -65,13 +67,8 @@ export function getConfig() {
     return viteConfig;
   }
 
-  // No Vite env var set -- still waiting on /api/config, or it came back
-  // empty. Use the Lambda-oriented default either way.
-  if (configLoading) {
-    console.log('Config still loading, using default config');
-  } else {
-    console.log('Using default config');
-  }
+  // Finally fall back to default
+  console.log('Using default config');
   return defaultConfig;
 }
 

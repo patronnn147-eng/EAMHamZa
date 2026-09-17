@@ -1,4 +1,4 @@
-﻿"""Archive API — per-module listing + admin reactivate + manual sweep.
+"""Archive API — per-module listing + admin reactivate + manual sweep.
 
 Routes:
   GET  /api/v1/archive/{module}        — paginated archived items (role-scoped)
@@ -7,7 +7,7 @@ Routes:
   POST /api/v1/archive/purge           — manual purge trigger (admin only)
   GET  /api/v1/archive/counts          — per-module archived totals (for sidebar badge)
 
-`module` ∈ {PlanningTaches, OrdresTravail, OrdresIntervention, plannings}.
+`module` ∈ {planning_taches, ordres_travail, ordres_intervention, plannings}.
 
 Role scoping:
 - TECHNICIEN sees only items where they're the assigned technician
@@ -41,9 +41,9 @@ VALID_MODULES = {r.module for r in ARCHIVE_RULES}
 
 # Role → which column gates user-visibility for archived items
 SCOPE_COLUMN_BY_MODULE_ROLE = {
-    ("PlanningTaches", "TECHNICIEN"): "technicien_id",
-    ("OrdresTravail", "TECHNICIEN"): "utilisateur_id",
-    ("OrdresIntervention", "TECHNICIEN"): "technician_id",
+    ("planning_taches", "TECHNICIEN"): "technicien_id",
+    ("ordres_travail", "TECHNICIEN"): "utilisateur_id",
+    ("ordres_intervention", "TECHNICIEN"): "technician_id",
     # CHEFTECH/CHETOP/ADMIN see all by default
 }
 
@@ -71,42 +71,6 @@ async def get_archive_counts(
         counts[rule.module] = (await db.execute(stmt)).scalar() or 0
 
     return {"counts": counts, "total": sum(counts.values())}
-
-
-def _serialize_attr_value(v):
-    """Serialize one model attribute: datetime→isoformat, enum→.value, fallback str."""
-    if isinstance(v, datetime):
-        return v.isoformat()
-    try:
-        return (
-            v.value
-            if hasattr(v, "value") and not isinstance(v, (int, str, float))
-            else v
-        )
-    except Exception:
-        return str(v) if v is not None else None
-
-
-_ARCHIVE_COMMON_ATTRS = (
-    "titre", "identifiant_planning", "rapport", "description",
-    "problem_description", "priorite", "priority", "statut",
-    "planning_statut", "date_echeance", "date_fin", "date_debut",
-    "date_intervention", "machine_id", "technicien_id", "technician_id",
-    "utilisateur_id",
-)
-
-
-def _serialize_archived_item(it) -> Dict[str, Any]:
-    """Build the serialized dict for one archived model instance."""
-    row: Dict[str, Any] = {
-        "id": it.id,
-        "archived_at": it.archived_at.isoformat() if getattr(it, "archived_at", None) else None,
-        "archive_reason": getattr(it, "archive_reason", None),
-    }
-    for attr in _ARCHIVE_COMMON_ATTRS:
-        if hasattr(it, attr):
-            row[attr] = _serialize_attr_value(getattr(it, attr))
-    return row
 
 
 @router.get("/{module}", responses={400: {"description": "Bad Request"}, 404: {"description": "Not Found"}, 500: {"description": "Internal server error"}})
@@ -140,7 +104,55 @@ async def list_archived(
             user_filter_column=scope_col,
             user_id_filter=current_user.id if scope_col else None,
         )
-        out = [_serialize_archived_item(it) for it in result["items"]]
+
+        items = result["items"]  # list of model instances
+        # Serialize each model — extract common fields only
+        out = []
+        for it in items:
+            row: Dict[str, Any] = {
+                "id": it.id,
+                "archived_at": it.archived_at.isoformat()
+                if getattr(it, "archived_at", None)
+                else None,
+                "archive_reason": getattr(it, "archive_reason", None),
+            }
+            # Common identity fields
+            for attr in (
+                "titre",
+                "identifiant_planning",
+                "rapport",
+                "description",
+                "problem_description",
+                "priorite",
+                "priority",
+                "statut",
+                "planning_statut",
+                "date_echeance",
+                "date_fin",
+                "date_debut",
+                "date_intervention",
+                "machine_id",
+                "technicien_id",
+                "technician_id",
+                "utilisateur_id",
+            ):
+                if hasattr(it, attr):
+                    v = getattr(it, attr)
+                    if isinstance(v, datetime):
+                        row[attr] = v.isoformat()
+                    else:
+                        # Skip non-serializable enum-like objects gracefully
+                        try:
+                            row[attr] = (
+                                v.value
+                                if hasattr(v, "value")
+                                and not isinstance(v, (int, str, float))
+                                else v
+                            )
+                        except Exception:
+                            row[attr] = str(v) if v is not None else None
+            out.append(row)
+
         return {
             "module": module,
             "items": out,

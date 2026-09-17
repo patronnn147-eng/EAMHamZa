@@ -1,10 +1,11 @@
 \appendix
 \chapter{Appendices}
 
-\section{Selected code excerpts}
+\section{Selected code excerpts and diagrams}
 
-The excerpt below illustrates, in simplified form, the score fusion logic of the anomaly detection ensemble (P4 module), with weight renormalization when a detector is unavailable:
+\textbf{P4 -- Score fusion with weight renormalization:}
 
+\begin{small}
 \begin{verbatim}
 def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
     available = {k: v for k, v in scores.items() if v is not None}
@@ -13,9 +14,12 @@ def fuse_anomaly_scores(scores: dict, weights: dict) -> float:
         return 0.0
     return sum(scores[k] * weights[k] for k in available) / total_weight
 \end{verbatim}
+\end{small}
 
-The following excerpt illustrates the principle behind computing the operational readiness score (P7 module), combining several weighted signals:
+\vspace{0.2em}
+\textbf{P7 -- Operational readiness score:}
 
+\begin{small}
 \begin{verbatim}
 def compute_readiness_score(health, inventory, shortage, recency):
     return (
@@ -25,15 +29,15 @@ def compute_readiness_score(health, inventory, shortage, recency):
         + 0.10 * recency
     )
 \end{verbatim}
+\end{small}
 
-\section{Detailed diagrams}
-
+\vspace{0.5em}
 The complete class diagram and the sequence diagram of the ML-RAG bridge (parallel invocation of the RAG service and the ML microservice, context fusion before generating the response) are available in the project's technical specifications.
 
-\section{Complete metrics tables}
+\section{Complete metrics table}
 
-\begin{table}[h]
-\centering
+\vspace{-0.5em}
+\begin{small}
 \begin{tabularx}{\textwidth}{|l|X|}
 \toprule
 \textbf{Model} & \textbf{Description} \\
@@ -53,6 +57,6 @@ P6 & Maintenance scheduling \\
 P7 & Spare parts coordination (demand forecasting, alerts, guided provisioning) \\
 \bottomrule
 \end{tabularx}
-\caption{Summary of the Machine Learning pipeline models}
+\captionof{table}{Summary of the Machine Learning pipeline models}
 \label{tab:metriques-completes}
-\end{table}
+\end{small}

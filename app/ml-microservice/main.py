@@ -18,100 +18,6 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-_W2_CSV_CANDIDATES = [
-    "/app/ai4i2020.csv",
-    "/workspace/ai4i2020.csv",
-    os.path.join(os.path.dirname(__file__), "ai4i2020.csv"),
-    os.path.join(os.path.dirname(__file__), "..", "ai4i2020.csv"),
-]
-
-_W2_SENSOR_KEYS = [
-    "Air temperature [K]",
-    "Process temperature [K]",
-    "Rotational speed [rpm]",
-    "Torque [Nm]",
-    "Tool wear [min]",
-]
-
-_W2_FEATURE_NAMES = [
-    "air_temperature",
-    "process_temperature",
-    "rotational_speed",
-    "torque",
-    "tool_wear",
-]
-
-_W2_PINN_WINDOW = 20  # timesteps per sequence
-
-
-def _startup_fit_anomaly_ensemble(x_all, rows, feature_names):
-    """Fit AnomalyEnsemble on healthy (failure==0) rows. Errors are non-fatal."""
-    try:
-        from src.anomaly_cusum import fit_anomaly_ensemble
-
-        failure_col = "Machine failure" if "Machine failure" in rows[0] else None
-        if failure_col:
-            healthy_mask = [
-                i
-                for i, row in enumerate(rows)
-                if row.get(failure_col, "0").strip() in ("0", "0.0", "False")
-            ]
-            x_healthy = x_all[healthy_mask] if healthy_mask else x_all
-        else:
-            x_healthy = x_all
-
-        fit_anomaly_ensemble(x_healthy, feature_names)
-        logger.info(f"AnomalyEnsemble fitted on {len(x_healthy)} healthy samples.")
-    except Exception as e:
-        logger.warning(f"AnomalyEnsemble startup fit failed: {e}", exc_info=True)
-
-
-def _startup_fit_pinn_rul(x_all, rows, rul_col):
-    """Fit PINN RUL estimator on sequence/label pairs. Errors are non-fatal."""
-    try:
-        from src.pinn_rul import create_pinn_estimator, TORCH_AVAILABLE
-
-        if not TORCH_AVAILABLE:
-            logger.warning("PINN skipped: PyTorch not available.")
-            return
-
-        sequences = []
-        rul_labels = []
-
-        if rul_col and rul_col in rows[0]:
-            for i in range(_W2_PINN_WINDOW, len(x_all), _W2_PINN_WINDOW):
-                seq = x_all[i - _W2_PINN_WINDOW : i]
-                try:
-                    rul = float(rows[i - 1].get(rul_col, 60))
-                except ValueError:
-                    rul = 60.0
-                sequences.append(seq)
-                rul_labels.append(rul)
-        else:
-            for i in range(_W2_PINN_WINDOW, len(x_all), _W2_PINN_WINDOW):
-                seq = x_all[i - _W2_PINN_WINDOW : i]
-                wear = seq[-1, 4]  # tool_wear is index 4
-                rul = max(0.0, 300.0 - float(wear))
-                sequences.append(seq)
-                rul_labels.append(rul)
-
-        if len(sequences) < 3:
-            logger.warning("PINN startup fit skipped: too few sequences.")
-            return
-
-        if len(sequences) > 500:
-            step = len(sequences) // 500
-            sequences = sequences[::step][:500]
-            rul_labels = rul_labels[::step][:500]
-
-        pinn = create_pinn_estimator(reference_rul=60.0)
-        pinn.train(sequences, rul_labels, epochs=30, lr=1e-3)
-        logger.info(f"PINN RUL fitted on {len(sequences)} sequences.")
-
-    except Exception as e:
-        logger.warning(f"PINN startup fit failed: {e}", exc_info=True)
-
-
 def _fit_wave2_models():
     """
     Fit Wave 2 transient models (AnomalyEnsemble + PINN) from ai4i2020.csv.
@@ -123,8 +29,15 @@ def _fit_wave2_models():
     """
     import numpy as np
 
+    # Locate training CSV — try container path first, then repo root
+    _CSV_CANDIDATES = [
+        "/app/ai4i2020.csv",
+        "/workspace/ai4i2020.csv",
+        os.path.join(os.path.dirname(__file__), "ai4i2020.csv"),
+        os.path.join(os.path.dirname(__file__), "..", "ai4i2020.csv"),
+    ]
     csv_path = None
-    for p in _W2_CSV_CANDIDATES:
+    for p in _CSV_CANDIDATES:
         if os.path.exists(p):
             csv_path = p
             break
@@ -145,22 +58,104 @@ def _fit_wave2_models():
             for row in reader:
                 rows.append(row)
 
+        FEATURES = [
+            "Air temperature [K]",
+            "Process temperature [K]",
+            "Rotational speed [rpm]",
+            "Torque [Nm]",
+            "Tool wear [min]",
+        ]
+        FEATURE_NAMES = [
+            "air_temperature",
+            "process_temperature",
+            "rotational_speed",
+            "torque",
+            "tool_wear",
+        ]
+
+        # Build X matrix (all rows, 5 features)
+        X_all = []
         rul_col = "RUL" if "RUL" in rows[0] else None
-        x_all = []
         for row in rows:
             try:
-                x = [float(row[f]) for f in _W2_SENSOR_KEYS]
-                x_all.append(x)
+                x = [float(row[f]) for f in FEATURES]
+                X_all.append(x)
             except (KeyError, ValueError):
                 continue
 
-        if len(x_all) < 50:
+        if len(X_all) < 50:
             logger.warning("Wave 2 startup fit skipped: too few valid rows in CSV.")
             return
 
-        x_all = np.array(x_all, dtype=np.float32)
-        _startup_fit_anomaly_ensemble(x_all, rows, _W2_FEATURE_NAMES)
-        _startup_fit_pinn_rul(x_all, rows, rul_col)
+        X_all = np.array(X_all, dtype=np.float32)
+
+        # ── AnomalyEnsemble: fit on rows where machine_failure == 0 (healthy baseline) ──
+        try:
+            from src.anomaly_cusum import fit_anomaly_ensemble
+
+            failure_col = "Machine failure" if "Machine failure" in rows[0] else None
+            if failure_col:
+                healthy_mask = [
+                    i
+                    for i, row in enumerate(rows)
+                    if row.get(failure_col, "0").strip() in ("0", "0.0", "False")
+                ]
+                X_healthy = X_all[healthy_mask] if healthy_mask else X_all
+            else:
+                X_healthy = X_all
+
+            fit_anomaly_ensemble(X_healthy, FEATURE_NAMES)
+            logger.info(f"AnomalyEnsemble fitted on {len(X_healthy)} healthy samples.")
+        except Exception as e:
+            logger.warning(f"AnomalyEnsemble startup fit failed: {e}", exc_info=True)
+
+        # ── PINN RUL: build (sequence, rul_label) pairs ──
+        try:
+            from src.pinn_rul import create_pinn_estimator, TORCH_AVAILABLE
+
+            if not TORCH_AVAILABLE:
+                logger.warning("PINN skipped: PyTorch not available.")
+                return
+
+            WINDOW = 20  # timesteps per sequence
+            sequences = []
+            rul_labels = []
+
+            if rul_col and rul_col in rows[0]:
+                # Dataset has RUL column — use directly
+                for i in range(WINDOW, len(X_all), WINDOW):
+                    seq = X_all[i - WINDOW : i]
+                    try:
+                        rul = float(rows[i - 1].get(rul_col, 60))
+                    except ValueError:
+                        rul = 60.0
+                    sequences.append(seq)
+                    rul_labels.append(rul)
+            else:
+                # No RUL column — derive from tool wear (proxy: 300 - wear)
+                for i in range(WINDOW, len(X_all), WINDOW):
+                    seq = X_all[i - WINDOW : i]
+                    wear = seq[-1, 4]  # tool_wear is index 4
+                    rul = max(0.0, 300.0 - float(wear))
+                    sequences.append(seq)
+                    rul_labels.append(rul)
+
+            if len(sequences) < 3:
+                logger.warning("PINN startup fit skipped: too few sequences.")
+                return
+
+            # Cap at 500 sequences to keep startup fast
+            if len(sequences) > 500:
+                step = len(sequences) // 500
+                sequences = sequences[::step][:500]
+                rul_labels = rul_labels[::step][:500]
+
+            pinn = create_pinn_estimator(reference_rul=60.0)
+            pinn.train(sequences, rul_labels, epochs=30, lr=1e-3)
+            logger.info(f"PINN RUL fitted on {len(sequences)} sequences.")
+
+        except Exception as e:
+            logger.warning(f"PINN startup fit failed: {e}", exc_info=True)
 
     except Exception as e:
         logger.warning(f"Wave 2 startup fit failed: {e}", exc_info=True)

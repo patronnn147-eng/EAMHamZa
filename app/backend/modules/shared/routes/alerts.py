@@ -83,6 +83,7 @@ class CreateWorkOrderRequest(BaseModel):
 
 async def get_alerts_for_user_role(
     db: AsyncSession,
+    current_user: Utilisateurs,
     machine_id: Optional[int] = None,
     severity: Optional[AlertSeverity] = None,
 ) -> List[Alert]:
@@ -135,7 +136,7 @@ async def get_alerts(
             raise HTTPException(status_code=400, detail=f"Invalid severity: {severity}")
 
     alerts = await get_alerts_for_user_role(
-        db, machine_id, alert_severity
+        db, current_user, machine_id, alert_severity
     )
 
     len(alerts)
@@ -175,6 +176,7 @@ async def update_alert_config(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Update alert configuration (admin only)"""
+    # TODO: Add role check for admin
     service = AlertService(db)
     config = await service.update_config(config_data.model_dump(exclude_unset=True))
     return config
@@ -186,6 +188,7 @@ async def trigger_alert_check(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Manually trigger alert checking and creation"""
+    # TODO: Add role check for admin
     service = AlertService(db)
     result = await service.check_and_create_alerts()
     return {"status": "completed", "alerts_created": result}
@@ -262,5 +265,5 @@ async def get_my_alerts(
     current_user: Annotated[Utilisateurs, Depends(get_current_user)],
 ):
     """Get alerts relevant to the current user based on their role and assignments"""
-    alerts = await get_alerts_for_user_role(db)
+    alerts = await get_alerts_for_user_role(db, current_user)
     return alerts[:50]

@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
@@ -8,8 +8,7 @@ class InterventionResponse(BaseModel):
     date_intervention: datetime
     rapport: Optional[str] = None
     ordre_travail_id: Optional[int] = None
-    technician_id: Optional[int] = None
-    technicien_nom: Optional[str] = None
+    technicien_id: Optional[int] = None
     statut: Optional[str] = None
     problem_description: Optional[str] = None
     priority: Optional[str] = None
@@ -18,7 +17,6 @@ class InterventionResponse(BaseModel):
     machine_id: Optional[int] = None
     requested_at: Optional[datetime] = None
     approved_by: Optional[int] = None
-    approved_by_nom: Optional[str] = None
     approved_at: Optional[datetime] = None
     rejection_reason: Optional[str] = None
     date_debut: Optional[datetime] = None
@@ -105,7 +103,7 @@ class TechnicianResponse(BaseModel):
 
 
 class DashboardStats(BaseModel):
-    total_OrdresTravail: int
+    total_ordres_travail: int
     ordres_en_attente: int
     ordres_en_cours: int
     total_interventions: int

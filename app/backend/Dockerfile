@@ -1,68 +1,44 @@
-# Multi-stage build for FastAPI backend
-
-# Stage 1: Build — install Python deps into an isolated venv
-FROM python:3.11-slim AS builder
-
-WORKDIR /app
-
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-COPY requirements.txt .
-
-# python:3.11-slim (Debian Bookworm) — all ML packages (xgboost, scikit-learn,
-# numpy, pandas, shap) ship manylinux wheels, so zero source compilation.
-# No build toolchain needed here; deps land in /opt/venv, discarded with this
-# stage. Kept before the source COPYs in the final stage below, so editing
-# app code never busts the pip cache (xgboost wheel alone is ~300MB).
-RUN pip install --no-cache-dir "pip>=26.1.2" \
-    && pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2"
-
-# Stage 2: Runtime — slim image, no build cache/toolchain
+# Single-stage build for Python backend
 FROM python:3.11-slim
 
+# Set working directory
 WORKDIR /app
 
-# apt-get upgrade -y: picks up OS security patches at build time.
-# purge linux-libc-dev: kernel headers pulled in by base image, never needed
-# at runtime (CVE-2026-43185).
-RUN apt-get update -qq \
-    && apt-get upgrade -y \
-    && apt-get install -y --no-install-recommends \
-        curl \
-        postgresql-client \
-    && apt-get purge -y --auto-remove linux-libc-dev \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    bash \
+    gcc \
+    postgresql-client \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /opt/venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+# Copy requirements first for better caching
+COPY requirements.txt .
 
-COPY start.sh main.py alembic.ini lambda_handler.py .
-COPY alembic ./alembic
-COPY core ./core
-COPY data_models ./data_models
-COPY dependencies ./dependencies
-COPY middlewares ./middlewares
-COPY mock_data ./mock_data
-COPY models ./models
-COPY modules ./modules
-COPY schemas ./schemas
-COPY scripts ./scripts
-COPY services ./services
-COPY tasks ./tasks
-COPY utils ./utils
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-RUN sed -i 's/\r$//' start.sh && chmod +x start.sh \
-    && mkdir -p logs \
-    && adduser --disabled-password --gecos "" --uid 1000 appuser \
-    && chown -R appuser:appuser /app
+# Copy application code
+COPY . .
 
+# Make start.sh executable
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
+
+# Create logs directory
+RUN mkdir -p logs
+
+# Create non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
 USER appuser
 
+# Expose port
 EXPOSE 8000
 
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
+# Start application with migrations
 CMD ["./start.sh"]

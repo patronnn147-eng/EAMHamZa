@@ -12,6 +12,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import {
+} from '@/components/ui/select';
 import { Wrench, Download, FileText, Loader2, Zap, Activity, History, AlertCircle } from 'lucide-react';
 import { Separator as UISeparator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -22,6 +24,7 @@ const getAuthToken = () => localStorage.getItem('access_token');
 
 interface InterventionsTabProps {
   interventions: Intervention[];
+  fetchInterventions: (filters?: { statut?: string; page?: number; size?: number }) => Promise<void>;
   approveIntervention?: (interventionId: number) => Promise<void>;
   rejectIntervention?: (interventionId: number, reason?: string) => Promise<void>;
   noGrouping?: boolean;
@@ -68,7 +71,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
       a.download = filename;
       document.body.appendChild(a);
       a.click();
-      a.remove();
+      document.body.removeChild(a);
     } catch (err) {
       console.error('Download error:', err);
     } finally {
@@ -83,11 +86,11 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
     return (
       <div className="space-y-1">
         {parts.map((part, idx) => {
-          const match = /\[FILE:([^|]+)\|([^\]]+)\]/.exec(part);
+          const match = part.match(/\[FILE:([^|]+)\|([^\]]+)\]/);
           if (match) {
             const [, key, name] = match;
             return (
-              <div key={`file-${key}`} className="flex items-center gap-2 mt-1">
+              <div key={idx} className="flex items-center gap-2 mt-1">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -105,7 +108,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
               </div>
             );
           }
-          return <p key={`text-${idx}`} className="whitespace-pre-wrap">{part}</p>;
+          return <p key={idx} className="whitespace-pre-wrap">{part}</p>;
         })}
       </div>
     );
@@ -133,6 +136,11 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
     if (!start) return 0;
     const end = i.date_fin ? new Date(i.date_fin).getTime() : now;
     return Math.max(0, end - start);
+  };
+
+  const hasChrono = (i: Intervention) => {
+    const s = i.statut || 'EN_ATTENTE';
+    return s === 'APPROVED' || s === 'VALIDE' || s === 'EN_COURS' || s === 'TERMINÉ' || s === 'TERMINE' || s === 'BLOQUÉ';
   };
 
   const displayList = useMemo(
@@ -178,7 +186,7 @@ export const InterventionsTab: React.FC<InterventionsTabProps> = ({
                           <span className="text-sm text-blue-300">Machine: #{intervention.machine_id}</span>
                         )}
                         <span className="text-sm font-medium text-blue-600">
-                          Par: {intervention.technicien_nom || (intervention.technician_id ? `Tech #${intervention.technician_id}` : 'ChefOp')}
+                          Par: {intervention.technicien_id ? `Tech #${intervention.technicien_id}` : 'ChefOp'}
                         </span>
                         <span className="text-sm text-blue-300">
                           {new Date(intervention.date_intervention).toLocaleDateString()}

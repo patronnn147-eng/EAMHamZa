@@ -1,11 +1,11 @@
-﻿from core.database import Base
+from core.database import Base
 from sqlalchemy import Column, DateTime, Integer, String, Text, Boolean
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
-class OrdresIntervention(Base):
-    __tablename__ = "OrdresIntervention"
+class Ordres_intervention(Base):
+    __tablename__ = "ordres_intervention"
     __table_args__ = {"extend_existing": True}
 
     id = Column(
@@ -19,9 +19,7 @@ class OrdresIntervention(Base):
     planning_tache_id = Column(
         Integer, nullable=True
     )  # Links intervention to a specific task
-    # 32, not 20: the workflow writes "CONVERTED_TO_WORKORDER" (22 chars).
-    # See migration widen_intervention_statut.
-    statut = Column(String(32), nullable=False, default="EN_ATTENTE")
+    statut = Column(String(20), nullable=False, default="EN_ATTENTE")
     problem_description = Column(Text, nullable=True)
     priority = Column(String(20), nullable=True)
     estimated_duration_minutes = Column(Integer, nullable=True)
@@ -55,9 +53,6 @@ class OrdresIntervention(Base):
     retrained = Column(
         Boolean, nullable=True, default=False
     )  # Has this feedback been used to retrain the model?
-    is_synthetic = Column(
-        Boolean, nullable=False, default=False, server_default="false"
-    )  # True for rows created by seed_ml_data_all.py — excluded from ML retrain ground truth
 
     # --- New Enhanced DI Fields ---
     machine_category = Column(String(50), nullable=True)  # critical / non-critical
@@ -111,19 +106,19 @@ class OrdresIntervention(Base):
     # Relationships for eager loading (no FK constraints in DB, use primaryjoin)
     machine = relationship(
         "Machines",
-        primaryjoin="foreign(OrdresIntervention.machine_id) == Machines.id",
+        primaryjoin="foreign(Ordres_intervention.machine_id) == Machines.id",
         lazy="noload",
         viewonly=True,
     )
     technician = relationship(
         "Utilisateurs",
-        primaryjoin="foreign(OrdresIntervention.technician_id) == Utilisateurs.id",
+        primaryjoin="foreign(Ordres_intervention.technician_id) == Utilisateurs.id",
         lazy="noload",
         viewonly=True,
     )
     ordre_travail = relationship(
-        "OrdresTravail",
-        primaryjoin="foreign(OrdresIntervention.ordre_travail_id) == OrdresTravail.id",
+        "Ordres_travail",
+        primaryjoin="foreign(Ordres_intervention.ordre_travail_id) == Ordres_travail.id",
         lazy="noload",
         viewonly=True,
     )
@@ -135,7 +130,7 @@ class OrdresIntervention(Base):
     # `consumed_pieces` and are reachable via `consumed_items` relationship.
     consumed_items = relationship(
         "ConsumedPiece",
-        primaryjoin="foreign(ConsumedPiece.intervention_id) == OrdresIntervention.id",
+        primaryjoin="foreign(ConsumedPiece.intervention_id) == Ordres_intervention.id",
         lazy="noload",
         viewonly=True,
     )

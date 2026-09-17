@@ -1,4 +1,4 @@
-﻿"""Add planning_id to intervention model for Phase 2
+"""Add planning_id to intervention model for Phase 2
 
 Revision ID: phase2_intervention_planning
 Revises: interventions_approval_workflow
@@ -34,23 +34,23 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add planning_id column to link interventions to plannings."""
-    if not _column_exists("OrdresIntervention", "planning_id"):
+    if not _column_exists("ordres_intervention", "planning_id"):
         op.add_column(
-            "OrdresIntervention",
+            "ordres_intervention",
             sa.Column("planning_id", sa.Integer(), nullable=True),
         )
         # Create index for faster queries
         op.create_index(
-            "ix_OrdresIntervention_planning_id",
-            "OrdresIntervention",
+            "ix_ordres_intervention_planning_id",
+            "ordres_intervention",
             ["planning_id"],
             unique=False,
         )
         # Add foreign key constraint (optional, will fail gracefully if plannings table doesn't exist)
         try:
             op.create_foreign_key(
-                "fk_OrdresIntervention_planning_id",
-                "OrdresIntervention",
+                "fk_ordres_intervention_planning_id",
+                "ordres_intervention",
                 "plannings",
                 ["planning_id"],
                 ["id"],
@@ -63,7 +63,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove planning_id column."""
     op.drop_index(
-        "ix_OrdresIntervention_planning_id",
-        table_name="OrdresIntervention",
+        "ix_ordres_intervention_planning_id",
+        table_name="ordres_intervention",
     )
-    op.drop_column("OrdresIntervention", "planning_id")
+    op.drop_column("ordres_intervention", "planning_id")

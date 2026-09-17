@@ -38,10 +38,9 @@ const ChartContainer = React.forwardRef<
 >(({ id, className, children, config, ...props }, ref) => {
   const uniqueId = React.useId();
   const chartId = `chart-${id || uniqueId.replace(/:/g, '')}`;
-  const chartContextValue = React.useMemo(() => ({ config }), [config]);
 
   return (
-    <ChartContext.Provider value={chartContextValue}>
+    <ChartContext.Provider value={{ config }}>
       <div
         data-chart={chartId}
         ref={ref}
@@ -68,7 +67,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
 
   return (
     <style
-      dangerouslySetInnerHTML={{ // NOSONAR -- content is CSS generated from our own theme config, never user input
+      dangerouslySetInnerHTML={{
         __html: Object.entries(THEMES)
           .map(
             ([theme, prefix]) => `
@@ -156,7 +155,7 @@ const ChartTooltipContent = React.forwardRef<
           className
         )}
       >
-        {nestLabel ? null : tooltipLabel}
+        {!nestLabel ? tooltipLabel : null}
         <div className="grid gap-1.5">
           {payload.map((item, index) => {
             const key = `${nameKey || item.name || item.dataKey || 'value'}`;

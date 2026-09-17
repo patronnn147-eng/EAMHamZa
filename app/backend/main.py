@@ -1,4 +1,4 @@
-﻿import importlib
+import importlib
 import logging
 import os
 import pkgutil
@@ -17,8 +17,6 @@ from core.rabbitmq import get_rabbitmq, RabbitMQService
 # Import all models to ensure they are registered with SQLAlchemy metadata
 # MODULE_IMPORTS_END
 
-DEFAULT_LOG_DIR = "logs"
-
 
 def setup_logging():
     """Configure the logging system."""
@@ -26,12 +24,13 @@ def setup_logging():
         return
 
     # Create the logs directory
-    if not os.path.exists(DEFAULT_LOG_DIR):
-        os.makedirs(DEFAULT_LOG_DIR)
+    log_dir = "logs"
+    if not os.path.exists(log_dir):
+        os.makedirs(log_dir)
 
     # Generate log filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = f"{DEFAULT_LOG_DIR}/app_{timestamp}.log"
+    log_file = f"{log_dir}/app_{timestamp}.log"
 
     # Configure log format
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -86,6 +85,7 @@ async def lifespan(app: FastAPI):
     # or unconditionally when RAG_BACKFILL_ON_STARTUP=true. Non-blocking — task runs
     # in celery_worker so app startup is not delayed.
     try:
+        import os
         from sqlalchemy import text
         from core.database import db_manager
 
@@ -147,50 +147,13 @@ app.add_middleware(
 
 
 # Auto-discover and include all routers from the local `routers` package
-def _try_include_router(app: FastAPI, attr, module_name: str, attr_name: str, logger) -> int:
-    """Include one router attribute (APIRouter or list thereof). Returns count included."""
-    if isinstance(attr, APIRouter):
-        if "auth" in module_name:
-            app.include_router(attr, prefix="/api/v1/auth")
-        else:
-            app.include_router(attr)
-        logger.info("Included router: %s.%s", module_name, attr_name)
-        return 1
-    if isinstance(attr, (list, tuple)):
-        count = 0
-        for idx, item in enumerate(attr):
-            if isinstance(item, APIRouter):
-                app.include_router(item)
-                count += 1
-                logger.info(
-                    "Included router from list: %s.%s[%d]", module_name, attr_name, idx
-                )
-        return count
-    return 0
-
-
-def _process_module(app: FastAPI, module_name: str, logger) -> int:
-    """Import one module and include all router variables found. Returns count included."""
-    try:
-        # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.walk_packages() enumerating the local routers/ package, never user input
-        module = importlib.import_module(module_name)  # fmt: skip
-    except Exception as exc:  # pragma: no cover - defensive logging
-        logger.warning("Failed to import module '%s': %s", module_name, exc)
-        return 0
-    count = 0
-    for attr_name in ("router", "admin_router"):
-        if not hasattr(module, attr_name):
-            continue
-        count += _try_include_router(app, getattr(module, attr_name), module_name, attr_name, logger)
-    return count
-
-
 def include_routers_from_package(app: FastAPI, package_name: str = "routers") -> None:
     """Discover and include all APIRouter objects from a package.
 
     This scans the given package (and subpackages) for module-level variables that
     are instances of FastAPI's APIRouter. It supports "router", "admin_router" names.
     """
+
     logger = logging.getLogger(__name__)
 
     try:
@@ -204,9 +167,42 @@ def include_routers_from_package(app: FastAPI, package_name: str = "routers") ->
     for _finder, module_name, is_pkg in pkgutil.walk_packages(
         pkg.__path__, pkg.__name__ + "."
     ):
+        # Only import leaf modules; subpackages will be walked automatically
         if is_pkg:
             continue
-        discovered += _process_module(app, module_name, logger)
+        try:
+            # nosemgrep: python.lang.security.audit.non-literal-import.non-literal-import -- module_name comes from pkgutil.walk_packages() enumerating the local routers/ package, never user input
+            module = importlib.import_module(module_name)  # fmt: skip
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to import module '%s': %s", module_name, exc)
+            continue
+
+        # Check for router variable names: router and admin_router
+        for attr_name in ("router", "admin_router"):
+            if not hasattr(module, attr_name):
+                continue
+
+            attr = getattr(module, attr_name)
+
+            if isinstance(attr, APIRouter):
+                # Add /api/v1/auth prefix for auth router
+                if "auth" in module_name:
+                    app.include_router(attr, prefix="/api/v1/auth")
+                else:
+                    app.include_router(attr)
+                discovered += 1
+                logger.info("Included router: %s.%s", module_name, attr_name)
+            elif isinstance(attr, (list, tuple)):
+                for idx, item in enumerate(attr):
+                    if isinstance(item, APIRouter):
+                        app.include_router(item)
+                        discovered += 1
+                        logger.info(
+                            "Included router from list: %s.%s[%d]",
+                            module_name,
+                            attr_name,
+                            idx,
+                        )
 
     if discovered == 0:
         logger.debug("No routers discovered in package '%s'", package_name)
@@ -221,7 +217,7 @@ from modules.ml.router import router as ml_router  # noqa: E402
 
 app.include_router(ml_router)
 
-# Note: PlanningTaches routers are auto-included via include_routers_from_package
+# Note: planning_taches routers are auto-included via include_routers_from_package
 
 
 @app.get("/")

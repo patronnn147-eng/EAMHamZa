@@ -1,9 +1,9 @@
-﻿from datetime import datetime
+from datetime import datetime
 from typing import List, Optional
 from pydantic import BaseModel
 
 
-class PlanningOrdresTravailData(BaseModel):
+class Planning_ordres_travailData(BaseModel):
     """Entity data schema (for create/update)"""
 
     planning_id: int
@@ -11,7 +11,7 @@ class PlanningOrdresTravailData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class PlanningOrdresTravailUpdateData(BaseModel):
+class Planning_ordres_travailUpdateData(BaseModel):
     """Update entity data (partial updates allowed)"""
 
     planning_id: Optional[int] = None
@@ -19,7 +19,7 @@ class PlanningOrdresTravailUpdateData(BaseModel):
     created_at: Optional[datetime] = None
 
 
-class PlanningOrdresTravailResponse(BaseModel):
+class Planning_ordres_travailResponse(BaseModel):
     """Entity response schema"""
 
     id: int
@@ -31,35 +31,35 @@ class PlanningOrdresTravailResponse(BaseModel):
         from_attributes = True
 
 
-class PlanningOrdresTravailListResponse(BaseModel):
+class Planning_ordres_travailListResponse(BaseModel):
     """List response schema"""
 
-    items: List[PlanningOrdresTravailResponse]
+    items: List[Planning_ordres_travailResponse]
     total: int
     skip: int
     limit: int
 
 
-class PlanningOrdresTravailBatchCreateRequest(BaseModel):
+class Planning_ordres_travailBatchCreateRequest(BaseModel):
     """Batch create request"""
 
-    items: List[PlanningOrdresTravailData]
+    items: List[Planning_ordres_travailData]
 
 
-class PlanningOrdresTravailBatchUpdateItem(BaseModel):
+class Planning_ordres_travailBatchUpdateItem(BaseModel):
     """Batch update item"""
 
     id: int
-    updates: PlanningOrdresTravailUpdateData
+    updates: Planning_ordres_travailUpdateData
 
 
-class PlanningOrdresTravailBatchUpdateRequest(BaseModel):
+class Planning_ordres_travailBatchUpdateRequest(BaseModel):
     """Batch update request"""
 
-    items: List[PlanningOrdresTravailBatchUpdateItem]
+    items: List[Planning_ordres_travailBatchUpdateItem]
 
 
-class PlanningOrdresTravailBatchDeleteRequest(BaseModel):
+class Planning_ordres_travailBatchDeleteRequest(BaseModel):
     """Batch delete request"""
 
     ids: List[int]

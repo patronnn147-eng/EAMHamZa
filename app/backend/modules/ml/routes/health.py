@@ -71,6 +71,11 @@ def _build_uh_base_response(
         "reliability_score": prediction.get("reliability_score"),
         "explanations": prediction.get("explanations", []),
         "is_anomaly": prediction.get("is_anomaly", False),
+        # The failure-type classifier's own output. It was already computed by
+        # the ml-microservice and consumed internally by the KPI blend, but was
+        # never returned — so the UI's classification card had nothing to render
+        # and fell back to guessing from the anomaly flags.
+        "p2_failure_types": fr.get("p2_failure_types") if fr else None,
         "p4_anomaly_score": fr.get("p4_anomaly_score", 0.0) if fr else 0.0,
         "predicted_priority": prediction.get("predicted_priority"),
         "air_temperature": _air,
@@ -82,17 +87,22 @@ def _build_uh_base_response(
     }
 
 
-async def _try_update_maintenance_schedule(machine, db: AsyncSession, schedule_days) -> Optional[float]:
-    """Persist date_prochaine_maintenance and return rounded schedule days (non-fatal)."""
-    rounded = round(schedule_days, 1) if schedule_days is not None else None
-    if schedule_days and schedule_days > 0:
-        try:
-            base = machine.date_derniere_maintenance or datetime.now().astimezone()
-            machine.date_prochaine_maintenance = base + timedelta(days=round(schedule_days))
-            await db.commit()
-        except Exception:
-            pass  # never break the response
-    return rounded
+def _schedule_recommendation(schedule_days) -> tuple:
+    """Return (rounded_days, recommended_date_iso) for the schedule model.
+
+    The recommendation is a horizon measured from *now* — "service this machine
+    within N days" — so the date it implies is now + N. It used to be anchored
+    to date_derniere_maintenance and written straight onto the machine, which
+    made the card show a day count and a date that disagreed (last maintenance
+    was already in the past), and made a GET silently mutate a column that the
+    overdue dashboards and the maintenance_scheduler task read to auto-create
+    work orders. The planned date stays owned by whoever plans; this endpoint
+    only reports what the model recommends.
+    """
+    if schedule_days is None or schedule_days <= 0:
+        return None if schedule_days is None else round(schedule_days, 1), None
+    recommended = datetime.now(timezone.utc) + timedelta(days=round(schedule_days))
+    return round(schedule_days, 1), recommended.isoformat()
 
 
 async def _enrich_parts_demand_with_real_stock(parts_demand: Dict, db: AsyncSession) -> Dict:
@@ -263,7 +273,7 @@ async def get_unified_health(
         telemetry_points=len(telemetry_entries),
     )
 
-    await _attach_parts_and_schedule(response, machine, fusion_result, machine_id, db)
+    await _attach_parts_and_schedule(response, fusion_result, machine_id, db)
     await _attach_recovery(response, machine_id, db)
     _attach_sensor_status(response, machine)
 
@@ -312,7 +322,7 @@ async def _run_ml_fusion(telemetry_entries, telemetry_logs, sensors: tuple, mach
 
 
 async def _attach_parts_and_schedule(
-    response: Dict, machine, fusion_result: Optional[Dict], machine_id: int, db: AsyncSession
+    response: Dict, fusion_result: Optional[Dict], machine_id: int, db: AsyncSession
 ) -> None:
     try:
         parts_readiness = await get_machine_parts_readiness(machine_id, db)
@@ -321,8 +331,8 @@ async def _attach_parts_and_schedule(
     response["parts_readiness"] = parts_readiness
 
     _schedule_days = fusion_result.get("p6_schedule_days") if fusion_result else None
-    response["p6_schedule_days"] = await _try_update_maintenance_schedule(
-        machine, db, _schedule_days
+    response["p6_schedule_days"], response["p6_recommended_date"] = _schedule_recommendation(
+        _schedule_days
     )
 
     _parts_demand = fusion_result.get("p7_parts_demand") if fusion_result else None

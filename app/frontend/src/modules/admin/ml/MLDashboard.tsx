@@ -22,7 +22,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { ModelHealthTable } from './ModelHealthTable';
-import { AnomalyReviewQueue } from './AnomalyReviewQueue';
 
 interface MLStats {
     new_data_points: number;
@@ -32,20 +31,6 @@ interface ModelMetrics {
     roc_auc?: number;
     pr_auc?: number;
     f1_failure?: number;
-    retrained_at?: string;
-}
-
-function formatRelativeTime(isoDate: string): string {
-    const then = new Date(isoDate).getTime();
-    if (Number.isNaN(then)) return 'Date inconnue';
-    const diffMs = Date.now() - then;
-    const diffMin = Math.round(diffMs / 60000);
-    if (diffMin < 1) return "À l'instant";
-    if (diffMin < 60) return `Il y a ${diffMin} min`;
-    const diffH = Math.round(diffMin / 60);
-    if (diffH < 24) return `Il y a ${diffH} h`;
-    const diffD = Math.round(diffH / 24);
-    return `Il y a ${diffD} j`;
 }
 
 interface RetrainResult {
@@ -57,11 +42,13 @@ interface RetrainResult {
 export default function MLDashboard() {
     const [stats, setStats] = useState<MLStats | null>(null);
     const [metrics, setMetrics] = useState<ModelMetrics | null>(null);
+    const [loading, setLoading] = useState(true);
     const [retraining, setRetraining] = useState(false);
     const { toast } = useToast();
 
     const fetchStats = async () => {
         try {
+            setLoading(true);
             const response = await fetch('/api/v1/ml/retrain/stats');
             if (response.ok) {
                 const data = await response.json();
@@ -69,6 +56,8 @@ export default function MLDashboard() {
             }
         } catch (error) {
             console.error('Failed to fetch ML stats:', error);
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -149,8 +138,6 @@ export default function MLDashboard() {
 
             <ModelHealthTable />
 
-            <AnomalyReviewQueue />
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Data Collection Card */}
                 <Card className="border-blue-100 shadow-sm">
@@ -218,12 +205,9 @@ export default function MLDashboard() {
                     </CardHeader>
                     <CardContent>
                         <div className="flex flex-col gap-1">
-                            <span className="text-xl font-bold text-blue-100">
-                                {metrics?.retrained_at ? formatRelativeTime(metrics.retrained_at) : 'Jamais'}
-                            </span>
+                            <span className="text-xl font-bold text-blue-100">Il y a 2 jours</span>
                             <span className="text-xs text-blue-300 text-emerald-600 font-medium flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3" />
-                                État : {metrics?.retrained_at ? 'Stable' : 'Aucune donnée'}
+                                <CheckCircle2 className="h-3 w-3" /> État : Stable
                             </span>
                         </div>
                     </CardContent>

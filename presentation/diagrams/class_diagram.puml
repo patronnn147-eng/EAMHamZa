@@ -1,0 +1,328 @@
+@startuml class_diagram
+title EAM SagemCom — Class Diagram (real ORM models, full attribute detail)
+
+skinparam monochrome false
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Segoe UI
+skinparam defaultFontSize 12
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 60
+skinparam class {
+  BackgroundColor White
+  BorderColor Black
+  ArrowColor Black
+}
+skinparam note {
+  BackgroundColor #F5F5F5
+  BorderColor #999999
+}
+hide circle
+
+' -----------------------------------------------------------------
+' Junction/bridge tables (planning_OrdresTravail, PlanningMachines,
+' PlanningUtilisateurs) are intentionally NOT modeled here — only
+' direct FK-backed relations between the real business classes.
+' -----------------------------------------------------------------
+
+class Ordres {
+  table: ordres
+  ..
+  - id : int <<PK>>
+  - identifiant : String
+  - titre : String
+  - description : String
+  - date_creation : DateTime
+  - statut : String
+  - created_at : DateTime
+}
+note right of Ordres
+  Standalone table — no FK / relationship
+  to any other class in the codebase.
+end note
+
+class Machines {
+  table: machines
+  ..
+  - id : int <<PK>>
+  - nom : String
+  - type : String
+  - emplacement : String
+  - zone : String
+  - sous_zone : String
+  - ordre : String
+  - statut : String = "OPERATIONNELLE"
+  - date_derniere_maintenance : DateTime
+  - date_prochaine_maintenance : DateTime
+  - image_url : String
+  - created_at : DateTime
+}
+
+class Utilisateurs {
+  table: utilisateurs
+  ..
+  - id : int <<PK>>
+  - nom : String(255)
+  - email : String(255) <<unique>>
+  - mot_de_passe : String(255)
+  - role : UserRole
+  - status : UserStatus
+  - shift_type : UserShiftType
+  - created_at : DateTime
+  - updated_at : DateTime
+  __
+  + __repr__() : str
+}
+
+class OrdresTravail {
+  table: OrdresTravail
+  ..
+  - id : int <<PK>>
+  - titre : String(255)
+  - description : Text
+  - priorite : String(20)
+  - machine_id : int <<FK>>
+  - utilisateur_id : int <<FK, null>>
+  - date_echeance : DateTime
+  - statut : OrdreStatut
+  - created_by : int
+  - validated_by : int
+  - date_validation : DateTime
+  - estimated_duration : int
+  - date_debut : DateTime
+  - date_fin : DateTime
+  - rapport : Text
+  - failure_type : String(100)
+  - cheftech_feedback : Text
+  - timer_started_at : DateTime
+  - created_at : DateTime
+  - archived_at : DateTime
+  - archive_reason : String(50)
+  - updated_at : DateTime
+  - health_score_at_creation : float
+  - health_score_at_completion : float
+}
+
+class OrdresIntervention {
+  table: OrdresIntervention (52 columns — real ORM model)
+  .. core ..
+  - id : int <<PK>>
+  - date_intervention : DateTime
+  - rapport : String
+  - ordre_travail_id : int <<FK>>
+  - technician_id : int <<FK>>
+  - planning_id : int <<FK>>
+  - planning_tache_id : int
+  - statut : String(32) = "EN_ATTENTE"
+  - problem_description : Text
+  - priority : String(20)
+  - estimated_duration_minutes : int
+  - required_materials : Text
+  - machine_id : int <<FK>>
+  - requested_at : DateTime
+  - requested_by : int
+  - approved_by : int
+  - approved_at : DateTime
+  - rejection_reason : Text
+  - date_debut : DateTime
+  - date_fin : DateTime
+  - created_at : DateTime
+  - archived_at : DateTime
+  - archive_reason : String(50)
+  - updated_at : DateTime
+  .. PDCA feedback ..
+  - actual_failure_type : String(20)
+  - ml_prediction_matched : bool
+  - retrained : bool
+  - is_synthetic : bool
+  .. enhanced diagnosis ..
+  - machine_category : String(50)
+  - symptoms : Text
+  - problem_start_time : DateTime
+  - frequency : String(50)
+  - operating_state : String(50)
+  - temperature : String(50)
+  - impact : String(100)
+  - estimated_loss : String(100)
+  - similar_issue_before : bool
+  .. AI / prediction ..
+  - suggested_cause : String(255)
+  - suggested_priority : String(50)
+  - risk_score : String(50)
+  .. enhanced report ..
+  - intervention_type : String(50)
+  - root_cause_category : String(50)
+  - root_cause_description : Text
+  - actions_performed : Text
+  - legacy_parts_text : Text
+  - tools_used : Text
+  - machine_status_after : String(50)
+  - parts_approved : bool
+  .. PDCA plan / check / act ..
+  - plan_hypothesis : Text
+  - check_resolved : bool
+  - check_verification_method : String(100)
+  - act_preventive_actions : Text
+  - act_recommendations : Text
+  __
+  + parts_replaced : str <<computed property, reads ConsumedPiece>>
+}
+
+class Plannings {
+  table: plannings
+  ..
+  - id : int <<PK>>
+  - identifiant_planning : String
+  - date_debut : DateTime
+  - date_fin : DateTime
+  - type : PlanningType
+  - shift_type : ShiftType <<null>>
+  - planning_statut : PlanningStatut
+  - chef_operation_id : int <<FK>>
+  - chef_technique_id : int <<FK>>
+  - zone_travail : String(100)
+  - sous_zone : String(100)
+  - ordre : String(100)
+  - created_at : DateTime
+  - archived_at : DateTime
+  - archive_reason : String(50)
+}
+
+class Rapports {
+  table: rapports
+  ..
+  - id : int <<PK>>
+  - identifiant_rapport : String
+  - titre : String
+  - date_generation : DateTime
+  - contenu : String
+  - utilisateur_id : int <<FK>>
+  - created_at : DateTime
+  - report_type : String(50)
+  - schedule_config : JSON
+  - last_sent_at : DateTime
+  - is_active : bool = true
+}
+
+class Archives {
+  table: archives
+  ..
+  - id : int <<PK>>
+  - identifiant_archive : String
+  - nom : String
+  - date_archivage : DateTime
+  - type : String
+  - object_key : String
+  - ordre_travail_id : int <<FK>>
+  - created_at : DateTime
+}
+
+class MaintenancesPlanifiees {
+  table: MaintenancesPlanifiees
+  ..
+  - id : int <<PK>>
+  - utilisateur_id : int <<FK>>
+  - rapport_id : int <<FK>>
+  - date_planifiee : DateTime
+  - description : String
+  - created_at : DateTime
+}
+
+' -----------------------------------------------------------------
+' Enumerations / value domains
+' -----------------------------------------------------------------
+enum UserRole {
+  TECHNICIEN
+  CHEFTECH
+  CHETOP
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ShiftType {
+  MORNING
+  NIGHT
+}
+note bottom of ShiftType
+  Same shape as UserShiftType
+  (Utilisateurs) and ShiftType
+  (Plannings) — two separate
+  Python enum classes in code.
+end note
+
+enum OrdreStatut {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  ASSIGNED
+  IN_PROGRESS
+  COMPLETED
+  VALIDATED
+  CLOSED
+  REJECTED
+  ANNULÉ
+}
+
+enum PlanningType {
+  MAINTENANCE
+  SHIFT
+  HEBDOMADAIRE
+  MENSUEL
+  JOURNALIER
+}
+
+enum PlanningStatut {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum ReportType {
+  WEEKLY_DIGEST
+  MONTHLY_SUMMARY
+  ASSET_HEALTH
+  MAINTENANCE_COSTS
+  ML_PREDICTIONS
+}
+
+enum "Priorité (value set)" as Priorite {
+  BASSE
+  MOYENNE
+  ÉLEVÉE
+  URGENTE
+}
+
+' -----------------------------------------------------------------
+' Relations — direct FK-backed only (no junction tables)
+' -----------------------------------------------------------------
+Machines        "1" -- "*"    OrdresTravail        : machine_id
+Machines        "1" -- "*"    OrdresIntervention   : machine_id
+Utilisateurs    "1" -- "0..*" OrdresTravail        : utilisateur_id\n(assigné)
+Utilisateurs    "1" -- "*"    OrdresIntervention   : technician_id
+OrdresTravail   "1" -- "*"    OrdresIntervention   : ordre_travail_id
+OrdresTravail   "1" -- "*"    Archives             : ordre_travail_id
+OrdresIntervention "*" -- "1" Plannings            : planning_id
+Utilisateurs    "1" -- "*"    Plannings            : chef_operation_id /\nchef_technique_id
+Utilisateurs    "1" -- "*"    Rapports             : utilisateur_id\n(généré par)
+Rapports        "1" -- "*"    MaintenancesPlanifiees : rapport_id
+Utilisateurs    "1" -- "*"    MaintenancesPlanifiees : utilisateur_id
+
+Utilisateurs ..> UserRole
+Utilisateurs ..> UserStatus
+Utilisateurs ..> ShiftType
+OrdresTravail ..> OrdreStatut
+OrdresTravail ..> Priorite
+OrdresIntervention ..> Priorite
+Plannings ..> PlanningType
+Plannings ..> PlanningStatut
+Plannings ..> ShiftType
+Rapports ..> ReportType
+
+@enduml

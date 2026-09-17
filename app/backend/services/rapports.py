@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from models.rapports import Rapports
 from models.machines import Machines
 from models.alertes import Alert
-from services._crud_helpers import apply_filters as _apply_filters, apply_sort as _apply_sort
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +44,6 @@ class RapportsService:
             logger.exception(f"Error fetching rapports {obj_id}: {str(e)}")
             raise
 
-
     async def get_list(
         self,
         skip: int = 0,
@@ -55,17 +53,40 @@ class RapportsService:
     ) -> Dict[str, Any]:
         """Get paginated list of rapportss"""
         try:
-            query, count_query = _apply_filters(
-                select(Rapports),
-                select(func.count(Rapports.id)),
-                Rapports,
-                query_dict,
-            )
-            total = (await self.db.execute(count_query)).scalar()
-            query = _apply_sort(query, sort, Rapports)
+            query = select(Rapports)
+            count_query = select(func.count(Rapports.id))
+
+            if query_dict:
+                for field, value in query_dict.items():
+                    if hasattr(Rapports, field):
+                        query = query.where(getattr(Rapports, field) == value)
+                        count_query = count_query.where(
+                            getattr(Rapports, field) == value
+                        )
+
+            count_result = await self.db.execute(count_query)
+            total = count_result.scalar()
+
+            if sort:
+                if sort.startswith("-"):
+                    field_name = sort[1:]
+                    if hasattr(Rapports, field_name):
+                        query = query.order_by(getattr(Rapports, field_name).desc())
+                else:
+                    if hasattr(Rapports, sort):
+                        query = query.order_by(getattr(Rapports, sort))
+            else:
+                query = query.order_by(Rapports.id.desc())
+
             result = await self.db.execute(query.offset(skip).limit(limit))
             items = result.scalars().all()
-            return {"items": items, "total": total, "skip": skip, "limit": limit}
+
+            return {
+                "items": items,
+                "total": total,
+                "skip": skip,
+                "limit": limit,
+            }
         except Exception as e:
             logger.exception(f"Error fetching rapports list: {str(e)}")
             raise

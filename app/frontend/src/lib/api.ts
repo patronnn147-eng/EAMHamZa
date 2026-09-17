@@ -58,7 +58,6 @@ apiCall.invoke = async function (config: any) {
     // If 401, token is definitely bad
     if (error?.response?.status === 401) {
       localStorage.removeItem('access_token');
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
     }
     return { data: null };

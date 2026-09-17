@@ -1,4 +1,4 @@
-﻿import logging
+import logging
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,14 +10,13 @@ from sqlalchemy import func as sa_func
 from core.database import get_db
 from core.auth import get_current_user
 from models.utilisateurs import Utilisateurs, UserRole
-from models.ordres_travail import OrdresTravail
-from models.ordres_intervention import OrdresIntervention
+from models.ordres_travail import Ordres_travail
+from models.ordres_intervention import Ordres_intervention
 from models.machines import Machines
 from models.machine_telemetry import MachineTelemetry
 from services.audit import AuditService, AuditEntityType
 from services.inventory import InventoryReservationService
 from services.ml.recovery import PostMaintenanceRecoveryService
-from modules.shared.services.machine_status_requests import create_status_change_request
 from schemas.stock import ConsumedPieceItem
 from ..schemas import WorkOrderResponse, WorkOrderCompletePayload
 from typing import Annotated
@@ -44,32 +43,27 @@ async def get_my_work_orders(
         skip = (page - 1) * size
 
         count_query = (
-            select(sa_func.count(OrdresTravail.id))
-            .where(OrdresTravail.archived_at.is_(None))
+            select(sa_func.count(Ordres_travail.id))
+            .where(Ordres_travail.archived_at.is_(None))
             .join(
-                OrdresIntervention,
-                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
             )
-            .where(OrdresIntervention.requested_by == current_user.id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         )
         total_result = await db.execute(count_query)
         total = total_result.scalar() or 0
 
         query = (
-            select(
-                OrdresTravail,
-                Machines.nom.label("machine_nom"),
-                Utilisateurs.nom.label("utilisateur_nom"),
-            )
+            select(Ordres_travail, Machines.nom.label("machine_nom"))
             .join(
-                OrdresIntervention,
-                OrdresTravail.id == OrdresIntervention.ordre_travail_id,
+                Ordres_intervention,
+                Ordres_travail.id == Ordres_intervention.ordre_travail_id,
             )
-            .outerjoin(Machines, OrdresTravail.machine_id == Machines.id)
-            .outerjoin(Utilisateurs, OrdresTravail.utilisateur_id == Utilisateurs.id)
-            .where(OrdresIntervention.requested_by == current_user.id)
-            .where(OrdresTravail.archived_at.is_(None))
-            .order_by(OrdresTravail.created_at.desc())
+            .outerjoin(Machines, Ordres_travail.machine_id == Machines.id)
+            .where(Ordres_intervention.requested_by == current_user.id)
+            .where(Ordres_travail.archived_at.is_(None))
+            .order_by(Ordres_travail.created_at.desc())
             .offset(skip)
             .limit(size)
         )
@@ -89,12 +83,11 @@ async def get_my_work_orders(
                 statut=wo.statut,
                 machine_id=wo.machine_id,
                 machine_nom=machine_nom,
-                utilisateur_nom=utilisateur_nom,
                 created_at=wo.created_at,
                 date_debut=wo.date_debut,
                 date_fin=wo.date_fin,
             )
-            for wo, machine_nom, utilisateur_nom in rows
+            for wo, machine_nom in rows
         ]
 
         return PaginatedResponse.create(items=items, total=total, page=page, size=size)
@@ -116,9 +109,9 @@ async def start_work_order(
     try:
         # Verify ownership via intervention request - check requested_by not technician_id
         check_query = (
-            select(OrdresIntervention)
-            .where(OrdresIntervention.ordre_travail_id == order_id)
-            .where(OrdresIntervention.requested_by == current_user.id)
+            select(Ordres_intervention)
+            .where(Ordres_intervention.ordre_travail_id == order_id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         )
 
         check_result = await db.execute(check_query)
@@ -128,7 +121,7 @@ async def start_work_order(
             )
 
         wo_result = await db.execute(
-            select(OrdresTravail).where(OrdresTravail.id == order_id)
+            select(Ordres_travail).where(Ordres_travail.id == order_id)
         )
         wo = wo_result.scalar_one_or_none()
         if not wo:
@@ -164,106 +157,6 @@ async def start_work_order(
         raise HTTPException(status_code=500, detail=_INTERNAL_SERVER_ERROR_MSG)
 
 
-async def _try_snapshot_health_before_complete(db: AsyncSession, wo, order_id: int) -> None:
-    """Capture pre-fix health score on the WO. Non-blocking — failures logged only."""
-    try:
-        score = await PostMaintenanceRecoveryService(db).snapshot_health(wo.machine_id)
-        if score is not None:
-            wo.health_score_at_completion = score
-    except Exception as exc:
-        logger.warning("Recovery completion snapshot failed for WO %s: %s", order_id, exc)
-
-
-def _apply_intervention_completion_fields(intervention, payload, wo, now) -> None:
-    """Write all PDCA completion fields to the intervention ORM object."""
-    intervention.statut = _STATUT_TERMINE
-    intervention.rapport = payload.rapport
-    if not intervention.date_debut:
-        intervention.date_debut = wo.date_debut or now
-    intervention.date_fin = now
-    intervention.intervention_type = payload.intervention_type
-    intervention.root_cause_category = payload.root_cause_category
-    intervention.root_cause_description = payload.root_cause_description
-    intervention.actions_performed = payload.actions_performed
-    intervention.legacy_parts_text = payload.parts_replaced
-    intervention.tools_used = payload.tools_used
-    intervention.machine_status_after = payload.machine_status_after
-    intervention.plan_hypothesis = payload.plan_hypothesis
-    intervention.check_resolved = payload.check_resolved
-    intervention.check_verification_method = payload.check_verification_method
-    intervention.act_preventive_actions = payload.act_preventive_actions
-    intervention.act_recommendations = payload.act_recommendations
-
-
-def _add_telemetry_if_present(db, payload, wo, order_id: int, now, technician_id: int) -> None:
-    """Insert a MachineTelemetry row if any sensor value was submitted."""
-    has_telemetry = any(
-        v is not None
-        for v in (
-            payload.air_temperature, payload.process_temperature,
-            payload.rotational_speed, payload.torque, payload.tool_wear,
-        )
-    )
-    if has_telemetry:
-        db.add(MachineTelemetry(
-            machine_id=wo.machine_id,
-            work_order_id=order_id,
-            technician_id=technician_id,
-            air_temperature=payload.air_temperature or 0,
-            process_temperature=payload.process_temperature or 0,
-            rotational_speed=payload.rotational_speed or 0,
-            torque=payload.torque or 0,
-            tool_wear=payload.tool_wear or 0,
-            recorded_at=now,
-            notes=f"Work order #{order_id} completion",
-        ))
-
-
-async def _apply_parts_consumption(db: AsyncSession, intervention, payload, order_id: int) -> None:
-    """Fulfill parts consumption reservations for the WO completion (atomic)."""
-    if not (intervention and getattr(payload, "parts_consumed", None)):
-        return
-    try:
-        reservation_svc = InventoryReservationService(db)
-        for raw_item in payload.parts_consumed:
-            item = ConsumedPieceItem(**raw_item) if isinstance(raw_item, dict) else raw_item
-            await reservation_svc.fulfill_reservation(
-                required_piece_id=item.required_piece_id,
-                quantity_used=item.quantity_used,
-                quantity_returned=item.quantity_returned,
-                quantity_wasted=item.quantity_wasted,
-                disposition=item.disposition,
-                notes=item.notes,
-                auto_commit=False,
-            )
-        try:
-            from modules.ml.services.demand_forecast import invalidate_forecast_cache
-            invalidate_forecast_cache()
-        except Exception:
-            pass
-    except ValueError as ve:
-        await db.rollback()
-        logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
-        raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
-
-
-async def _try_audit_chetop_complete(
-    db: AsyncSession, order_id: int, payload, user_id: int, user_name
-) -> None:
-    """Fire-and-forget audit log for CHETOP WO completion."""
-    try:
-        await AuditService(db).log_update(
-            entity_type=AuditEntityType.WORK_ORDER,
-            entity_id=order_id,
-            old_values={"statut": "EN_COURS"},
-            new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
-            user_id=user_id,
-            user_name=user_name,
-        )
-    except Exception:
-        logger.warning("Audit log failed for complete work order %s", order_id)
-
-
 @router.patch("/work-orders/{order_id}/complete", responses={400: {"description": "Only 'EN_COURS' orders can be completed"}, 403: {"description": "Forbidden; You can only complete work orders you requested"}, 404: {"description": "Work order not found"}, 500: {"description": "Internal server error"}})
 async def complete_work_order(
     order_id: int,
@@ -276,11 +169,14 @@ async def complete_work_order(
         raise HTTPException(status_code=403, detail="Forbidden")
 
     try:
-        check_result = await db.execute(
-            select(OrdresIntervention)
-            .where(OrdresIntervention.ordre_travail_id == order_id)
-            .where(OrdresIntervention.requested_by == current_user.id)
+        # Verify ownership via intervention request - check requested_by not technician_id
+        check_query = (
+            select(Ordres_intervention)
+            .where(Ordres_intervention.ordre_travail_id == order_id)
+            .where(Ordres_intervention.requested_by == current_user.id)
         )
+
+        check_result = await db.execute(check_query)
         intervention = check_result.scalar_one_or_none()
         if not intervention:
             raise HTTPException(
@@ -288,7 +184,10 @@ async def complete_work_order(
                 detail="You can only complete work orders you requested",
             )
 
-        wo = (await db.execute(select(OrdresTravail).where(OrdresTravail.id == order_id))).scalar_one_or_none()
+        wo_result = await db.execute(
+            select(Ordres_travail).where(Ordres_travail.id == order_id)
+        )
+        wo = wo_result.scalar_one_or_none()
         if not wo:
             raise HTTPException(status_code=404, detail="Work order not found")
 
@@ -298,35 +197,129 @@ async def complete_work_order(
             )
 
         now = datetime.now(timezone.utc)
-        await _try_snapshot_health_before_complete(db, wo, order_id)
+
+        # Post-maintenance recovery: capture pre-fix health state right before
+        # the WO is marked complete. Non-blocking — None if ML service is down.
+        try:
+            _pre_fix_score = await PostMaintenanceRecoveryService(db).snapshot_health(
+                wo.machine_id
+            )
+            if _pre_fix_score is not None:
+                wo.health_score_at_completion = _pre_fix_score
+        except Exception as _rec_exc:
+            logger.warning(
+                "Recovery completion snapshot failed for WO %s: %s",
+                order_id,
+                _rec_exc,
+            )
 
         wo.statut = _STATUT_TERMINE
         wo.date_fin = now
         wo.rapport = payload.rapport
 
-        machine_obj = await db.scalar(select(Machines).where(Machines.id == wo.machine_id))
+        machine_obj = await db.scalar(
+            select(Machines).where(Machines.id == wo.machine_id)
+        )
         if machine_obj:
             machine_obj.date_derniere_maintenance = now
 
-        _apply_intervention_completion_fields(intervention, payload, wo, now)
-        if payload.machine_status_after:
+        # Also update the associated intervention with enhanced fields
+        intervention.statut = _STATUT_TERMINE
+        intervention.rapport = payload.rapport
+        if not intervention.date_debut:
+            intervention.date_debut = wo.date_debut or now
+        intervention.date_fin = now
+
+        # New Report and PDCA fields
+        intervention.intervention_type = payload.intervention_type
+        intervention.root_cause_category = payload.root_cause_category
+        intervention.root_cause_description = payload.root_cause_description
+        intervention.actions_performed = payload.actions_performed
+        intervention.legacy_parts_text = payload.parts_replaced
+        intervention.tools_used = payload.tools_used
+        intervention.machine_status_after = payload.machine_status_after
+
+        intervention.plan_hypothesis = payload.plan_hypothesis
+        intervention.check_resolved = payload.check_resolved
+        intervention.check_verification_method = payload.check_verification_method
+        intervention.act_preventive_actions = payload.act_preventive_actions
+        intervention.act_recommendations = payload.act_recommendations
+
+        # =============================================
+        # Task 4+5: Save telemetry to logs AND update machine current state
+        # =============================================
+        has_telemetry = any(
+            [
+                payload.air_temperature is not None,
+                payload.process_temperature is not None,
+                payload.rotational_speed is not None,
+                payload.torque is not None,
+                payload.tool_wear is not None,
+            ]
+        )
+
+        if has_telemetry:
+            # Save to machine_telemetry_logs table (historical record)
+            telemetry_log = MachineTelemetry(
+                machine_id=wo.machine_id,
+                work_order_id=order_id,
+                technician_id=current_user.id,
+                air_temperature=payload.air_temperature or 0,
+                process_temperature=payload.process_temperature or 0,
+                rotational_speed=payload.rotational_speed or 0,
+                torque=payload.torque or 0,
+                tool_wear=payload.tool_wear or 0,
+                recorded_at=now,
+                notes=f"Work order #{order_id} completion",
+            )
+            db.add(telemetry_log)
+
+        # ── Atomic parts consumption ──────────────────────────────────────
+        if intervention and getattr(payload, "parts_consumed", None):
             try:
-                await create_status_change_request(
-                    machine_id=wo.machine_id,
-                    to_status=payload.machine_status_after,
-                    requested_by=current_user.id,
-                    source_intervention_id=intervention.id,
-                    db=db,
-                )
-            except Exception:
-                logger.warning(
-                    f"Machine status change request failed for WO {order_id}"
-                )
-        _add_telemetry_if_present(db, payload, wo, order_id, now, current_user.id)
-        await _apply_parts_consumption(db, intervention, payload, order_id)
+                reservation_svc = InventoryReservationService(db)
+                for raw_item in payload.parts_consumed:
+                    # Validate each item via Pydantic
+                    item = (
+                        ConsumedPieceItem(**raw_item)
+                        if isinstance(raw_item, dict)
+                        else raw_item
+                    )
+                    await reservation_svc.fulfill_reservation(
+                        required_piece_id=item.required_piece_id,
+                        quantity_used=item.quantity_used,
+                        quantity_returned=item.quantity_returned,
+                        quantity_wasted=item.quantity_wasted,
+                        disposition=item.disposition,
+                        notes=item.notes,
+                        auto_commit=False,
+                    )
+                try:
+                    from modules.ml.services.demand_forecast import (
+                        invalidate_forecast_cache,
+                    )
+
+                    invalidate_forecast_cache()
+                except Exception:
+                    pass
+            except ValueError as ve:
+                await db.rollback()
+                logger.warning("Parts consumption failed for OT %s: %s", order_id, ve)
+                raise HTTPException(status_code=400, detail=f"Stock insuffisant: {ve}")
 
         await db.commit()
-        await _try_audit_chetop_complete(db, order_id, payload, current_user.id, current_user.nom)
+
+        try:
+            await AuditService(db).log_update(
+                entity_type=AuditEntityType.WORK_ORDER,
+                entity_id=order_id,
+                old_values={"statut": "EN_COURS"},
+                new_values={"statut": _STATUT_TERMINE, "rapport": payload.rapport},
+                user_id=current_user.id,
+                user_name=current_user.nom,
+            )
+        except Exception:
+            logger.warning("Audit log failed for complete work order %s", order_id)
 
         return {"message": "Work order completed", "statut": _STATUT_TERMINE}
     except HTTPException:

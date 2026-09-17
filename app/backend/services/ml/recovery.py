@@ -1,4 +1,4 @@
-﻿"""
+"""
 Post-Maintenance Recovery Service.
 
 Tracks how a machine's health evolves after a work order is completed.
@@ -6,8 +6,8 @@ Uses the same P1-P6 + DST fusion models as the rest of the ML pipeline —
 no new models are trained; the unified_health_score is the single signal.
 
 Flow:
-    1. WO created -> snapshot_health() -> stored in OrdresTravail.health_score_at_creation
-    2. WO completed -> snapshot_health() -> stored in OrdresTravail.health_score_at_completion
+    1. WO created -> snapshot_health() -> stored in ordres_travail.health_score_at_creation
+    2. WO completed -> snapshot_health() -> stored in ordres_travail.health_score_at_completion
     3. Frontend reads recovery delta = current_unified_health_score - health_score_at_creation
 """
 
@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.ml_client import ml_client, is_ml_service_available
 from models.machine_telemetry import MachineTelemetry
-from models.ordres_travail import OrdresTravail, OrdreStatut
+from models.ordres_travail import Ordres_travail, OrdreStatut
 
 logger = logging.getLogger(__name__)
 
@@ -143,48 +143,61 @@ class PostMaintenanceRecoveryService:
 
     # ─────────────────────────── compute ─────────────────────────────────
 
-    @staticmethod
-    def _days_since_completion(work_order: OrdresTravail):
-        """Return (days_since, within_window) tuple, or (None, False) if no date_fin."""
-        if not work_order.date_fin:
-            return None, False
-        dt = work_order.date_fin
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc)
-        days_since = (datetime.now(timezone.utc) - dt).days
-        return days_since, days_since <= RECOVERY_WINDOW_DAYS
-
-    @staticmethod
-    def _classify_status(
-        completed: bool,
-        before: Optional[float],
-        delta: Optional[float],
-        current_score: Optional[float],
-    ) -> str:
-        """Classify the recovery status from computed inputs."""
-        if not completed:
-            return "Monitoring"
-        if before is None or delta is None:
-            return "No baseline"
-        if delta <= 0:
-            return "No improvement"
-        if current_score is not None and current_score >= RECOVERY_HEALTHY_THRESHOLD:
-            return "Recovered"
-        return "Recovering"
-
     def compute_recovery(
         self,
-        work_order: OrdresTravail,
+        work_order: Ordres_travail,
         current_score: Optional[float],
     ) -> RecoveryResult:
         """Classify recovery state for a (work_order, current_score) pair."""
-        before = float(work_order.health_score_at_creation) if work_order.health_score_at_creation is not None else None
-        after_completion = float(work_order.health_score_at_completion) if work_order.health_score_at_completion is not None else None
-        completion_date_iso = work_order.date_fin.isoformat() if work_order.date_fin else None
-        days_since, within_window = self._days_since_completion(work_order)
-        delta = round(float(current_score) - before, 2) if before is not None and current_score is not None else None
-        completed = work_order.statut in (OrdreStatut.COMPLETED, OrdreStatut.VALIDATED, OrdreStatut.CLOSED)
-        status = self._classify_status(completed, before, delta, current_score)
+        before = (
+            float(work_order.health_score_at_creation)
+            if work_order.health_score_at_creation is not None
+            else None
+        )
+        after_completion = (
+            float(work_order.health_score_at_completion)
+            if work_order.health_score_at_completion is not None
+            else None
+        )
+
+        completion_date_iso: Optional[str] = (
+            work_order.date_fin.isoformat() if work_order.date_fin else None
+        )
+
+        # Days since completion + window flag
+        days_since: Optional[int] = None
+        within_window = False
+        if work_order.date_fin:
+            dt = work_order.date_fin
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            days_since = (datetime.now(timezone.utc) - dt).days
+            within_window = days_since <= RECOVERY_WINDOW_DAYS
+
+        # Delta calculation
+        delta: Optional[float] = None
+        if before is not None and current_score is not None:
+            delta = round(float(current_score) - before, 2)
+
+        # Status classification
+        completed = work_order.statut in (
+            OrdreStatut.COMPLETED,
+            OrdreStatut.VALIDATED,
+            OrdreStatut.CLOSED,
+        )
+
+        if not completed:
+            status = "Monitoring"
+        elif before is None:
+            status = "No baseline"
+        elif delta is None:
+            status = "No baseline"
+        elif delta <= 0:
+            status = "No improvement"
+        elif current_score is not None and current_score >= RECOVERY_HEALTHY_THRESHOLD:
+            status = "Recovered"
+        else:
+            status = "Recovering"
 
         return RecoveryResult(
             work_order_id=work_order.id,
@@ -192,7 +205,9 @@ class PostMaintenanceRecoveryService:
             status=status,
             score_before=before,
             score_after_completion=after_completion,
-            current_score=round(float(current_score), 2) if current_score is not None else None,
+            current_score=(
+                round(float(current_score), 2) if current_score is not None else None
+            ),
             days_since_completion=days_since,
             within_recovery_window=within_window,
             completion_date=completion_date_iso,
@@ -210,12 +225,12 @@ class PostMaintenanceRecoveryService:
         Returns None if no qualifying WO exists.
         """
         result = await self.db.execute(
-            select(OrdresTravail)
+            select(Ordres_travail)
             .where(
-                OrdresTravail.machine_id == machine_id,
-                OrdresTravail.date_fin.isnot(None),
+                Ordres_travail.machine_id == machine_id,
+                Ordres_travail.date_fin.isnot(None),
             )
-            .order_by(OrdresTravail.date_fin.desc())
+            .order_by(Ordres_travail.date_fin.desc())
             .limit(1)
         )
         wo = result.scalar_one_or_none()

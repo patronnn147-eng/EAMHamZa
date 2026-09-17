@@ -4,20 +4,17 @@ FROM python:3.11-slim
 
 WORKDIR /workspace
 
-# Upgrade OS packages, install runtime deps, then remove linux-libc-dev
-# (kernel headers — never needed at runtime, but pulled in by python:3.11-slim base).
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl git build-essential \
-    && apt-get purge -y --auto-remove linux-libc-dev \
-    && rm -rf /var/lib/apt/lists/* \
-    && useradd -m -u 1000 appuser
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -u 1000 appuser
 
 COPY app/ml-microservice/ml_research/requirements-notebooks.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install "pip>=26.1.2" && \
-    pip install -r requirements-notebooks.txt && \
-    pip install --upgrade "jaraco.context>=6.1.0" "wheel>=0.46.2" && \
-    chown -R appuser:appuser /workspace
+    pip install -r requirements-notebooks.txt
+
+RUN chown -R appuser:appuser /workspace
 USER appuser
 
 # Jupyter config — ip must stay 0.0.0.0 for docker-compose's port mapping to reach it
